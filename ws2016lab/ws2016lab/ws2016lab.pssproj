@@ -26,13 +26,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="1_Prereq.ps1" />
-    <Compile Include="2_CreateParentDisks.ps1" />
-    <Compile Include="3_Deploy.ps1" />
-    <Compile Include="Cleanup.ps1" />
-    <Compile Include="Variables.ps1" />
-  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Target Name="Build" />
 </Project>
