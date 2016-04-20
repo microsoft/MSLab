@@ -266,55 +266,11 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 
 }else{
 
-	#TP4 Version
-	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 1 -VHDPath $workdir'\ParentDisks\Win2016Nano_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
-	&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-Windows-Server-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-Windows-Server-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-
-	Copy-Item -Path "$workdir\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$workdir\ParentDisks\Win2016NanoHV_G2.vhdx"
- 
-	&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-Windows-Server-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-Windows-Server-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-
-	Copy-Item -Path "$workdir\ParentDisks\Win2016NanoHV_G2.vhdx" -Destination "$workdir\ParentDisks\Win2016NanoHVRF_G2.vhdx"
-
-	&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHVRF_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-OneCore-ReverseForwarders-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-OneCore-ReverseForwarders-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-
-	#do some servicing
-	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx','Win2016NanoHVRF_G2.vhdx' | ForEach-Object {
-		&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ServerPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
-		}
-		&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-	}
-
-	If ($LabConfig.CreateClientParent -eq "Yes"){
-		&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ClientPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
-		}
-		&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-	}
+	Write-Host "`t Please use Windows Server TP5 and newer. Exiting" -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
 }
 
 #create Tools VHDX
