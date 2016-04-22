@@ -144,7 +144,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 		$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 	}else {
 		Write-Host "Found ISO $($ISOServer.FullName)" -ForegroundColor Green
-		$ISOServer = Mount-DiskImage -ImagePath $ISO.FullName -PassThru
+		$ISOServer = Mount-DiskImage -ImagePath $ISOServer.FullName -PassThru
 	}
 	$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
 }
