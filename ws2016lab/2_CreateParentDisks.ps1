@@ -132,7 +132,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 
 	if ( -not [bool]($ISOServer)){
 		Write-Host "No ISO found in $Workdir\OSServer" -ForegroundColor Green
-		Write-Host "please select ISO file with Windows Server 2016 wim file. Please use TP4 and newer" -ForegroundColor Green
+		Write-Host "please select ISO file with Windows Server 2016 wim file. Please use TP5 and newer" -ForegroundColor Green
 
 		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
 		$openFile = New-Object System.Windows.Forms.OpenFileDialog
