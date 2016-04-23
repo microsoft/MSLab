@@ -7,7 +7,7 @@
 
 #Usage (more info in wiki)
 
- Download scripts
+ [Download](https://github.com/Microsoft/ws2016lab/blob/master/ws2016lab.zip) scripts
  
  Unzip in some folder
  
