@@ -19,8 +19,3 @@
 
  Simple, S2D works on Windows 10
  Replica, Shared requires Failover Clustering (svhdx filter driver)
-
-#Tips
- You can copy W2016 iso into OS folder and you will not be prompted when running 2-CreateParentDisks. 
- You can copy files in \tools\toolsVHD\. Files will be added into tools.vhdx, that is mounted into the DC during deployment (3-Deploy).
- If your server is offline, run 1-Prereq somewhere else - it will generate all folders and copy it over. Then run 1-Prereq on server again.
