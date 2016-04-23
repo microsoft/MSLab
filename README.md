@@ -6,6 +6,11 @@
  This solution is used in Microsoft Premier Workshop for Software Defined Storage.
 
 #Usage (more info in wiki)
+
+ Download scripts
+ 
+ Unzip in some folder
+ 
  Right-click and run with PowerShell. (1-Prereq -> 2-CreateParentDisks -> 3-Deploy -> Cleanup (if needed) -> modify variables.ps1 -> 3-Deploy again)
 
  You will be prompted for Windows Server 2016 ISO (TP4 and newer only) when running 2-CreateParentDisks. 
