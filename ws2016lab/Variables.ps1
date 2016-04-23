@@ -25,8 +25,7 @@ $LAbVMs = @(
 )
 
 ### HELP ###
-<#
-If you need more help or different configuration options, ping me at jaromirk@microsoft.com
+<# If you need more help or different configuration options, ping me at jaromirk@microsoft.com
 
 ### Parameters ###
 
@@ -57,7 +56,7 @@ ClientEdition
 ##LABVMs##
 
 VMName
-    Can be whatever. This name will be used to domain join.
+    Can be whatever. This name will be used as name to djoin VM.
 
 Configuration
     'Simple' - No local storage. Just VM
@@ -69,35 +68,31 @@ VMSet
 	This is unique name for your set of VMs. You need to specify it for Spaces and Replica scenario, so script will connect shared disks to the same VMSet.
 
 ParentVHD
-	Win2016Core_G2.vhdx     - Windows Server 2016 Core
-	Win2016Nano_G2.vhdx     - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
-	Win2016NanoHV_G2.vhdx   - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM, Compute, SCVMM Compute
-	Win10_G2.vhdx		- Windows 10 if you selected to hydrate it with create client parent.
+	'Win2016Core_G2.vhdx'     - Windows Server 2016 Core
+	'Win2016Nano_G2.vhdx'    - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
+	'Win2016NanoHV_G2.vhdx'   - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM, Compute, SCVMM Compute
+	'Win10_G2.vhdx'		- Windows 10 if you selected to hydrate it with create client parent.
 
 StorageNetwork
 	'Yes' - Additional 2 network adapters with IP from StorageNet1 and StorageNet2 
 
 DSCMode
-	Pull/Push
-	If you dont specify anything, push will be configured
-	If you specify Pull, it will configure Pull config in VMs
+	If 'Pull', VMs will be configured to Pull config from DC.
 
 GUID
-	You can specify random GUID such as bcb6821b-dbfa-47a7-8c4d-923aaceb7479
+	You can specify random GUID such as 'bcb6821b-dbfa-47a7-8c4d-923aaceb7479'
 	You can create guid if you run this [guid]::NewGuid()
 	If you dont specify this, random guid will be used
 
 NestedVirt
-	Yes/No
-	Enables -ExposeVirtualizationExtensions $true and sets static memory
-	If Yes, nested virt is enabled
-	If No or nothing, nested virt is not configured
+	If 'Yes', nested virt is enabled
+	Enables -ExposeVirtualizationExtensions $true and sets static memory	
 
 AddToolsVHD
-	If Yes, then ToolsVHD will be added
+	If 'Yes', then ToolsVHD will be added
 
 SkipDjoin
-	If Yes, VM will not be djoined.
+	If 'Yes', VM will not be djoined.
 #>
 
 ### more Dynamic examples ###
