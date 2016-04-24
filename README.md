@@ -7,7 +7,7 @@ Simply deploy your lab just with these scripts and ISO file.
 
 #Usage (more info in wiki)
 
- [Download](https://github.com/Microsoft/ws2016lab/blob/master/ws2016lab.zip?raw=true) scripts
+ [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts
  
  Unzip in some folder
  
