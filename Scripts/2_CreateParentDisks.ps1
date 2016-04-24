@@ -15,7 +15,6 @@ $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
 #Temp variables
-#$workdir= 'E:\WSvNext'
 
 ##Load Variables....
 . "$($workdir)\variables.ps1"
