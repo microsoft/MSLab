@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		2_CreateParentDisks.ps1 = 2_CreateParentDisks.ps1
 		3_Deploy.ps1 = 3_Deploy.ps1
 		Cleanup.ps1 = Cleanup.ps1
+		..\Scripts.zip = ..\Scripts.zip
 		Variables.ps1 = Variables.ps1
 	EndProjectSection
 EndProject
