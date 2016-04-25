@@ -37,15 +37,15 @@ Prefix
 	Prefix for your lab. Each VM and switch will have this prefix.
 
 Secureboot
-	On/Off
+	'On'/'Off'
 	This enables or disables secure boot. In Microsoft we can test unsigned test builds with Secureboot off.
 
 CreateClientParent
-	Yes/No
+	'Yes'/'No'
 	If Yes, Client Parent image will be created, so you can create Windows 10 management machine.
 
 DCEdition
-	ServerDataCenter/ServerDataCenterCore
+	'ServerDataCenter'/'ServerDataCenterCore'
 	If you dont like GUI and you have management VM, you can select Core edition.
 
 ClientEdition
@@ -134,11 +134,11 @@ $LAbVMs = @()
 
 Hyperconverged S2D with nano and nested virtualization (see https://msdn.microsoft.com/en-us/virtualization/hyperv_on_windows/user_guide/nesting for more info)
 $LAbVMs = @()
-1..4 | % {"Direct$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt='Yes'} }
+1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt='Yes'} }
 
 HyperConverged Storage Spaces Direct with Nano Server
 $LAbVMs = @()
-1..4 | % {"Direct$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } }
+1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } }
 
 Disaggregated Storage Spaces Direct with Nano Server
 $LAbVMs = @()
@@ -149,10 +149,6 @@ $LAbVMs = @()
 $LAbVMs = @()
 1..2 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; StorageNetwork = 'Yes'} }
 3..4 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet2' ; StorageNetwork = 'Yes'} }
-
-Stretch cluster with Storage Spaces Direct
-$LAbVMs = @()
-1..8 | % {"Direct$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 2GB } }
 
 HyperConverged Storage Spaces with Shared Storage
 $LAbVMs = @()
