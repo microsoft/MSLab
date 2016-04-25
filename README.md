@@ -15,5 +15,5 @@ Simply deploy your lab just with these scripts and ISO file.
 
  You will be prompted for Windows Server 2016 ISO (TP5 and newer only) when running 2_CreateParentDisks.ps1. 
 
- You can create multiple scenarios if you modify variables.ps1 - **Simple**, **S2D** works on Windows 10
+ You can create [multiple scenarios](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples) if you modify variables.ps1 - **Simple**, **S2D** works on Windows 10
  **Replica**, **Shared** requires Failover Clustering (svhdx filter driver)
