@@ -25,5 +25,21 @@ Automatically hydrated Domain Controller with DHCP and one scope. There are seve
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/dhcp01.png)
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ActiveDirectory01.PNG)
 
-You can then modify variables.ps1 to hydrate whatever you want.
+You can then modify variables.ps1 to hydrate whatever you want. Like this 4 node nano s2d cluster with 200TB capacity
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/HVConsole01.png)
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ServerManager01.png)
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole01.png)
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole02.png)
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole03.png)
+
+#So what is it good for?
+
+Simulations such as
+* how to script against nano servers
+* how to automate configuration
+* what will happen when I run this and that command
+* how change drive in S2D cluster
+* ...
+* 
+
 
