@@ -1,7 +1,7 @@
 #Project Description
  Deployment Automation of Windows Server 2016 labs on WS2016/Windows10 Hyper-V
 
-Simply deploy your lab just with these scripts and ISO file.
+ Simply deploy your lab just with these scripts and ISO file.
 
  This solution is used in Microsoft Premier Workshop for Software Defined Storage.
 
