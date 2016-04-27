@@ -5,7 +5,7 @@
 
  This solution is used in Microsoft Premier Workshop for Software Defined Storage.
 
-#Usage (more info in wiki)
+#Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
  [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts and [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
  
