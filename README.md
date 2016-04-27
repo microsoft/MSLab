@@ -7,9 +7,9 @@
 
 #Usage (more info in wiki)
 
- [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts
+ [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts and [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
  
- Unzip in some folder
+ Unzip scripts in some folder
  
  Right-click and run with PowerShell. (1_Prereq.ps1 -> 2_CreateParentDisks.ps1 -> 3_Deploy.ps1 -> Cleanup.ps1 (if needed) -> modify variables.ps1 -> 3_Deploy.ps1 again)
 
