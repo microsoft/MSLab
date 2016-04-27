@@ -9,6 +9,8 @@
 
  [Download](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) scripts and [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
  
+ > Note: please download Cumulative Update for Windows Server 2016 Technical Preview 5 KB3157663 and add it to OSServer\Packages after 2_CreateParentDisks.ps1 http://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB3157663
+ 
  Unzip scripts in some folder
  
  Right-click and run with PowerShell. (1_Prereq.ps1 -> 2_CreateParentDisks.ps1 -> 3_Deploy.ps1 -> Cleanup.ps1 (if needed) -> modify variables.ps1 -> 3_Deploy.ps1 again)
