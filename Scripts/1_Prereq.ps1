@@ -89,7 +89,7 @@ foreach ($module in $modules){
 		Write-Host "Module $module not found... Downloading"
 		### Install NuGET package provider ###   
 		if ((Get-PackageProvider -Name NuGet) -eq $null){   
-			Install-PackageProvider -Name nuget -MinimumVersion 2.8.5.201 -Force -Confirm:$false
+			Install-PackageProvider -Name nuget -Force
 			}
 		Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path $workdir'\Tools\DSC'
 	}else{
