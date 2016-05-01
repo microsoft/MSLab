@@ -92,23 +92,11 @@ param (
     $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-  <settings pass="offlineServicing">
-   <component
-        xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        language="neutral"
-        name="Microsoft-Windows-PartitionManager"
-        processorArchitecture="amd64"
-        publicKeyToken="31bf3856ad364e35"
-        versionScope="nonSxS"
-        >
-      <SanPolicy>1</SanPolicy>
-    </component>
- </settings>
  <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
+		<RegisteredOwner>PFE</RegisteredOwner>
+      	<RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
  </settings>
  <settings pass="oobeSystem">
@@ -126,10 +114,65 @@ param (
       </OOBE>
     </component>
   </settings>
-  <settings pass="specialize">
+</unattend>
+
+"@
+
+    Set-Content $unattendFile $fileContent
+
+    #return the file object
+    $unattendFile 
+}
+
+Function Create-UnattendFileWin2012
+    #Create Unattend)
+    {
+param (
+    [parameter(Mandatory=$true)]
+    [string]
+    $ComputerName,
+    [parameter(Mandatory=$true)]
+    [string]
+    $AdminPassword
+)
+
+    if ( Test-Path "Unattend.xml" ) {
+      del .\Unattend.xml
+    }
+    $unattendFile = New-Item "Unattend.xml" -type File
+    $fileContent = @"
+<?xml version='1.0' encoding='utf-8'?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <ComputerName>$Computername</ComputerName>
+		<RegisteredOwner>PFE</RegisteredOwner>
+        <RegisteredOrganization>Contoso</RegisteredOrganization>
+    </component>
+    <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <Identification>
+                <Credentials>
+                    <Domain>corp.contoso.com</Domain>
+                    <Password>$AdminPassword</Password>
+                    <Username>Administrator</Username>
+                </Credentials>
+				<JoinDomain>corp.contoso.com</JoinDomain>			
+        </Identification>
+    </component>
+ </settings>
+ <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <RegisteredOwner>PFE</RegisteredOwner>
-      <RegisteredOrganization>Contoso</RegisteredOrganization>
+      <UserAccounts>
+        <AdministratorPassword>
+           <Value>$AdminPassword</Value>
+           <PlainText>true</PlainText>
+        </AdministratorPassword>
+      </UserAccounts>
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <SkipMachineOOBE>true</SkipMachineOOBE> 
+        <SkipUserOOBE>true</SkipUserOOBE> 
+      </OOBE>
     </component>
   </settings>
 </unattend>
@@ -141,7 +184,6 @@ param (
     #return the file object
     $unattendFile 
 }
-
 
 ##########################################################################################
 
@@ -160,7 +202,7 @@ function  Get-WindowsBuildNumber {
 ##########################################################################################
 Function Set-VMNetworkConfiguration {
 
-#source:http://www.ravichaganti.com/blog/?p=2766 with some slight changes
+#source:http://www.ravichaganti.com/blog/?p=2766 with some changes
 #example use: Get-VMNetworkAdapter -VMName Demo-VM-1 -Name iSCSINet | Set-VMNetworkConfiguration -IPAddress 192.168.100.1 00 -Subnet 255.255.0.0 -DNSServer 192.168.100.101 -DefaultGateway 192.168.100.1
     [CmdletBinding()]
     Param (
@@ -518,7 +560,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir -Recurse | where name -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -565,20 +607,25 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}		
 
 		$Name=$_.VMName
-		$path="c:\$vmname.txt"
-		Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
-		$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 		
 		if ($_.SkipDjoin -eq 'Yes'){
 			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			if ($_.Win2012Djoin -eq 'Yes'){
+				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			}
+			else{
+				$path="c:\$vmname.txt"
+				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			}
 		}
 
-		dism /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-		dism /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
+		&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
+		&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 		New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 		copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 		
@@ -586,7 +633,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 			copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 		}
 		
-		dism /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
 		if ($_.AddToolsVHD -eq 'Yes'){
@@ -614,7 +661,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir -Recurse | where name -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -661,20 +708,25 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}		
 
 		$Name=$_.VMName
-		$path="c:\$vmname.txt"
-		Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
-		$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 		
 		if ($_.SkipDjoin -eq 'Yes'){
 			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			if ($_.Win2012Djoin -eq 'Yes'){
+				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			}
+			else{
+				$path="c:\$vmname.txt"
+				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			}
 		}
 
-		dism /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-		dism /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
+		&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
+		&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 		New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 		copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 		
@@ -682,7 +734,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 			copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 		}
 		
-		dism /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
 		if ($_.AddToolsVHD -eq 'Yes'){
@@ -699,7 +751,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir -Recurse | where name -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -746,20 +798,25 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}		
 
 		$Name=$_.VMName
-		$path="c:\$vmname.txt"
-		Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
-		$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 		
 		if ($_.SkipDjoin -eq 'Yes'){
 			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			if ($_.Win2012Djoin -eq 'Yes'){
+				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			}
+			else{
+				$path="c:\$vmname.txt"
+				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			}
 		}
 
-		dism /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-		dism /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
+		&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
+		&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 		New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 		copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 		
@@ -767,7 +824,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 			copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 		}
 		
-		dism /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
 		if ($_.AddToolsVHD -eq 'Yes'){
@@ -812,7 +869,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir -Recurse | where name -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -859,20 +916,25 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}		
 
 		$Name=$_.VMName
-		$path="c:\$vmname.txt"
-		Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
-		$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 		
 		if ($_.SkipDjoin -eq 'Yes'){
 			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			if ($_.Win2012Djoin -eq 'Yes'){
+				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			}
+			else{
+				$path="c:\$vmname.txt"
+				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+			}
 		}
 
-		dism /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-		dism /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
+		&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
+		&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 		New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 		copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 		
@@ -880,7 +942,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 			copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 		}
 		
-		dism /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
 		if ($_.AddToolsVHD -eq 'Yes'){

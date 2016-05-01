@@ -69,6 +69,8 @@ Function Create-UnattendFileVHD{
  <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
+        <RegisteredOwner>PFE</RegisteredOwner>
+        <RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
  </settings>
  <settings pass="oobeSystem">
@@ -84,12 +86,6 @@ Function Create-UnattendFileVHD{
         <SkipMachineOOBE>true</SkipMachineOOBE> 
         <SkipUserOOBE>true</SkipUserOOBE> 
       </OOBE>
-    </component>
-  </settings>
-  <settings pass="specialize">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <RegisteredOwner>PFE</RegisteredOwner>
-      <RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
   </settings>
 </unattend>
@@ -195,7 +191,7 @@ $ClientPackages | ForEach-Object {Write-Host $_.Name}
 New-Item -Type Directory -Path "$workdir\ParentDisks"
 New-Item -Type Directory -Path "$workdir\Temp" -Force
 New-Item -Type Directory -Path "$workdir\Temp\mountdir"
-New-Item -Type Directory -Path "$workdir\Temp\dism"
+New-Item -Type Directory -Path "$workdir\Tools\dism"
 New-Item -Type Directory -Path "$workdir\Temp\packages"
 
 . "$workdir\tools\convert-windowsimage.ps1"
@@ -210,9 +206,9 @@ Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition
 
 #copy dism tools 
   
-Copy-Item -Path $ServerMediaPath'\sources\api*downlevel*.dll' -Destination $workdir\Temp\dism
-Copy-Item -Path $ServerMediaPath'\sources\*provider*' -Destination $workdir\Temp\dism
-Copy-Item -Path $ServerMediaPath'\sources\*dism*' -Destination $workdir\Temp\dism
+Copy-Item -Path $ServerMediaPath'\sources\api*downlevel*.dll' -Destination $workdir\Tools\dism
+Copy-Item -Path $ServerMediaPath'\sources\*provider*' -Destination $workdir\Tools\dism
+Copy-Item -Path $ServerMediaPath'\sources\*dism*' -Destination $workdir\Tools\dism
 Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\Temp\packages\ -Recurse 
 
 
@@ -221,45 +217,45 @@ Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\T
 if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	#vnext version
 	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath $workdir'\ParentDisks\Win2016Nano_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
-	&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
 	Copy-Item -Path "$workdir\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$workdir\ParentDisks\Win2016NanoHV_G2.vhdx"
  
-	&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
 	#do some servicing
 	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
-		&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
+		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
 		$ServerPackages | ForEach-Object {
 			$packagepath=$_.FullName
-			&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
 		}
-		&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 	}
 
 	If ($LabConfig.CreateClientParent -eq "Yes"){
-		&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
+		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
 		$ClientPackages | ForEach-Object {
 			$packagepath=$_.FullName
-			&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
 		}
-		&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 	}
 
 
@@ -311,12 +307,12 @@ $VMPath=$Workdir+'\LAB\'
 Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
 
 #do some servicing
-&"$workdir\Temp\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$workdir\Temp\mountdir
+&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$workdir\Temp\mountdir
 $ServerPackages | ForEach-Object {
 	$packagepath=$_.FullName
-	&"$workdir\Temp\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
 }
-&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
 
 
@@ -331,8 +327,8 @@ if ($LabConfig.Secureboot -eq 'Off') {$DC | Set-VMFirmware -EnableSecureBoot Off
 #Apply Unattend
 $unattendfile=Create-UnattendFileVHD -Computername $VMName -AdminPassword $AdminPassword -path "$workdir\temp\"
 New-item -type directory -Path $Workdir\Temp\mountdir -force
-&"$workdir\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$Workdir\Temp\mountdir
-&"$workdir\Temp\dism\dism" /image:$Workdir\Temp\mountdir /Apply-Unattend:$unattendfile
+&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$Workdir\Temp\mountdir
+&"$workdir\Tools\dism\dism" /image:$Workdir\Temp\mountdir /Apply-Unattend:$unattendfile
 New-item -type directory -Path "$Workdir\Temp\mountdir\Windows\Panther" -force
 Copy-Item -Path $unattendfile -Destination "$Workdir\Temp\mountdir\Windows\Panther\unattend.xml" -force
 Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
@@ -635,7 +631,7 @@ Copy-Item -Path "$workdir\Temp\config\dc.meta.mof" -Destination "$workdir\Temp\m
 
 #####
 
-&"$workdir\Temp\dism\dism" /Unmount-Image /MountDir:$Workdir\Temp\mountdir /Commit
+&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$Workdir\Temp\mountdir /Commit
 
 
 #Start and wait for configuration

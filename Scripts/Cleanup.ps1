@@ -31,10 +31,10 @@ get-VM $prefix* | Remove-VM -Force
 Remove-VMSwitch $prefix* -Force
 
 # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. If mountdir is empty, it will throw warning..
-dism /Unmount-Image /MountDir:$Workdir\temp\mountdir /discard
+&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$Workdir\temp\mountdir /discard
 
 remove-item $workdir\LAB\VMs -Confirm:$False -Recurse
-remove-item $workdir\temp -Confirm:$False -Recurse -ErrorAction SilentlyContinue
+remove-item $workdir\temp -Confirm:$False -Recurse -ErrorAction SilentlyContinue 
 
 #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
 $zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
