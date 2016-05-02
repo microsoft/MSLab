@@ -560,7 +560,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -661,7 +661,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -751,7 +751,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
@@ -869,7 +869,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 
         Write-Host "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where BaseName -eq $_.ParentVHD
+        $serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
         
         if ($serverparent -eq $null){
             Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
