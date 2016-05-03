@@ -31,8 +31,13 @@ if (!$prefix){
 	Exit
 }
 
+Write-Host "VMs:" -ForegroundColor Cyan 
 Write-Output (get-vm -Name $prefix*).name
-$answer=read-host "This script will remove all VMs starting with $prefix (all above) Are you sure? (type  Y )"
+Write-Host "SwitchName:" -ForegroundColor Cyan 
+Write-Output (Get-VMSwitch $prefix*).name
+Write-Host ""
+
+$answer=read-host "This script will remove all VMs and switches starting with $prefix (all above) Are you sure? (type  Y )"
 
 if ($answer -eq "Y"){
     Stop-VM $prefix'DC' -TurnOff -Force
