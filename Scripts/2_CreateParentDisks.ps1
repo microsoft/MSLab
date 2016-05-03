@@ -136,6 +136,13 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 		{
 		   Write-Output  "File $openfile.name selected" -ForegroundColor Green
 		} 
+        if (!$openFile.FileName){
+		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
+                Write-Host "Press any key to continue ..."
+	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	            $HOST.UI.RawUI.Flushinputbuffer()
+	            Exit 
+		 }
 		$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 	}else {
 		Write-Host "Found ISO $($ISOServer.FullName)" -ForegroundColor Green
@@ -161,10 +168,16 @@ If ($LabConfig.CreateClientParent -eq "Yes"){
 			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog
 			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
-			If($openFile.ShowDialog() -eq “OK”)
-			{
+			If($openFile.ShowDialog() -eq “OK”){
 			   Write-Output  "File $openfile.name selected" -ForegroundColor Green
 			} 
+        if (!$openFile.FileName){
+		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
+                Write-Host "Press any key to continue ..."
+	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	            $HOST.UI.RawUI.Flushinputbuffer()
+	            Exit 
+		 }
 			$ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 		}else {
 			Write-Host "Found ISO $($ISOClient.FullName)" -ForegroundColor Green
