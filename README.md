@@ -7,7 +7,7 @@
 
 #Changelog
 
-*3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
+* 3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
 * 1.5.2016 - Added win2012R2 support, optimized answer files, moved dism to tools, all scripts use dism from tools (copied from iso)
 
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
