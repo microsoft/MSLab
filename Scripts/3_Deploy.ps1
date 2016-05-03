@@ -319,6 +319,16 @@ $IP=1
 # Some Additional checks and prereqs
 ##########################################################################################
 
+	#checking if Prefix is not empty
+
+if (!$LabConfig.Prefix){
+    Write-Host "`t Prefix is empty. Exiting" -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
+
 	# Checking for Compatible OS
 Write-Host "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Cyan
 

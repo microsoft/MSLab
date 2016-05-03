@@ -22,6 +22,15 @@ $Workdir=get-scriptdirectory
 #load variables
 . "$($workdir)\variables.ps1"
 $prefix=$LabConfig.Prefix
+
+if (!$prefix){
+    Write-Host "`t Prefix is empty. Exiting" -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
+
 Stop-VM $prefix'DC' -TurnOff -Force
 Restore-VMsnapshot -VmName $prefix'DC' -Name Initial -Confirm:$False
 Start-Sleep 2
