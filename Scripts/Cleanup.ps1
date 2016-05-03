@@ -31,25 +31,35 @@ if (!$prefix){
 	Exit
 }
 
-Stop-VM $prefix'DC' -TurnOff -Force
-Restore-VMsnapshot -VmName $prefix'DC' -Name Initial -Confirm:$False
-Start-Sleep 2
-Remove-VMsnapshot -VMName $prefix'DC' -name Initial -Confirm:$False
-get-VM $prefix* | Stop-VM -TurnOff -Force
-get-VM $prefix* | Remove-VM -Force
-Remove-VMSwitch $prefix* -Force
+Write-Output (get-vm -Name $prefix*).name
+$answer=read-host "This script will remove all VMs starting with $prefix (all above) Are you sure? (type  Y )"
 
-# This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. If mountdir is empty, it will throw warning..
-&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$Workdir\temp\mountdir /discard
+if ($answer -eq "Y"){
+    Stop-VM $prefix'DC' -TurnOff -Force
+    Restore-VMsnapshot -VmName $prefix'DC' -Name Initial -Confirm:$False
+    Start-Sleep 2
+    Remove-VMsnapshot -VMName $prefix'DC' -name Initial -Confirm:$False
+    get-VM $prefix* | Stop-VM -TurnOff -Force
+    get-VM $prefix* | Remove-VM -Force
+    Remove-VMSwitch $prefix* -Force
 
-remove-item $workdir\LAB\VMs -Confirm:$False -Recurse
-remove-item $workdir\temp -Confirm:$False -Recurse -ErrorAction SilentlyContinue 
+    # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. If mountdir is empty, it will throw warning..
+    &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$Workdir\temp\mountdir /discard
 
-#Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
-$zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
-$zipoutput="$workdir\LAB\DC\"
+    remove-item $workdir\LAB\VMs -Confirm:$False -Recurse
+    remove-item $workdir\temp -Confirm:$False -Recurse -ErrorAction SilentlyContinue 
 
-Expand-Archive -Path $zipfile -DestinationPath $zipoutput
+    #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
+    $zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
+    $zipoutput="$workdir\LAB\DC\"
 
-Write-Host "Press any key to close window ..." -ForegroundColor Green
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+    Expand-Archive -Path $zipfile -DestinationPath $zipoutput
+
+    Write-Host "Press any key to close window ..." -ForegroundColor Green
+    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+}
+else {
+    Write-Host "You did not type Y" -ForegroundColor Cyan
+    Write-Host "Press any key to close window ..." -ForegroundColor Green
+    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+}
