@@ -1,219 +1,88 @@
-﻿# Verify Running as Admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
-}
+﻿#Requires -RunAsAdministrator
+[CmdletBinding()]
+param()
 
-###Get workdirectory###
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+Write-Verbose -Message "Loading Functions"
+. .\functions.ps1
 
-###Start LOG###
-Start-Transcript -Path $workdir\CreateParentDisks.log
+Write-Verbose -Message "Get workdirectory and Start Time"
+$workdir       = Get-ScriptDirectory
+Start-Transcript -Path $workdir\CreateParentDisks.log -Append
 $StartDateTime = get-date
-Write-host	"Script started at $StartDateTime"
+Write-Output "Script started at $StartDateTime"
 
-#Temp variables
-
-##Load Variables....
+Write-Verbose -Message "Load Variables Script"
 . "$($workdir)\variables.ps1"
 
-#Variables
-##################################
+#region Variables
 $AdminPassword=$LabConfig.AdminPassword
 $Switchname='DC_HydrationSwitch'
 $VMName='DC'
-##################################
+#endregion
 
 
-#############
-# Functions #
-#############
 
-#Create Unattend for VHD 
-Function Create-UnattendFileVHD{     
-    param (
-        [parameter(Mandatory=$true)]
-        [string]
-        $Computername,
-        [parameter(Mandatory=$true)]
-        [string]
-        $AdminPassword,
-        [parameter(Mandatory=$true)]
-        [string]
-        $Path
-    )
-
-    if ( Test-Path "$path\Unattend.xml" ) {
-      Remove-Item "$Path\Unattend.xml"
-    }
-    $unattendFile = New-Item "$Path\Unattend.xml" -type File
-    $fileContent =  @"
-<?xml version='1.0' encoding='utf-8'?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-  <settings pass="offlineServicing">
-   <component
-        xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        language="neutral"
-        name="Microsoft-Windows-PartitionManager"
-        processorArchitecture="amd64"
-        publicKeyToken="31bf3856ad364e35"
-        versionScope="nonSxS"
-        >
-      <SanPolicy>1</SanPolicy>
-    </component>
- </settings>
- <settings pass="specialize">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ComputerName>$Computername</ComputerName>
-        <RegisteredOwner>PFE</RegisteredOwner>
-        <RegisteredOrganization>Contoso</RegisteredOrganization>
-    </component>
- </settings>
- <settings pass="oobeSystem">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <UserAccounts>
-        <AdministratorPassword>
-           <Value>$AdminPassword</Value>
-           <PlainText>true</PlainText>
-        </AdministratorPassword>
-      </UserAccounts>
-      <OOBE>
-        <HideEULAPage>true</HideEULAPage>
-        <SkipMachineOOBE>true</SkipMachineOOBE> 
-        <SkipUserOOBE>true</SkipUserOOBE> 
-      </OOBE>
-    </component>
-  </settings>
-</unattend>
-
-"@
-
-    Set-Content -path $unattendFile -value $fileContent
-
-    #return the file object
-    Return $unattendFile 
-}
-
-##############
-# Lets start #
-##############
-
-#Check if Hyper-V is installed.
-Write-Host "Checking if Hyper-V is installed" -ForegroundColor Cyan
+Write-Information -MessageData "Checking if Hyper-V is installed" -InformationAction Continue
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq 'Enabled'){
-	Write-Host "`t Hyper-V is Installed" -ForegroundColor Green
+	Write-Verbose -Message "Hyper-V is Installed"
 }else{
-	Write-Host "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
+	Write-Error "Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 	Exit
 }
 
 
-## Test for unpacked media - detect install.wim
+Write-Verbose -Message "Test for unpacked media - detect install.wim"
 If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
-	Write-Host "ISO content found under $workdir\OSServer folder" -ForegroundColor Green
-	$ServerMediaPath="$workdir\OSServer"
+    $ServerMediaPath="$workdir\OSServer"
+	Write-Information -MessageData "Server install.wim found under $ServerMediaPath " -InformationAction Continue
 }else{
-	## Test for ISO and if no ISO found, open file dialog to select one
-	If (Test-Path -Path "$workdir\OSServer"){
-		$ISOServer = Get-ChildItem -Path "$workdir\OSServer" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-	}
-
-	if ( -not [bool]($ISOServer)){
-		Write-Host "No ISO found in $Workdir\OSServer" -ForegroundColor Green
-		Write-Host "please select ISO file with Windows Server 2016 wim file. Please use TP5 and newer" -ForegroundColor Green
-
-		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-		$openFile = New-Object System.Windows.Forms.OpenFileDialog
-		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
-		If($openFile.ShowDialog() -eq “OK”)
-		{
-		   Write-Output  "File $openfile.name selected" -ForegroundColor Green
-		} 
-        if (!$openFile.FileName){
-		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
-                Write-Host "Press any key to continue ..."
-	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	            $HOST.UI.RawUI.Flushinputbuffer()
-	            Exit 
-		 }
-		$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-	}else {
-		Write-Host "Found ISO $($ISOServer.FullName)" -ForegroundColor Green
-		$ISOServer = Mount-DiskImage -ImagePath $ISOServer.FullName -PassThru
-	}
+    Write-Verbose -Message "Test for Server ISO and mount if found"
+    $ISOServer = Mount-ISO -Path "$workdir\OSServer"
 	$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
 }
 
 If ($LabConfig.CreateClientParent -eq "Yes"){
 	If (Test-Path -Path "$workdir\OSClient\Sources\install.wim"){
-		Write-Host "ISO content found under $workdir\OSClient folder" -ForegroundColor Green
-		$ClientMediaPath="$workdir\OSClient"
+        $ClientMediaPath="$workdir\OSClient"
+		Write-Information -MessageData "Client install.wim found under $ClientMediaPath" -InformationAction Continue
 	}else{
-		## Test for ISO and if no ISO found, open file dialog to select one
-		If (Test-Path -Path "$workdir\OSClient"){
-			$ISOClient = Get-ChildItem -Path "$workdir\OSClient" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-		}
-
-		if ( -not [bool]($ISOClient)){
-			Write-Host "No ISO found in $Workdir\OSOSClient" -ForegroundColor Green
-			Write-Host "please select ISO file with Windows 10 wim file. Please use 10586 and newer" -ForegroundColor Green
-
-			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-			$openFile = New-Object System.Windows.Forms.OpenFileDialog
-			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
-			If($openFile.ShowDialog() -eq “OK”){
-			   Write-Output  "File $openfile.name selected" -ForegroundColor Green
-			} 
-        if (!$openFile.FileName){
-		        Write-Host  "Iso was not selected... Exitting" -ForegroundColor Red
-                Write-Host "Press any key to continue ..."
-	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	            $HOST.UI.RawUI.Flushinputbuffer()
-	            Exit 
-		 }
-			$ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-		}else {
-			Write-Host "Found ISO $($ISOClient.FullName)" -ForegroundColor Green
-			$ISOClient = Mount-DiskImage -ImagePath $ISOClient.FullName -PassThru
-		}
+		Write-Verbose -Message "Test for Client ISO and mount if found"
+		$ISOClient = Mount-ISO -Path "$workdir\OSClient"
 		$ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
 	}
 }
 
-#grab server packages
+Write-Verbose -Message "grab packages"
 $ServerPackages=Get-ChildItem "$workdir\OSServer\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
-$ClientPackages=Get-ChildItem "$workdir\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
-
 if ($ServerPackages -ne $null){
-Write-Host "Server Packages Found" -ForegroundColor Cyan
-$ServerPackages | ForEach-Object {Write-Host $_.Name}
+    Write-Information -MessageData "Server Packages Found" -InformationAction Continue
+    $ServerPackages | ForEach-Object {Write-Information -MessageData $_.Name -InformationAction Continue}
+}
+If ($LabConfig.CreateClientParent -eq "Yes"){
+    $ClientPackages=Get-ChildItem "$workdir\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
+    if ($ClientPackages -ne $null){
+        Write-Information -MessageData "Client Packages Found" -InformationAction Continue
+        $ClientPackages | ForEach-Object {Write-Information -MessageData $_.Name -InformationAction Continue}
+    }
+
+}
+("ParentDisks","Temp","Temp\mountdir","Temp\packages","Tools\dism")|ForEach-Object{
+    If(!(Test-Path -Path $_)){
+        Write-Verbose -Message "Creating $workdir\$_"
+        New-Item -Type Directory -Path "$workdir\$_"
+    }
 }
 
-if ($ClientPackages -ne $null){
-Write-Host "Client Packages Found" -ForegroundColor Cyan
-$ClientPackages | ForEach-Object {Write-Host $_.Name}
-}
-
-New-Item -Type Directory -Path "$workdir\ParentDisks"
-New-Item -Type Directory -Path "$workdir\Temp" -Force
-New-Item -Type Directory -Path "$workdir\Temp\mountdir"
-New-Item -Type Directory -Path "$workdir\Tools\dism"
-New-Item -Type Directory -Path "$workdir\Temp\packages"
 
 . "$workdir\tools\convert-windowsimage.ps1"
 
+
 Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition ServerDataCenterCore -VHDPath $workdir'\ParentDisks\Win2016Core_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 
-#Create client OS VHD
+
 If ($LabConfig.CreateClientParent -eq "Yes"){
-Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
+    Write-Verbose -Message "Create Client Parent disk"
+    Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 }
 
 
@@ -648,41 +517,48 @@ Copy-Item -Path "$workdir\Temp\config\dc.meta.mof" -Destination "$workdir\Temp\m
 
 
 #Start and wait for configuration
-$DC | Start-VM
+try{
+    $DC | Start-VM -ErrorAction Stop 
 
-$VMStartupTime = 250 
-Write-host "Configuring DC takes a while"
-Write-host "Initial configuration in progress. Sleeping $VMStartupTime seconds"
-Start-Sleep $VMStartupTime
+    $VMStartupTime = 250 
+    Write-host "Configuring DC takes a while"
+    Write-host "Initial configuration in progress. Sleeping $VMStartupTime seconds"
+    Start-Sleep $VMStartupTime
 
-do{
-	$test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
-	if ($test -eq $null) {
-		Write-Host "Configuration in Progress. Sleeping 10 seconds"
-	}else{
-		Write-Host "Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
-		Write-Host "Invoking DSC Configuration again" 
-		Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
-	}
-	Start-Sleep 10
-}until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
-$test
+    do{
+        $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
+        if ($test -eq $null) {
+            Write-Host "Configuration in Progress. Sleeping 10 seconds"
+        }else{
+            Write-Host "Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+            Write-Host "Invoking DSC Configuration again" 
+            Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
+        }
+        Start-Sleep 10
+    }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
+    $test
 
-Invoke-Command -VMGuid $DC.id -ScriptBlock {redircmp 'OU=Workshop,DC=corp,DC=contoso,DC=com'} -Credential $cred -ErrorAction SilentlyContinue
+    Invoke-Command -VMGuid $DC.id -ScriptBlock {redircmp 'OU=Workshop,DC=corp,DC=contoso,DC=com'} -Credential $cred -ErrorAction SilentlyContinue
 
-$DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
-$DC | Stop-VM
-
+    $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
+    $DC | Stop-VM
+}catch{
+    $VMStartError = $true
+    Write-Warning -Message "Unable to Start VM!! "
+}
 
 #cleanup
 
 ###Backup VM Configuration ###
-Copy-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Destination "$vmpath\$VMNAME\Virtual Machines_Bak\" -Recurse
+If($VMStartError -eq $false){
+    Copy-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Destination "$vmpath\$VMNAME\Virtual Machines_Bak\" -Recurse   
+}
 $DC | Remove-VM -Force
 Remove-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Recurse
-Rename-Item -Path "$vmpath\$VMNAME\Virtual Machines_Bak\" -NewName 'Virtual Machines'
-Compress-Archive -Path "$vmpath\$VMNAME\Virtual Machines\" -DestinationPath "$vmpath\$VMNAME\Virtual Machines.zip"
-
+If($VMStartError -eq $false){
+    Rename-Item -Path "$vmpath\$VMNAME\Virtual Machines_Bak\" -NewName 'Virtual Machines'
+    Compress-Archive -Path "$vmpath\$VMNAME\Virtual Machines\" -DestinationPath "$vmpath\$VMNAME\Virtual Machines.zip"
+}
 ###Cleanup The rest ###
 Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
 if ($ISOServer -ne $Null){
