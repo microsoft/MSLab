@@ -76,28 +76,25 @@ If ($LabConfig.CreateClientParent -eq "Yes"){
 
 . "$workdir\tools\convert-windowsimage.ps1"
 
-
+Write-Verbose -Message "Create Server Core Parent disk"
 Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition ServerDataCenterCore -VHDPath $workdir'\ParentDisks\Win2016Core_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
-
 
 If ($LabConfig.CreateClientParent -eq "Yes"){
     Write-Verbose -Message "Create Client Parent disk"
     Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 }
 
-
-#copy dism tools 
-  
+Write-Verbose -Message "copy dism tools from Server Image"
 Copy-Item -Path $ServerMediaPath'\sources\api*downlevel*.dll' -Destination $workdir\Tools\dism
 Copy-Item -Path $ServerMediaPath'\sources\*provider*' -Destination $workdir\Tools\dism
 Copy-Item -Path $ServerMediaPath'\sources\*dism*' -Destination $workdir\Tools\dism
 Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\Temp\packages\ -Recurse 
 
-
 #Old way
 #Todo: use the tool for NanoServer
 if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	#vnext version
+    Write-Verbose -Message "Create Nano Server Parent disk"
 	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath $workdir'\ParentDisks\Win2016Nano_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
@@ -111,7 +108,8 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-
+    
+    Write-Verbose -Message "Create Nano Server HV Parent disk"
 	Copy-Item -Path "$workdir\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$workdir\ParentDisks\Win2016NanoHV_G2.vhdx"
  
 	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
@@ -121,36 +119,32 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
-	#do some servicing
-	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
-		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ServerPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
-		}
-		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-	}
-
-	If ($LabConfig.CreateClientParent -eq "Yes"){
-		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ClientPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
-		}
-		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
-	}
-
 
 }else{
-
-	Write-Host "`t Please use Windows Server TP5 and newer. Exiting" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
+    Write-Error "Please use Windows Server TP5 and newer. Exiting"
 	Exit
 }
 
-#create Tools VHDX
+Write-Verbose -Message "do some servicing"
+'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
+    &"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
+    $ServerPackages | ForEach-Object {
+        $packagepath=$_.FullName
+        &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+    }
+    &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+}
+
+If ($LabConfig.CreateClientParent -eq "Yes"){
+    &"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
+    $ClientPackages | ForEach-Object {
+        $packagepath=$_.FullName
+        &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+    }
+    &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+}
+
+Write-Verbose -Message "create Tools VHDX"
 
 $vhd=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
 $VHDMount = Mount-VHD $vhd.Path -Passthru
@@ -165,21 +159,19 @@ if (!$VHDPathTest){
 }
 
 if ($VHDPathTest){
-    Write-Host "Found $workdir\Tools\ToolsVHD\*, copying files into VHDX"
+    Write-Information -MessageData "Found $workdir\Tools\ToolsVHD\*, copying files into VHDX" -InformationAction Continue
     Copy-Item -Path "$workdir\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
 }else{
-    write-host "Files not found" 
-    Write-Host "Add required tools into $workdir\Tools\toolsVHD and Press any key to continue..." -ForegroundColor Green
+    Write-Warning -Message "Files not found"
+    Write-Warning -Message "Add required tools into $workdir\Tools\toolsVHD and Press any key to continue..."
     $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
     Copy-Item -Path "$workdir\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
 }
 
 Dismount-VHD $vhddisk.Number
 
-##############
-# Hydrate DC #
-##############
 
+#region Hydrate DC
 $workdir
 $vhdpath=$workdir+'\LAB\'+$VMName+'\Virtual Hard Disks\'+$VMName+'.vhdx'
 $VMPath=$Workdir+'\LAB\'
@@ -521,17 +513,17 @@ try{
     $DC | Start-VM -ErrorAction Stop 
 
     $VMStartupTime = 250 
-    Write-host "Configuring DC takes a while"
-    Write-host "Initial configuration in progress. Sleeping $VMStartupTime seconds"
+    Write-Information -MessageData "Configuring DC takes a while" -InformationAction Continue
+    Write-Information -MessageData "Initial configuration in progress. Sleeping $VMStartupTime seconds" -InformationAction Continue
     Start-Sleep $VMStartupTime
 
     do{
         $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
         if ($test -eq $null) {
-            Write-Host "Configuration in Progress. Sleeping 10 seconds"
+            Write-Information -MessageData "Configuration in Progress. Sleeping 10 seconds" -InformationAction Continue
         }else{
-            Write-Host "Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
-            Write-Host "Invoking DSC Configuration again" 
+            Write-Information -MessageData "Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" -InformationAction Continue 
+            Write-Information -MessageData "Invoking DSC Configuration again" -InformationAction Continue 
             Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
         }
         Start-Sleep 10
@@ -546,10 +538,11 @@ try{
     $VMStartError = $true
     Write-Warning -Message "Unable to Start VM!! "
 }
+#endregion
 
-#cleanup
+#region cleanup
 
-###Backup VM Configuration ###
+Write-Verbose -Message "Backup VM Configuration"
 If($VMStartError -eq $false){
     Copy-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Destination "$vmpath\$VMNAME\Virtual Machines_Bak\" -Recurse   
 }
@@ -559,7 +552,7 @@ If($VMStartError -eq $false){
     Rename-Item -Path "$vmpath\$VMNAME\Virtual Machines_Bak\" -NewName 'Virtual Machines'
     Compress-Archive -Path "$vmpath\$VMNAME\Virtual Machines\" -DestinationPath "$vmpath\$VMNAME\Virtual Machines.zip"
 }
-###Cleanup The rest ###
+Write-Verbose -Message "Cleanup the VMSwitch, temp directory, and Unmount any disk Images"
 Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
 if ($ISOServer -ne $Null){
 $ISOServer | Dismount-DiskImage
@@ -570,9 +563,6 @@ $ISOClient | Dismount-DiskImage
 }
 
 Remove-Item -Path "$workdir\temp" -Force -Recurse
-
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-
+#endregion
+Write-Output "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
-Write-Host "Job Done. Press any key to continue..." -ForegroundColor Green
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
