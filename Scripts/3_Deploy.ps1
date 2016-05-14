@@ -6,11 +6,11 @@ If (!( $isAdmin )) {
 	exit
 }
 
-##########################################################################################
-#   Functions
-##########################################################################################
+#############
+# Functions #
+#############
 
-Function Create-UnattendFileBlob
+Function CreateUnattendFileBlob
     #Create Unattend (parameter is Blob)
     {
 param (
@@ -73,7 +73,7 @@ param (
     $unattendFile 
 }
 
-Function Create-UnattendFileNoDjoin
+Function CreateUnattendFileNoDjoin
     #Create Unattend)
     {
 param (
@@ -124,7 +124,7 @@ param (
     $unattendFile 
 }
 
-Function Create-UnattendFileWin2012
+Function CreateUnattendFileWin2012
     #Create Unattend)
     {
 param (
@@ -380,6 +380,7 @@ if ($LabVMs.configuration -contains 'Shared' -or $LabVMs.configuration -contains
 	New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters -Name AutoAttachOnNonCSVVolumes -PropertyType DWORD -Value 1 -force
 }
 
+#Check if Hyper-V is installed
 
 Write-Host "Checking if Hyper-V is installed" -ForegroundColor Cyan
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq 'Enabled'){
@@ -418,12 +419,9 @@ Write-Host "`t Creating VMs dir" -ForegroundColor Green
 New-Item $workdir\LAB\VMs -ItemType Directory -Force
 
 
-
-
-
-##########################################################################################
-# Getting tools disk
-##########################################################################################
+######################
+# Getting tools disk #
+######################
 
 #get path for Tools disk
 
@@ -439,9 +437,9 @@ if ($toolsparent -eq $null){
 Write-Host "`t`t Tools parent disk"$toolsparent.Name"found"
 }
 
-##########################################################################################
-# Importing DC
-##########################################################################################
+################
+# Importing DC #
+################
 
 Write-Host "Looking for DC to be imported" -ForegroundColor Cyan
 get-childitem $LABFolder -Recurse | where {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
@@ -488,9 +486,9 @@ $DC | Rename-VM -NewName ($labconfig.Prefix+$DC.name)
 
 
 
-##########################################################################################
-#Testing DC To come alive
-##########################################################################################
+############################
+# Testing DC To come alive #
+############################
 
 #Credentials for Session
 $username = "corp\Administrator"
@@ -512,9 +510,9 @@ Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where o
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
 
-##########################################################################################
-#Provision VMs
-##########################################################################################
+#################
+# Provision VMs  #
+#################
 
 #DCM Config
 [DSCLocalConfigurationManager()]
@@ -619,18 +617,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq 'Yes'){
-			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
 			if ($_.Win2012Djoin -eq 'Yes'){
-				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				$path="c:\$vmname.txt"
 				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
 			}
 		}
 
@@ -720,18 +718,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq 'Yes'){
-			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
 			if ($_.Win2012Djoin -eq 'Yes'){
-				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				$path="c:\$vmname.txt"
 				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
 			}
 		}
 
@@ -810,18 +808,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq 'Yes'){
-			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
 			if ($_.Win2012Djoin -eq 'Yes'){
-				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				$path="c:\$vmname.txt"
 				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
 			}
 		}
 
@@ -928,18 +926,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq 'Yes'){
-			$unattendfile=Create-UnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
 			if ($_.Win2012Djoin -eq 'Yes'){
-				$unattendfile=Create-UnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				$path="c:\$vmname.txt"
 				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-				$unattendfile=Create-UnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+				$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
 			}
 		}
 
@@ -980,14 +978,16 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 
 
-##########################################################################################
-#some Cleanup
-##########################################################################################
+################
+# some Cleanup #
+################
+
 Remove-Item -Path "$workdir\temp" -Force -Recurse
 
-##########################################################################################
-#Finishing
-##########################################################################################
+#############
+# Finishing #
+#############
+
 Write-Host "Finishing..." -ForegroundColor Cyan
 #get-vm | where name -like $prefix* | Start-VM
 $prefix=$labconfig.Prefix
