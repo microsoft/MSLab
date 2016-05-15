@@ -1,6 +1,18 @@
-﻿<#
-This configuration is just an example config thats being use in Premier Workshop for SDS. Modify as you wish with examples further in this file or from https://github.com/Microsoft/ws2016lab
+﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples or scroll down
+
+$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DHyperConverged-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
+
+$NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
+
+$LAbVMs = @()
+1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+
+<#
+The configuration below is an example config thats being used in Microsoft Premier Workshop for SDS. 
 #>
+
+<# 
+
 $LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 'SDSWS-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
 
 $NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
@@ -11,6 +23,9 @@ $LAbVMs = @()
 1..4 | % {"Compute$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; MemoryStartupBytes= 128MB } }
 1..2 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; StorageNetwork = 'Yes'} }
 3..4 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet2' ; StorageNetwork = 'Yes'} }
+
+#>
+
 
 ### HELP ###
 <# If you need more help or different configuration options, ping me at jaromirk@microsoft.com
