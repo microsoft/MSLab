@@ -271,7 +271,7 @@ SQMOptIn = 1
 MUOptIn = 1
 "@
 Set-Content $unattendFile $fileContent
- 
+
 & $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain corp /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
 
 do
