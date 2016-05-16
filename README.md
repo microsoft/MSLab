@@ -7,6 +7,7 @@
 
 #Changelog
 
+* 15.5.2016 - Simplified variables.ps1, SCVMM install scripts added
 * 3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
 * 1.5.2016 - Added win2012R2 support, optimized answer files, moved dism to tools, all scripts use dism from tools (copied from iso)
 
