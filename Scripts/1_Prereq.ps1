@@ -29,6 +29,9 @@ Start-Transcript -Path $workdir'\Prereq.log'
 $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
+##Load Variables....
+. "$($workdir)\variables.ps1"
+
 # Checking for Compatible OS
 Write-Host "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Cyan
 
@@ -44,20 +47,257 @@ if ($BuildNumber -ge 10586){
 }
 
 # Checking Folder Structure
-'OSClient','OSServer','Tools\DSC','Tools\ToolsVHD\DiskSpd','OSServer\Packages','OSClient\Packages' | ForEach-Object {
+"OSClient","OSServer","Tools\DSC","Tools\ToolsVHD\DiskSpd","OSServer\Packages","OSClient\Packages","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM" | ForEach-Object {
     if (!( Test-Path "$Workdir\$_" )) { New-Item -Type Directory -Path "$workdir\$_" } }
+	
+"OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt","OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt","OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt","OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt","Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt" | ForEach-Object {
+	  if (!( Test-Path "$Workdir\$_" )) { New-Item -Type File -Path "$workdir\$_" } }
 
-If (!( Test-Path -Path "$workdir\OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt" )) { 
-	   New-Item -Path "$workdir\OSServer\" -Name Copy_WindowsServer_ISO_or_its_content_here.txt -ItemType File }
+# adding scripts for SCVMM install
+if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" )) {  
+    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File
+    $fileContent =  @'
 
-If (!( Test-Path -Path "$workdir\OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt" )) { 
-	   New-Item -Path "$workdir\OSClient\" -Name Copy_WindowsClient_ISO_or_its_content_here.txt -ItemType File }
+# Sample SQL Install
 
-If (!( Test-Path -Path "$workdir\OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt" )) { 
-	   New-Item -Path "$workdir\OSServer\Packages\" -Name Copy_MSU_or_Cab_packages_here.txt -ItemType File }
+# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
 
-If (!( Test-Path -Path "$workdir\OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt" )) { 
-	   New-Item -Path "$workdir\OSClient\Packages\" -Name Copy_MSU_or_Cab_packages_here.txt -ItemType File }
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (!( $isAdmin )) {
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+	exit
+}
+
+$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+
+Start-Transcript -Path "$workdir\SQL_Install.log"
+
+$StartDateTime = get-date
+Write-host "Script started at $StartDateTime"
+
+#check for .net 3.5
+if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled'){
+    do{
+        If (Test-Path -Path "$workdir\dotNET\microsoft-windows-netfx3-ondemand-package.cab"){
+            $dotNET = Get-Item -Path "$workdir\dotNET\microsoft-windows-netfx3-ondemand-package.cab" -ErrorAction SilentlyContinue
+		    Write-Host "microsoft-windows-netfx3-ondemand-package.cab found in dotNET folder... installing" -ForegroundColor Cyan
+        }else{
+            Write-Host "No .NET found in $Workdir\dotNET" -ForegroundColor Cyan
+			Write-Host "please browse for dotNET package (microsoft-windows-netfx3-ondemand-package.cab)" -ForegroundColor Green
+
+			[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+			$openFile = New-Object System.Windows.Forms.OpenFileDialog
+			$openFile.Filter = "cab files (*.cab)|*.cab|All files (*.*)|*.*" 
+			If($openFile.ShowDialog() -eq "OK"){
+			   Write-Host  "File $openfile selected" -ForegroundColor Cyan
+               $dotNET = Get-Item -Path $openfile.filename -ErrorAction SilentlyContinue
+            } 
+            if (!$openFile.FileName){
+		        Write-Host  "CAB was not selected... Exitting" -ForegroundColor Red
+                Write-Host "Press any key to continue ..."
+	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	            $HOST.UI.RawUI.Flushinputbuffer()
+	            Exit 
+		     } 
+        }
+    install-windowsfeature WAS-NET-Environment -Source $dotnet.Directory    
+    }
+    until ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -eq 'Enabled')
+}
+
+#install SQL
+
+If (Test-Path -Path "$workdir\SQL\setup.exe"){
+    $setupfile = (Get-Item -Path "$workdir\SQL\setup.exe" -ErrorAction SilentlyContinue).fullname
+    Write-Host "$Setupfile found..." -ForegroundColor Cyan
+}else{
+    # Open File dialog
+    Write-Host "Please locate SQL Setup.exe" -ForegroundColor Green
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $openFile = New-Object System.Windows.Forms.OpenFileDialog
+    $openFile.Filter = "setup.exe files |setup.exe|All files (*.*)|*.*" 
+    If($openFile.ShowDialog() -eq "OK")
+    {
+       $setupfile=$openfile.filename
+       Write-Host  "File $setupfile selected" -ForegroundColor Cyan
+    }
+    if (!$openFile.FileName){
+		    Write-Host  "setup.exe was not selected... Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+	        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	        $HOST.UI.RawUI.Flushinputbuffer()
+	        Exit 
+	}
+}  
+     
+Write-Host "Installing SQL..." -ForegroundColor Green
+& $setupfile /qs /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="corp\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="corp\Domain admins" /AGTSVCACCOUNT="corp\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
+
+Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+Stop-Transcript
+
+Write-Host "Job Done. Press any key to continue..." -ForegroundColor Green
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+Exit
+
+'@
+	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+    Set-Content -path $script -value $fileContent
+}
+
+if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" )) {  
+    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File
+    $fileContent =  @'
+
+#Sample ADK install
+
+# You can grab ADK here: 	https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx
+
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (!( $isAdmin )) {
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+	exit
+}
+
+
+$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+Start-Transcript -Path "$workdir\ADK_Install.log"
+
+$StartDateTime = get-date
+Write-host "Script started at $StartDateTime"
+
+
+If (Test-Path -Path "$workdir\ADK\ADKsetup.exe"){
+    $setupfile = (Get-Item -Path "$workdir\ADK\ADKsetup.exe" -ErrorAction SilentlyContinue).fullname
+}else{
+    # Open File dialog
+    Write-Host "Please locate ADKSetup.exe" -ForegroundColor Green
+
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $openFile = New-Object System.Windows.Forms.OpenFileDialog
+    $openFile.Filter = "ADKSetup.exe files |ADKSetup.exe|All files (*.*)|*.*" 
+    If($openFile.ShowDialog() -eq "OK")
+    {
+       $setupfile=$openfile.filename
+       Write-Host  "File $setupfile selected" -ForegroundColor Cyan
+    }
+}
+
+Write-Host "Installing ADK..." -ForegroundColor Cyan
+
+& $setupfile /features OptionID.DeploymentTools OptionID.WindowsPreinstallationEnvironment /quiet
+
+Write-Host "ADK Is being installed..." -ForegroundColor Cyan
+
+do
+{
+Start-Sleep 1
+$adk=$null
+$adk=Get-Process adksetup -ErrorAction SilentlyContinue
+}
+until ($adk -eq $null)
+
+Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+Stop-Transcript
+
+Write-Host "Job Done Press any key to continue..." -ForegroundColor Green
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+Exit
+
+'@
+    Set-Content -path $script -value $fileContent
+}
+
+if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" )) {  
+    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File
+    $fileContent =  @'
+
+# Sample VMM Install
+
+# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
+
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (!( $isAdmin )) {
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+	exit
+}
+
+$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+Start-Transcript -Path "$workdir\SCVMM_Install.log"
+
+$StartDateTime = get-date
+Write-host "Script started at $StartDateTime"
+
+If (Test-Path -Path "$workdir\SCVMM\setup.exe"){
+    $setupfile = (Get-Item -Path "$workdir\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
+    Write-Host "$Setupfile found..." -ForegroundColor Cyan
+}else{
+# Open File dialog
+    Write-Host "Please locate Setup.exe" -ForegroundColor Green
+
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $openFile = New-Object System.Windows.Forms.OpenFileDialog
+    $openFile.Filter = "setup.exe files |setup.exe|All files (*.*)|*.*" 
+    If($openFile.ShowDialog() -eq "OK")
+    {
+       $setupfile=$openfile.filename
+       Write-Host  "File $setupfile selected" -ForegroundColor Cyan
+    } 
+}
+
+Write-Host "Installing VMM..." -ForegroundColor Green
+
+###Get workdirectory###
+$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+#$workdir='e:'
+#Install VMM
+$unattendFile = New-Item "$workdir\VMServer.ini" -type File
+$fileContent = @"
+[OPTIONS]
+CompanyName=Contoso
+CreateNewSqlDatabase=1
+SqlInstanceName= MSSQLServer
+SqlDatabaseName=VirtualManagerDB
+SqlMachineName=DC
+LibrarySharePath=C:\ProgramData\Virtual Machine Manager Library Files
+LibraryShareName=MSSCVMMLibrary
+SQMOptIn = 1
+MUOptIn = 1
+"@
+Set-Content $unattendFile $fileContent
+ 
+& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain corp /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
+
+do
+{
+Write-Host "VMM is being installed..." -ForegroundColor Cyan
+Start-Sleep 10
+$vmm=$null
+$vmm=Get-Process | Where-Object {$_.Description -eq "Virtual Machine Manager Setup"} -ErrorAction SilentlyContinue
+}
+until ($vmm -eq $null)
+
+Remove-Item "$workdir\VMServer.ini" -ErrorAction Ignore
+
+Write-Host "VMM is Installed" -ForegroundColor Green
+
+Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+Stop-Transcript
+
+Write-Host "Job Done. Press any key to continue..." -ForegroundColor Green
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+Exit
+
+'@
+	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+    Set-Content -path $script -value $fileContent
+}
 
 ##########################
 # Some stuff to download #
