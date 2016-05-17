@@ -1,6 +1,6 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples or scroll down
 
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DHyperConverged-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
+$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DHyperConverged-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise';InstallSCVMM='No'}
 
 $NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
 
@@ -13,17 +13,17 @@ The configuration below is an example config thats being used in Microsoft Premi
 
 <# 
 
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 'SDSWS-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
+$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 'SDSWS-'; SecureBoot='On'; CreateClientParent='Yes';DCEdition='ServerDataCenterCore';ClientEdition='Enterprise';InstallSCVMM='Yes'}
 
 $NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
 
 $LAbVMs = @()
+$LAbVMs += @{ VMName = 'Management'        ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'            ; MemoryStartupBytes= 1GB }
 1..4 | % {"Direct$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
 1..4 | % {"Shared$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Shared'   ; ParentVHD = 'Win2016Core_G2.vhdx'     ; SSDNumber = 6; SSDSize=800GB ; HDDNumber = 8  ; HDDSize= 1TB ; MemoryStartupBytes= 512MB ; VMSet= 'SharedLab1' ; StorageNetwork = 'Yes'} }
 1..4 | % {"Compute$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; MemoryStartupBytes= 128MB } }
 1..2 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; StorageNetwork = 'Yes'} }
 3..4 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet2' ; StorageNetwork = 'Yes'} }
-
 #>
 
 
@@ -55,6 +55,17 @@ ClientEdition
 	Enterprise/Education/Pro/Home
 	Depends what ISO you use. Edition name matches the one you get from DISM.
 
+InstallSCVMM *
+	'Yes' 		- installs ADK, SQL and VMM
+	'ADK' 		- installs just ADK
+	'SQL' 		- installs just SQL
+	'Prereqs' 	- installs ADK and SQL 
+		*requires install files in toolsVHD\SCVMM\, or it will fail. You can download all tools here:
+			
+			SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
+			SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
+			ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
+			
 
 ##LABVMs##
 
