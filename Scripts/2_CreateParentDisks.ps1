@@ -112,6 +112,52 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 	Exit
 }
 
+#check if VMM prereqs files are present
+
+if ($LabConfig.InstallSCVMM -eq "Yes"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SCVMM install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+	        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	        $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }    
+}
+
+if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SCVMM Prereqs install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    } 
+}
+    
+if ($LabConfig.InstallSCVMM -eq "SQL"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for SQL install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }
+}    
+
+if ($LabConfig.InstallSCVMM -eq "ADK"){
+    "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+        if(!(Test-Path -Path "$workdir\$_")){
+            Write-Host "files $_ needed for ADK install not found. Exitting" -ForegroundColor Red
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+        }
+    }
+}   
+
 ##############
 # Lets start #
 ##############
@@ -286,8 +332,8 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 
 #create Tools VHDX from .\tools\ToolsVHD
 
-$vhd=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
-$VHDMount = Mount-VHD $vhd.Path -Passthru
+$toolsVHD=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+$VHDMount = Mount-VHD $toolsVHD.Path -Passthru
 
 $vhddisk = $VHDMount| get-disk 
 $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
@@ -668,6 +714,53 @@ do{
 $test
 
 Invoke-Command -VMGuid $DC.id -ScriptBlock {redircmp 'OU=Workshop,DC=corp,DC=contoso,DC=com'} -Credential $cred -ErrorAction SilentlyContinue
+
+#install SCVMM or its prereqs if specified so
+if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+    $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
+}
+
+if ($LabConfig.InstallSCVMM -eq "Yes"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1
+        d:\scvmm\2_ADK_Install.ps1  
+        Restart-Computer    
+    }
+    Start-Sleep 10
+    Write-Host "Waiting for DC to restart" -ForegroundColor cyan
+    do{
+    $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-ADComputer -Filter * -SearchBase 'DC=Corp,DC=Contoso,DC=Com' -ErrorAction SilentlyContinue} -ErrorAction SilentlyContinue
+    Start-Sleep 5
+    }
+    until ($test -ne $Null)
+    Write-Host "DC is up." -ForegroundColor Green
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\3_SCVMM_Install.ps1    
+    }
+}
+
+if ($LabConfig.InstallSCVMM -eq "SQL"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1  
+    }
+}
+
+if ($LabConfig.InstallSCVMM -eq "ADK"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\2_ADK_Install.ps1
+    }       
+}
+
+if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+    Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+        d:\scvmm\1_SQL_Install.ps1
+        d:\scvmm\2_ADK_Install.ps1
+    }  
+}
+
+if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+    $DC | Get-VMHardDiskDrive | where path -eq $toolsVHD.Path | Remove-VMHardDiskDrive
+}
 
 $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
 $DC | Stop-VM

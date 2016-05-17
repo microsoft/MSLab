@@ -133,14 +133,14 @@ If (Test-Path -Path "$workdir\SQL\setup.exe"){
 }  
      
 Write-Host "Installing SQL..." -ForegroundColor Green
-& $setupfile /qs /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="corp\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="corp\Domain admins" /AGTSVCACCOUNT="corp\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
+& $setupfile /q /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="corp\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="corp\Domain admins" /AGTSVCACCOUNT="corp\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
 
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
 
-Write-Host "Job Done. Press any key to continue..." -ForegroundColor Green
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-Exit
+Write-Host "Job Done..." -ForegroundColor Green
+Start-Sleep 5
+exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
@@ -201,12 +201,11 @@ $adk=Get-Process adksetup -ErrorAction SilentlyContinue
 }
 until ($adk -eq $null)
 
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+Write-Host "ADK install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
-
-Write-Host "Job Done Press any key to continue..." -ForegroundColor Green
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-Exit
+Write-Host "Job Done..." -ForegroundColor Green
+Start-Sleep 5
+exit
 
 '@
     Set-Content -path $script -value $fileContent
@@ -262,7 +261,7 @@ $fileContent = @"
 [OPTIONS]
 CompanyName=Contoso
 CreateNewSqlDatabase=1
-SqlInstanceName= MSSQLServer
+SqlInstanceName=MSSQLServer
 SqlDatabaseName=VirtualManagerDB
 SqlMachineName=DC
 LibrarySharePath=C:\ProgramData\Virtual Machine Manager Library Files
@@ -287,11 +286,11 @@ Remove-Item "$workdir\VMServer.ini" -ErrorAction Ignore
 
 Write-Host "VMM is Installed" -ForegroundColor Green
 
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+Write-Host "VMM install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
 
-Write-Host "Job Done. Press any key to continue..." -ForegroundColor Green
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+Write-Host "Job Done..." -ForegroundColor Green
+start-sleep 5
 Exit
 
 '@
