@@ -142,8 +142,8 @@ $LAbVMs += @{ VMName = 'Win2012_Core' ; Configuration = 'Simple'   ; ParentVHD =
 
 Example with 2 sets of different DSC Configs
 $LAbVMs = @()
-1..6 | % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; Config=@('Config1','Config2')} }
-7..12| % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; Config='Config3'} }
+1..6 | % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig=@('Config1','Config2')} }
+7..12| % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig='Config3'} }
 
 Hyperconverged S2D with nano and nested virtualization (see https://msdn.microsoft.com/en-us/virtualization/hyperv_on_windows/user_guide/nesting for more info)
 $LAbVMs = @()
