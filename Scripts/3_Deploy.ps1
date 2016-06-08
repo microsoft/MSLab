@@ -543,9 +543,17 @@ Configuration PullClientConfig
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
 			ConfigurationNames = $Config
             }
-		
+			1..$config.count | ForEach-Object {
+				PartialConfiguration ($config | select -First $_)
+                {
+                RefreshMode = 'Pull'
+            	ConfigurationSource = '[ConfigurationRepositoryWeb]PullServerWeb'
+				}
+			}
 	}
 }
+
+
 $LabVMs.GetEnumerator() | ForEach-Object {
 
     if ($_.configuration -eq 'Shared'){
