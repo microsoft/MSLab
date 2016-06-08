@@ -415,7 +415,11 @@ configuration DCHydration
         [pscredential]$NewADUserCred,
 
 		[Parameter(Mandatory)]
-        [string]$DomainAdminName
+        [string]$DomainAdminName,
+
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [string] $RegistrationKey 
 
     )
  
@@ -615,12 +619,12 @@ configuration DCHydration
 		{
         Ensure = 'Present'
 		}
+
         WindowsFeature DSCServiceFeature
         {
             Ensure = "Present"
             Name   = "DSC-Service"
         }
-
 
         xDscWebService PSDSCPullServer
         {
@@ -646,6 +650,13 @@ configuration DCHydration
             DependsOn               = ("[WindowsFeature]DSCServiceFeature","[xDSCWebService]PSDSCPullServer")
         }
 		
+        File RegistrationKeyFile
+        {
+            Ensure = 'Present'
+            Type   = 'File'
+            DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
+            Contents        = $RegistrationKey
+        }
     }
 }
 
@@ -674,13 +685,13 @@ configuration LCMConfig
         Settings
         {
             RebootNodeIfNeeded = $true
-			ActionAfterReboot = 'ContinueConfiguration'
+			ActionAfterReboot = 'ContinueConfiguration'    
         }
     }
 }
 
 LCMConfig       -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData
-DCHydration     -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred -DomainAdminName $LabConfig.DomainAdminName
+DCHydration     -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred -DomainAdminName $LabConfig.DomainAdminName -RegistrationKey '14fc8e72-5036-4e79-9f89-5382160053aa'
 
 New-item -type directory -Path "$Workdir\Temp\config" -ErrorAction Ignore
 Copy-Item -path "$workdir\Temp\config\dc.mof"      -Destination "$workdir\Temp\mountdir\Windows\system32\Configuration\pending.mof"
