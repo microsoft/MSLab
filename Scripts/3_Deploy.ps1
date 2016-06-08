@@ -524,7 +524,7 @@ Configuration PullClientConfig
             [string[]]$ComputerName,
 
             [Parameter(Mandatory=$true)]
-			[string[]]$Config
+			[string[]]$DSCConfig
         )      	
 	Node $ComputerName {
 	
@@ -541,10 +541,10 @@ Configuration PullClientConfig
         	ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
             AllowUnsecureConnection = $true
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
-			ConfigurationNames = $Config
+			ConfigurationNames = $DSCConfig
             }
-			1..$config.count | ForEach-Object {
-				PartialConfiguration ($config | select -First $_)
+			1..$DSCConfig.count | ForEach-Object {
+				PartialConfiguration ($DSCConfig | select -Index ($_-1))
                 {
                 RefreshMode = 'Pull'
             	ConfigurationSource = '[ConfigurationRepositoryWeb]PullServerWeb'
@@ -612,7 +612,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -711,7 +711,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -799,7 +799,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -915,7 +915,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
