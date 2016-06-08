@@ -94,7 +94,7 @@ DSCMode
 	If 'Pull', VMs will be configured to Pull config from DC.
 
 Config
-	You can specify random Config name to identify configuration that should be pulled from pull server
+	You can specify random Config names to identify configuration that should be pulled from pull server
 
 NestedVirt
 	If 'Yes', nested virt is enabled
