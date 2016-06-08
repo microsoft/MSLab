@@ -93,10 +93,8 @@ StorageNetwork
 DSCMode
 	If 'Pull', VMs will be configured to Pull config from DC.
 
-GUID
-	You can specify random GUID such as 'bcb6821b-dbfa-47a7-8c4d-923aaceb7479'
-	You can create guid if you run this [guid]::NewGuid()
-	If you dont specify this, random guid will be used
+Config
+	You can specify random Config name to identify configuration that should be pulled from pull server
 
 NestedVirt
 	If 'Yes', nested virt is enabled
@@ -142,10 +140,10 @@ $LAbVMs += @{ VMName = 'Win2016_Nano' ; Configuration = 'Simple'   ; ParentVHD =
 $LAbVMs += @{ VMName = 'Win2012'      ; Configuration = 'Simple'   ; ParentVHD = 'Win2012r2_G2'        ; MemoryStartupBytes= 512MB ; Win2012Djoin='Yes' }
 $LAbVMs += @{ VMName = 'Win2012_Core' ; Configuration = 'Simple'   ; ParentVHD = 'Win2012r2Core_G2'    ; MemoryStartupBytes= 512MB ; Win2012Djoin='Yes' }
 
-Example with 2 sets of different DSC GUIDs
+Example with 2 sets of different DSC Configs
 $LAbVMs = @()
-1..6 | % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; GUID= 'bcb6821b-dbfa-47a7-8c4d-923aaceb7479'} }
-7..12| % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; GUID= 'bcb6821b-dbfa-47a7-8c4d-923aaceb7480'} }
+1..6 | % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; Config=@('Config1','Config2')} }
+7..12| % {"DSC$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; Config='Config3'} }
 
 Hyperconverged S2D with nano and nested virtualization (see https://msdn.microsoft.com/en-us/virtualization/hyperv_on_windows/user_guide/nesting for more info)
 $LAbVMs = @()

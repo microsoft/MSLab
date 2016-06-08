@@ -516,7 +516,7 @@ Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where o
 
 #DCM Config
 [DSCLocalConfigurationManager()]
-Configuration LCM_HTTPPULL 
+Configuration PullClientConfig 
 {
     param
         (
@@ -524,7 +524,7 @@ Configuration LCM_HTTPPULL
             [string[]]$ComputerName,
 
             [Parameter(Mandatory=$true)]
-            [string]$guid
+			[string[]]$Config
         )      	
 	Node $ComputerName {
 	
@@ -535,12 +535,13 @@ Configuration LCM_HTTPPULL
 			RefreshMode = 'Pull'
 			RebootNodeIfNeeded = $True
 			ActionAfterReboot = 'ContinueConfiguration'
-			ConfigurationID = $guid
             }
 
-            ConfigurationRepositoryWeb DSCHTTP { 
-                ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
-                AllowUnsecureConnection = $true
+            ConfigurationRepositoryWeb PullServerWeb { 
+        	ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
+            AllowUnsecureConnection = $true
+			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
+			ConfigurationNames = $Config
             }
 		
 	}
@@ -603,9 +604,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			if ($_.GUID -eq $Null){$Guid=[guid]::NewGuid()}
-			else{$Guid=$_.Guid}
-			LCM_HTTPPULL -ComputerName $_.VMName -Guid $Guid -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -704,9 +703,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			if ($_.GUID -eq $Null){$Guid=[guid]::NewGuid()}
-			else{$Guid=$_.Guid}
-			LCM_HTTPPULL -ComputerName $_.VMName -Guid $Guid -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -794,9 +791,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			if ($_.GUID -eq $Null){$Guid=[guid]::NewGuid()}
-			else{$Guid=$_.Guid}
-			LCM_HTTPPULL -ComputerName $_.VMName -Guid $Guid -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
@@ -912,9 +907,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		#Generate DSC Config
 		if ($_.DSCMode -eq 'Pull'){
-			if ($_.GUID -eq $Null){$Guid=[guid]::NewGuid()}
-			else{$Guid=$_.Guid}
-			LCM_HTTPPULL -ComputerName $_.VMName -Guid $Guid -OutputPath $workdir\temp\dscconfig
+			PullClientConfig -ComputerName $_.VMName -Config $_.Config -OutputPath $workdir\temp\dscconfig
 		}
 		
 		#configure nested virt
