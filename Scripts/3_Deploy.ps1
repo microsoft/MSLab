@@ -543,8 +543,8 @@ Configuration PullClientConfig
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
 			ConfigurationNames = $DSCConfig
             }
-			1..$DSCConfig.count | ForEach-Object {
-				PartialConfiguration ($DSCConfig | select -Index ($_-1))
+			$DSCConfig | ForEach-Object {
+				PartialConfiguration $_
                 {
                 RefreshMode = 'Pull'
             	ConfigurationSource = '[ConfigurationRepositoryWeb]PullServerWeb'
