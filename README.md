@@ -7,6 +7,7 @@
 
 #Changelog
 
+* 10.6.2016 - Changed DSC to use Configuration name to be able to play with LAPS https://blogs.msdn.microsoft.com/laps/2016/06/10/testing-laps-for-nano-server-with-ws2016lab/
 * 17.5.2016 - Added SCVMM automation - if you specify labconfig parameter to install SCVMM and put all install files into toolsVHD folder, SCVMM will be automatically installed during 2_CreateParentDisks
 * 15.5.2016 - Simplified variables.ps1, SCVMM install scripts added
 * 3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
