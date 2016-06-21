@@ -4,6 +4,8 @@
  Simply deploy your lab just with these scripts and ISO file.
 
  This solution is used in Microsoft Premier Workshop for Software Defined Storage.
+ 
+ Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios!
 
 #Changelog
 
