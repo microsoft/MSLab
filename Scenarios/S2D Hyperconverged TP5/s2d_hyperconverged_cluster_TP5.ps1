@@ -1,55 +1,51 @@
 ﻿##S2D Cluster##
-<#
-This scenario simulates hyperconverged cluster consisting of 3,4,8,or 16 nodes. 
+#This scenario simulates hyperconverged cluster consisting of 3,4,8,or 16 nodes. This simulates 3tier configuration, but without S2D cache
 
-issues: 16 node TP5 with latest patches pool creation fails when fault domains configured
-#>
 ##### VMS Config in variables.ps1 #####
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 's2d_HyperConverged-'; SecureBoot='Off'; CreateClientParent='No';DCEdition='ServerDataCenter'}
-
+$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 's2d_HyperConverged-'; SecureBoot='Off'; CreateClientParent='No';DCEdition='ServerDataCenter'}
 $NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
-
 $LAbVMs = @()
 1..4| % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
 
-#### Or with Nested Virtualization #####
+#### Or with Nested Virtualization. But you need host with (almost) same build number (win 10 insider preview, or Windows Server TP5 #####
 
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 'S2DLabNested-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
+$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DLabNested-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
 $NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
 $LAbVMs = @()
 1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt='Yes'} }
 
-###############
-# Run from DC #
-###############
+#######################################
+# Paste into PowerShell running in DC #
+#######################################
 
 Start-Transcript -Path '.\S2DHydration.log'
 
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
+
 ##### LAB Config #####
 
 # 3,4,8, or 16 nodes
 $numberofnodes=4
+
 #servernames
 1..$numberofnodes | ForEach-Object {$servers=$servers+@("S2D$_")}
+
 #Cluster Name
 $ClusterName="S2D-Cluster"
 
 #?Networking
 $Networking='Yes'
 
-
 #Number of MultiResiliencyDisks Created
 $MRTNumber=$numberofnodes
 
 ###############
 
-
 #install features for management
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Storage-Replica,RSAT-Hyper-V-Tools
 
-<#install Hyper-V for core servers
+<#install Hyper-V for core servers - in case you are deploying core servers instead of Nano
 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
 foreach ($server in $servers) {Install-WindowsFeature -Name Failover-Clustering,Failover-Clustering-S2D,Hyper-V-PowerShell -ComputerName $server} 
 #restart and wait for computers
@@ -58,11 +54,12 @@ Start-Sleep 60
 #>
 
 if ($Networking -eq "Yes"){
-    ###Configure networking###
+    ###Configure networking - this creates Switch Embedded Team (SET) switch with 2 vNICs representing 2 vRDMA adapters in real environment ###
     Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     $Servers | ForEach-Object {
         Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management1 -ComputerName $_
         Add-VMNetworkAdapter    -ManagementOS -Name Management2 -SwitchName SETSwitch -ComputerName $_
+
     }
     Start-Sleep 5
     Clear-DnsClientCache
@@ -74,98 +71,7 @@ New-Cluster –Name $ClusterName –Node $servers –NoStorage
 Start-Sleep 5
 Clear-DnsClientCache
 
-#region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx (just example, not best practice. It has caveats this way. Will change in RTM)
-if ($numberofnodes -eq 4){
-$xml =  @"
-<Topology>
-    <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
-        <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
-                <Node Name="S2D1"/>
-                <Node Name="S2D2"/>
-                <Node Name="S2D3"/>
-                <Node Name="S2D4"/>
-        </Rack>
-    </Site>
-</Topology>
-"@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
-
-}
-
-if ($numberofnodes -eq 8){
-
-$xml =  @"
-<Topology>
-    <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
-        <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
-            <Node Name="S2D1"/>
-            <Node Name="S2D2"/>
-            <Node Name="S2D3"/>
-            <Node Name="S2D4"/>
-        </Rack>
-        <Rack Name="Rack02" Location="Contoso HQ, Room 4010, Aisle A, Rack 02">
-            <Node Name="S2D5"/>
-            <Node Name="S2D6"/>
-            <Node Name="S2D7"/>
-            <Node Name="S2D8"/>
-        </Rack>
-    </Site>
-</Topology>
-"@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
-    
-}
-
-<# TP5 issues
-if ($numberofnodes -eq 16){
-$xml =  @"
-<Topology>
-    <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
-        <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
-            <Chassis Name="Chassis01" Location="Rack Unit 1 (Upper)" >
-                <Node Name="S2D1"/>
-                <Node Name="S2D2"/>
-                <Node Name="S2D3"/>
-                <Node Name="S2D4"/>
-            </Chassis>
-            <Chassis Name="Chassis02" Location="Rack Unit 1 (Lower)" >
-                <Node Name="S2D5"/>
-                <Node Name="S2D6"/>
-                <Node Name="S2D7"/>
-                <Node Name="S2D8"/>
-            </Chassis>
-        </Rack>
-        <Rack Name="Rack02" Location="Contoso HQ, Room 4010, Aisle A, Rack 02">
-            <Chassis Name="Chassis03" Location="Rack Unit 2 (Upper)" >
-                <Node Name="S2D9"/>
-                <Node Name="S2D10"/>
-                <Node Name="S2D11"/>
-                <Node Name="S2D12"/>
-            </Chassis>
-            <Chassis Name="Chassis04" Location="Rack Unit 2 (Lower)" >
-                <Node Name="S2D13"/>
-                <Node Name="S2D14"/>
-                <Node Name="S2D15"/>
-                <Node Name="S2D16"/>
-            </Chassis>
-        </Rack>
-    </Site>
-</Topology>
-"@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
-
-}
-
-#>
-#endregion Create Fault Domains
-
-#show fault domain configuration
-Get-ClusterFaultDomainxml -CimSession $ClusterName
-
-#TP5
+#Enabling S2D - TP5 specific. It is clumsy now, so we need to create pool and tiers manually.
 Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0 -Confirm:$false -SkipEligibilityChecks
 
 #TP5 fix
@@ -196,7 +102,7 @@ if  ($numberofnodes -eq 3){
 New-Volume -StoragePoolFriendlyName $pool.friendlyname -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTiers $perf,$cap -StorageTierSizes 1TB,10TB
 }
 
-<# More manual way
+<# More manual way - Sometimes command above does not work
 if  ($numberofnodes -eq 3){    
     1..$MRTNumber | ForEach-Object {
         $vdiskname="MultiResiliencyDisk$_"
