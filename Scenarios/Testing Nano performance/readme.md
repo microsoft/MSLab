@@ -1,0 +1,1 @@
+for more information please read this blog https://blogs.technet.microsoft.com/askpfeplat/2016/06/20/comparing-windows-server-2016-nano-tp5-provisioning-time-to-guicore-installation-options/
