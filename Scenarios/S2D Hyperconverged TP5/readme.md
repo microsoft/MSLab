@@ -1,7 +1,15 @@
+# Scenario Description
+
+* In this scenario 4-16 node S2D cluster can be created.
+* It is just simulation "how it would look like". Performance is not a subject here.
+* It is just to test look and feel
+* THis is TP5 script. It will likely change in RTM.
+
+
 # Scenario requirements
 
 * Windows 10 1511 with enabled Hyper-V
-* 8GB Memory or 20GB if nested virtualization is used
+* 8GB Memory or 20GB if nested virtualization is used (for 4 node configuration)
 * SSD (with HDD it is really slow)
 
 # Variables.ps1
@@ -98,8 +106,90 @@ Invoke-Command -ComputerName $servers -ScriptBlock {Get-ScheduledTask "SpaceMana
 Get-StorageProvider | Register-StorageSubsystem -ComputerName $ClusterName
 ````
 
-* Create Pool
+* Create Pool. On real systems this is not needed, because StoragePool is automatically created during Enable-ClusterS2D
+
+```PowerShell
+$phydisk = Get-StorageSubSystem -FriendlyName *$ClusterName | Get-PhysicalDisk -CanPool $true
+Write-Host "Number of physical disks found:" $phydisk.count -ForegroundColor Cyan
+
+$pool=New-StoragePool -FriendlyName  DirectPool -PhysicalDisks $phydisk -StorageSubSystemFriendlyName *$ClusterName 
+````
+
+* Set Mediatype. This is workaround to simulate SSDs and HDDs. Again, on real systems this is not needed
+
+```PowerShell
+$pool | get-physicaldisk | where Size -le 900GB | Set-PhysicalDisk -MediaType SSD
+$pool | get-physicaldisk | where Size -ge 900GB | Set-PhysicalDisk -MediaType HDD
+````
+
+* Create Tiers. On real system this is done automatically during Enable-ClusterS2D. Here is a logic for 3 node configuration, where capacity tier needs to be also 3 way mirror to protect from 2 node failure.
+
+```PowerShell
+$Perf = New-StorageTier -FriendlyName Performance  -MediaType SSD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
+if  ($numberofnodes -ne 3){
+    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Parity -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
+}
+if  ($numberofnodes -eq 3){
+    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
+}
+````
+
+* Create virtual disks. Here you really need newest (June 2016) Cumulative Update to run successfully.
+
+```PowerShell
+1..$MRTNumber | ForEach-Object {
+New-Volume -StoragePoolFriendlyName $pool.friendlyname -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTiers $perf,$cap -StorageTierSizes 1TB,10TB
+}
+````
+
+* Rename all CSVs to match virtual disks names
+```PowerShell
+Get-ClusterSharedVolume -Cluster $ClusterName | % {
+    $volumepath=$_.sharedvolumeinfo.friendlyvolumename
+    $newname=$_.name.Substring(22,$_.name.Length-23)
+    Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+} 
+````
+
+* Configure Quorum (File Share Witness)
+
+```PowerShell
+#Create new directory
+Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name S2DWitness -ItemType Directory}
+$nodes=@()
+1..$numberofnodes | % {$nodes+="corp\S2D$_$"}
+$nodes+="corp\$ClusterName$"
+$nodes+="corp\Administrator"
+New-SmbShare -Name S2DWitness -Path c:\Shares\S2DWitness -FullAccess $nodes -CimSession DC
+# Set NTFS permissions 
+Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare S2DWitness).PresetPathAcl | Set-Acl}
+#Set Quorum
+Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness \\DC\S2DWitness
+````
+
+* On real systems you should not forget to configure CSV Cache
+```PowerShell
+(Get-Cluster $ClusterName).BlockCacheSize = 1024 
+````
+
+* If you want to play with some new Diagnostic Tools, run these commands. This is still work in progress, so it will likely change in RTM
+
+```PowerShell
+#show errors... 
+Get-StorageSubSystem *$ClusterName | Debug-StorageSubSystem
+
+#get healthreport
+Get-StorageSubSystem *$ClusterName  | Get-StorageHealthReport -Count 5
+
+#get cluster diagnostic
+Get-ClusterDiagnostics -ClusterName $ClusterName
+
+#storagedisagnostic
+Get-StorageSubSystem -FriendlyName *$ClusterName | Get-StorageDiagnosticInfo -DestinationPath c:\temp
+````
 
 
+# How it looks like end-to-end (when you just paste the script). 
+Note, there are small differences (we did not configure fault domains, but it is displayed on GIF as I did it a while ago.
 
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/s2d_Hyperconverged.gif)
