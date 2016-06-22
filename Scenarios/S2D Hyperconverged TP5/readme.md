@@ -134,7 +134,7 @@ if  ($numberofnodes -eq 3){
 }
 ````
 
-* Create virtual disks. Here you really need newest (June 2016) Cumulative Update to run successfully.
+* Create virtual disks. Here you really need April 2016 Cumulative Update to run successfully. On May/June CU I see various errors. This should be fixed in RTM
 
 ```PowerShell
 1..$MRTNumber | ForEach-Object {
