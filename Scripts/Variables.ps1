@@ -2,14 +2,15 @@
 
 $LabConfig=@{SwitchName = 'LabSwitch'; AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DHyperConverged-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise';InstallSCVMM='No'}
 
+$LAbVMs = @()
+1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+
+#optional: (only if AdditionalNetworks are configured in $LabVMs)
 $AdditionalNetworksConfig=@(
     @{ NetName = 'Storage1' ; NetAddress='172.16.1.' ; NetVLAN='1'; Subnet='255.255.255.0'},
     @{ NetName = 'Storage2' ; NetAddress='172.16.2.' ; NetVLAN='2'; Subnet='255.255.255.0'},
     @{ NetName = 'Storage3' ; NetAddress='172.16.3.' ; NetVLAN='3'; Subnet='255.255.255.0'}    
 )
-
-$LAbVMs = @()
-1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
 
 <#
 The configuration below is an example config thats being used in Microsoft Premier Workshop for SDS. 
