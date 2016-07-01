@@ -304,7 +304,7 @@ Write-host	"Script started at $StartDateTime"
 Write-Host "List of variables used" -ForegroundColor Cyan
 Write-Host "`t Prefix used in lab is "$labconfig.prefix
 
-$SwitchName=($labconfig.prefix+$Networkconfig.SwitchName)
+$SwitchName=($labconfig.prefix+$LabConfig.SwitchName)
 Write-Host "`t Switchname is $SwitchName" 
 
 Write-Host "`t Workdir is $Workdir"
@@ -464,10 +464,13 @@ Write-Host "`t Configuring Network"
 $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 Write-Host "`t`t Adding network adapters"
-$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage2
-$DC | Get-VMNetworkAdapter -Name Storage1 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet1+$IP.ToString()) -Subnet 255.255.255.0
-$DC | Get-VMNetworkAdapter -Name Storage2 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet2+$IP.ToString()) -Subnet 255.255.255.0
+
+$AdditionalNetworksConfig | ForEach-Object {
+$adapter=$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN 
+}
+
 $IP++
 
 Write-Host "`t Adding Tools disk to DC machine"
@@ -602,11 +605,12 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.StorageNetwork -eq 'Yes'){
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage2
-			$VMTemp | Get-VMNetworkAdapter -Name Storage1 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet1+$IP.ToString()) -Subnet 255.255.255.0
-			$VMTemp | Get-VMNetworkAdapter -Name Storage2 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet2+$IP.ToString()) -Subnet 255.255.255.0
+		if ($_.AdditionalNetwork -eq 'Yes'){
+			$AdditionalNetworksConfig | ForEach-Object {
+				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
+				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+			}
 			$IP++
 		}
 
@@ -701,11 +705,12 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.StorageNetwork -eq 'Yes'){
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage2
-			$VMTemp | Get-VMNetworkAdapter -Name Storage1 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet1+$IP.ToString()) -Subnet 255.255.255.0
-			$VMTemp | Get-VMNetworkAdapter -Name Storage2 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet2+$IP.ToString()) -Subnet 255.255.255.0
+		if ($_.AdditionalNetwork -eq 'Yes'){
+			$AdditionalNetworksConfig | ForEach-Object {
+				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
+				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+			}
 			$IP++
 		}
 
@@ -789,11 +794,12 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.StorageNetwork -eq 'Yes'){
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage2
-			$VMTemp | Get-VMNetworkAdapter -Name Storage1 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet1+$IP.ToString()) -Subnet 255.255.255.0
-			$VMTemp | Get-VMNetworkAdapter -Name Storage2 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet2+$IP.ToString()) -Subnet 255.255.255.0
+		if ($_.AdditionalNetwork -eq 'Yes'){
+			$AdditionalNetworksConfig | ForEach-Object {
+				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
+				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+			}
 			$IP++
 		}
 
@@ -905,11 +911,12 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.StorageNetwork -eq 'Yes'){
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-			$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage2
-			$VMTemp | Get-VMNetworkAdapter -Name Storage1 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet1+$IP.ToString()) -Subnet 255.255.255.0
-			$VMTemp | Get-VMNetworkAdapter -Name Storage2 | Set-VMNetworkConfiguration -IPAddress ($NetworkConfig.StorageNet2+$IP.ToString()) -Subnet 255.255.255.0
+		if ($_.AdditionalNetwork -eq 'Yes'){
+			$AdditionalNetworksConfig | ForEach-Object {
+				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
+				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+			}
 			$IP++
 		}
 
