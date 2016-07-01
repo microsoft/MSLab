@@ -466,9 +466,9 @@ $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 Write-Host "`t`t Adding network adapters"
 
 $AdditionalNetworksConfig | ForEach-Object {
-$adapter=$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN 
+$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+$DC | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+if($_.NetVLAN -ne 0){ $DC | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
 }
 
 $IP++
@@ -605,11 +605,11 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetwork -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq 'Yes'){
 			$AdditionalNetworksConfig | ForEach-Object {
-				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
 			}
 			$IP++
 		}
@@ -705,11 +705,11 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetwork -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq 'Yes'){
 			$AdditionalNetworksConfig | ForEach-Object {
-				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
 			}
 			$IP++
 		}
@@ -794,11 +794,11 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetwork -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq 'Yes'){
 			$AdditionalNetworksConfig | ForEach-Object {
-				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
 			}
 			$IP++
 		}
@@ -911,11 +911,11 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 
 		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetwork -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq 'Yes'){
 			$AdditionalNetworksConfig | ForEach-Object {
-				$adapter=$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name Storage1
-				$adapter | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-				$adapter | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN
+				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
 			}
 			$IP++
 		}
