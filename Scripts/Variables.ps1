@@ -4,7 +4,7 @@ $LabConfig=@{SwitchName = 'LabSwitch'; AdminPassword='LS1setup!'; DomainAdminNam
 
 $AdditionalNetworksConfig=@(
     @{ NetName = 'Storage1' ; NetAddress='172.16.1.' ; NetVLAN='1'; Subnet='255.255.255.0'},
-    @{ NetName = 'Storage2' ; NetAddress='172.16.2.' ; NetVLAN='2'; Subnet='255.255.255.0'}
+    @{ NetName = 'Storage2' ; NetAddress='172.16.2.' ; NetVLAN='2'; Subnet='255.255.255.0'},
     @{ NetName = 'Storage3' ; NetAddress='172.16.3.' ; NetVLAN='3'; Subnet='255.255.255.0'}    
 )
 
