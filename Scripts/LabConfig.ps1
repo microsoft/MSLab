@@ -2,14 +2,14 @@
 
 $LabConfig=@{
     DomainAdminName='Claus'; 			# Used during 2_CreateParentDisks (no affect if changed after this step)
-	AdminPassword='LS1setup!'; 			# Used during 2_CreateParentDisks. If changed during after, it will break the functionality
+	AdminPassword='LS1setup!'; 			# Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
     Prefix = 'S2DHyperConverged-'; 		# All VMs and vSwitch are created with this prefix, so you can identify the lab
     SwitchName = 'LabSwitch';			# Name of vSwitch
     SecureBoot=$true; 					# Useful when testing unsigned builds (Useful for MS developers for daily builds)
     DCEdition='ServerDataCenter';		# ServerDataCenter or ServerDataCenterCore (or if you prefer standard)
     CreateClientParent=$false;			# If True, client OS will be hydrated
     ClientEdition='Enterprise';			# Enterprise/Education/Pro/Home (depends what ISO you use)
-	InstallSCVMM='No';					# All/Prereqs/SQL/ADK/No
+	InstallSCVMM='No';					# Yes/Prereqs/SQL/ADK/No
     AdditionalNetworkInDC=$false;		# If Additional networks should be added also to DC
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@();							# Just empty array for config below
@@ -80,7 +80,7 @@ ClientEdition
 	Depends what ISO you use. Edition name matches the one you get from DISM.
 
 InstallSCVMM *
-	'All' 		- installs ADK, SQL and VMM
+	'Yes' 		- installs ADK, SQL and VMM
 	'ADK' 		- installs just ADK
 	'SQL' 		- installs just SQL
 	'Prereqs' 	- installs ADK and SQL
@@ -100,7 +100,6 @@ InstallSCVMM *
  
  VMName
     Can be whatever. This name will be used as name to djoin VM.
-	If multiple 
 
 Configuration
     'Simple' - No local storage. Just VM
