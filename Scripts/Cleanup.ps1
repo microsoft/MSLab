@@ -19,8 +19,8 @@ Function Get-ScriptDirectory
 ##########################################################################################
 $Workdir=get-scriptdirectory
 
-#load variables
-. "$($workdir)\variables.ps1"
+#load LabConfig
+. "$($workdir)\LabConfig.ps1"
 $prefix=$LabConfig.Prefix
 
 if (!$prefix){

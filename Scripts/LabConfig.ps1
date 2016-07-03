@@ -1,43 +1,62 @@
-﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples or scroll down
+﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
-$LabConfig=@{SwitchName = 'LabSwitch'; AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DHyperConverged-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise';InstallSCVMM='No'}
+$LabConfig=@{
+    DomainAdminName='Claus'; 			# Used during 2_CreateParentDisks (no affect if changed after this step)
+	AdminPassword='LS1setup!'; 			# Used during 2_CreateParentDisks. If changed during after, it will break the functionality
+    Prefix = 'S2DHyperConverged-'; 		# All VMs and vSwitch are created with this prefix, so you can identify the lab
+    SwitchName = 'LabSwitch';			# Name of vSwitch
+    SecureBoot=$true; 					# Useful when testing unsigned builds (Useful for MS developers for daily builds)
+    DCEdition='ServerDataCenter';		# ServerDataCenter or ServerDataCenterCore (or if you prefer standard)
+    CreateClientParent=$false;			# If True, client OS will be hydrated
+    ClientEdition='Enterprise';			# Enterprise/Education/Pro/Home (depends what ISO you use)
+	InstallSCVMM='No';					# All/Prereqs/SQL/ADK/No
+    AdditionalNetworkInDC=$false;		# If Additional networks should be added also to DC
+    AdditionalNetworksConfig=@();		# Just empty array for config below
+    VMs=@();							# Just empty array for config below
+} 
 
-$LAbVMs = @()
-1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+# Specifying LabVMs
+1..4 | % { $VMNames="S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
 
-#optional: (only if AdditionalNetworks are configured in $LabVMs)
-$AdditionalNetworksConfig=@(
-    @{ NetName = 'Storage1' ; NetAddress='172.16.1.' ; NetVLAN='1'; Subnet='255.255.255.0'},
-    @{ NetName = 'Storage2' ; NetAddress='172.16.2.' ; NetVLAN='2'; Subnet='255.255.255.0'},
-    @{ NetName = 'Storage3' ; NetAddress='172.16.3.' ; NetVLAN='3'; Subnet='255.255.255.0'}    
-)
+#optional: (only if AdditionalNetworks are configured in $LabVMs) this is just an example. In this configuration its not needed.
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
 
 <#
-The configuration below is an example config thats being used in Microsoft Premier Workshop for SDS. 
+# More complex labconfig example for Microsoft Premier Software Defined Storage Workshop (work-in-progress)
+$LabConfig=@{
+    DomainAdminName='Ned'; 				
+	AdminPassword='LS1setup!'; 		
+    Prefix = 'S2DHyperConverged-'; 		
+    SwitchName = 'LabSwitch';			
+    SecureBoot=$true; 					
+    DCEdition='ServerDataCenterCore';		
+    CreateClientParent=$false;			
+    ClientEdition='Enterprise';			
+	InstallSCVMM='No';					
+    AdditionalNetworkInDC=$false;		
+    AdditionalNetworksConfig=@();		
+    VMs=@();							
+} 
+
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
+
+$LABConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'    ; MemoryStartupBytes= 1GB ; AddToolsVHD='Yes' }
+1..2 | % { $VMNames="Shared"  ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'   ; ParentVHD = 'Win2016Core_G2.vhdx'     ; SSDNumber = 3; SSDSize=800GB ; HDDNumber = 9  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; VMSet= 'SharedLab1' } }
+1..4 | % { $VMNames="Direct"  ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+1..4 | % { $VMNames="Compute" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; MemoryStartupBytes= 256MB } }
+1..2 | % { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; AdditionalNetworks = $True} }
+3..4 | % { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet2' ; AdditionalNetworks = $True} }
+
 #>
-
-<# 
-
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Ned'; Prefix = 'SDSWS-'; SecureBoot='On'; CreateClientParent='Yes';DCEdition='ServerDataCenterCore';ClientEdition='Enterprise';InstallSCVMM='Yes'}
-
-$NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
-
-$LAbVMs = @()
-$LAbVMs += @{ VMName = 'Management'        ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'            ; MemoryStartupBytes= 1GB }
-1..4 | % {"Direct$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
-1..4 | % {"Shared$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Shared'   ; ParentVHD = 'Win2016Core_G2.vhdx'     ; SSDNumber = 6; SSDSize=800GB ; HDDNumber = 8  ; HDDSize= 1TB ; MemoryStartupBytes= 512MB ; VMSet= 'SharedLab1' ; AdditionalNetworks = 'Yes'} }
-1..4 | % {"Compute$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; MemoryStartupBytes= 128MB } }
-1..2 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; AdditionalNetworks = 'Yes'} }
-3..4 | % {"Replica$_"} | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet2' ; AdditionalNetworks = 'Yes'} }
-#>
-
 
 ### HELP ###
 <# If you need more help or different configuration options, ping me at jaromirk@microsoft.com
 
 ### Parameters ###
 
-##Labconfig##
+##$Labconfig##
 Password
 	Specifies password for your lab. This password is used for domain admin, vmm account, sqlservice account and additional DomainAdmin... Define before running 2_CreateParentImages
 
@@ -45,11 +64,11 @@ Prefix
 	Prefix for your lab. Each VM and switch will have this prefix.
 
 Secureboot
-	'On'/'Off'
+	$True/$False
 	This enables or disables secure boot. In Microsoft we can test unsigned test builds with Secureboot off.
 
 CreateClientParent
-	'Yes'/'No'
+	$True/$False
 	If Yes, Client Parent image will be created, so you can create Windows 10 management machine.
 
 DCEdition
@@ -61,21 +80,27 @@ ClientEdition
 	Depends what ISO you use. Edition name matches the one you get from DISM.
 
 InstallSCVMM *
-	'Yes' 		- installs ADK, SQL and VMM
+	'All' 		- installs ADK, SQL and VMM
 	'ADK' 		- installs just ADK
 	'SQL' 		- installs just SQL
-	'Prereqs' 	- installs ADK and SQL 
+	'Prereqs' 	- installs ADK and SQL
+	'No' 		- No, or anything else, nothing is installed.
+		
 		*requires install files in toolsVHD\SCVMM\, or it will fail. You can download all tools here:
-			
 			SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
 			SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
 			ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
 			
-
-##LABVMs##
-
-VMName
+##$LabConfig.VMs##
+ Example: 
+ 	Single:
+	 $LABConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'    ; MemoryStartupBytes= 1GB ; AddToolsVHD='Yes' }
+ 	Multiple:
+	 1..2 | % { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; AdditionalNetworks = $True} }
+ 
+ VMName
     Can be whatever. This name will be used as name to djoin VM.
+	If multiple 
 
 Configuration
     'Simple' - No local storage. Just VM
@@ -93,7 +118,7 @@ ParentVHD
 	'Win10_G2.vhdx'		- Windows 10 if you selected to hydrate it with create client parent.
 
 AdditionalNetworks
-	'Yes' - Additional networks configured in AdditonalNetworkConfig added 
+	$True - Additional networks (configured in AdditonalNetworkConfig) are added 
 
 DSCMode
 	If 'Pull', VMs will be configured to Pull config from DC.
@@ -102,17 +127,32 @@ Config
 	You can specify random Config names to identify configuration that should be pulled from pull server
 
 NestedVirt
-	If 'Yes', nested virt is enabled
-	Enables -ExposeVirtualizationExtensions $true and sets static memory	
+	If $True, nested virt is enabled
+	Enables -ExposeVirtualizationExtensions $true	
 
 AddToolsVHD
-	If 'Yes', then ToolsVHD will be added
+	If $True, then ToolsVHD will be added
 
 SkipDjoin
-	If 'Yes', VM will not be djoined.
+	If $True, VM will not be djoined.
     
 Win2012Djoin
-    If 'Yes', older way to domain join will be used (Username and Password in Answer File instead of blob) as Djoin Blob works only in Win 2016
+    If $True, older way to domain join will be used (Username and Password in Answer File instead of blob) as Djoin Blob works only in Win 2016
+
+##$LabConfig.AdditionalNetworksConfig##
+	Example: $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
+
+NetName
+	Name of network adapter (visible from host)
+
+NetAddress
+	Network prefix of IP address thats injected into the VM. IP Starts with 1.
+
+NetVLAN
+	Will tag VLAN. If 0, vlan tagging will be skipped.
+
+Subnet
+	Subnet of network.
 
 #>
 
