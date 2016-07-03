@@ -298,8 +298,8 @@ $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
 
-##Load Variables....
-. "$($workdir)\variables.ps1"
+##Load LabConfig....
+. "$($workdir)\LabConfig.ps1"
 
 Write-Host "List of variables used" -ForegroundColor Cyan
 Write-Host "`t Prefix used in lab is "$labconfig.prefix
@@ -463,15 +463,15 @@ Write-Host "`t Configuring Network"
 
 $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
-Write-Host "`t`t Adding network adapters"
-
-$AdditionalNetworksConfig | ForEach-Object {
-$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-$DC | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
-if($_.NetVLAN -ne 0){ $DC | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+if ($labconfig.AdditionalNetworkInDC -eq $True){
+	Write-Host "`t`t Adding network adapters"
+	$Labconfig.AdditionalNetworksConfig | ForEach-Object {
+		$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
+		$DC | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
+		if($_.NetVLAN -ne 0){ $DC | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+	}
+	$IP++
 }
-
-$IP++
 
 Write-Host "`t Adding Tools disk to DC machine"
 
@@ -557,7 +557,7 @@ Configuration PullClientConfig
 }
 
 
-$LabVMs.GetEnumerator() | ForEach-Object {
+$LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
     if ($_.configuration -eq 'Shared'){
         $VMSet=$_.VMSet
@@ -603,9 +603,9 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
 		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
 
-		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetworks -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq $True){
 			$AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
@@ -620,18 +620,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}
 		
 		#configure nested virt
-		if ($_.NestedVirt -eq 'Yes'){
+		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
 
 		$Name=$_.VMName
 		
-		if ($_.SkipDjoin -eq 'Yes'){
+		if ($_.SkipDjoin -eq $True){
 			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			if ($_.Win2012Djoin -eq 'Yes'){
+			if ($_.Win2012Djoin -eq $True){
 				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
@@ -655,7 +655,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
-		if ($_.AddToolsVHD -eq 'Yes'){
+		if ($_.AddToolsVHD -eq $True){
 			$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
 			Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
 			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
@@ -703,9 +703,9 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
 		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
 
-		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetworks -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq $True){
 			$AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
@@ -720,18 +720,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}
 		
 		#configure nested virt
-		if ($_.NestedVirt -eq 'Yes'){
+		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
 
 		$Name=$_.VMName
 		
-		if ($_.SkipDjoin -eq 'Yes'){
+		if ($_.SkipDjoin -eq $True){
 			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			if ($_.Win2012Djoin -eq 'Yes'){
+			if ($_.Win2012Djoin -eq $True){
 				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
@@ -755,7 +755,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
-		if ($_.AddToolsVHD -eq 'Yes'){
+		if ($_.AddToolsVHD -eq $True){
 			$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
 			Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
 			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
@@ -792,9 +792,9 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
 		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
 
-		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetworks -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq $True){
 			$AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
@@ -809,18 +809,18 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}
 		
 		#configure nested virt
-		if ($_.NestedVirt -eq 'Yes'){
+		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
 
 		$Name=$_.VMName
 		
-		if ($_.SkipDjoin -eq 'Yes'){
+		if ($_.SkipDjoin -eq $True){
 			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			if ($_.Win2012Djoin -eq 'Yes'){
+			if ($_.Win2012Djoin -eq $True){
 				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
@@ -844,7 +844,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
-		if ($_.AddToolsVHD -eq 'Yes'){
+		if ($_.AddToolsVHD -eq $True){
 			$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
 			Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
 			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
@@ -909,9 +909,9 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
 		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
 
-		if ($LabConfig.Secureboot -eq 'Off') {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
-		if ($_.AdditionalNetworks -eq 'Yes'){
+		if ($_.AdditionalNetworks -eq $True){
 			$AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
@@ -926,18 +926,17 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		}
 		
 		#configure nested virt
-		if ($_.NestedVirt -eq 'Yes'){
+		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
 
 		$Name=$_.VMName
 		
-		if ($_.SkipDjoin -eq 'Yes'){
+		if ($_.SkipDjoin -eq $True){
 			$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 		}
 		else{
-			if ($_.Win2012Djoin -eq 'Yes'){
+			if ($_.Win2012Djoin -eq $True){
 				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
@@ -961,7 +960,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
 
 		#add toolsdisk
-		if ($_.AddToolsVHD -eq 'Yes'){
+		if ($_.AddToolsVHD -eq $True){
 			$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
 			Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
 			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path

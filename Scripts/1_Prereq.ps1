@@ -29,8 +29,8 @@ Start-Transcript -Path $workdir'\Prereq.log'
 $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
-##Load Variables....
-. "$($workdir)\variables.ps1"
+##Load LabConfig....
+. "$($workdir)\LabConfig.ps1"
 
 # Checking for Compatible OS
 Write-Host "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Cyan

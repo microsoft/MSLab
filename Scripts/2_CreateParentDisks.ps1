@@ -14,8 +14,8 @@ Start-Transcript -Path $workdir\CreateParentDisks.log
 $StartDateTime = get-date
 Write-host	"Script started at $StartDateTime"
 
-##Load Variables....
-. "$($workdir)\variables.ps1"
+##Load LabConfig....
+. "$($workdir)\LabConfig.ps1"
 
 #Variables
 ##################################
