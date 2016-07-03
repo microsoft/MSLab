@@ -12,14 +12,31 @@ $LabConfig=@{
 	InstallSCVMM='No';					# Yes/Prereqs/SQL/ADK/No
     AdditionalNetworkInDC=$false;		# If Additional networks should be added also to DC
     AdditionalNetworksConfig=@();		# Just empty array for config below
-    VMs=@();							# Just empty array for config below
+    VMs=@()								# Just empty array for config below
 } 
 
 # Specifying LabVMs
-1..4 | % { $VMNames="S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+1..4 | % { 
+	$VMNames="S2D"; 							# Here you can bulk edit name of 4 VMs created. In this case will be s2d1,s2d2,s2d3,s2d4 created
+	$LABConfig.VMs += @{ 
+		VMName = "$VMNames$_" ; 
+		Configuration = 'S2D' ; 				# Simple/S2D/Shared/Replica
+		ParentVHD = 'Win2016NanoHV_G2.vhdx';	# VHD Name from .\ParentDisks folder
+		SSDNumber = 4; 							# Number of "SSDs" (its just simulation of SSD-like sized HDD, just bunch of smaller disks)
+		SSDSize=800GB ; 						# Size of "SSDs"
+		HDDNumber = 12; 						# Number of "HDDs"
+		HDDSize= 4TB ; 							# Size of "HDDs"
+		MemoryStartupBytes= 512MB 				# Startup memory size
+	} 
+} 
 
 #optional: (only if AdditionalNetworks are configured in $LabConfig.VMs) this is just an example. In this configuration its not needed.
-$LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
+$LABConfig.AdditionalNetworksConfig += @{ 
+	NetName = 'Storage1'; 						# Network Name
+	NetAddress='172.16.1.'; 					# Network Addresses prefix. (starts with 1), therefore first VM with Additional network config will have IP 172.16.1.1
+	NetVLAN='1'; 								# VLAN tagging
+	Subnet='255.255.255.0'						# Subnet Mask
+}
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
 
