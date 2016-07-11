@@ -144,7 +144,15 @@ Config
 
 NestedVirt
 	If $True, nested virt is enabled
-	Enables -ExposeVirtualizationExtensions $true	
+	Enables -ExposeVirtualizationExtensions $true
+
+MemoryStartupBytes
+	Example: 512MB
+	Startup memory bytes
+
+MemoryMinimumBytes
+	Example: 1GB
+	Minimum memory bytes	
 
 AddToolsVHD
 	If $True, then ToolsVHD will be added

@@ -622,8 +622,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		#configure nested virt
 		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
+
+		#set memoryminumumbytes
+		if ($_.MemoryMinumumBytes -ne $null){
+			$MemoryMinimumBytes=$_.MemoryMinumumBytes
+			$VMTemp | Set-VM -MemoryMinimumBytes $MemoryMinumumBytes
+		}
 
 		$Name=$_.VMName
 		
@@ -722,8 +727,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		#configure nested virt
 		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
+
+		#set memoryminumumbytes
+		if ($_.MemoryMinumumBytes -ne $null){
+			$MemoryMinimumBytes=$_.MemoryMinumumBytes
+			$VMTemp | Set-VM -MemoryMinimumBytes $MemoryMinumumBytes
+		}
 
 		$Name=$_.VMName
 		
@@ -811,8 +821,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		#configure nested virt
 		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 		}		
+
+		#set memoryminumumbytes
+		if ($_.MemoryMinumumBytes -ne $null){
+			$MemoryMinimumBytes=$_.MemoryMinumumBytes
+			$VMTemp | Set-VM -MemoryMinimumBytes $MemoryMinumumBytes
+		}
 
 		$Name=$_.VMName
 		
@@ -930,6 +945,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
+		#set memoryminumumbytes
+		if ($_.MemoryMinumumBytes -ne $null){
+			$MemoryMinimumBytes=$_.MemoryMinumumBytes
+			$VMTemp | Set-VM -MemoryMinimumBytes $MemoryMinumumBytes
+		}
+		
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq $True){
