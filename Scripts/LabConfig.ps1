@@ -152,7 +152,8 @@ MemoryStartupBytes
 
 MemoryMinimumBytes
 	Example: 1GB
-	Minimum memory bytes	
+	Minimum memory bytes, must be less or equal to MemoryStartupBytes
+	If not set, default is used.	
 
 AddToolsVHD
 	If $True, then ToolsVHD will be added
