@@ -606,7 +606,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
 		if ($_.AdditionalNetworks -eq $True){
-			$AdditionalNetworksConfig | ForEach-Object {
+			$LabConfig.AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
 				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
@@ -711,7 +711,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
 		if ($_.AdditionalNetworks -eq $True){
-			$AdditionalNetworksConfig | ForEach-Object {
+			$LabConfig.AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
 				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
@@ -805,7 +805,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
 		if ($_.AdditionalNetworks -eq $True){
-			$AdditionalNetworksConfig | ForEach-Object {
+			$LabConfig.AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
 				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
@@ -927,7 +927,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
 		if ($_.AdditionalNetworks -eq $True){
-			$AdditionalNetworksConfig | ForEach-Object {
+			$LabConfig.AdditionalNetworksConfig | ForEach-Object {
 				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 				$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
 				if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
