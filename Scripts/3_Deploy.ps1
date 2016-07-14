@@ -624,9 +624,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
-		#set memoryminumumbytes
-		if ($_.MemoryMinumumBytes -ne $null){
-			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinumumBytes
+		#set MemoryMinimumBytes
+		if ($_.MemoryMinimumBytes -ne $null){
+			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
 
 		$Name=$_.VMName
@@ -728,9 +728,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
-		#set memoryminumumbytes
-		if ($_.MemoryMinumumBytes -ne $null){
-			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinumumBytes
+		#set MemoryMinimumBytes
+		if ($_.MemoryMinimumBytes -ne $null){
+			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
 
 		$Name=$_.VMName
@@ -821,9 +821,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
-		#set memoryminumumbytes
-		if ($_.MemoryMinumumBytes -ne $null){
-			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinumumBytes
+		#set MemoryMinimumBytes
+		if ($_.MemoryMinimumBytesMemoryMinimumBytes -ne $null){
+			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
 
 		$Name=$_.VMName
@@ -942,9 +942,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
-		#set memoryminumumbytes
-		if ($_.MemoryMinumumBytes -ne $null){
-			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinumumBytes
+		#set MemoryMinimumBytes
+		if ($_.MemoryMinimumBytes -ne $null){
+			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
 		
 		$Name=$_.VMName
