@@ -311,7 +311,7 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 	}
 
-	If ($LabConfig.CreateClientParent -eq "Yes"){
+	If ($LabConfig.CreateClientParent -eq $True){
 		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
 		$ClientPackages | ForEach-Object {
 			$packagepath=$_.FullName
