@@ -199,7 +199,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 }
 
 ## Test for unpacked media - detect install.wim for Client OS
-If ($LabConfig.CreateClientParent -eq "Yes"){
+If ($LabConfig.CreateClientParent -eq $true){
 	If (Test-Path -Path "$workdir\OSClient\Sources\install.wim"){
 		Write-Host "ISO content found under $workdir\OSClient folder" -ForegroundColor Green
 		$ClientMediaPath="$workdir\OSClient"
@@ -262,7 +262,7 @@ $ClientPackages | ForEach-Object {Write-Host $_.Name}
 Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition ServerDataCenterCore -VHDPath $workdir'\ParentDisks\Win2016Core_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 
 #Create client OS VHD
-If ($LabConfig.CreateClientParent -eq "Yes"){
+If ($LabConfig.CreateClientParent -eq $true){
 Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 }
 
