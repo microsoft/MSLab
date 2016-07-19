@@ -288,6 +288,73 @@ Function Set-VMNetworkConfiguration {
 }
 
 ##########################################################################################
+
+<#
+.Synopsis
+   Function to wrap legacy programm
+.DESCRIPTION
+   Using this function you can run legacy program and search in output string 
+.EXAMPLE
+   wrap-process -filename fltmc.exe -arguments "attach svhdxflt e:" -outputstring "Success"
+.EXAMPLE
+   Another example of how to use this cmdlet
+#>
+function Wrap-Process
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([bool])]
+    Param
+    (
+        # process name. For example fltmc.exe
+        [Parameter(Mandatory=$true,
+                   ValueFromPipelineByPropertyName=$true,
+                   Position=0)]
+        $filename,
+
+        # arguments. for example "attach svhdxflt e:"
+        [Parameter(Mandatory=$true,
+                   ValueFromPipelineByPropertyName=$true,
+                   Position=1)]
+        $arguments,
+
+        # string to search. for example "attach svhdxflt e:"
+        [Parameter(Mandatory=$true,
+                   ValueFromPipelineByPropertyName=$true,
+                   Position=1)]
+        $outputstring
+    )
+    Process
+    {
+    
+        	$procinfo = New-Object System.Diagnostics.ProcessStartInfo
+			$procinfo.FileName = $filename
+			$procinfo.Arguments = $arguments
+			$procinfo.UseShellExecute = $false
+			$procinfo.CreateNoWindow = $true
+			$procinfo.RedirectStandardOutput = $true
+			$procinfo.RedirectStandardError = $true
+
+
+			# Create a process object using the startup info
+			$process = New-Object System.Diagnostics.Process
+			$process.StartInfo = $procinfo
+			# Start the process
+			$process.Start() | Out-Null
+
+			# get output 
+			$out = $process.StandardOutput.ReadToEnd()
+
+            if ($out.Contains($outputstring)) {
+				$output=$true
+			} else {
+                $output=$false
+			}
+            return, $output
+    }
+}
+
+##########################################################################################
 #Some necessary stuff
 ##########################################################################################
 $Workdir=Get-ScriptDirectory
@@ -357,50 +424,29 @@ if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configura
 		}else{
 			Write-Host "`t`t Failover Clustering Feature was not installed with exit code: "$FC.ExitCode
 		}
-	}else{
-		#Test for svhdxflt
-			# Setup the Process startup info
-			$fltmcinfo = New-Object System.Diagnostics.ProcessStartInfo
-			$fltmcinfo.FileName = "fltmc.exe"
-			$fltmcinfo.Arguments = "filters"
-			$fltmcinfo.UseShellExecute = $false
-			$fltmcinfo.CreateNoWindow = $true
-			$fltmcinfo.RedirectStandardOutput = $true
-			$fltmcinfo.RedirectStandardError = $true
-
-
-			# Create a process object using the startup info
-			$process = New-Object System.Diagnostics.Process
-			$process.StartInfo = $fltmcinfo
-
-			# Start the process
-			$process.Start() | Out-Null
-
-			Start-Sleep 1
-
-			# get output 
-			$out = $process.StandardOutput.ReadToEnd()
-
-			# check output for success information
-			if ($out.Contains("svhdxflt")) {
-				Write-Host "svhdfltx found" -ForegroundColor Cyan
-			} else {
-				    Write-Host "`t You need Sharedvhdx filter driver for this scenario to support shared disks. Exitting" -ForegroundColor Red
-					Write-Host "Press any key to continue ..."
-					$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-					$HOST.UI.RawUI.Flushinputbuffer()
-					Exit
-			}
 	}
 
 	Write-Host "Attaching svhdxflt filter driver to drive $LABfolderDrivePath" -ForegroundColor Cyan
-	fltmc.exe attach svhdxflt $LABfolderDrivePath
-	Write-Host "Adding svhdxflt to registry for autostart" -ForegroundColor Cyan
-	
+
+    if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
+		Write-Host "`t Svhdx filter driver was already attached" -ForegroundColor Green
+	}else{
+		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "ATTACH successful..."){
+			Write-Host "`t Svhdx filter driver was successfully attached" -ForegroundColor Green
+		}
+		else{
+			Write-Host "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU" -ForegroundColor Red
+			Write-Host "Press any key to continue ..."
+			$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+			$HOST.UI.RawUI.Flushinputbuffer()
+			Exit
+		}
+	}
+
+	Write-Host "Adding svhdxflt to registry for autostart" -ForegroundColor Cyan	
 	if (!(Test-Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters)){
 		New-Item HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters
-	}
-    
+	}   
 	New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters -Name AutoAttachOnNonCSVVolumes -PropertyType DWORD -Value 1 -force
 }
 
