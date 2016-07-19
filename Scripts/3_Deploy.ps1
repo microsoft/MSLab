@@ -342,6 +342,15 @@ function Wrap-Process
 			# Start the process
 			$process.Start() | Out-Null
 
+			# test if process is still running
+			if(!$process.HasExited){
+                do
+                {
+                   Start-Sleep 1 
+                }
+                until ($process.HasExited -eq $true)
+            }
+
 			# get output 
 			$out = $process.StandardOutput.ReadToEnd()
 
@@ -410,6 +419,48 @@ if ($BuildNumber -ge 10586){
     Exit
 }
 
+# Checking for NestedVirt
+if ($LABConfig.VMs.NestedVirt -contains $True){
+	$BuildNumber=Get-WindowsBuildNumber
+	if ($BuildNumber -ge 14300){
+		Write-Host "`t Windows is build greated than 14300. NestedVirt will work" -ForegroundColor Green
+		}else{
+		Write-Host "`t Windows build older than 14300 detected. NestedVirt will not work. Exiting" -ForegroundColor Red
+		Write-Host "Press any key to continue ..."
+		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+		$HOST.UI.RawUI.Flushinputbuffer()
+		Exit
+		}
+}
+
+# Checking for vTPM support
+if ($LABConfig.VMs.vTPM -contains $true{
+	$BuildNumber=Get-WindowsBuildNumber
+	if ($BuildNumber -ge 14300){
+		Write-Host "`t Windows is build greated than 14300. vTPM will work" -ForegroundColor Green
+		}else{
+		Write-Host "`t Windows build older than 14300 detected. vTPM will not work Exiting" -ForegroundColor Red
+		Write-Host "Press any key to continue ..."
+		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+		$HOST.UI.RawUI.Flushinputbuffer()
+		Exit
+	}
+	if (((Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).VirtualizationBasedSecurityStatus -ne 0) -and ((Get-Process "secure system") -ne $null )){
+		write-host "`t Virtualization Based Security is running. vTPM can be enabled" -ForegroundColor Green
+		}else{
+		Write-Host "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration" -ForegroundColor Red
+		Write-Host "Press any key to continue ..."
+		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+		$HOST.UI.RawUI.Flushinputbuffer()
+		Exit	
+	}
+	#load Guardian
+	$guardian=Get-HgsGuardian | select -first 1
+	if($guardian -eq $null){
+		$guardian=New-HgsGuardian -Name LabGuardian -GenerateCertificates
+	}	
+}
+
 #Check support for shared disks + enable if possible
 
 if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuratio -contains 'Replica'){
@@ -431,10 +482,9 @@ if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configura
     if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
 		Write-Host "`t Svhdx filter driver was already attached" -ForegroundColor Green
 	}else{
-		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "ATTACH successful..."){
+		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
 			Write-Host "`t Svhdx filter driver was successfully attached" -ForegroundColor Green
-		}
-		else{
+		}else{
 			Write-Host "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU" -ForegroundColor Red
 			Write-Host "Press any key to continue ..."
 			$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
@@ -470,7 +520,7 @@ Write-Host "Creating Switch" -ForegroundColor Cyan
 Write-Host "`t Checking if $SwitchName already exists..."
 
 if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){ 
-    Write-Host "`t Creating $SwitchName..." -ForegroundColor Green
+    Write-Host "`t Creating $SwitchName..."
     New-VMSwitch -SwitchType Private -Name $SwitchName
     
 }else{
@@ -482,10 +532,10 @@ if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){
 }
 
 
-Write-Host "`t Creating Mountdir" -ForegroundColor Green
+Write-Host "`t Creating Mountdir"
 New-Item $workdir\Temp\MountDir -ItemType Directory -Force
 
-Write-Host "`t Creating VMs dir" -ForegroundColor Green
+Write-Host "`t Creating VMs dir"
 New-Item $workdir\LAB\VMs -ItemType Directory -Force
 
 
@@ -694,6 +744,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
+		#configure vTPM
+		if ($_.vTPM -eq $True){
+			$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+			Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+			Enable-VMTPM -VM $VMTemp 
+		}
+
 		#set MemoryMinimumBytes
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
@@ -798,6 +855,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
+		#configure vTPM
+		if ($_.vTPM -eq $True){
+			$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+			Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+			Enable-VMTPM -VM $VMTemp 
+		}
+
 		#set MemoryMinimumBytes
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
@@ -891,8 +955,15 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
 
+		#configure vTPM
+		if ($_.vTPM -eq $True){
+			$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+			Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+			Enable-VMTPM -VM $VMTemp 
+		}
+
 		#set MemoryMinimumBytes
-		if ($_.MemoryMinimumBytesMemoryMinimumBytes -ne $null){
+		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
 
@@ -1011,6 +1082,13 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($_.NestedVirt -eq $True){
 			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 		}		
+
+		#configure vTPM
+		if ($_.vTPM -eq $True){
+			$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+			Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+			Enable-VMTPM -VM $VMTemp 
+		}
 
 		#set MemoryMinimumBytes
 		if ($_.MemoryMinimumBytes -ne $null){

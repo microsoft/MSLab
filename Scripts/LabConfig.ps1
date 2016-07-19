@@ -164,6 +164,9 @@ SkipDjoin
 Win2012Djoin
     If $True, older way to domain join will be used (Username and Password in Answer File instead of blob) as Djoin Blob works only in Win 2016
 
+vTPM
+	if $true, vTPM will be enabled for virtual machine.
+
 ##$LabConfig.AdditionalNetworksConfig##
 	Example: $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
 
