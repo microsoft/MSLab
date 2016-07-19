@@ -345,7 +345,7 @@ if ($BuildNumber -ge 10586){
 
 #Check support for shared disks + enable if possible
 
-if ($LabVMs.configuration -contains 'Shared' -or $LabVMs.configuration -contains 'Replica'){
+if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuratio -contains 'Replica'){
 	Write-Host "Configuration contains Shared or Replica scenario" -ForegroundColor Cyan
     Write-Host "Checking for support for shared disks" -ForegroundColor Cyan
     $OS=gwmi win32_operatingsystem
@@ -358,15 +358,39 @@ if ($LabVMs.configuration -contains 'Shared' -or $LabVMs.configuration -contains
 			Write-Host "`t`t Failover Clustering Feature was not installed with exit code: "$FC.ExitCode
 		}
 	}else{
-		if (((Get-WindowsOptionalFeature -Online -featurename FailoverCluster-FullServer).State -eq "Enabled") -or ((Get-WindowsOptionalFeature -Online -featurename FailoverCluster-NanoServer).State -eq "Enabled")){
-			Write-Host "`t OS is Windows 10 and Failover clustering is present" -ForegroundColor Green
-		}else{
-			Write-Host "`t OS is Windows 10 and Failover clustering is not present. Please install it or choose simple lab without shared disks" -ForegroundColor Red
-			Write-Host "Press any key to continue ..."
-			$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-			$HOST.UI.RawUI.Flushinputbuffer()
-			Exit
-		}
+		#Test for svhdxflt
+			# Setup the Process startup info
+			$fltmcinfo = New-Object System.Diagnostics.ProcessStartInfo
+			$fltmcinfo.FileName = "fltmc.exe"
+			$fltmcinfo.Arguments = "filters"
+			$fltmcinfo.UseShellExecute = $false
+			$fltmcinfo.CreateNoWindow = $true
+			$fltmcinfo.RedirectStandardOutput = $true
+			$fltmcinfo.RedirectStandardError = $true
+
+
+			# Create a process object using the startup info
+			$process = New-Object System.Diagnostics.Process
+			$process.StartInfo = $fltmcinfo
+
+			# Start the process
+			$process.Start() | Out-Null
+
+			Start-Sleep 1
+
+			# get output 
+			$out = $process.StandardOutput.ReadToEnd()
+
+			# check output for success information
+			if ($out.Contains("svhdxflt")) {
+				Write-Host "svhdfltx found" -ForegroundColor Cyan
+			} else {
+				    Write-Host "`t You need Sharedvhdx filter driver for this scenario to support shared disks. Exitting" -ForegroundColor Red
+					Write-Host "Press any key to continue ..."
+					$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+					$HOST.UI.RawUI.Flushinputbuffer()
+					Exit
+			}
 	}
 
 	Write-Host "Attaching svhdxflt filter driver to drive $LABfolderDrivePath" -ForegroundColor Cyan
