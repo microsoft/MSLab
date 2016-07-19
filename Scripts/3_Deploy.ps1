@@ -422,10 +422,10 @@ if ($BuildNumber -ge 10586){
 # Checking for NestedVirt
 if ($LABConfig.VMs.NestedVirt -contains $True){
 	$BuildNumber=Get-WindowsBuildNumber
-	if ($BuildNumber -ge 14300){
-		Write-Host "`t Windows is build greated than 14300. NestedVirt will work" -ForegroundColor Green
+	if ($BuildNumber -ge 14390){
+		Write-Host "`t Windows is build greated than 14390. NestedVirt will work" -ForegroundColor Green
 		}else{
-		Write-Host "`t Windows build older than 14300 detected. NestedVirt will not work. Exiting" -ForegroundColor Red
+		Write-Host "`t Windows build older than 14390 detected. NestedVirt will not work. Exiting" -ForegroundColor Red
 		Write-Host "Press any key to continue ..."
 		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 		$HOST.UI.RawUI.Flushinputbuffer()
