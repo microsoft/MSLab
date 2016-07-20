@@ -299,10 +299,10 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
+    &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$workdir\Temp\mountdir
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$workdir\Temp\mountdir
     &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-ShieldedVM-Package_en-us.cab /Image:$workdir\Temp\mountdir
-    &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-Microsoft-NanoServer-SecureStartup-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$workdir\Temp\mountdir
 	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
 	#do some servicing (adding CABs and MSUs)
