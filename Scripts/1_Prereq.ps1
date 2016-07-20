@@ -309,7 +309,7 @@ If ( Test-Path -Path "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
 }else{ 
 		Write-Host "`t Diskspd not there - Downloading diskspd" -ForegroundColor Cyan
 		try {
-			$webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd
+			$webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
 			$downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
 			Invoke-WebRequest -Uri $downloadurl -OutFile "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip"
 		}catch{
@@ -329,7 +329,7 @@ If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
 }else{ 
 		Write-Host "`t Downloading Convert-WindowsImage" -ForegroundColor Cyan
 		try{
-			Invoke-WebRequest -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$workdir\Tools\convert-windowsimage.ps1"
+			Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$workdir\Tools\convert-windowsimage.ps1"
 		}catch{
 			Write-Host "`t Failed to download convert-windowsimage.ps1!" -ForegroundColor Red
 		}

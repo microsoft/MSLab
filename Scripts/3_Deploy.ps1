@@ -434,7 +434,7 @@ if ($LABConfig.VMs.NestedVirt -contains $True){
 }
 
 # Checking for vTPM support
-if ($LABConfig.VMs.vTPM -contains $true{
+if ($LABConfig.VMs.vTPM -contains $true){
 	$BuildNumber=Get-WindowsBuildNumber
 	if ($BuildNumber -ge 14300){
 		Write-Host "`t Windows is build greated than 14300. vTPM will work" -ForegroundColor Green
