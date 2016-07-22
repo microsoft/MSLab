@@ -463,7 +463,7 @@ if ($LABConfig.VMs.vTPM -contains $true){
 
 #Check support for shared disks + enable if possible
 
-if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuratio -contains 'Replica'){
+if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuration -contains 'Replica'){
 	Write-Host "Configuration contains Shared or Replica scenario" -ForegroundColor Cyan
     Write-Host "Checking for support for shared disks" -ForegroundColor Cyan
     $OS=gwmi win32_operatingsystem
