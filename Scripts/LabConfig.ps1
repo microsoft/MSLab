@@ -107,6 +107,13 @@ InstallSCVMM *
 			SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
 			SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
 			ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
+
+AdditionalNetworkInDC
+	If $True, networks specified in $LABConfig.AdditionalNetworksConfig will be added.
+
+MGMTNICsInDC
+	If nothing specified, then just 1 NIC is added in DC.
+	Can be 1-8
 			
 ##$LabConfig.VMs##
  Example: 
@@ -166,6 +173,10 @@ Win2012Djoin
 
 vTPM
 	if $true, vTPM will be enabled for virtual machine.
+
+MGMTNICs
+	Number of management NIC.
+	Default is 2, maximum 8.
 
 ##$LabConfig.AdditionalNetworksConfig##
 	Example: $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
