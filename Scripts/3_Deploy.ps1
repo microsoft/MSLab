@@ -644,12 +644,10 @@ Write-Host "Active Directory is up." -ForegroundColor Green
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
-#authorize DHCP (if more networks added, then re-authorization is needed)
-If($labconfig.MGMTNICsInDC -ge 2){
-	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-		Get-DhcpServerInDC | Remove-DHCPServerInDC
-		Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
-	}
+#authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
+Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+	Get-DhcpServerInDC | Remove-DHCPServerInDC
+	Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
 }
 
 #################
