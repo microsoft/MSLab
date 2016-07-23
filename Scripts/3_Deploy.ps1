@@ -581,6 +581,18 @@ Start-Sleep -Seconds 5
 
 Write-Host "`t Configuring Network"
 
+$DC | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+If($labconfig.MGMTNICsInDC -gt 8){
+	$labconfig.MGMTNICsInDC=8
+}
+
+If($labconfig.MGMTNICsInDC -ge 2){
+	2..$labconfig.MGMTNICsInDC | % {
+		Write-Host "`t Adding Network Adapter Management$_"
+		$DC | Add-VMNetworkAdapter -Name Management$_
+	}
+}
+
 $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 if ($labconfig.AdditionalNetworkInDC -eq $True){
@@ -632,6 +644,13 @@ Write-Host "Active Directory is up." -ForegroundColor Green
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
+#authorize DHCP (if more networks added, then re-authorization is needed)
+If($labconfig.MGMTNICsInDC -ge 2){
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+		Get-DhcpServerInDC | Remove-DHCPServerInDC
+		Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
+	}
+}
 
 #################
 # Provision VMs  #
@@ -720,8 +739,25 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
-		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
+		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+
+		$MGMTNICs=$_.MGMTNICs
+		If($MGMTNICs -eq $null){
+			$MGMTNICs = 2
+		}
+
+		If($MGMTNICs -gt 8){
+			$MGMTNICs=8
+		}
+
+		If($MGMTNICs -ge 2){
+			2..$MGMTNICs | % {
+				Write-Host "`t Adding Network Adapter Management$_"
+				$VMTemp | Add-VMNetworkAdapter -Name Management$_
+			}
+		}
+
+		$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
@@ -831,8 +867,25 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
-		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
+		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+
+		$MGMTNICs=$_.MGMTNICs
+		If($MGMTNICs -eq $null){
+			$MGMTNICs = 2
+		}
+
+		If($MGMTNICs -gt 8){
+			$MGMTNICs=8
+		}
+
+		If($MGMTNICs -ge 2){
+			2..$MGMTNICs | % {
+				Write-Host "`t Adding Network Adapter Management$_"
+				$VMTemp | Add-VMNetworkAdapter -Name Management$_
+			}
+		}
+
+		$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
@@ -931,8 +984,25 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
-		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
+		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+
+		$MGMTNICs=$_.MGMTNICs
+		If($MGMTNICs -eq $null){
+			$MGMTNICs = 2
+		}
+
+		If($MGMTNICs -gt 8){
+			$MGMTNICs=8
+		}
+
+		If($MGMTNICs -ge 2){
+			2..$MGMTNICs | % {
+				Write-Host "`t Adding Network Adapter Management$_"
+				$VMTemp | Add-VMNetworkAdapter -Name Management$_
+			}
+		}
+
+		$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
@@ -1059,9 +1129,26 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
-		$VMTemp | Add-VMNetworkAdapter -Name Management -SwitchName $SwitchName
+		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
 
+		$MGMTNICs=$_.MGMTNICs
+		If($MGMTNICs -eq $null){
+			$MGMTNICs = 2
+		}
+
+		If($MGMTNICs -gt 8){
+			$MGMTNICs=8
+		}
+
+		If($MGMTNICs -ge 2){
+			2..$MGMTNICs | % {
+				Write-Host "`t Adding Network Adapter Management$_"
+				$VMTemp | Add-VMNetworkAdapter -Name Management$_
+			}
+		}
+
+		$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
+		
 		if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
 
 		if ($_.AdditionalNetworks -eq $True){
