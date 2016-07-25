@@ -7,6 +7,8 @@
  
  Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios!
 
+ You can try [dev branch scripts](https://github.com/Microsoft/ws2016lab/blob/dev/scripts.zip) to test new labconfig, vTPM, new nested virtualization, number of Management adapters...
+
 
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
