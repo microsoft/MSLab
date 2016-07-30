@@ -479,17 +479,18 @@ if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configura
 
 	Write-Host "Attaching svhdxflt filter driver to drive $LABfolderDrivePath" -ForegroundColor Cyan
 
-    if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
-		Write-Host "`t Svhdx filter driver was already attached" -ForegroundColor Green
+
+	if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
+		Write-Host "`t Svhdx filter driver was successfully attached" -ForegroundColor Green
 	}else{
-		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
-			Write-Host "`t Svhdx filter driver was successfully attached" -ForegroundColor Green
+		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
+		Write-Host "`t Svhdx filter driver was already attached" -ForegroundColor Green
 		}else{
-			Write-Host "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU" -ForegroundColor Red
-			Write-Host "Press any key to continue ..."
-			$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-			$HOST.UI.RawUI.Flushinputbuffer()
-			Exit
+		Write-Host "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU" -ForegroundColor Red
+		Write-Host "Press any key to continue ..."
+		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+		$HOST.UI.RawUI.Flushinputbuffer()
+		Exit
 		}
 	}
 
