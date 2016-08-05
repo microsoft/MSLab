@@ -790,6 +790,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
+		
+		#Set static Memory
+		if ($_.StaticMemory -eq $true){
+			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+		}		
 
 		$Name=$_.VMName
 		
@@ -918,6 +923,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
+		
+		#Set static Memory
+		if ($_.StaticMemory -eq $true){
+			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+		}	
 
 		$Name=$_.VMName
 		
@@ -1035,6 +1045,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
+
+		#Set static Memory
+		if ($_.StaticMemory -eq $true){
+			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+		}	
 
 		$Name=$_.VMName
 		
@@ -1180,7 +1195,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		if ($_.MemoryMinimumBytes -ne $null){
 			Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 		}
-		
+			
+		#Set static Memory
+		if ($_.StaticMemory -eq $true){
+			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+		}	
+	
 		$Name=$_.VMName
 		
 		if ($_.SkipDjoin -eq $True){

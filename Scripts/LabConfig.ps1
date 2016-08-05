@@ -162,6 +162,9 @@ MemoryMinimumBytes
 	Minimum memory bytes, must be less or equal to MemoryStartupBytes
 	If not set, default is used.	
 
+StaticMemory
+	if $True, then static memory is configured
+
 AddToolsVHD
 	If $True, then ToolsVHD will be added
 
