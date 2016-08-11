@@ -386,7 +386,7 @@ if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
 $DC=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 
 $DC | Set-VMProcessor -Count 2
 $DC | Set-VMMemory -DynamicMemoryEnabled $true
-if ($LabConfig.Secureboot -eq 'Off') {$DC | Set-VMFirmware -EnableSecureBoot Off}
+if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
 #Apply Unattend
 $unattendfile=CreateUnattendFileVHD -Computername $VMName -AdminPassword $AdminPassword -path "$workdir\temp\"
