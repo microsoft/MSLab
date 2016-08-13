@@ -27,7 +27,8 @@
 
 **Step 5** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 TP5 ISO file, hydrate parent disks and hydrate Domain Controller.
- 
+ * note: if you have Windows 10 Anniversary Update, DC will fail to start. You need to switch Secure Boot to Microsoft UEFI CA and then disable Secure Boot. This problem is only in TP5 guests. RTM is OK.
+
 **Step 6** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in variables.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
  
