@@ -10,7 +10,7 @@ $LabConfig=@{
     CreateClientParent=$false;			# If True, client OS will be hydrated
     ClientEdition='Enterprise';			# Enterprise/Education/Pro/Home (depends what ISO you use)
 	InstallSCVMM='No';					# Yes/Prereqs/SQL/ADK/No
-    AdditionalNetworkInDC=$false;		# If Additional networks should be added also to DC
+    AdditionalNetworksInDC=$false;		# If Additional networks should be added also to DC
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@()								# Just empty array for config below
 } 
@@ -52,7 +52,7 @@ $LabConfig=@{
     CreateClientParent=$false;			
     ClientEdition='Enterprise';			
 	InstallSCVMM='No';					
-    AdditionalNetworkInDC=$false;		
+    AdditionalNetworksInDC=$false;		
     AdditionalNetworksConfig=@();		
     VMs=@();							
 } 
@@ -108,7 +108,7 @@ InstallSCVMM *
 			SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
 			ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
 
-AdditionalNetworkInDC
+AdditionalNetworksInDC
 	If $True, networks specified in $LABConfig.AdditionalNetworksConfig will be added.
 
 MGMTNICsInDC
