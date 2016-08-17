@@ -10,6 +10,35 @@ If (!( $isAdmin )) {
 # Functions #
 #############
 
+function WriteInfo($message)
+{
+    Write-Host $message
+}
+
+function WriteInfoHighlighted($message)
+{
+    Write-Host $message -ForegroundColor Cyan
+}
+
+function WriteSuccess($message)
+{
+    Write-Host $message -ForegroundColor Green
+}
+
+function WriteError($message)
+{
+    Write-Host $message -ForegroundColor Red
+}
+
+function WriteErrorAndExit($message)
+{
+	Write-Host $message -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
+
 Function CreateUnattendFileBlob
     #Create Unattend (parameter is Blob)
     {
@@ -371,22 +400,22 @@ $Workdir=Get-ScriptDirectory
 Start-Transcript -Path $workdir'\Deploy.log'
 
 $StartDateTime = get-date
-Write-host	"Script started at $StartDateTime"
+WriteInfoHighlighted "Script started at $StartDateTime"
 
 
 ##Load LabConfig....
 . "$($workdir)\LabConfig.ps1"
 
-Write-Host "List of variables used" -ForegroundColor Cyan
-Write-Host "`t Prefix used in lab is "$labconfig.prefix
+WriteInfoHighlighted "List of variables used"
+WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
 $SwitchName=($labconfig.prefix+$LabConfig.SwitchName)
-Write-Host "`t Switchname is $SwitchName" 
+WriteInfo "`t Switchname is $SwitchName" 
 
-Write-Host "`t Workdir is $Workdir"
+WriteInfo "`t Workdir is $Workdir"
 
 $LABfolder="$Workdir\LAB"
-Write-Host "`t LabFolder is $LabFolder"
+WriteInfo "`t LabFolder is $LabFolder"
 
 $LABfolderDrivePath=$LABfolder.Substring(0,3)
 
@@ -398,38 +427,26 @@ $IP=1
 	#checking if Prefix is not empty
 
 if (!$LabConfig.Prefix){
-    Write-Host "`t Prefix is empty. Exiting" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
-	Exit
+    WriteErrorAndExit "`t Prefix is empty. Exiting"
 }
 
 	# Checking for Compatible OS
-Write-Host "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Cyan
+WriteInfoHighlighted "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer"
 
 $BuildNumber=Get-WindowsBuildNumber
 if ($BuildNumber -ge 10586){
-	Write-Host "`t OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Green
+	WriteSuccess "`t OS is Windows 10 TH2/Server 2016 TP4 or newer"
     }else{
-    Write-Host "`t Windows 10/ Server 2016 not detected. Exiting" -ForegroundColor Red
-    Write-Host "Press any key to continue ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-    $HOST.UI.RawUI.Flushinputbuffer()
-    Exit
+    WriteErrorAndExit "`t Windows 10/ Server 2016 not detected. Exiting"
 }
 
 # Checking for NestedVirt
 if ($LABConfig.VMs.NestedVirt -contains $True){
 	$BuildNumber=Get-WindowsBuildNumber
 	if ($BuildNumber -ge 14393){
-		Write-Host "`t Windows is build greated than 14393. NestedVirt will work" -ForegroundColor Green
+		WriteSuccess "`t Windows is build greated than 14393. NestedVirt will work"
 		}else{
-		Write-Host "`t Windows build older than 14393 detected. NestedVirt will not work. Exiting" -ForegroundColor Red
-		Write-Host "Press any key to continue ..."
-		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-		$HOST.UI.RawUI.Flushinputbuffer()
-		Exit
+		WriteErrorAndExit "`t Windows build older than 14393 detected. NestedVirt will not work. Exiting"
 		}
 }
 
@@ -437,64 +454,53 @@ if ($LABConfig.VMs.NestedVirt -contains $True){
 if ($LABConfig.VMs.vTPM -contains $true){
 	$BuildNumber=Get-WindowsBuildNumber
 	if ($BuildNumber -ge 14300){
-		Write-Host "`t Windows is build greated than 14300. vTPM will work" -ForegroundColor Green
+		WriteSuccess "`t Windows is build greated than 14300. vTPM will work"
 		}else{
-		Write-Host "`t Windows build older than 14300 detected. vTPM will not work Exiting" -ForegroundColor Red
-		Write-Host "Press any key to continue ..."
-		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-		$HOST.UI.RawUI.Flushinputbuffer()
-		Exit
+		WriteErrorAndExit "`t Windows build older than 14300 detected. vTPM will not work Exiting"
 	}
 	if (((Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).VirtualizationBasedSecurityStatus -ne 0) -and ((Get-Process "secure system") -ne $null )){
-		write-host "`t Virtualization Based Security is running. vTPM can be enabled" -ForegroundColor Green
+		WriteSuccess "`t Virtualization Based Security is running. vTPM can be enabled"
 		}else{
-		Write-Host "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration" -ForegroundColor Red
-		Write-Host "Press any key to continue ..."
-		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-		$HOST.UI.RawUI.Flushinputbuffer()
-		Exit	
+		WriteErrorAndExit "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration"
 	}
 	#load Guardian
 	$guardian=Get-HgsGuardian | select -first 1
 	if($guardian -eq $null){
 		$guardian=New-HgsGuardian -Name LabGuardian -GenerateCertificates
+		WriteInfo "`t HGS with name LabGuardian created"
 	}	
 }
 
 #Check support for shared disks + enable if possible
 
 if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuration -contains 'Replica'){
-	Write-Host "Configuration contains Shared or Replica scenario" -ForegroundColor Cyan
-    Write-Host "Checking for support for shared disks" -ForegroundColor Cyan
+	WriteInfoHighlighted "Configuration contains Shared or Replica scenario"
+    WriteInfo "Checking support for shared disks"
     $OS=gwmi win32_operatingsystem
 	if ((($OS.operatingsystemsku -eq 7) -or ($OS.operatingsystemsku -eq 8)) -and $OS.version -gt 10){
-		Write-Host "`t Installing Failover Clustering Feature"
+		WriteInfo "`t Installing Failover Clustering Feature"
 		$FC=Install-WindowsFeature Failover-Clustering
 		If ($FC.Success -eq $True){
-			Write-Host "`t`t Failover Clustering Feature installed with exit code: "$FC.ExitCode 
+			WriteSuccess "`t`t Failover Clustering Feature installed with exit code: $($FC.ExitCode)" 
 		}else{
-			Write-Host "`t`t Failover Clustering Feature was not installed with exit code: "$FC.ExitCode
+			WriteError "`t`t Failover Clustering Feature was not installed with exit code: $($FC.ExitCode)"
 		}
 	}
 
-	Write-Host "Attaching svhdxflt filter driver to drive $LABfolderDrivePath" -ForegroundColor Cyan
+	WriteInfoHighlighted "`t Attaching svhdxflt filter driver to drive $LABfolderDrivePath"
 
 
 	if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
-		Write-Host "`t Svhdx filter driver was successfully attached" -ForegroundColor Green
+		WriteSuccess "`t Svhdx filter driver was successfully attached"
 	}else{
 		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
-		Write-Host "`t Svhdx filter driver was already attached" -ForegroundColor Green
+		WriteSuccess "`t Svhdx filter driver was already attached"
 		}else{
-		Write-Host "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU" -ForegroundColor Red
-		Write-Host "Press any key to continue ..."
-		$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-		$HOST.UI.RawUI.Flushinputbuffer()
-		Exit
+		WriteErrorAndExit "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU"
 		}
 	}
 
-	Write-Host "Adding svhdxflt to registry for autostart" -ForegroundColor Cyan	
+	WriteInfoHighlighted "Adding svhdxflt to registry for autostart"	
 	if (!(Test-Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters)){
 		New-Item HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters
 	}   
@@ -503,29 +509,24 @@ if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configura
 
 #Check if Hyper-V is installed
 
-Write-Host "Checking if Hyper-V is installed" -ForegroundColor Cyan
+WriteInfoHighlighted "Checking if Hyper-V is installed"
 if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq 'Enabled'){
-	Write-Host "`t Hyper-V is Installed" -ForegroundColor Green
+	WriteSuccess "`t Hyper-V is Installed"
 }else{
-	Write-Host "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
-	Exit
+	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
-
 
 #Create Switches
 
-Write-Host "Creating Switch" -ForegroundColor Cyan
-Write-Host "`t Checking if $SwitchName already exists..."
+WriteInfoHighlighted "Creating Switch"
+WriteInfo "`t Checking if $SwitchName already exists..."
 
 if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){ 
-    Write-Host "`t Creating $SwitchName..."
+    WriteInfo "`t Creating $SwitchName..."
     New-VMSwitch -SwitchType Private -Name $SwitchName
     
 }else{
-    Write-Host "`t $SwitchName exists. Looks like lab with same prefix exists. If there is an additional VM in Labconfig, it will be added" -ForegroundColor Cyan
+    WriteInfoHighlighted "`t $SwitchName exists. Looks like lab with same prefix exists. If there is an additional VM in Labconfig, it will be added"
 }
 
 #If lab exists, correct starting IP will be calculated
@@ -539,11 +540,12 @@ $Labconfig.VMs | ForEach-Object {
 	}
 }
 
+WriteInfo "Starting IP for AdditionalNetworks is $IP"
 
-Write-Host "`t Creating Mountdir"
+WriteInfoHighlighted "Creating Mountdir"
 New-Item $workdir\Temp\MountDir -ItemType Directory -Force
 
-Write-Host "`t Creating VMs dir"
+WriteInfoHighlighted "Creating VMs dir"
 New-Item $workdir\LAB\VMs -ItemType Directory -Force
 
 
@@ -553,16 +555,12 @@ New-Item $workdir\LAB\VMs -ItemType Directory -Force
 
 #get path for Tools disk
 
-Write-Host "`t Looking for Tools Parent Disks"
+WriteInfoHighlighted "Looking for Tools Parent Disks"
 $toolsparent=Get-ChildItem $Workdir -Recurse | where name -eq tools.vhdx
 if ($toolsparent -eq $null){
-	Write-Host "`t`t Tools parent disk not found" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
-	Exit
+	WriteErrorAndExit "`t Tools parent disk not found"
 }else{
-Write-Host "`t`t Tools parent disk"$toolsparent.Name"found"
+WriteInfo "`t Tools parent disk tools.vhdx found"
 }
 
 ################
@@ -570,25 +568,22 @@ Write-Host "`t`t Tools parent disk"$toolsparent.Name"found"
 ################
 
 if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
-	Write-Host "Looking for DC to be imported" -ForegroundColor Cyan
+	WriteInfoHighlighted "Looking for DC to be imported"
 	get-childitem $LABFolder -Recurse | where {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
 		$DC=Import-VM -Path $_.FullName
 		if ($DC -eq $null){
-			Write-Host "DC was not imported successfully Press any key to continue ..." -ForegroundColor Red -BackgroundColor White
-			$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-			$HOST.UI.RawUI.Flushinputbuffer()
-			exit
+			WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
 		}
 	}
 
-	Write-Host "`t Virtual Machine"$DC.name"located in folder"$_.DirectoryName"imported"
+	WriteInfo "`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
 
 	$DC | Checkpoint-VM -SnapshotName Initial
-	Write-Host "`t Virtual Machine"$DC.name"checkpoint created"
+	WriteInfo "`t Virtual Machine $($DC.name) checkpoint created"
 		
 	Start-Sleep -Seconds 5
 
-	Write-Host "`t Configuring Network"
+	WriteInfo "`t Configuring Network"
 
 	$DC | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
 	If($labconfig.MGMTNICsInDC -gt 8){
@@ -597,7 +592,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 
 	If($labconfig.MGMTNICsInDC -ge 2){
 		2..$labconfig.MGMTNICsInDC | % {
-			Write-Host "`t Adding Network Adapter Management$_"
+			WriteInfo "`t Adding Network Adapter Management$_"
 			$DC | Add-VMNetworkAdapter -Name Management$_
 		}
 	}
@@ -605,7 +600,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 	$DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 	if ($labconfig.AdditionalNetworksInDC -eq $True){
-		Write-Host "`t`t Adding network adapters"
+		WriteInfo "`t`t Adding network Additional networks"
 		$Labconfig.AdditionalNetworksConfig | ForEach-Object {
 			$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
 			$DC | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkConfiguration -IPAddress ($_.NetAddress+$IP.ToString()) -Subnet $_.Subnet
@@ -614,18 +609,18 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 		$IP++
 	}
 
-	Write-Host "`t Adding Tools disk to DC machine"
+	WriteInfo "`t Adding Tools disk to DC machine"
 
 	$toolspath=$LABFolder+'\VMs\tools.vhdx'
 	$VHD=New-VHD -ParentPath $toolsparent.fullname -Path $toolspath
 
-	Write-Host "`t Adding Virtual Hard Disk" $VHD.Path
+	WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
 	$DC | Add-VMHardDiskDrive -Path $vhd.Path
 
-	Write-Host "`t`t Starting Virtual Machine"$DC.name
+	WriteInfo  "`t Starting Virtual Machine $($DC.name)"
 	$DC | Start-VM
 
-	Write-Host "`t`t Renaming"$DC.name"to"($labconfig.Prefix+$DC.name)
+	WriteInfo "`t Renaming $($DC.name) to $($labconfig.Prefix+$DC.name)"
 	$DC | Rename-VM -NewName ($labconfig.Prefix+$DC.name)
 }else{
 	$DC=get-vm -Name ($labconfig.prefix+"DC")
@@ -633,6 +628,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 
 #Start DC if it is not running
 if ($DC.State -ne "Running"){
+	WriteInfo "DC was not started. Starting now..."
 	$DC | Start-VM
 }
 
@@ -647,19 +643,22 @@ $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
 $cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $username, $secstr
 
-Write-Host "Testing if Active Directory is Started." -ForegroundColor Cyan 
+WriteInfoHighlighted "Testing if Active Directory is Started."
 do{
 $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-ADComputer -Filter * -SearchBase 'DC=Corp,DC=Contoso,DC=Com' -ErrorAction SilentlyContinue} -ErrorAction SilentlyContinue
 Start-Sleep 5
 }
 until ($test -ne $Null)
-Write-Host "Active Directory is up." -ForegroundColor Green 
+WriteSuccess "`t Active Directory is up."
 
+WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
 #make tools disk online
+WriteInfo "`t Making tools disk online"
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
 #authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
+WriteInfo "`t Authorizing DHCP"
 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
 	Get-DhcpServerInDC | Remove-DHCPServerInDC
 	Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
@@ -668,6 +667,8 @@ Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
 #################
 # Provision VMs  #
 #################
+
+WriteInfoHighlighted "Creating DSC config for DC"
 
 #DCM Config
 [DSCLocalConfigurationManager()]
@@ -708,6 +709,7 @@ Configuration PullClientConfig
 	}
 }
 
+WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
 
 $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
@@ -721,38 +723,34 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$SharedHDDs=$null
 					If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){  
 						$SharedSSDs= 1..$_.ssdnumber | % {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
-						$SharedSSDs | % {Write-Host "`t`t Disk SSD"$_.path" size "($_.size /1GB)"GB created"}
+						$SharedSSDs | % {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
 					}
 					If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)){  
 						$SharedHDDs= 1..$_.hddnumber | % {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
-						$SharedHDDs | % {Write-Host "`t`t Disk HDD"$_.path"size"($_.size /1GB)"GB created"}
+						$SharedHDDs | % {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
 					}
 			}else{
 					$SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD*$VMSet*.VHDS"
 					$SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
 			}
 
-
-	#region Todo:convert this Block to function
-
+#region Todo:convert this Block to function
+			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
-				Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
-				Write-Host "Press any key to continue ..."
-				$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-				$HOST.UI.RawUI.Flushinputbuffer()
-				Exit
+				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
 			}else{
-				Write-Host "`t`t Server parent disk"$serverparent.Name"found"
+				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
 			}
 					
 			$VMname=$Labconfig.Prefix+$_.VMName
 			$folder="$LabFolder\VMs\$VMname"
 			$vhdpath="$folder\$VMname.vhdx"
-			Write-Host "Creating VM"$VMname -ForegroundColor Cyan
+			WriteInfo "`t Creating OS VHD"
 			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+			WriteInfo "`t Creating VM"
 			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 			$VMTemp | Set-VMProcessor -Count 2
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
@@ -769,14 +767,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			If($MGMTNICs -ge 2){
 				2..$MGMTNICs | % {
-					Write-Host "`t Adding Network Adapter Management$_"
+					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
 			}
-
+			WriteInfo "`t Connecting vNIC to $switchname"
 			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
-			if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+			if ($LabConfig.Secureboot -eq $False) {
+				WriteInfo "`t Disabling Secureboot"
+				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
+			}
 
 			if ($_.AdditionalNetworks -eq $True){
 				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
@@ -789,16 +790,19 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Setting DSC Mode to Pull"
 				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 			}
 			
 			#configure nested virt
 			if ($_.NestedVirt -eq $True){
+				WriteInfo "`t Enabling NestedVirt"
 				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			}		
 
 			#configure vTPM
 			if ($_.vTPM -eq $True){
+				WriteInfo "`t Enabling vTPM"
 				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
 				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
 				Enable-VMTPM -VM $VMTemp 
@@ -806,24 +810,29 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#set MemoryMinimumBytes
 			if ($_.MemoryMinimumBytes -ne $null){
+				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
 				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 			}
 			
 			#Set static Memory
 			if ($_.StaticMemory -eq $true){
+				WriteInfo "`t Configuring StaticMemory"
 				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
 			}		
 
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
+				WriteInfo "`t Skipping Djoin"
 				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				if ($_.Win2012Djoin -eq $True){
+					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 				}
 				else{
+					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
@@ -832,12 +841,14 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}
 			}
 
+			WriteInfo "`t Adding unattend to VHD"
 			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
 			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Adding metaconfig.mof to VHD"
 				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
@@ -846,46 +857,44 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
 				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
+				WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 
-	#endregion
-		
-			Write-Host "`t Attaching Shared Disks to $VMname" -ForegroundColor Cyan
+#endregion
+			
+			WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 
 			$SharedSSDs | % {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-				Write-Host "`t`t SSD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+				WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
 			$SharedHDDs | % {
 				Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-				Write-Host "`t`t HDD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+				WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
 			
 		}
 		
 		if ($_.configuration -eq 'Simple'){
-	#region Todo:convert this Block to function
 
+#region Todo:convert this Block to function
+			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
-				Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
-				Write-Host "Press any key to continue ..."
-				$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-				$HOST.UI.RawUI.Flushinputbuffer()
-				Exit
+				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
 			}else{
-				Write-Host "`t`t Server parent disk"$serverparent.Name"found"
+				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
 			}
 					
 			$VMname=$Labconfig.Prefix+$_.VMName
 			$folder="$LabFolder\VMs\$VMname"
 			$vhdpath="$folder\$VMname.vhdx"
-			Write-Host "Creating VM"$VMname -ForegroundColor Cyan
+			WriteInfo "`t Creating OS VHD"
 			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+			WriteInfo "`t Creating VM"
 			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 			$VMTemp | Set-VMProcessor -Count 2
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
@@ -902,14 +911,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			If($MGMTNICs -ge 2){
 				2..$MGMTNICs | % {
-					Write-Host "`t Adding Network Adapter Management$_"
+					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
 			}
-
+			WriteInfo "`t Connecting vNIC to $switchname"
 			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
-			if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+			if ($LabConfig.Secureboot -eq $False) {
+				WriteInfo "`t Disabling Secureboot"
+				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
+			}
 
 			if ($_.AdditionalNetworks -eq $True){
 				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
@@ -922,16 +934,19 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Setting DSC Mode to Pull"
 				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 			}
 			
 			#configure nested virt
 			if ($_.NestedVirt -eq $True){
+				WriteInfo "`t Enabling NestedVirt"
 				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			}		
 
 			#configure vTPM
 			if ($_.vTPM -eq $True){
+				WriteInfo "`t Enabling vTPM"
 				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
 				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
 				Enable-VMTPM -VM $VMTemp 
@@ -939,24 +954,29 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#set MemoryMinimumBytes
 			if ($_.MemoryMinimumBytes -ne $null){
+				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
 				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 			}
 			
 			#Set static Memory
 			if ($_.StaticMemory -eq $true){
+				WriteInfo "`t Configuring StaticMemory"
 				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}	
+			}		
 
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
+				WriteInfo "`t Skipping Djoin"
 				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				if ($_.Win2012Djoin -eq $True){
+					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 				}
 				else{
+					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
@@ -965,12 +985,14 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}
 			}
 
+			WriteInfo "`t Adding unattend to VHD"
 			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
 			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Adding metaconfig.mof to VHD"
 				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
@@ -979,35 +1001,32 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
 				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
+				WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 
-	#endregion
-			
-			}
+#endregion
+		}
 
 		if ($_.configuration -eq 'S2D'){
-	#region Todo:convert this Block to function
 
+#region Todo:convert this Block to function
+			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
-				Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
-				Write-Host "Press any key to continue ..."
-				$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-				$HOST.UI.RawUI.Flushinputbuffer()
-				Exit
+				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
 			}else{
-				Write-Host "`t`t Server parent disk"$serverparent.Name"found"
+				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
 			}
 					
 			$VMname=$Labconfig.Prefix+$_.VMName
 			$folder="$LabFolder\VMs\$VMname"
 			$vhdpath="$folder\$VMname.vhdx"
-			Write-Host "Creating VM"$VMname -ForegroundColor Cyan
+			WriteInfo "`t Creating OS VHD"
 			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+			WriteInfo "`t Creating VM"
 			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 			$VMTemp | Set-VMProcessor -Count 2
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
@@ -1024,14 +1043,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			If($MGMTNICs -ge 2){
 				2..$MGMTNICs | % {
-					Write-Host "`t Adding Network Adapter Management$_"
+					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
 			}
-
+			WriteInfo "`t Connecting vNIC to $switchname"
 			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
-			if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+			if ($LabConfig.Secureboot -eq $False) {
+				WriteInfo "`t Disabling Secureboot"
+				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
+			}
 
 			if ($_.AdditionalNetworks -eq $True){
 				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
@@ -1044,16 +1066,19 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Setting DSC Mode to Pull"
 				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 			}
 			
 			#configure nested virt
 			if ($_.NestedVirt -eq $True){
+				WriteInfo "`t Enabling NestedVirt"
 				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			}		
 
 			#configure vTPM
 			if ($_.vTPM -eq $True){
+				WriteInfo "`t Enabling vTPM"
 				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
 				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
 				Enable-VMTPM -VM $VMTemp 
@@ -1061,24 +1086,29 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#set MemoryMinimumBytes
 			if ($_.MemoryMinimumBytes -ne $null){
+				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
 				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 			}
-
+			
 			#Set static Memory
 			if ($_.StaticMemory -eq $true){
+				WriteInfo "`t Configuring StaticMemory"
 				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}	
+			}		
 
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
+				WriteInfo "`t Skipping Djoin"
 				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				if ($_.Win2012Djoin -eq $True){
+					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 				}
 				else{
+					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
@@ -1087,12 +1117,14 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}
 			}
 
+			WriteInfo "`t Adding unattend to VHD"
 			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
 			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Adding metaconfig.mof to VHD"
 				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
@@ -1101,30 +1133,29 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
 				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
+				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 
-	#endregion
-			
-			
+#endregion
+						
 			If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){         
 				$SSDSize=$_.SSDSize
 				$SSDs= 1..$_.SSDNumber | % { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
-				Write-Host "`t`t Adding Virtual SSD Disks"
+				WriteInfoHighlighted "`t Adding Virtual SSD Disks"
 				$SSDs | % {
 					Add-VMHardDiskDrive -Path $_.path -VMName $VMname
-					Write-Host "`t`t SSD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+					WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
 				}
 			}
 
 			If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)) {
 				$HDDSize=$_.HDDSize
 				$HDDs= 1..$_.HDDNumber | % { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
-				Write-Host "`t Adding Virtual HDD Disks"
+				WriteInfoHighlighted "`t Adding Virtual HDD Disks"
 				$HDDs | % {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname
-				Write-Host "`t`t HDD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+				WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 				}	
 			}      
 		}
@@ -1134,33 +1165,31 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMSet=$_.VMSet
 			if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
 				$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $_.ReplicaHDDSize
-				$ReplicaHDD | % {Write-Host "`t`t ReplicaHDD"$_.path"size"($_.size /1GB)"GB created"}
+				$ReplicaHDD | % {WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB created"}
 				$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $_.ReplicaLogSize
-				$ReplicaLog | % {Write-Host "`t`t ReplicaHDD"$_.path"size"($_.size /1GB)"GB created"}
+				$ReplicaLog | % {WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB created"}
 			}else{
 				$ReplicaHDD=Get-VHD -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS"
 				$ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
 			}
-	#region Todo:convert this Block to function
-
+			
+#region Todo:convert this Block to function
+			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
-				Write-Host "`t`t Server parent disk"$_.ParentVHD"not found" -ForegroundColor Red
-				Write-Host "Press any key to continue ..."
-				$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-				$HOST.UI.RawUI.Flushinputbuffer()
-				Exit
+				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
 			}else{
-				Write-Host "`t`t Server parent disk"$serverparent.Name"found"
+				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
 			}
 					
 			$VMname=$Labconfig.Prefix+$_.VMName
 			$folder="$LabFolder\VMs\$VMname"
 			$vhdpath="$folder\$VMname.vhdx"
-			Write-Host "Creating VM"$VMname -ForegroundColor Cyan
+			WriteInfo "`t Creating OS VHD"
 			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+			WriteInfo "`t Creating VM"
 			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 			$VMTemp | Set-VMProcessor -Count 2
 			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
@@ -1177,14 +1206,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			If($MGMTNICs -ge 2){
 				2..$MGMTNICs | % {
-					Write-Host "`t Adding Network Adapter Management$_"
+					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
 			}
-
+			WriteInfo "`t Connecting vNIC to $switchname"
 			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-			
-			if ($LabConfig.Secureboot -eq $False) {$VMTemp | Set-VMFirmware -EnableSecureBoot Off}
+
+			if ($LabConfig.Secureboot -eq $False) {
+				WriteInfo "`t Disabling Secureboot"
+				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
+			}
 
 			if ($_.AdditionalNetworks -eq $True){
 				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
@@ -1197,16 +1229,19 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Setting DSC Mode to Pull"
 				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
 			}
 			
 			#configure nested virt
 			if ($_.NestedVirt -eq $True){
+				WriteInfo "`t Enabling NestedVirt"
 				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
 			}		
 
 			#configure vTPM
 			if ($_.vTPM -eq $True){
+				WriteInfo "`t Enabling vTPM"
 				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
 				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
 				Enable-VMTPM -VM $VMTemp 
@@ -1214,24 +1249,29 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#set MemoryMinimumBytes
 			if ($_.MemoryMinimumBytes -ne $null){
+				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
 				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
 			}
-				
+			
 			#Set static Memory
 			if ($_.StaticMemory -eq $true){
+				WriteInfo "`t Configuring StaticMemory"
 				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}	
-		
+			}		
+
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
+				WriteInfo "`t Skipping Djoin"
 				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 			}
 			else{
 				if ($_.Win2012Djoin -eq $True){
+					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
 				}
 				else{
+					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
@@ -1240,12 +1280,14 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}
 			}
 
+			WriteInfo "`t Adding unattend to VHD"
 			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
 			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
 			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
+				WriteInfo "`t Adding metaconfig.mof to VHD"
 				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
@@ -1254,29 +1296,27 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
 				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				Write-Host "`t Adding Virtual Hard Disk" $VHD.Path " to $VMName"
+				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 
-	#endregion
+#endregion
 			
-			Write-Host "`t Attaching Shared Disks..."
+			WriteInfoHighlighted "`t Attaching Shared Disks..."
 			$ReplicaHdd | % {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-				Write-Host "`t`t HDD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+				WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
 
 			$ReplicaLog | % {
 				Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-				Write-Host "`t`t HDD "$_.path"size"($_.size /1GB)"GB added to $VMname"
+				WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
 
 			
 		}
 	}
 }
-
-
 
 ################
 # some Cleanup #
@@ -1288,15 +1328,15 @@ Remove-Item -Path "$workdir\temp" -Force -Recurse
 # Finishing #
 #############
 
-Write-Host "Finishing..." -ForegroundColor Cyan
+WriteInfoHighlighted "Finishing..." 
 #get-vm | where name -like $prefix* | Start-VM
 $prefix=$labconfig.Prefix
-Write-Host "Setting MacSpoofing On and AllowTeaming On" -ForegroundColor Cyan
+WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
 Get-VMNetworkAdapter -VMName $prefix* | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
-Get-VM | where name -like $prefix*  | % { Write-Host "Machine "$_.VMName"provisioned" -ForegroundColor Green }
+Get-VM | where name -like $prefix*  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
 
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
 
-Write-Host "Press any key to continue ..." -ForegroundColor Green
+WriteSuccess "Press any key to continue ..."
 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
