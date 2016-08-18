@@ -397,7 +397,7 @@ function Wrap-Process
 ##########################################################################################
 $Workdir=Get-ScriptDirectory
 
-Start-Transcript -Path $workdir'\Deploy.log'
+Start-Transcript -Path "$workdir\Deploy.log"
 
 $StartDateTime = get-date
 WriteInfoHighlighted "Script started at $StartDateTime"
@@ -473,7 +473,7 @@ if ($LABConfig.VMs.vTPM -contains $true){
 
 #Check support for shared disks + enable if possible
 
-if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configuration -contains 'Replica'){
+if ($LABConfig.VMs.Configuration -contains "Shared" -or $LABConfig.VMs.Configuration -contains "Replica"){
 	WriteInfoHighlighted "Configuration contains Shared or Replica scenario"
     WriteInfo "Checking support for shared disks"
     $OS=gwmi win32_operatingsystem
@@ -510,7 +510,7 @@ if ($LABConfig.VMs.Configuration -contains 'Shared' -or $LABConfig.VMs.Configura
 #Check if Hyper-V is installed
 
 WriteInfoHighlighted "Checking if Hyper-V is installed"
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq 'Enabled'){
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq "Enabled"){
 	WriteSuccess "`t Hyper-V is Installed"
 }else{
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
@@ -611,8 +611,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 
 	WriteInfo "`t Adding Tools disk to DC machine"
 
-	$toolspath=$LABFolder+'\VMs\tools.vhdx'
-	$VHD=New-VHD -ParentPath $toolsparent.fullname -Path $toolspath
+	$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$LABFolder\VMs\tools.vhdx"
 
 	WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
 	$DC | Add-VMHardDiskDrive -Path $vhd.Path
