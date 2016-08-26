@@ -74,29 +74,32 @@ $LABConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple'   ; Parent
 ### Parameters ###
 
 ##$Labconfig##
-Password
+DomainAdminName (Mandatory)
+	Additional Domain Admin.
+
+Password (Mandatory)
 	Specifies password for your lab. This password is used for domain admin, vmm account, sqlservice account and additional DomainAdmin... Define before running 2_CreateParentImages
 
-Prefix
+Prefix (Mandatory)
 	Prefix for your lab. Each VM and switch will have this prefix.
 
-Secureboot
+Secureboot (Optional)
 	$True/$False
 	This enables or disables secure boot. In Microsoft we can test unsigned test builds with Secureboot off.
 
-CreateClientParent
+CreateClientParent (Optional)
 	$True/$False
 	If Yes, Client Parent image will be created, so you can create Windows 10 management machine.
 
-DCEdition
+DCEdition (Mandatory)
 	'ServerDataCenter'/'ServerDataCenterCore'
 	If you dont like GUI and you have management VM, you can select Core edition.
 
-ClientEdition
+ClientEdition (Optional)
 	Enterprise/Education/Pro/Home
 	Depends what ISO you use. Edition name matches the one you get from DISM.
 
-InstallSCVMM *
+InstallSCVMM * (Optional)
 	'Yes' 		- installs ADK, SQL and VMM
 	'ADK' 		- installs just ADK
 	'SQL' 		- installs just SQL
@@ -108,10 +111,10 @@ InstallSCVMM *
 			SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
 			ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
 
-AdditionalNetworksInDC
+AdditionalNetworksInDC (optional)
 	If $True, networks specified in $LABConfig.AdditionalNetworksConfig will be added.
 
-MGMTNICsInDC
+MGMTNICsInDC (Optional)
 	If nothing specified, then just 1 NIC is added in DC.
 	Can be 1-8
 			
@@ -122,62 +125,62 @@ MGMTNICsInDC
  	Multiple:
 	 1..2 | % { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; AdditionalNetworks = $True} }
  
- VMName
+ VMName (Mandatory)
     Can be whatever. This name will be used as name to djoin VM.
 
-Configuration
+Configuration (Mandatory)
     'Simple' - No local storage. Just VM
     'S2D' - locally attached SSDS and HDDs. For Storage Spaces Direct. You can specify 0 for SSDnumber or HDD number if you want only one tier.
     'Shared' - Shared VHDS attached to all nodes. Simulates traditional approach with shared space/shared storage. Requires Shared VHD->Requires Clustering Components
     'Replica' - 2 Shared disks, first for Data, second for Log. Simulates traditional storage. Requires Shared VHD->Requires Clustering Components
 
-VMSet
+VMSet (Mandatory for Shared and Replica configuration)
 	This is unique name for your set of VMs. You need to specify it for Spaces and Replica scenario, so script will connect shared disks to the same VMSet.
 
-ParentVHD
+ParentVHD (Mandatory)
 	'Win2016Core_G2.vhdx'     - Windows Server 2016 Core
 	'Win2016Nano_G2.vhdx'    - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
 	'Win2016NanoHV_G2.vhdx'   - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM, Compute, SCVMM Compute
 	'Win10_G2.vhdx'		- Windows 10 if you selected to hydrate it with create client parent.
 
-AdditionalNetworks
+AdditionalNetworks (Optional)
 	$True - Additional networks (configured in AdditonalNetworkConfig) are added 
 
-DSCMode
+DSCMode (Optional)
 	If 'Pull', VMs will be configured to Pull config from DC.
 
 Config
 	You can specify random Config names to identify configuration that should be pulled from pull server
 
-NestedVirt
+NestedVirt (Optional)
 	If $True, nested virt is enabled
 	Enables -ExposeVirtualizationExtensions $true
 
-MemoryStartupBytes
+MemoryStartupBytes (Mandatory)
 	Example: 512MB
 	Startup memory bytes
 
-MemoryMinimumBytes
+MemoryMinimumBytes (Optional)
 	Example: 1GB
 	Minimum memory bytes, must be less or equal to MemoryStartupBytes
 	If not set, default is used.	
 
-StaticMemory
+StaticMemory (Optional)
 	if $True, then static memory is configured
 
-AddToolsVHD
+AddToolsVHD (Optional)
 	If $True, then ToolsVHD will be added
 
-SkipDjoin
+SkipDjoin (Optional)
 	If $True, VM will not be djoined.
     
-Win2012Djoin
+Win2012Djoin (Optional)
     If $True, older way to domain join will be used (Username and Password in Answer File instead of blob) as Djoin Blob works only in Win 2016
 
-vTPM
+vTPM (Optional)
 	if $true, vTPM will be enabled for virtual machine.
 
-MGMTNICs
+MGMTNICs (Optional)
 	Number of management NIC.
 	Default is 2, maximum 8.
 

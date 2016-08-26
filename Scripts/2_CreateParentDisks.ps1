@@ -238,7 +238,7 @@ If ($LabConfig.CreateClientParent -eq $true){
 		 }
 			$ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 		}else {
-			WriteInfo "Found ISO $($ISOClient.FullName)"
+			WriteSuccess "Found ISO $($ISOClient.FullName)"
 			$ISOClient = Mount-DiskImage -ImagePath $ISOClient.FullName -PassThru
 		}
 		$ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
