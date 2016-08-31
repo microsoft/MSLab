@@ -43,7 +43,7 @@ Start-VM -VMName DC
 
 * This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
 
-* It will deploy 4 nanoservers simulating 2TB Storage
+* It will deploy 4 nanoservers simulating 200TB Storage
 
 * note: if you run Win10 Anniversary, you will need to disable SB for TP5 machines
 
