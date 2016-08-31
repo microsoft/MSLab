@@ -28,6 +28,13 @@
 **Step 5** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 TP5 ISO file, hydrate parent disks and hydrate Domain Controller.
  * note: if you have Windows 10 Anniversary Update, DC will fail to start. You need to switch Secure Boot to Microsoft UEFI CA and then disable Secure Boot. This problem is only in TP5 guests. RTM is OK.
+ 
+````PowerShell
+Stop-VM -VMName DC -TurnOff
+Set-VMFirmware -SecureBootTemplate MicrosoftUEFICertificateAuthority -VMName DC
+Set-VMFirmware -EnableSecureBoot Off -VMName DC
+Start-VM -VMName DC
+````
 
 **Step 6** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in variables.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
@@ -37,6 +44,15 @@
 * This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
 
 * It will deploy 4 nanoservers simulating 2TB Storage
+
+* note: if you run Win10 Anniversary, you will need to disable SB for TP5 machines
+
+````PowerShell
+$VMs=Get-VM -VMName *S2D*
+$VMs | Set-VMFirmware -SecureBootTemplate MicrosoftUEFICertificateAuthority
+$VMs | Set-VMFirmware -EnableSecureBoot Off
+````
+
 
 **Step 8** Cleanup lab with Cleanup.ps1
 
