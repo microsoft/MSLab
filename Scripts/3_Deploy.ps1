@@ -48,7 +48,10 @@ param (
     $Blob,
     [parameter(Mandatory=$true)]
     [string]
-    $AdminPassword
+    $AdminPassword,
+	[parameter(Mandatory=$false)]
+    [string]
+    $Specialize
 )
 
     if ( Test-Path "Unattend.xml" ) {
@@ -91,6 +94,7 @@ param (
       <RegisteredOwner>PFE</RegisteredOwner>
       <RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
+	$Specialize
   </settings>
 </unattend>
 
@@ -420,6 +424,18 @@ WriteInfo "`t LabFolder is $LabFolder"
 $LABfolderDrivePath=$LABfolder.Substring(0,3)
 
 $IP=1
+
+$DisableWCF=@'
+<component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<RunSynchronous>
+		<RunSynchronousCommand wcm:action="add">
+			<Path>reg add HKLM\Software\Policies\Microsoft\Windows\CloudContent /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f</Path>
+			<Description>disable consumer features</Description>
+			<Order>5</Order>
+		</RunSynchronousCommand>
+	</RunSynchronous>
+</component>
+'@
 ##########################################################################################
 # Some Additional checks and prereqs
 ##########################################################################################
@@ -836,7 +852,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					if ($_.DisableWCF -eq $True){
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+					}else{
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					}
 				}
 			}
 
@@ -980,7 +1000,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					if ($_.DisableWCF -eq $True){
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+					}else{
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					}
 				}
 			}
 
@@ -1112,7 +1136,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					if ($_.DisableWCF -eq $True){
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+					}else{
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					}
 				}
 			}
 
@@ -1275,7 +1303,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
-					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					if ($_.DisableWCF -eq $True){
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+					}else{
+						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+					}
 				}
 			}
 
