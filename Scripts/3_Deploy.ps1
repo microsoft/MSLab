@@ -572,11 +572,11 @@ New-Item $workdir\LAB\VMs -ItemType Directory -Force
 #get path for Tools disk
 
 WriteInfoHighlighted "Looking for Tools Parent Disks"
-$toolsparent=Get-ChildItem $Workdir -Recurse | where name -eq tools.vhdx
+$toolsparent=Get-ChildItem "$Workdir\ParentDisks" -Recurse | where name -eq tools.vhdx
 if ($toolsparent -eq $null){
 	WriteErrorAndExit "`t Tools parent disk not found"
 }else{
-WriteInfo "`t Tools parent disk tools.vhdx found"
+WriteInfo "`t Tools parent disk $($toolsparent.fullname) found"
 }
 
 ################
@@ -627,7 +627,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 
 	WriteInfo "`t Adding Tools disk to DC machine"
 
-	$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$LABFolder\VMs\tools.vhdx"
+	$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\tools.vhdx"
 
 	WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
 	$DC | Add-VMHardDiskDrive -Path $vhd.Path
@@ -875,8 +875,8 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
+				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
+				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 
@@ -1023,7 +1023,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
+				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
 				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
@@ -1159,7 +1159,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
+				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
 				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
@@ -1326,7 +1326,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
+				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
 				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
