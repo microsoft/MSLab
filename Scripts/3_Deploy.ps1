@@ -1024,7 +1024,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
 				$VHD=New-VHD -ParentPath $toolsparent.fullname -Path "$folder\tools.vhdx"
-				WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
+				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 			}
 

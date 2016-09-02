@@ -184,6 +184,9 @@ MGMTNICs (Optional)
 	Number of management NIC.
 	Default is 2, maximum 8.
 
+DisableWCF (Optional)
+	If $True, then Disable Windows Consumer Features registry is added= no consumer apps in start menu.
+
 ##$LabConfig.AdditionalNetworksConfig##
 	Example: $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
 
