@@ -15,7 +15,7 @@
 **Step 1** Download required files (prerequisities):
 * [Scripts](https://github.com/Microsoft/ws2016lab/raw/master/scripts.zip) 
 * [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
-* [Cumulative Update](http://catalog.update.microsoft.com/v7/site/search.aspx?q=KB3176494)  for Windows Server 2016 Technical Preview 5 KB3176494
+* [Cumulative Update](http://catalog.update.microsoft.com/v7/site/search.aspx?q=kb3172989)  for Windows Server 2016 Technical Preview 5 kb3172989
 
 **Step 2** Create folder and Unzip scripts there
 
