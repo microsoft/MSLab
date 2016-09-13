@@ -67,7 +67,7 @@ $BuildNumber=Get-WindowsBuildNumber
 if ($BuildNumber -ge 10586){
 	WriteSuccess "`t OS is Windows 10 TH2/Server 2016 TP4 or newer"
     }else{
-    WriteErrorAndExit "`t Windows 10/ Server 2016 not detected. Exiting"
+    WriteErrorAndExit "`t Windows version  $BuildNumber detected. Version 10586 and newer is needed. Exiting"
 }
 
 # Checking Folder Structure

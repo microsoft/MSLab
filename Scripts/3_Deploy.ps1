@@ -115,7 +115,13 @@ param (
     $ComputerName,
     [parameter(Mandatory=$true)]
     [string]
-    $AdminPassword
+    $AdminPassword,
+	[parameter(Mandatory=$false)]
+    [string]
+    $Specialize,
+	[parameter(Mandatory=$false)]
+    [string]
+    $AdditionalAccount
 )
 
     if ( Test-Path "Unattend.xml" ) {
@@ -131,11 +137,13 @@ param (
 		<RegisteredOwner>PFE</RegisteredOwner>
       	<RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
+	$Specialize
  </settings>
  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
-        <AdministratorPassword>
+		$AdditionalAccount
+		<AdministratorPassword>
            <Value>$AdminPassword</Value>
            <PlainText>true</PlainText>
         </AdministratorPassword>
@@ -216,6 +224,35 @@ param (
 
     #return the file object
     $unattendFile 
+}
+
+##########################################################################################
+
+Function AdditionalLocalAccountXML
+#Creates Additional local account unattend piece
+{
+param (
+    [parameter(Mandatory=$true)]
+    [string]
+    $AdminPassword,
+	[parameter(Mandatory=$true)]
+    [string]
+    $AdditionalAdminName
+)
+@"
+<LocalAccounts>
+	<LocalAccount wcm:action="add">
+		<Password>
+			<Value>$AdminPassword</Value>
+			<PlainText>true</PlainText>
+		</Password>
+		<Description>$AdditionalAdminName admin account</Description>
+		<DisplayName>$AdditionalAdminName</DisplayName>
+		<Group>Administrators</Group>
+		<Name>$AdditionalAdminName</Name>
+	</LocalAccount>
+</LocalAccounts>
+"@
 }
 
 ##########################################################################################
@@ -542,11 +579,21 @@ if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){
     New-VMSwitch -SwitchType Private -Name $SwitchName
     
 }else{
-    WriteInfoHighlighted "`t $SwitchName exists. Looks like lab with same prefix exists. If there is an additional VM in Labconfig, it will be added"
+	$SwitchNameExists=$True
+    WriteInfoHighlighted "`t $SwitchName exists. Looks like lab with same prefix exists. "
+}
+
+WriteInfo "Testing if lab already exists."
+#Testing if lab already exists.
+if ($SwitchNameExists){
+	if ((Get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue) -ne $null){
+		$LABExists=$True
+		WriteInfoHighlighted "`t Lab already exists. If labconfig contains additional VMs, they will be added."
+	}
 }
 
 #If lab exists, correct starting IP will be calculated
-if (((Get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue) -ne $null) -and ($labconfig.AdditionalNetworksInDC -ne $null)) {
+if (($LABExists) -and ($labconfig.AdditionalNetworksInDC)) {
 	$IP++
 }
 
@@ -666,24 +713,25 @@ Start-Sleep 5
 until ($test -ne $Null)
 WriteSuccess "`t Active Directory is up."
 
-WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
-#make tools disk online
-WriteInfo "`t Making tools disk online"
-Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
-Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
+if (!$LABExists){
+	WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
+	#make tools disk online
+	WriteInfo "`t Making tools disk online"
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
-#authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
-WriteInfo "`t Authorizing DHCP"
-Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-	Get-DhcpServerInDC | Remove-DHCPServerInDC
-	Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
+	#authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
+	WriteInfo "`t Authorizing DHCP"
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+		Get-DhcpServerInDC | Remove-DHCPServerInDC
+		Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
+	}
 }
-
 #################
 # Provision VMs  #
 #################
 
-WriteInfoHighlighted "Creating DSC config for DC"
+WriteInfoHighlighted "Creating DSC config to configure DC as pull server"
 
 #DCM Config
 [DSCLocalConfigurationManager()]
@@ -838,15 +886,30 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"
-				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-			}
-			else{
+				WriteInfo "`t Skipping Djoin"				
+				if ($_.DisableWCF -eq $True){
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							WriteInfo "`t WCF will be disabled"
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+						}			
+				}else{
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+						}	
+					}
+			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-				}
-				else{
+				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
@@ -986,15 +1049,30 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"
-				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-			}
-			else{
+				WriteInfo "`t Skipping Djoin"				
+				if ($_.DisableWCF -eq $True){
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							WriteInfo "`t WCF will be disabled"
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+						}			
+				}else{
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+						}	
+					}
+			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-				}
-				else{
+				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
@@ -1122,15 +1200,30 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"
-				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-			}
-			else{
+				WriteInfo "`t Skipping Djoin"				
+				if ($_.DisableWCF -eq $True){
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							WriteInfo "`t WCF will be disabled"
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+						}			
+				}else{
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+						}	
+					}
+			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-				}
-				else{
+				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
@@ -1289,15 +1382,30 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$Name=$_.VMName
 			
 			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"
-				$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-			}
-			else{
+				WriteInfo "`t Skipping Djoin"				
+				if ($_.DisableWCF -eq $True){
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							WriteInfo "`t WCF will be disabled"
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+						}			
+				}else{
+						if ($_.AdditionalLocalAdmin -ne $null){
+							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
+							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+						}else{
+							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+						}	
+					}
+			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
 					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-				}
-				else{
+				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path

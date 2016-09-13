@@ -173,6 +173,7 @@ AddToolsVHD (Optional)
 
 SkipDjoin (Optional)
 	If $True, VM will not be djoined.
+	Note: you might want to use AdditionalLocalAdmin variable with Windows 10 as local administrator account is by default disabled there.
     
 Win2012Djoin (Optional)
     If $True, older way to domain join will be used (Username and Password in Answer File instead of blob) as Djoin Blob works only in Win 2016
@@ -186,6 +187,11 @@ MGMTNICs (Optional)
 
 DisableWCF (Optional)
 	If $True, then Disable Windows Consumer Features registry is added= no consumer apps in start menu.
+
+AdditionalLocalAdmin (Optional, depends on SkipDjoin)
+	Example AdditionalLocalAdmin='Ned'
+	Works only with SkipDjoin as you usually don't need additional local account
+	When you skipDjoin on Windows10 and local administrator is disabled. Then AdditionalLocalAdmin is useful
 
 ##$LabConfig.AdditionalNetworksConfig##
 	Example: $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage1'; NetAddress='172.16.1.'; NetVLAN='1'; Subnet='255.255.255.0'}
