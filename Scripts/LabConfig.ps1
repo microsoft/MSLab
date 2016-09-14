@@ -1,16 +1,21 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
+$LabConfig=@{ DomainAdminName='Claus'; AdminPassword='LS1setup!'; Prefix = 'S2DHyperConverged-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@()}
+1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+
+<# Same as above, but with more explanation
+
 $LabConfig=@{
     DomainAdminName='Claus'; 			# Used during 2_CreateParentDisks (no affect if changed after this step)
 	AdminPassword='LS1setup!'; 			# Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
     Prefix = 'S2DHyperConverged-'; 		# All VMs and vSwitch are created with this prefix, so you can identify the lab
     SwitchName = 'LabSwitch';			# Name of vSwitch
-    SecureBoot=$true; 					# Useful when testing unsigned builds (Useful for MS developers for daily builds)
+    SecureBoot=$true; 					# (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
     DCEdition='ServerDataCenter';		# ServerDataCenter or ServerDataCenterCore (or if you prefer standard)
-    CreateClientParent=$false;			# If True, client OS will be hydrated
-    ClientEdition='Enterprise';			# Enterprise/Education/Pro/Home (depends what ISO you use)
-	InstallSCVMM='No';					# Yes/Prereqs/SQL/ADK/No
-    AdditionalNetworksInDC=$false;		# If Additional networks should be added also to DC
+    CreateClientParent=$false;			# (Optional) If True, client OS will be hydrated
+    ClientEdition='Enterprise';			# (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
+	InstallSCVMM='No';					# (Optional) Yes/Prereqs/SQL/ADK/No
+    AdditionalNetworksInDC=$false;		# (Optional) If Additional networks should be added also to DC
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@()								# Just empty array for config below
 } 
@@ -22,7 +27,7 @@ $LabConfig=@{
 		VMName = "$VMNames$_" ; 
 		Configuration = 'S2D' ; 				# Simple/S2D/Shared/Replica
 		ParentVHD = 'Win2016NanoHV_G2.vhdx';	# VHD Name from .\ParentDisks folder
-		SSDNumber = 4; 							# Number of "SSDs" (its just simulation of SSD-like sized HDD, just bunch of smaller disks)
+		SSDNumber = 0; 							# Number of "SSDs" (its just simulation of SSD-like sized HDD, just bunch of smaller disks)
 		SSDSize=800GB ; 						# Size of "SSDs"
 		HDDNumber = 12; 						# Number of "HDDs"
 		HDDSize= 4TB ; 							# Size of "HDDs"
@@ -40,10 +45,13 @@ $LABConfig.AdditionalNetworksConfig += @{
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
 
+#>
+
+
 <#
 # More complex labconfig example for Microsoft Premier Software Defined Storage Workshop (work-in-progress)
 $LabConfig=@{
-    DomainAdminName='Ned'; 				
+    DomainAdminName='LabAdmin'; 				
 	AdminPassword='LS1setup!'; 		
     Prefix = 'S2DHyperConverged-'; 		
     SwitchName = 'LabSwitch';			
