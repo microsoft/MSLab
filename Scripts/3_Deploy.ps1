@@ -594,7 +594,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$vhdpath="$folder\$VMname.vhdx"
 		Write-Host "Creating VM"$VMname -ForegroundColor Cyan
 		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp=New-VM -Version 7.0 -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
@@ -693,7 +693,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$vhdpath="$folder\$VMname.vhdx"
 		Write-Host "Creating VM"$VMname -ForegroundColor Cyan
 		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp=New-VM -Version 7.0 -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
@@ -781,7 +781,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$vhdpath="$folder\$VMname.vhdx"
 		Write-Host "Creating VM"$VMname -ForegroundColor Cyan
 		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp=New-VM -Version 7.0 -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
@@ -897,7 +897,7 @@ $LabVMs.GetEnumerator() | ForEach-Object {
 		$vhdpath="$folder\$VMname.vhdx"
 		Write-Host "Creating VM"$VMname -ForegroundColor Cyan
 		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp=New-VM -Version 7.0 -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management
