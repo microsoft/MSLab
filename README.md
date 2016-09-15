@@ -48,7 +48,7 @@ Start-VM -VMName DC
 * note: if you run Win10 Anniversary, you will need to disable SB for TP5 machines
 
 ````PowerShell
-$VMs=Get-VM -VMName *S2D*
+$VMs=Get-VM -VMName *-S2D*
 $VMs | Set-VMFirmware -SecureBootTemplate MicrosoftUEFICertificateAuthority
 $VMs | Set-VMFirmware -EnableSecureBoot Off
 ````
