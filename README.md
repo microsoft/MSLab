@@ -13,7 +13,7 @@
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
 **Step 1** Download required files (prerequisities):
-* [Scripts](https://github.com/Microsoft/ws2016lab/raw/master/scripts.zip) or [Dev Scripts](https://github.com/Microsoft/ws2016lab/blob/dev/scripts.zip?raw=true) (recommended)
+* [Scripts](https://github.com/Microsoft/ws2016lab/raw/master/scripts.zip) (recommended for TP5) or [Dev Scripts](https://github.com/Microsoft/ws2016lab/blob/dev/scripts.zip?raw=true) (recommended for RTM)
 * [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
 * [Cumulative Update](http://catalog.update.microsoft.com/v7/site/search.aspx?q=kb3172989)  for Windows Server 2016 Technical Preview 5 kb3172989
 
