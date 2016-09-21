@@ -6,7 +6,34 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 #   Functions
 ##########################################################################################
 
+function WriteInfo($message)
+{
+    Write-Host $message
+}
 
+function WriteInfoHighlighted($message)
+{
+    Write-Host $message -ForegroundColor Cyan
+}
+
+function WriteSuccess($message)
+{
+    Write-Host $message -ForegroundColor Green
+}
+
+function WriteError($message)
+{
+    Write-Host $message -ForegroundColor Red
+}
+
+function WriteErrorAndExit($message)
+{
+	Write-Host $message -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
 
 Function Get-ScriptDirectory
     {
@@ -19,23 +46,19 @@ Function Get-ScriptDirectory
 ##########################################################################################
 $Workdir=get-scriptdirectory
 
-#load variables
-. "$($workdir)\variables.ps1"
+#load LabConfig
+. "$($workdir)\LabConfig.ps1"
 $prefix=$LabConfig.Prefix
 
 if (!$prefix){
-    Write-Host "`t Prefix is empty. Exiting" -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
-	Exit
+    WriteErrorAndExit "Prefix is empty. Exiting"
 }
 
-Write-Host "VMs:" -ForegroundColor Cyan 
+WriteInfoHighlighted "VMs:"
 Write-Output (get-vm -Name $prefix*).name
-Write-Host "SwitchName:" -ForegroundColor Cyan 
+WriteInfoHighlighted "SwitchName:"
 Write-Output (Get-VMSwitch $prefix*).name
-Write-Host ""
+WriteInfo ""
 
 $answer=read-host "This script will remove all VMs and switches starting with $prefix (all above) Are you sure? (type  Y )"
 
@@ -60,11 +83,9 @@ if ($answer -eq "Y"){
 
     Expand-Archive -Path $zipfile -DestinationPath $zipoutput
 
-    Write-Host "Press any key to close window ..." -ForegroundColor Green
+    WriteSuccess "Press any key to close window ..."
     $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 }
 else {
-    Write-Host "You did not type Y" -ForegroundColor Cyan
-    Write-Host "Press any key to close window ..." -ForegroundColor Green
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+    WriteErrorAndExit "You did not type Y"
 }
