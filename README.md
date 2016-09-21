@@ -26,12 +26,12 @@
 **Step 4** Copy Cumulative Update into the OSServer\Packages folder.
 
 **Step 5** Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 TP5 ISO file, hydrate parent disks and hydrate Domain Controller.
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, hydrate parent disks and hydrate Domain Controller.
 
 **Step 6** Right-click and run with PowerShell 3_Deploy.ps1
- * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in variables.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
+ * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
  
-**Step 7** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged%20TP5)
+**Step 7** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
 
 * This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
 
@@ -50,7 +50,7 @@ Automatically hydrated Domain Controller with DHCP and one scope. There are seve
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/dhcp01.png)
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ActiveDirectory01.PNG)
 
-You can then modify variables.ps1 to hydrate whatever you want. Like this 4 node nano s2d cluster with 200TB capacity - all running on ultrabook.
+You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node nano s2d cluster with 200TB capacity - all running on ultrabook.
 
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/HVConsole01.png)
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ServerManager01.png)
