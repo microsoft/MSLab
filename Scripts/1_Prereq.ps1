@@ -13,6 +13,34 @@ If (!( $isAdmin )) {
 #############
 # Functions #
 #############
+function WriteInfo($message)
+{
+    Write-Host $message
+}
+
+function WriteInfoHighlighted($message)
+{
+    Write-Host $message -ForegroundColor Cyan
+}
+
+function WriteSuccess($message)
+{
+    Write-Host $message -ForegroundColor Green
+}
+
+function WriteError($message)
+{
+    Write-Host $message -ForegroundColor Red
+}
+
+function WriteErrorAndExit($message)
+{
+	Write-Host $message -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
 
 function  Get-WindowsBuildNumber { 
     $os = Get-WmiObject -Class Win32_OperatingSystem 
@@ -25,25 +53,21 @@ function  Get-WindowsBuildNumber {
 
 # Get workdirectory and Start Time
 $workdir       = Split-Path $script:MyInvocation.MyCommand.Path
-Start-Transcript -Path $workdir'\Prereq.log'
+Start-Transcript -Path "$workdir\Prereq.log"
 $StartDateTime = get-date
-Write-host	"Script started at $StartDateTime"
+WriteInfo "Script started at $StartDateTime"
 
-##Load Variables....
-. "$($workdir)\variables.ps1"
+##Load LabConfig....
+. "$($workdir)\LabConfig.ps1"
 
 # Checking for Compatible OS
-Write-Host "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Cyan
+WriteInfoHighlighted "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer"
 
 $BuildNumber=Get-WindowsBuildNumber
 if ($BuildNumber -ge 10586){
-	Write-Host "`t OS is Windows 10 TH2/Server 2016 TP4 or newer" -ForegroundColor Green
+	WriteSuccess "`t OS is Windows 10 TH2/Server 2016 TP4 or newer"
     }else{
-    Write-Host "`t Windows 10/ Server 2016 not detected. Exiting" -ForegroundColor Red
-    Write-Host "Press any key to continue ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-    $HOST.UI.RawUI.Flushinputbuffer()
-    Exit
+    WriteErrorAndExit "`t Windows version  $BuildNumber detected. Version 10586 and newer is needed. Exiting"
 }
 
 # Checking Folder Structure
@@ -303,17 +327,17 @@ Exit
 ##########################
 
 # Downloading diskspd if its not in tools folder
-Write-Host "Testing diskspd presence" -ForegroundColor Cyan
+WriteInfoHighlighted "Testing diskspd presence"
 If ( Test-Path -Path "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
-		Write-Host "`t Diskspd is present, skipping download" -ForegroundColor Green
+		WriteSuccess "`t Diskspd is present, skipping download"
 }else{ 
-		Write-Host "`t Diskspd not there - Downloading diskspd" -ForegroundColor Cyan
+		WriteInfo "`t Diskspd not there - Downloading diskspd"
 		try {
-			$webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd
+			$webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
 			$downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
 			Invoke-WebRequest -Uri $downloadurl -OutFile "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip"
 		}catch{
-			Write-Host "`t Failed to download Diskspd!" -ForegroundColor Red
+			WriteError "`t Failed to download Diskspd!"
 		}
 		# Unnzipping and extracting just diskspd.exe x64
 		Expand-Archive "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$workdir\Tools\ToolsVHD\DiskSpd\Unzip"
@@ -323,15 +347,15 @@ If ( Test-Path -Path "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
 }
 
 # Download convert-windowsimage if its not in tools folder
-Write-Host "Testing convert-windowsimage presence" -ForegroundColor Cyan
+WriteInfoHighlighted "Testing convert-windowsimage presence"
 If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
-	Write-Host "`t Convert-windowsimage.ps1 is present, skipping download" -ForegroundColor Green	
+	WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
 }else{ 
-		Write-Host "`t Downloading Convert-WindowsImage" -ForegroundColor Cyan
+		WriteInfo "`t Downloading Convert-WindowsImage"
 		try{
-			Invoke-WebRequest -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$workdir\Tools\convert-windowsimage.ps1"
+			Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$workdir\Tools\convert-windowsimage.ps1"
 		}catch{
-			Write-Host "`t Failed to download convert-windowsimage.ps1!" -ForegroundColor Red
+			WriteError "`t Failed to download convert-windowsimage.ps1!"
 		}
 }	
 
@@ -341,36 +365,36 @@ If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
 $modules=("xActiveDirectory","2.10.0.0"),("xDHCpServer","1.3.0.0"),("xNetworking","2.8.0.0"),("xPSDesiredStateConfiguration","3.9.0.0")
 foreach ($module in $modules){
 	#testing if modules are present
-	Write-Host "Testing if modules are present" -ForegroundColor Cyan
+	WriteInfoHighlighted "Testing if modules are present" 
 	$modulename=$module[0]
     $moduleversion=$module[1]
 	if (!(Test-Path $workdir'\Tools\DSC\'$modulename'\')){
-		Write-Host "`t Module $module not found... Downloading"
+		WriteInfo "`t Module $module not found... Downloading"
 		#Install NuGET package provider   
 		if ((Get-PackageProvider -Name NuGet) -eq $null){   
 			Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 			}
 		Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path $workdir'\Tools\DSC'
 	}else{
-		Write-Host "`t Module $modulename version found... Skipping Download" -ForegroundColor Green
+		WriteSuccess "`t Module $modulename version found... Skipping Download"
 	}
 }
 
 # Installing DSC modules if needed
 foreach ($module in $modules) {
-    Write-Host "Testing DSC Module $module Presence" -ForegroundColor Cyan
+    WriteInfoHighlighted "Testing DSC Module $module Presence"
     # Check if Module is installed
     if ((Get-DscResource -Module $Module[0] | where-object {$_.version -eq $module[1]}) -eq $Null) {
         # module is not installed - install it
-        Write-Host "`t Module $module will be installed"
+        WriteInfo "`t Module $module will be installed"
         $modulename=$module[0]
         $moduleversion=$module[1]
         Copy-item -Path "$workdir\Tools\DSC\$modulename" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
-        Write-Host "`t Module was installed." -ForegroundColor Green
+        WriteSuccess "`t Module was installed."
         Get-DscResource -Module $modulename
     } else {
         # module is already installed
-        Write-Host "`t Module $Module is already installed" -ForegroundColor Green
+        WriteSuccess "`t Module $Module is already installed"
     }
 }
 
@@ -378,7 +402,7 @@ foreach ($module in $modules) {
 # finishing #
 #############
 
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
-Write-Host "Press any key to continue..." -ForegroundColor Green
+WriteSuccess "Press any key to continue..."
 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
