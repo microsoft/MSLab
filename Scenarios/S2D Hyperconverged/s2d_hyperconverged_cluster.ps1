@@ -17,7 +17,7 @@ $LabConfig=@{
 		VMName = "$VMNames$_" ; 
 		Configuration = 'S2D' ; 				
 		ParentVHD = 'Win2016NanoHV_G2.vhdx';	
-		SSDNumber = 4; 							
+		SSDNumber = 0; 							
 		SSDSize=800GB ; 						
 		HDDNumber = 12; 						
 		HDDSize= 4TB ; 							
@@ -33,7 +33,7 @@ $LabConfig=@{
 		VMName = "$VMNames$_" ; 
 		Configuration = 'S2D' ; 				
 		ParentVHD = 'Win2016NanoHV_G2.vhdx';	
-		SSDNumber = 4; 							
+		SSDNumber = 0; 							
 		SSDSize=800GB ; 						
 		HDDNumber = 12; 						
 		HDDSize= 4TB ; 							
@@ -98,64 +98,33 @@ Test-Cluster –Node $servers –Include “Storage Spaces Direct”,Inventory,N
 New-Cluster –Name $ClusterName –Node $servers –NoStorage 
 Start-Sleep 5
 Clear-DnsClientCache
-
-#Enabling S2D - TP5 specific. It is clumsy now, so we need to create pool and tiers manually.
-Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0 -Confirm:$false -SkipEligibilityChecks
-
-#TP5 fix
-Invoke-Command -ComputerName $servers -ScriptBlock {Get-ScheduledTask "SpaceManagerTask" | Disable-ScheduledTask}
+   
+#Enable-ClusterS2D
+Enable-ClusterS2D -CimSession $ClusterName -confirm:0
 
 #register storage provider 
 Get-StorageProvider | Register-StorageSubsystem -ComputerName $ClusterName
-   
-#create pool (sometime I cannot get all disks, therefore there is a loop)
-do {
-    $phydisk = Get-StorageSubSystem -FriendlyName *$ClusterName | Get-PhysicalDisk -CanPool $true
-    Write-Host "Number of physical disks found:" $phydisk.count -ForegroundColor Cyan
-}
-until ($phydisk.count -eq $numberofnodes*16)
-$pool=New-StoragePool -FriendlyName  DirectPool -PhysicalDisks $phydisk -StorageSubSystemFriendlyName *$ClusterName 
-$pool | get-physicaldisk | where Size -le 900GB | Set-PhysicalDisk -MediaType SSD
-$pool | get-physicaldisk | where Size -ge 900GB | Set-PhysicalDisk -MediaType HDD
-#Create Tiers
-$Perf = New-StorageTier -FriendlyName Performance  -MediaType SSD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
-if  ($numberofnodes -ne 3){
-    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Parity -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
-}
-if  ($numberofnodes -eq 3){
-    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
-}
 
-1..$MRTNumber | ForEach-Object {
-New-Volume -StoragePoolFriendlyName $pool.friendlyname -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTiers $perf,$cap -StorageTierSizes 1TB,10TB
-}
+#display pool
+$pool=Get-StoragePool *$Clustername
+$pool
 
-<# More manual way - Sometimes command above does not work
-if  ($numberofnodes -eq 3){    
+#Display disks
+Get-StoragePool *$Clustername | Get-PhysicalDisk
+
+#display tiers (notice only capacity is available and is )
+Get-StorageTier
+
+
+if ($numberofnodes -le 3){
     1..$MRTNumber | ForEach-Object {
-        $vdiskname="MultiResiliencyDisk$_"
-        $virtualDisk = new-virtualdisk -StoragePoolUniqueId $pool.uniqueid -FriendlyName $vdiskname -StorageTiers $perf,$Cap -StorageTierSizes 10TB
-        $virtualDisk | get-disk | New-Partition -UseMaximumSize
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Suspend-ClusterResource
-        $virtualdisk | Get-Disk | Get-Partition | get-volume | Initialize-Volume -FileSystem REFS -AllocationUnitSize 4KB -NewFileSystemLabel $vdiskname -confirm:$False
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Resume-ClusterResource
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Add-ClusterSharedVolume
+    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB
+    }
+}else{
+    1..$MRTNumber | ForEach-Object {
+    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1TB,9TB
     }
 }
-
-if ($numberofnodes -ge 4){
-    1..$MRTNumber | ForEach-Object {
-        $vdiskname="MultiResiliencyDisk$_"
-        $virtualDisk = new-virtualdisk -StoragePoolUniqueId $pool.uniqueid -FriendlyName $vdiskname -StorageTiers $perf,$cap -StorageTierSizes 1TB,10TB
-        $virtualDisk | get-disk | New-Partition -UseMaximumSize
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Suspend-ClusterResource
-        $virtualdisk | Get-Disk | Get-Partition | get-volume | Initialize-Volume -FileSystem REFS -AllocationUnitSize 4KB -NewFileSystemLabel $vdiskname -confirm:$False
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Resume-ClusterResource
-        Get-ClusterResource -Cluster $ClusterName -Name *$vdiskname* | Add-ClusterSharedVolume
-    }
-}
-#>
-
 start-sleep 10
 
 #rename CSV(s)
@@ -168,32 +137,19 @@ Get-ClusterSharedVolume -Cluster $ClusterName | % {
 
 ###Configure quorum###
 
+#ConfigureWitness
 #Create new directory
-Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name S2DWitness -ItemType Directory}
-$nodes=@()
-1..$numberofnodes | % {$nodes+="corp\S2D$_$"}
-$nodes+="corp\$ClusterName$"
-$nodes+="corp\Administrator"
-New-SmbShare -Name S2DWitness -Path c:\Shares\S2DWitness -FullAccess $nodes -CimSession DC
+$WitnessName=$Clustername+"Witness"
+Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+$accounts=@()
+$Servers | % {$accounts+="corp\$_$"}
+$accounts+="corp\$ClusterName$"
+$accounts+="corp\Domain Admins"
+New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
 # Set NTFS permissions 
-Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare S2DWitness).PresetPathAcl | Set-Acl}
+Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
 #Set Quorum
-Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness \\DC\S2DWitness
-
-#set CSV Cache
-(Get-Cluster $ClusterName).BlockCacheSize = 1024 
-
-#show errors... 
-Get-StorageSubSystem *$ClusterName | Debug-StorageSubSystem
-
-#get healthreport
-Get-StorageSubSystem *$ClusterName  | Get-StorageHealthReport -Count 5
-
-#get cluster diagnostic
-Get-ClusterDiagnostics -ClusterName $ClusterName
-
-#storagedisagnostic
-Get-StorageSubSystem -FriendlyName *$ClusterName | Get-StorageDiagnosticInfo -DestinationPath c:\temp
+Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
 #unregister StorageSubsystem
 #$ss=Get-StorageSubSystem -FriendlyName *$ClusterName
