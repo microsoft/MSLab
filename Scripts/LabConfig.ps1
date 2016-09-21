@@ -1,7 +1,7 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
 $LabConfig=@{ DomainAdminName='Claus'; AdminPassword='LS1setup!'; Prefix = 'S2DHyperConverged-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@()}
-1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 <# Same as above, but with more explanation
 

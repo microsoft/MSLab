@@ -13,8 +13,7 @@
 
 #How to validate report
 
-function GetReport
-{
+function GetReport{
     param($AgentId, $serviceURL)
     $requestUri = "$serviceURL/Nodes(AgentId= '$AgentId')/Reports"
     $request = Invoke-WebRequest -Uri $requestUri  -ContentType "application/json;odata=minimalmetadata;streaming=true;charset=utf-8" `
