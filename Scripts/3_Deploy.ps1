@@ -762,6 +762,12 @@ Configuration PullClientConfig
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
 			ConfigurationNames = $DSCConfig
             }
+
+            ReportServerWeb PullServerReports {
+            ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
+            RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
+            }
+
 			$DSCConfig | ForEach-Object {
 				PartialConfiguration $_
                 {
