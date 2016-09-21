@@ -1,34 +1,70 @@
 # Scenario Description
 
-* In this scenario 4-16 node S2D cluster can be created.
+* In this scenario 4 node S2D cluster can be created.
 * It is just simulation "how it would look like". Performance is not a subject here.
 * It is just to test look and feel
-* THis is TP5 script. It will likely change in RTM.
 
 
 # Scenario requirements
 
-* Windows 10 1511 with enabled Hyper-V
+* Windows 10 1511 with enabled Hyper-V or Windows 10 1607 (if nested virtualization is enabled)
 * 8GB Memory or 20GB if nested virtualization is used (for 4 node configuration)
 * SSD (with HDD it is really slow)
 
-# Variables.ps1
+# Labconfig.ps1
 
 
 * Without Nested Virtualization
 ````PowerShell
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 's2d_HyperConverged-'; SecureBoot='Off'; CreateClientParent='No';DCEdition='ServerDataCenter'}
-$NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
-$LAbVMs = @()
-1..4| % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } } 
+$LabConfig=@{
+    DomainAdminName='Claus'; 			
+	AdminPassword='LS1setup!'; 			
+    Prefix = 'S2DHyperConverged-'; 		
+    SwitchName = 'LabSwitch';			
+    DCEdition='ServerDataCenter';		
+    VMs=@()								
+} 
+
+1..4 | % { 
+	$VMNames="S2D"; 							
+	$LABConfig.VMs += @{ 
+		VMName = "$VMNames$_" ; 
+		Configuration = 'S2D' ; 				
+		ParentVHD = 'Win2016NanoHV_G2.vhdx';	
+		SSDNumber = 0; 							
+		SSDSize=800GB ; 						
+		HDDNumber = 12; 						
+		HDDSize= 4TB ; 							
+		MemoryStartupBytes= 512MB 				
+	} 
+} 
 ````
 
 * With Nested Virtualization
 ````PowerShell
-$LabConfig=@{AdminPassword='LS1setup!'; DomainAdminName='Claus'; Prefix = 'S2DLabNested-'; SecureBoot='On'; CreateClientParent='No';DCEdition='ServerDataCenter';ClientEdition='Enterprise'}
-$NetworkConfig=@{SwitchName = 'LabSwitch' ; StorageNet1='172.16.1.'; StorageNet2='172.16.2.'}
-$LAbVMs = @()
-1..4 | % {"S2D$_"}  | % { $LAbVMs += @{ VMName = $_ ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt='Yes'} }
+$LabConfig=@{
+    DomainAdminName='Claus'; 			
+	AdminPassword='LS1setup!'; 			
+    Prefix = 'S2DHyperConverged-'; 		
+    SwitchName = 'LabSwitch';			
+    DCEdition='ServerDataCenter';		
+    VMs=@()								
+} 
+
+1..4 | % { 
+	$VMNames="S2D"; 							
+	$LABConfig.VMs += @{ 
+		VMName = "$VMNames$_" ; 
+		Configuration = 'S2D' ; 				
+		ParentVHD = 'Win2016NanoHV_G2.vhdx';	
+		SSDNumber = 0; 							
+		SSDSize=800GB ; 						
+		HDDNumber = 12; 						
+		HDDSize= 4TB ; 							
+		MemoryStartupBytes= 4GB;
+        NestedVirt=$True 				
+	} 
+}
 ````
 
 # Configuration Script
@@ -68,7 +104,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {Restart-Computer -Force}
 Start-Sleep 60
 ````
 
-* In this part networking is configured. Just to see how SET Switch looks like and how it looks like when you have 2 vNICS. In real world scenario you would have the same, except vNICs should be configured as vRDMA NICs
+* In this part networking is configured. Just to see how SET Switch looks like and how it looks like when you have 2 vNICS. In real world scenario you would have the same for iWARP, except vNICs should be configured as vRDMA NICs
 ````PowerShell
 if ($Networking -eq "Yes"){
     Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
@@ -85,7 +121,7 @@ if ($Networking -eq "Yes"){
 
 ````PowerShell
 Test-Cluster –Node $servers –Include “Storage Spaces Direct”,Inventory,Network,”System Configuration”
-New-Cluster –Name $ClusterName –Node $servers –NoStorage 
+New-Cluster –Name $ClusterName –Node $servers
 Start-Sleep 5
 Clear-DnsClientCache
 ````
@@ -93,12 +129,7 @@ Clear-DnsClientCache
 * Enable S2D. It is specific to TP5 as you need to skip automatic configuration and skip eligibility checks (because all disks report with mediatype unknown, therefore eligibility check would fail)
 
 ```PowerShell
-Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0 -Confirm:$false -SkipEligibilityChecks
-````
-
-* TP5 fix to disable SpaceManagerTask, that consumes all CPU.
-```PowerShell
-Invoke-Command -ComputerName $servers -ScriptBlock {Get-ScheduledTask "SpaceManagerTask" | Disable-ScheduledTask}
+Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0
 ````
 
 * To work with remote storage subsystem from DC, it is useful to register it with this command. I'm using $ClusterName, so I'll always work with some node that's online.
@@ -106,40 +137,32 @@ Invoke-Command -ComputerName $servers -ScriptBlock {Get-ScheduledTask "SpaceMana
 Get-StorageProvider | Register-StorageSubsystem -ComputerName $ClusterName
 ````
 
-* Create Pool. On real systems this is not needed, because StoragePool is automatically created during Enable-ClusterS2D
-
+* Display what was configured with Enable-Clusters2D
 ```PowerShell
-$phydisk = Get-StorageSubSystem -FriendlyName *$ClusterName | Get-PhysicalDisk -CanPool $true
-Write-Host "Number of physical disks found:" $phydisk.count -ForegroundColor Cyan
+#display pool
+$pool=Get-StoragePool *$Clustername
+$pool
 
-$pool=New-StoragePool -FriendlyName  DirectPool -PhysicalDisks $phydisk -StorageSubSystemFriendlyName *$ClusterName 
+#Display disks
+Get-StoragePool *$Clustername | Get-PhysicalDisk
+
+#display tiers (notice only capacity is available and is )
+Get-StorageTier
 ````
 
-* Set Mediatype. This is workaround to simulate SSDs and HDDs. Again, on real systems this is not needed
+* Create virtual disks. 
 
 ```PowerShell
-$pool | get-physicaldisk | where Size -le 900GB | Set-PhysicalDisk -MediaType SSD
-$pool | get-physicaldisk | where Size -ge 900GB | Set-PhysicalDisk -MediaType HDD
-````
-
-* Create Tiers. On real system this is done automatically during Enable-ClusterS2D. Here is a logic for 3 node configuration, where capacity tier needs to be also 3 way mirror to protect from 2 node failure.
-
-```PowerShell
-$Perf = New-StorageTier -FriendlyName Performance  -MediaType SSD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
-if  ($numberofnodes -ne 3){
-    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Parity -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
+if ($numberofnodes -le 3){
+    1..$MRTNumber | ForEach-Object {
+    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB
+    }
+}else{
+    1..$MRTNumber | ForEach-Object {
+    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1TB,9TB
+    }
 }
-if  ($numberofnodes -eq 3){
-    $Cap  = New-StorageTier -FriendlyName Capacity     -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName $pool.friendlyname  -PhysicalDiskRedundancy 2
-}
-````
-
-* Create virtual disks. Here you really need April 2016 Cumulative Update to run successfully. On May/June CU I see various errors. This should be fixed in RTM
-
-```PowerShell
-1..$MRTNumber | ForEach-Object {
-New-Volume -StoragePoolFriendlyName $pool.friendlyname -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTiers $perf,$cap -StorageTierSizes 1TB,10TB
-}
+start-sleep 10
 ````
 
 * Rename all CSVs to match virtual disks names
@@ -154,40 +177,22 @@ Get-ClusterSharedVolume -Cluster $ClusterName | % {
 * Configure Quorum (File Share Witness)
 
 ```PowerShell
+###Configure quorum###
+#ConfigureWitness
 #Create new directory
-Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name S2DWitness -ItemType Directory}
-$nodes=@()
-1..$numberofnodes | % {$nodes+="corp\S2D$_$"}
-$nodes+="corp\$ClusterName$"
-$nodes+="corp\Administrator"
-New-SmbShare -Name S2DWitness -Path c:\Shares\S2DWitness -FullAccess $nodes -CimSession DC
+$WitnessName=$Clustername+"Witness"
+Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+$accounts=@()
+$Servers | % {$accounts+="corp\$_$"}
+$accounts+="corp\$ClusterName$"
+$accounts+="corp\Domain Admins"
+New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
 # Set NTFS permissions 
-Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare S2DWitness).PresetPathAcl | Set-Acl}
+Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
 #Set Quorum
-Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness \\DC\S2DWitness
+Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
 ````
-
-* On real systems you should not forget to configure CSV Cache
-```PowerShell
-(Get-Cluster $ClusterName).BlockCacheSize = 1024 
-````
-
-* If you want to play with some new Diagnostic Tools, run these commands. This is still work in progress, so it will likely change in RTM
-
-```PowerShell
-#show errors... 
-Get-StorageSubSystem *$ClusterName | Debug-StorageSubSystem
-
-#get healthreport
-Get-StorageSubSystem *$ClusterName  | Get-StorageHealthReport -Count 5
-
-#get cluster diagnostic
-Get-ClusterDiagnostics -ClusterName $ClusterName
-
-#storagedisagnostic
-Get-StorageSubSystem -FriendlyName *$ClusterName | Get-StorageDiagnosticInfo -DestinationPath c:\temp
-````
-
 
 # How it looks like end-to-end (when you just paste the script). 
 Note, there are small differences (we did not configure fault domains, but it is displayed on GIF as I did it a while ago.

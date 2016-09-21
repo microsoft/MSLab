@@ -7,13 +7,15 @@
  
  Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios!
 
+ You can try [dev branch scripts](https://github.com/Microsoft/ws2016lab/blob/dev/scripts.zip) to test new labconfig, vTPM, new nested virtualization, number of Management adapters...
+
 
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
 **Step 1** Download required files (prerequisities):
-* [Scripts](https://github.com/Microsoft/ws2016lab/raw/master/scripts.zip) 
-* [Windows Server 2016 TP5](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-technical-preview) 
-* [Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=kb3157663)  for Windows Server 2016 Technical Preview 5 KB3157663
+* [Scripts](https://github.com/Microsoft/ws2016lab/raw/2016TP5/scripts.zip) (recommended for TP5) or [RTM Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) (recommended for RTM)
+* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/) 
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016
 
 **Step 2** Create folder and Unzip scripts there
 
@@ -25,7 +27,7 @@
 
 **Step 5** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 TP5 ISO file, hydrate parent disks and hydrate Domain Controller.
- 
+
 **Step 6** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in variables.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
  
@@ -33,7 +35,7 @@
 
 * This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
 
-* It will deploy 4 nanoservers simulating 2TB Storage
+* It will deploy 4 nanoservers simulating 200TB Storage
 
 **Step 8** Cleanup lab with Cleanup.ps1
 
@@ -66,13 +68,3 @@ Simulations such as
 * what will happen when one node goes down
 * testing new features before pushing to production
 * ...
-
-
-#Changelog
-
-* 10.6.2016 - Changed DSC to use Configuration name to be able to play with LAPS https://blogs.msdn.microsoft.com/laps/2016/06/10/testing-laps-for-nano-server-with-ws2016lab/
-* 17.5.2016 - Added SCVMM automation - if you specify labconfig parameter to install SCVMM and put all install files into toolsVHD folder, SCVMM will be automatically installed during 2_CreateParentDisks
-* 15.5.2016 - Simplified variables.ps1, SCVMM install scripts added
-* 3.5.2016 - Scripts will exit if prefix is empty. Also will exit if iso was not selected in prompt.
-* 1.5.2016 - Added win2012R2 support, optimized answer files, moved dism to tools, all scripts use dism from tools (copied from iso)
-
