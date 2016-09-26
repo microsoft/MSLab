@@ -11,8 +11,8 @@
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
 **Step 1** Download required files (prerequisities):
-* [Scripts](https://github.com/Microsoft/ws2016lab/raw/2016TP5/scripts.zip) (recommended for TP5) or [RTM Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) (recommended for RTM)
-* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/) 
+* [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
+* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
 * [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016
 
 **Step 2** Create folder and Unzip scripts there
