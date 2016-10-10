@@ -104,13 +104,12 @@ Invoke-Command -ComputerName $servers -ScriptBlock {Restart-Computer -Force}
 Start-Sleep 60
 ````
 
-* In this part networking is configured. Just to see how SET Switch looks like and how it looks like when you have 2 vNICS. In real world scenario you would have the same for iWARP, except vNICs should be configured as vRDMA NICs
+* In this part networking is configured. Just to see how SET Switch looks like and how it looks like when you have 2 NICS teamed with SET Switch
 ````PowerShell
 if ($Networking -eq "Yes"){
     Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     $Servers | ForEach-Object {
-        Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management1 -ComputerName $_
-        Add-VMNetworkAdapter    -ManagementOS -Name Management2 -SwitchName SETSwitch -ComputerName $_
+        Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
     }
     Start-Sleep 5
     Clear-DnsClientCache
