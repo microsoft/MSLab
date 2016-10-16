@@ -257,6 +257,11 @@ Start-Transcript -Path "$workdir\SCVMM_Install.log"
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
+do{
+    Write-Host "Waiting for SQL Service to start"
+    Start-Sleep 1
+}until ((get-service MSSQLServer).Status -eq "Running")
+
 If (Test-Path -Path "$workdir\SCVMM\setup.exe"){
     $setupfile = (Get-Item -Path "$workdir\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
     Write-Host "$Setupfile found..." -ForegroundColor Cyan
