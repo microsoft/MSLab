@@ -771,6 +771,7 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
     }
     until ($test -ne $Null)
     WriteSuccess "DC is up."
+    Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
     Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
         d:\scvmm\3_SCVMM_Install.ps1    
     }
