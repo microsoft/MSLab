@@ -126,8 +126,8 @@ WriteInfo "Script started at $StartDateTime"
 # Default variables #
 #####################
 
-If (!$LabConfig.DomainNBName){
-    $LabConfig.DomainNBName="Corp"
+If (!$LabConfig.DomainNetbiosName){
+    $LabConfig.DomainNetbiosName="Corp"
 }
 
 If (!$LabConfig.DomainName){
@@ -445,7 +445,7 @@ Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Prog
 
 #Here goes Configuration and creation of pending.mof (DSC)
 
-$username = "$($LabConfig.DomainNBName)\Administrator"
+$username = "$($LabConfig.DomainNetbiosName)\Administrator"
 $password = $AdminPassword
 $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
@@ -711,7 +711,7 @@ $ConfigData = @{
             Role = "Parent DC" 
             DomainAdminName=$labconfig.DomainAdminName
             DomainName = $Labconfig.DomainName
-            DomainNetbiosName = $Labconfig.DomainNBName
+            DomainNetbiosName = $Labconfig.DomainNetbiosName
             DomainDN = $Labconfig.DN
             DefaultOUName=$Labconfig.DefaultOUName
             RegistrationKey='14fc8e72-5036-4e79-9f89-5382160053aa'

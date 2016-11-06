@@ -64,8 +64,8 @@ WriteInfo "Script started at $StartDateTime"
 # Default variables #
 #####################
 
-If (!$LabConfig.DomainNBName){
-    $LabConfig.DomainNBName="Corp"
+If (!$LabConfig.DomainNetbiosName){
+    $LabConfig.DomainNetbiosName="Corp"
 }
 
 If (!$LabConfig.DomainName){
@@ -187,7 +187,7 @@ exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNBName
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
     Set-Content -path $script -value $fileContent
 }
 
@@ -344,7 +344,7 @@ Exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNBName
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
     Set-Content -path $script -value $fileContent
 }
 
