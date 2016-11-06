@@ -539,7 +539,7 @@ configuration DCHydration
 			Name = $Node.DefaultOUName
 			Path = $Node.DomainDN
 			ProtectedFromAccidentalDeletion = $true
-			Description = 'Default OU for All user and computer accounts'
+			Description = 'Default OU for all user and computer accounts'
 			Ensure = 'Present'
 			DependsOn = "[xADDomain]FirstDS" 
         }
