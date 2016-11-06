@@ -455,8 +455,8 @@ WriteInfoHighlighted "Script started at $StartDateTime"
 # Default variables #
 #####################
 
-If (!$LabConfig.DomainNBName){
-    $LabConfig.DomainNBName="Corp"
+If (!$LabConfig.DomainNetbiosName){
+    $LabConfig.DomainNetbiosName="Corp"
 }
 
 If (!$LabConfig.DomainName){
@@ -737,7 +737,7 @@ if ($DC.State -ne "Running"){
 ############################
 
 #Credentials for Session
-$username = "$($Labconfig.DomainNBName)\Administrator"
+$username = "$($Labconfig.DomainNetbiosName)\Administrator"
 $password = $LabConfig.AdminPassword
 $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
@@ -959,7 +959,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1122,7 +1122,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1273,7 +1273,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1455,7 +1455,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
