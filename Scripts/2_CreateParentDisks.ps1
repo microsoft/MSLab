@@ -445,7 +445,7 @@ Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Prog
 
 #Here goes Configuration and creation of pending.mof (DSC)
 
-$username = "$($LabConfig.DomainDNName)\Administrator"
+$username = "$($LabConfig.DomainNBName)\Administrator"
 $password = $AdminPassword
 $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
