@@ -784,7 +784,10 @@ Configuration PullClientConfig
             [string[]]$ComputerName,
 
             [Parameter(Mandatory=$true)]
-			[string[]]$DSCConfig
+			[string[]]$DSCConfig,
+
+			[Parameter(Mandatory=$true)]
+			[string[]]$DomainName
         )      	
 	Node $ComputerName {
 	
@@ -798,14 +801,14 @@ Configuration PullClientConfig
             }
 
             ConfigurationRepositoryWeb PullServerWeb { 
-        	ServerURL = "http://dc.$($Labconfig.DomainName):8080/PSDSCPullServer.svc"
+        	ServerURL = "http://dc.$($DomainName):8080/PSDSCPullServer.svc"
             AllowUnsecureConnection = $true
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
 			ConfigurationNames = $DSCConfig
             }
 
             ReportServerWeb PullServerReports {
-            ServerURL = "http://dc.$($Labconfig.DomainName):8080/PSDSCPullServer.svc"
+            ServerURL = "http://dc.$($DomainName):8080/PSDSCPullServer.svc"
             RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
             }
 
@@ -901,7 +904,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1064,7 +1067,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1215,7 +1218,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1397,7 +1400,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
