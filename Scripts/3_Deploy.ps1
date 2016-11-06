@@ -92,7 +92,7 @@ param (
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RegisteredOwner>PFE</RegisteredOwner>
-      <RegisteredOrganization>Contoso</RegisteredOrganization>
+      <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
 	$Specialize
   </settings>
@@ -135,7 +135,7 @@ param (
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
 		<RegisteredOwner>PFE</RegisteredOwner>
-      	<RegisteredOrganization>Contoso</RegisteredOrganization>
+      	<RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
 	$Specialize
  </settings>
@@ -174,7 +174,10 @@ param (
     $ComputerName,
     [parameter(Mandatory=$true)]
     [string]
-    $AdminPassword
+    $AdminPassword,
+	[parameter(Mandatory=$true)]
+    [string]
+    $DomainName
 )
 
     if ( Test-Path "Unattend.xml" ) {
@@ -188,16 +191,16 @@ param (
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
 		<RegisteredOwner>PFE</RegisteredOwner>
-        <RegisteredOrganization>Contoso</RegisteredOrganization>
+        <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <Identification>
                 <Credentials>
-                    <Domain>corp.contoso.com</Domain>
+                    <Domain>$DomainName</Domain>
                     <Password>$AdminPassword</Password>
                     <Username>Administrator</Username>
                 </Credentials>
-				<JoinDomain>corp.contoso.com</JoinDomain>			
+				<JoinDomain>$DomainName</JoinDomain>			
         </Identification>
     </component>
  </settings>
@@ -447,6 +450,31 @@ WriteInfoHighlighted "Script started at $StartDateTime"
 ##Load LabConfig....
 . "$($workdir)\LabConfig.ps1"
 
+
+#####################
+# Default variables #
+#####################
+
+If (!$LabConfig.DomainNBName){
+    $LabConfig.DomainNBName="Corp"
+}
+
+If (!$LabConfig.DomainName){
+    $LabConfig.DomainName="Corp.contoso.com"
+}
+
+If (!$LabConfig.DefaultOUName){
+    $LabConfig.DefaultOUName="Workshop"
+}
+
+$DN=$null
+$LabConfig.DomainName.Split(".") | ForEach-Object {
+    $DN+="DC=$_,"   
+}
+$LabConfig.DN=$DN.TrimEnd(",")
+
+$IP=1
+
 WriteInfoHighlighted "List of variables used"
 WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
@@ -460,8 +488,6 @@ WriteInfo "`t LabFolder is $LabFolder"
 
 $LABfolderDrivePath=$LABfolder.Substring(0,3)
 
-$IP=1
-
 $DisableWCF=@'
 <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<RunSynchronous>
@@ -473,6 +499,10 @@ $DisableWCF=@'
 	</RunSynchronous>
 </component>
 '@
+
+#####################
+
+
 ##########################################################################################
 # Some Additional checks and prereqs
 ##########################################################################################
@@ -699,7 +729,7 @@ if ($DC.State -ne "Running"){
 ############################
 
 #Credentials for Session
-$username = "corp\Administrator"
+$username = "$($Labconfig.DomainNBName)\Administrator"
 $password = $LabConfig.AdminPassword
 $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
@@ -707,11 +737,13 @@ $cred = new-object -typename System.Management.Automation.PSCredential -argument
 
 WriteInfoHighlighted "Testing if Active Directory is Started."
 do{
-$test=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-ADComputer -Filter * -SearchBase 'DC=Corp,DC=Contoso,DC=Com' -ErrorAction SilentlyContinue} -ErrorAction SilentlyContinue
-Start-Sleep 5
+$test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
+	param($labconfig);
+	Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue}
+	Start-Sleep 5
 }
 until ($test -ne $Null)
-WriteSuccess "`t Active Directory is up."
+WriteSuccess "DC is up."
 
 if (!$LABExists){
 	WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
@@ -722,9 +754,10 @@ if (!$LABExists){
 
 	#authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
 	WriteInfo "`t Authorizing DHCP"
-	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ScriptBlock {
+		param($labconfig);
 		Get-DhcpServerInDC | Remove-DHCPServerInDC
-		Add-DhcpServerInDC -DnsName DC.Corp.Contoso.com -IPAddress 10.0.0.1
+		Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
 	}
 }
 #################
@@ -757,14 +790,14 @@ Configuration PullClientConfig
             }
 
             ConfigurationRepositoryWeb PullServerWeb { 
-        	ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
+        	ServerURL = "http://dc.$($Labconfig.DomainName):8080/PSDSCPullServer.svc"
             AllowUnsecureConnection = $true
 			RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
 			ConfigurationNames = $DSCConfig
             }
 
             ReportServerWeb PullServerReports {
-            ServerURL = 'http://dc.corp.contoso.com:8080/PSDSCPullServer.svc'
+            ServerURL = "http://dc.$($Labconfig.DomainName):8080/PSDSCPullServer.svc"
             RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
             }
 
@@ -914,11 +947,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1077,11 +1110,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1228,11 +1261,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
@@ -1410,11 +1443,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path); djoin.exe /provision /domain corp /machine $Name /savefile $path /machineou "OU=Workshop,DC=corp,DC=contoso,DC=com"} -ArgumentList $Name,$path
+					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNBName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
 					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
