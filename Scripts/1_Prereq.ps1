@@ -47,9 +47,9 @@ function  Get-WindowsBuildNumber {
     return [int]($os.BuildNumber) 
 } 
 
-##########
-# Checks #
-##########
+##############
+# Lets start #
+##############
 
 # Get workdirectory and Start Time
 $workdir       = Split-Path $script:MyInvocation.MyCommand.Path
@@ -59,6 +59,25 @@ WriteInfo "Script started at $StartDateTime"
 
 ##Load LabConfig....
 . "$($workdir)\LabConfig.ps1"
+
+#####################
+# Default variables #
+#####################
+
+If (!$LabConfig.DomainNBName){
+    $LabConfig.DomainNBName="Corp"
+}
+
+If (!$LabConfig.DomainName){
+    $LabConfig.DomainName="Corp.contoso.com"
+}
+
+######################
+
+##########
+# Checks #
+##########
+
 
 # Checking for Compatible OS
 WriteInfoHighlighted "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer"
@@ -157,7 +176,7 @@ If (Test-Path -Path "$workdir\SQL\setup.exe"){
 }  
      
 Write-Host "Installing SQL..." -ForegroundColor Green
-& $setupfile /q /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="corp\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="corp\Domain admins" /AGTSVCACCOUNT="corp\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
+& $setupfile /q /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="DomainNameGoesHere\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="DomainNameGoesHere\Domain admins" /AGTSVCACCOUNT="DomainNameGoesHere\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
 
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
@@ -168,6 +187,7 @@ exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainName
     Set-Content -path $script -value $fileContent
 }
 
@@ -295,7 +315,7 @@ MUOptIn = 1
 "@
 Set-Content $unattendFile $fileContent
 
-& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain corp /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
+& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
 
 do
 {
@@ -319,6 +339,7 @@ Exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainName
     Set-Content -path $script -value $fileContent
 }
 
