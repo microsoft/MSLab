@@ -187,7 +187,7 @@ exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainName
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNBName
     Set-Content -path $script -value $fileContent
 }
 
@@ -344,7 +344,7 @@ Exit
 
 '@
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainName
+    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNBName
     Set-Content -path $script -value $fileContent
 }
 
