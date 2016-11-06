@@ -154,13 +154,22 @@ $DCName='DC'
 # Some Additional checks and prereqs
 ##########################################################################################
 
-#Check if Hyper-V is installed.
+#Check if Hyper-V is installed
+
 WriteInfoHighlighted "Checking if Hyper-V is installed"
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq 'Enabled'){
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq "Enabled"){
 	WriteSuccess "`t Hyper-V is Installed"
 }else{
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
+
+WriteInfoHighlighted "Checking if Hyper-V tools are installed"
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All).state -eq "Enabled"){
+	WriteSuccess "`t Hyper-V is Installed"
+}else{
+	WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
+}
+
 
 #check if VMM prereqs files are present
 
@@ -792,6 +801,7 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
     }
     until ($test -ne $Null)
     WriteSuccess "DC is up."
+    Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
     Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
         d:\scvmm\3_SCVMM_Install.ps1    
     }

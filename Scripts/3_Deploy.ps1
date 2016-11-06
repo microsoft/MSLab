@@ -559,8 +559,8 @@ if ($LABConfig.VMs.vTPM -contains $true){
 if ($LABConfig.VMs.Configuration -contains "Shared" -or $LABConfig.VMs.Configuration -contains "Replica"){
 	WriteInfoHighlighted "Configuration contains Shared or Replica scenario"
     WriteInfo "Checking support for shared disks"
-    $OS=gwmi win32_operatingsystem
-	if ((($OS.operatingsystemsku -eq 7) -or ($OS.operatingsystemsku -eq 8)) -and $OS.version -gt 10){
+    $OS=Get-WmiObject win32_operatingsystem
+	if (($OS.caption -like "*Server*") -and $OS.version -gt 10){
 		WriteInfo "`t Installing Failover Clustering Feature"
 		$FC=Install-WindowsFeature Failover-Clustering
 		If ($FC.Success -eq $True){
@@ -598,6 +598,14 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 }else{
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
+
+WriteInfoHighlighted "Checking if Hyper-V tools are installed"
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All).state -eq "Enabled"){
+	WriteSuccess "`t Hyper-V is Installed"
+}else{
+	WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
+}
+
 
 #Create Switches
 

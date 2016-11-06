@@ -85,9 +85,7 @@ if ($Networking -eq "Yes"){
     ###Configure networking - this creates Switch Embedded Team (SET) switch with 2 vNICs representing 2 vRDMA adapters in real environment ###
     Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     $Servers | ForEach-Object {
-        Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management1 -ComputerName $_
-        Add-VMNetworkAdapter    -ManagementOS -Name Management2 -SwitchName SETSwitch -ComputerName $_
-
+        Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
     }
     Start-Sleep 5
     Clear-DnsClientCache

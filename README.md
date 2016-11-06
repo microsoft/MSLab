@@ -11,8 +11,8 @@
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
 **Step 1** Download required files (prerequisities):
-* [Scripts](https://github.com/Microsoft/ws2016lab/raw/2016TP5/scripts.zip) (recommended for TP5) or [RTM Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true) (recommended for RTM)
-* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/) 
+* [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
+* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
 * [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016
 
 **Step 2** Create folder and Unzip scripts there
@@ -27,7 +27,7 @@
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, hydrate parent disks and hydrate Domain Controller.
 
 **Step 6** Right-click and run with PowerShell 3_Deploy.ps1
- * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/wiki/variables.ps1-examples)
+ * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
  
 **Step 7** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
 
@@ -46,7 +46,7 @@
 Automatically hydrated Domain Controller with DHCP and one scope. There are several accounts automatically provisioned - SQL Run As Account, SQL Agent Account,  VMM Service Account and one additional Domain Admin with name you can specify, so you can install SQL + SC VMM easily.
 
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/dhcp01.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ActiveDirectory01.PNG)
+![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ActiveDirectory01.png)
 
 You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node nano s2d cluster with 200TB capacity - all running on ultrabook.
 
