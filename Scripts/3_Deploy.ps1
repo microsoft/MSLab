@@ -368,11 +368,11 @@ Function Set-VMNetworkConfiguration {
 .DESCRIPTION
    Using this function you can run legacy program and search in output string 
 .EXAMPLE
-   wrap-process -filename fltmc.exe -arguments "attach svhdxflt e:" -outputstring "Success"
+   WrapProcess -filename fltmc.exe -arguments "attach svhdxflt e:" -outputstring "Success"
 .EXAMPLE
    Another example of how to use this cmdlet
 #>
-function Wrap-Process
+function WrapProcess
 {
     [CmdletBinding()]
     [Alias()]
@@ -573,10 +573,10 @@ if ($LABConfig.VMs.Configuration -contains "Shared" -or $LABConfig.VMs.Configura
 	WriteInfoHighlighted "`t Attaching svhdxflt filter driver to drive $LABfolderDrivePath"
 
 
-	if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
+	if (WrapProcess -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "successful"){
 		WriteSuccess "`t Svhdx filter driver was successfully attached"
 	}else{
-		if (wrap-process -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
+		if (WrapProcess -filename fltmc.exe -arguments "attach svhdxflt $LABfolderDrivePath" -outputstring "0x801f0012"){
 		WriteSuccess "`t Svhdx filter driver was already attached"
 		}else{
 		WriteErrorAndExit "`t unable to load svhdx filter driver. Exiting Please use Server SKU or figure out how to install svhdx into the client SKU"
