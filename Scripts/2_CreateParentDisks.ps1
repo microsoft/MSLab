@@ -228,7 +228,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 		If($openFile.ShowDialog() -eq “OK”)
 		{
-		   WriteInfo  "File $openfile.name selected"
+		   WriteInfo  "File $($openfile.FileName) selected"
 		} 
         if (!$openFile.FileName){
 		        WriteErrorAndExit  "Iso was not selected... Exitting"
@@ -260,7 +260,7 @@ If ($LabConfig.CreateClientParent -eq $true){
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog
 			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 			If($openFile.ShowDialog() -eq “OK”){
-			   WriteInfo  "File $openfile.name selected"
+			   WriteInfo  "File $($openfile.FileName) selected"
 			} 
         if (!$openFile.FileName){
 		        WriteErrorAndExit  "Iso was not selected... Exitting"
