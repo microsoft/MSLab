@@ -122,12 +122,32 @@ WriteInfo "Script started at $StartDateTime"
 ##Load LabConfig....
 . "$($workdir)\LabConfig.ps1"
 
-#Variables
-##################################
+#####################
+# Default variables #
+#####################
+
+If (!$LabConfig.DomainNetbiosName){
+    $LabConfig.DomainNetbiosName="Corp"
+}
+
+If (!$LabConfig.DomainName){
+    $LabConfig.DomainName="Corp.contoso.com"
+}
+
+If (!$LabConfig.DefaultOUName){
+    $LabConfig.DefaultOUName="Workshop"
+}
+
+$DN=$null
+$LabConfig.DomainName.Split(".") | ForEach-Object {
+    $DN+="DC=$_,"   
+}
+$LabConfig.DN=$DN.TrimEnd(",")
+
 $AdminPassword=$LabConfig.AdminPassword
 $Switchname='DC_HydrationSwitch'
-$VMName='DC'
-##################################
+$DCName='DC'
+#####################
 
 
 ##########################################################################################
@@ -208,7 +228,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 		If($openFile.ShowDialog() -eq “OK”)
 		{
-		   WriteInfo  "File $openfile.name selected"
+		   WriteInfo  "File $($openfile.FileName) selected"
 		} 
         if (!$openFile.FileName){
 		        WriteErrorAndExit  "Iso was not selected... Exitting"
@@ -240,7 +260,7 @@ If ($LabConfig.CreateClientParent -eq $true){
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog
 			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 			If($openFile.ShowDialog() -eq “OK”){
-			   WriteInfo  "File $openfile.name selected"
+			   WriteInfo  "File $($openfile.FileName) selected"
 			} 
         if (!$openFile.FileName){
 		        WriteErrorAndExit  "Iso was not selected... Exitting"
@@ -383,7 +403,7 @@ Dismount-VHD $vhddisk.Number
 # Hydrate DC #
 ##############
 
-$vhdpath="$workdir\LAB\$VMName\Virtual Hard Disks\$VMName.vhdx"
+$vhdpath="$workdir\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
 $VMPath="$Workdir\LAB\"
 
 #Create Parent VHD
@@ -408,14 +428,14 @@ if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
 }
 
 WriteInfoHighlighted "Creating DC VM"
-$DC=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 
+$DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 
 $DC | Set-VMProcessor -Count 2
 $DC | Set-VMMemory -DynamicMemoryEnabled $true
 if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
 #Apply Unattend
 WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
-$unattendfile=CreateUnattendFileVHD -Computername $VMName -AdminPassword $AdminPassword -path "$workdir\temp\"
+$unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$workdir\temp\"
 New-item -type directory -Path $Workdir\Temp\mountdir -force
 &"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$Workdir\Temp\mountdir
 &"$workdir\Tools\dism\dism" /image:$Workdir\Temp\mountdir /Apply-Unattend:$unattendfile
@@ -425,7 +445,7 @@ Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Prog
 
 #Here goes Configuration and creation of pending.mof (DSC)
 
-$username = "corp\Administrator"
+$username = "$($LabConfig.DomainNetbiosName)\Administrator"
 $password = $AdminPassword
 $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
@@ -442,14 +462,7 @@ configuration DCHydration
         [pscredential]$domainCred,
 
         [Parameter(Mandatory)]
-        [pscredential]$NewADUserCred,
-
-		[Parameter(Mandatory)]
-        [string]$DomainAdminName,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string] $RegistrationKey 
+        [pscredential]$NewADUserCred
 
     )
  
@@ -521,12 +534,12 @@ configuration DCHydration
             DependsOn = "[xADDomain]FirstDS" 
         }
         
-		xADOrganizationalUnit WorkshopOU
+		xADOrganizationalUnit DefaultOU
         {
-			Name = 'Workshop'
-			Path = 'dc=corp,dc=contoso,dc=com'
+			Name = $Node.DefaultOUName
+			Path = $Node.DomainDN
 			ProtectedFromAccidentalDeletion = $true
-			Description = 'Default OU for Workshop'
+			Description = 'Default OU for all user and computer accounts'
 			Ensure = 'Present'
 			DependsOn = "[xADDomain]FirstDS" 
         }
@@ -538,9 +551,9 @@ configuration DCHydration
             UserName = "SQL_SA"
             Password = $NewADUserCred
             Ensure = "Present"
-            DependsOn = "[xADOrganizationalUnit]WorkshopOU"
+            DependsOn = "[xADOrganizationalUnit]DefaultOU"
 			Description = "SQL Service Account"
-			Path = 'OU=workshop,dc=corp,dc=contoso,dc=com'
+			Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
 			PasswordNeverExpires = $true
         }
 
@@ -551,9 +564,9 @@ configuration DCHydration
             UserName = "SQL_Agent"
             Password = $NewADUserCred
             Ensure = "Present"
-            DependsOn = "[xADOrganizationalUnit]WorkshopOU"
+            DependsOn = "[xADOrganizationalUnit]DefaultOU"
 			Description = "SQL Agent Account"
-			Path = 'OU=workshop,dc=corp,dc=contoso,dc=com'
+			Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
 			PasswordNeverExpires = $true
         }
 
@@ -561,12 +574,12 @@ configuration DCHydration
         {
             DomainName = $Node.DomainName
             DomainAdministratorCredential = $domainCred
-            UserName = $DomainAdminName
+            UserName = $Node.DomainAdminName
             Password = $NewADUserCred
             Ensure = "Present"
-            DependsOn = "[xADOrganizationalUnit]WorkshopOU"
+            DependsOn = "[xADOrganizationalUnit]DefaultOU"
 			Description = "DomainAdmin"
-			Path = 'OU=workshop,dc=corp,dc=contoso,dc=com'
+			Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
 			PasswordNeverExpires = $true
         }
 
@@ -579,7 +592,7 @@ configuration DCHydration
             Ensure = "Present"
             DependsOn = "[xADUser]Domain_Admin"
 			Description = "VMM Service Account"
-			Path = 'OU=workshop,dc=corp,dc=contoso,dc=com'
+			Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
 			PasswordNeverExpires = $true
         }
 
@@ -587,7 +600,7 @@ configuration DCHydration
 		{
 			GroupName = "Domain Admins"
 			DependsOn = "[xADUser]VMM_SA"
-			MembersToInclude = "VMM_SA",$DomainAdminName
+			MembersToInclude = "VMM_SA",$Node.DomainAdminName
 		}
 
 		xADUser AdministratorNeverExpires
@@ -638,7 +651,7 @@ configuration DCHydration
         {
         Ensure = 'Present'
         ScopeID = '10.0.0.0'
-        DnsDomain = 'corp.contoso.com'
+        DnsDomain = $Node.DomainName
         DnsServerIPAddress = '10.0.0.1'
         AddressFamily = 'IPv4'
         Router = '10.0.0.1'
@@ -685,7 +698,7 @@ configuration DCHydration
             Ensure = 'Present'
             Type   = 'File'
             DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
-            Contents        = $RegistrationKey
+            Contents        = $Node.RegistrationKey
         }
     }
 }
@@ -694,10 +707,14 @@ $ConfigData = @{
  
     AllNodes = @( 
         @{ 
-            Nodename = "DC" 
+            Nodename = $DCName 
             Role = "Parent DC" 
-            DomainName = "corp.contoso.com"
-            DomainNetbiosName = "corp"
+            DomainAdminName=$labconfig.DomainAdminName
+            DomainName = $Labconfig.DomainName
+            DomainNetbiosName = $Labconfig.DomainNetbiosName
+            DomainDN = $Labconfig.DN
+            DefaultOUName=$Labconfig.DefaultOUName
+            RegistrationKey='14fc8e72-5036-4e79-9f89-5382160053aa'
             PSDscAllowPlainTextPassword = $true
             PsDscAllowDomainUser= $true        
             RetryCount = 50  
@@ -722,7 +739,7 @@ configuration LCMConfig
 
 WriteInfo "Creating DSC Configs for DC"
 LCMConfig       -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData
-DCHydration     -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred -DomainAdminName $LabConfig.DomainAdminName -RegistrationKey '14fc8e72-5036-4e79-9f89-5382160053aa'
+DCHydration     -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
 
 WriteInfo "Copying DSC configurations (pending.mof and metaconfig.mof)"
 New-item -type directory -Path "$Workdir\Temp\config" -ErrorAction Ignore
@@ -758,8 +775,10 @@ do{
 }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
 $test
 
-Invoke-Command -VMGuid $DC.id -ScriptBlock {redircmp 'OU=Workshop,DC=corp,DC=contoso,DC=com'} -Credential $cred -ErrorAction SilentlyContinue
-
+Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
+    Param($labconfig);
+    redircmp "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"
+} 
 #install SCVMM or its prereqs if specified so
 if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
     $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
@@ -775,8 +794,10 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
     Start-Sleep 10
     WriteInfoHighlighted "Waiting for DC to restart"
     do{
-    $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-ADComputer -Filter * -SearchBase 'DC=Corp,DC=Contoso,DC=Com' -ErrorAction SilentlyContinue} -ErrorAction SilentlyContinue
-    Start-Sleep 5
+    $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
+        param($labconfig);
+        Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue}
+        Start-Sleep 5
     }
     until ($test -ne $Null)
     WriteSuccess "DC is up."
@@ -823,13 +844,13 @@ $DC | Stop-VM
 
 #Backup DC VM Configuration
 WriteInfo "Creating backup of DC VM configuration"
-Copy-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Destination "$vmpath\$VMNAME\Virtual Machines_Bak\" -Recurse
+Copy-Item -Path "$vmpath\$DCName\Virtual Machines\" -Destination "$vmpath\$DCName\Virtual Machines_Bak\" -Recurse
 WriteInfo "Removing DC"
 $DC | Remove-VM -Force
 WriteInfo "Returning VM config and adding to Virtual Machines.zip"
-Remove-Item -Path "$vmpath\$VMNAME\Virtual Machines\" -Recurse
-Rename-Item -Path "$vmpath\$VMNAME\Virtual Machines_Bak\" -NewName 'Virtual Machines'
-Compress-Archive -Path "$vmpath\$VMNAME\Virtual Machines\" -DestinationPath "$vmpath\$VMNAME\Virtual Machines.zip"
+Remove-Item -Path "$vmpath\$DCName\Virtual Machines\" -Recurse
+Rename-Item -Path "$vmpath\$DCName\Virtual Machines_Bak\" -NewName 'Virtual Machines'
+Compress-Archive -Path "$vmpath\$DCName\Virtual Machines\" -DestinationPath "$vmpath\$DCName\Virtual Machines.zip"
 
 #Cleanup The rest ###
 WriteInfo "Removing switch $Switchname"
