@@ -1512,17 +1512,22 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 ################
 
 Remove-Item -Path "$workdir\temp" -Force -Recurse
+if (Test-Path "$workdir\unattend.xml") {remove-item "$workdir\unattend.xml"}
 
 #############
 # Finishing #
 #############
 
 WriteInfoHighlighted "Finishing..." 
-#get-vm | where name -like $prefix* | Start-VM
-$prefix=$labconfig.Prefix
+#get-vm | where name -like $($labconfig.Prefix) | Start-VM
 WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
-Get-VMNetworkAdapter -VMName $prefix* | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
-Get-VM | where name -like $prefix*  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+Get-VMNetworkAdapter -VMName $($labconfig.Prefix)* | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
+Get-VM | where name -like $($labconfig.Prefix)*  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+
+if ($Labconfig.AllowedVlanIdList){
+	WriteInfo "`t Configuring AllowedVlanIdList"
+	Get-VMNetworkAdapter -VMName $($labconfig.Prefix)* -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlanIdList
+}
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
