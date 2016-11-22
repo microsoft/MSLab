@@ -139,10 +139,6 @@ DomainName (Optional)
 DefaultOUName (Optional)
 	Default Organization Unit Name for all computers and accounts. If nothing is specified, default "Workshop" will be used
 
-AllowedVlanIdList (Optional)
-	List for VLANs allowed for all Management NICs (all except $Labconfig.AdditionalNetworks)
-	Example "1,2,3,4"
-
 ##$LabConfig.VMs##
  Example: 
  	Single:
