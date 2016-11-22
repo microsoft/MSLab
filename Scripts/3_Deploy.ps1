@@ -1521,11 +1521,11 @@ if (Test-Path "$workdir\unattend.xml") {remove-item "$workdir\unattend.xml"}
 WriteInfoHighlighted "Finishing..." 
 #get-vm | where name -like $($labconfig.Prefix) | Start-VM
 WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
-Get-VMNetworkAdapter -VMName $($labconfig.Prefix)* | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
-Get-VM | where name -like $($labconfig.Prefix)*  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
+Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
 
 WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-1024"
-Get-VMNetworkAdapter -VMName $($labconfig.Prefix)* -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-1024"
+Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-1024"
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
