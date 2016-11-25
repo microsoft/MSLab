@@ -337,7 +337,9 @@ Write-Host "VMM is Installed" -ForegroundColor Green
 
 Write-Host "VMM install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
+$StartDateTime = get-date
 $URs=(Get-ChildItem -Path $Workdir\UpdateRollup -Recurse | where extension -eq .msp).FullName
+Stop-Service SCVMM*
 Foreach ($UR in $URs){
     msiexec.exe /update $UR /quiet /norestart
     do{
@@ -346,6 +348,7 @@ Foreach ($UR in $URs){
         $msiexec=$null
         $msiexec=Get-Process msiexec -ErrorAction SilentlyContinue
     }until ($msiexect -eq $null)
+Start-Sleep 10
 }
 
 If ($URs){
