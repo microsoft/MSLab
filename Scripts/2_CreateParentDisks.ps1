@@ -428,9 +428,9 @@ if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
 }
 
 WriteInfoHighlighted "Creating DC VM"
-$DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 
+$DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
 $DC | Set-VMProcessor -Count 2
-$DC | Set-VMMemory -DynamicMemoryEnabled $true
+$DC | Set-VM -MemoryMinimumBytes 2GB
 if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
 #Apply Unattend
@@ -837,7 +837,7 @@ WriteInfo "Disconnecting VMNetwork Adapter from DC"
 $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
 WriteInfo "Shutting down DC"
 $DC | Stop-VM
-
+$DC | Set-VM -MemoryMinimumBytes 512MB
 ##################
 # cleanup&finish #
 ##################

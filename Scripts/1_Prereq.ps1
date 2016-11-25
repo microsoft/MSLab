@@ -345,10 +345,7 @@ Foreach ($UR in $URs){
     do{
         Write-Host "UR $UR is being installed..." -ForegroundColor Cyan
         Start-Sleep 10
-        $msiexec=$null
-        $msiexec=Get-Process msiexec -ErrorAction SilentlyContinue
-    }until ($msiexect -eq $null)
-Start-Sleep 10
+    }until ((Get-Process msiexec -ErrorAction SilentlyContinue) -eq $null)
 }
 
 If ($URs){
