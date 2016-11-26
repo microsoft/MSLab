@@ -743,7 +743,7 @@ $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
 $cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $username, $secstr
 
-WriteInfoHighlighted "Testing if Active Directory is Started."
+WriteInfoHighlighted "Waiting for Active Directory on $($DC.name) to be Started."
 do{
 $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
 	param($labconfig);
@@ -751,7 +751,7 @@ $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -
 	Start-Sleep 5
 }
 until ($test -ne $Null)
-WriteSuccess "DC is up."
+WriteSuccess "Active Directory on $($DC.name) is up."
 
 if (!$LABExists){
 	WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
