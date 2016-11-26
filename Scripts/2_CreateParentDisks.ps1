@@ -163,8 +163,8 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
 
-WriteInfoHighlighted "Checking if Hyper-V tools are installed"
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All).state -eq "Enabled"){
+WriteInfoHighlighted "Checking if Hyper-V Powershell module is installed"
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -eq "Enabled"){
 	WriteSuccess "`t Hyper-V is Installed"
 }else{
 	WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
@@ -428,9 +428,10 @@ if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
 }
 
 WriteInfoHighlighted "Creating DC VM"
-$DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 
+$DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
 $DC | Set-VMProcessor -Count 2
 $DC | Set-VMMemory -DynamicMemoryEnabled $true
+$DC | Set-VM -MemoryMinimumBytes 2GB
 if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
 #Apply Unattend
@@ -466,10 +467,10 @@ configuration DCHydration
 
     )
  
-    Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.10.0.0"
-	Import-DSCResource -ModuleName xNetworking -ModuleVersion "2.8.0.0"
-	Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.3.0.0"
-	Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "3.9.0.0"
+    Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.14.0.0"
+	Import-DSCResource -ModuleName xNetworking -ModuleVersion "3.0.0.0"
+	Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.5.0.0"
+	Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "5.0.0.0"
     Import-DscResource –ModuleName PSDesiredStateConfiguration
 
     Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
@@ -615,7 +616,7 @@ configuration DCHydration
         xIPaddress IP
         {
             IPAddress = '10.0.0.1'
-            SubnetMask = 24
+            PrefixLength = 24
             AddressFamily = 'IPv4'
             InterfaceAlias = 'Ethernet'
         }
@@ -671,6 +672,7 @@ configuration DCHydration
 
         xDscWebService PSDSCPullServer
         {
+            UseSecurityBestPractices = $false
             Ensure                  = "Present"
             EndpointName            = "PSDSCPullServer"
             Port                    = 8080
@@ -680,17 +682,6 @@ configuration DCHydration
             ConfigurationPath       = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
             State                   = "Started"
             DependsOn               = "[WindowsFeature]DSCServiceFeature"
-        }
-
-        xDscWebService PSDSCComplianceServer
-        {
-            Ensure                  = "Present"
-            EndpointName            = "PSDSCComplianceServer"
-            Port                    = 9080
-            PhysicalPath            = "$env:SystemDrive\inetpub\wwwroot\PSDSCComplianceServer"
-            CertificateThumbPrint   = "AllowUnencryptedTraffic"
-            State                   = "Started"
-            DependsOn               = ("[WindowsFeature]DSCServiceFeature","[xDSCWebService]PSDSCPullServer")
         }
 		
         File RegistrationKeyFile
@@ -792,7 +783,8 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
         Restart-Computer    
     }
     Start-Sleep 10
-    WriteInfoHighlighted "Waiting for DC to restart"
+
+    WriteInfoHighlighted "$($DC.name) was restarted, waiting for Active Directory on $($DC.name) to be started."
     do{
     $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
         param($labconfig);
@@ -800,7 +792,8 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
         Start-Sleep 5
     }
     until ($test -ne $Null)
-    WriteSuccess "DC is up."
+    WriteSuccess "Active Directory on $($DC.name) is up."
+
     Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
     Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
         d:\scvmm\3_SCVMM_Install.ps1    
@@ -837,7 +830,7 @@ WriteInfo "Disconnecting VMNetwork Adapter from DC"
 $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
 WriteInfo "Shutting down DC"
 $DC | Stop-VM
-
+$DC | Set-VM -MemoryMinimumBytes 512MB
 ##################
 # cleanup&finish #
 ##################
