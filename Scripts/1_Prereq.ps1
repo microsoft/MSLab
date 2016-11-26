@@ -90,10 +90,10 @@ if ($BuildNumber -ge 10586){
 }
 
 # Checking Folder Structure
-"OSClient","OSServer","Tools\DSC","Tools\ToolsVHD\DiskSpd","OSServer\Packages","OSClient\Packages","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM" | ForEach-Object {
+"OSClient","OSServer","Tools\DSC","Tools\ToolsVHD\DiskSpd","OSServer\Packages","OSClient\Packages","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
     if (!( Test-Path "$Workdir\$_" )) { New-Item -Type Directory -Path "$workdir\$_" } }
 	
-"OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt","OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt","OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt","OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt","Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt" | ForEach-Object {
+"OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt","OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt","OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt","OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt","Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
 	  if (!( Test-Path "$Workdir\$_" )) { New-Item -Type File -Path "$workdir\$_" } }
 
 # adding scripts for SCVMM install
@@ -233,18 +233,8 @@ If (Test-Path -Path "$workdir\ADK\ADKsetup.exe"){
 
 Write-Host "Installing ADK..." -ForegroundColor Cyan
 
-& $setupfile /features OptionID.DeploymentTools OptionID.WindowsPreinstallationEnvironment /quiet
-
 Write-Host "ADK Is being installed..." -ForegroundColor Cyan
-
-do
-{
-Start-Sleep 1
-$adk=$null
-$adk=Get-Process adksetup -ErrorAction SilentlyContinue
-}
-until ($adk -eq $null)
-
+Start-Process -Wait -FilePath $setupfile -ArgumentList "/features OptionID.DeploymentTools OptionID.WindowsPreinstallationEnvironment /quiet"
 Write-Host "ADK install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
 Write-Host "Job Done..." -ForegroundColor Green
@@ -277,10 +267,12 @@ Start-Transcript -Path "$workdir\SCVMM_Install.log"
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
-do{
-    Write-Host "Waiting for SQL Service to start"
-    Start-Sleep 1
-}until ((get-service MSSQLServer).Status -eq "Running")
+if ((get-service MSSQLServer).Status -ne "Running"){
+    do{
+        Write-Host "Waiting for SQL Service to start"
+        Start-Sleep 1
+    }until ((get-service MSSQLServer).Status -eq "Running")
+}
 
 If (Test-Path -Path "$workdir\SCVMM\setup.exe"){
     $setupfile = (Get-Item -Path "$workdir\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
@@ -320,29 +312,35 @@ MUOptIn = 1
 "@
 Set-Content $unattendFile $fileContent
 
-& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
-
-do
-{
 Write-Host "VMM is being installed..." -ForegroundColor Cyan
-Start-Sleep 10
-$vmm=$null
-$vmm=Get-Process | Where-Object {$_.Description -eq "Virtual Machine Manager Setup"} -ErrorAction SilentlyContinue
-}
-until ($vmm -eq $null)
+& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
+do{
+    Start-Sleep 1
+}until ((Get-Process | Where-Object {$_.Description -eq "Virtual Machine Manager Setup"} -ErrorAction SilentlyContinue) -eq $null)
+Write-Host "VMM is Installed" -ForegroundColor Green
 
 Remove-Item "$workdir\VMServer.ini" -ErrorAction Ignore
 
-Write-Host "VMM is Installed" -ForegroundColor Green
-
 Write-Host "VMM install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript
 
+$StartDateTime = get-date
+$URs=(Get-ChildItem -Path $Workdir\UpdateRollup -Recurse | where extension -eq .msp).FullName
+
+Foreach ($UR in $URs){
+    Write-Host "Update Rollup $UR is being installed"
+    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/update $UR /quiet /norestart"
+}
+If ($URs){
+    Write-Host "UpdateRollups install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+}
+
+Stop-Transcript
 Write-Host "Job Done..." -ForegroundColor Green
 start-sleep 5
 Exit
 
 '@
+
 	$fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
     $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
     Set-Content -path $script -value $fileContent
@@ -388,7 +386,7 @@ If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
 
 # Downloading modules into Tools folder if needed.
 
-$modules=("xActiveDirectory","2.10.0.0"),("xDHCpServer","1.3.0.0"),("xNetworking","2.8.0.0"),("xPSDesiredStateConfiguration","3.9.0.0")
+$modules=("xActiveDirectory","2.14.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","3.0.0.0"),("xPSDesiredStateConfiguration","5.0.0.0")
 foreach ($module in $modules){
 	#testing if modules are present
 	WriteInfoHighlighted "Testing if modules are present" 

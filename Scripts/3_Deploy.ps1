@@ -599,8 +599,8 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
 
-WriteInfoHighlighted "Checking if Hyper-V tools are installed"
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All).state -eq "Enabled"){
+WriteInfoHighlighted "Checking if Hyper-V Powershell module is installed"
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -eq "Enabled"){
 	WriteSuccess "`t Hyper-V is Installed"
 }else{
 	WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
@@ -743,7 +743,7 @@ $secstr = New-Object -TypeName System.Security.SecureString
 $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
 $cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $username, $secstr
 
-WriteInfoHighlighted "Testing if Active Directory is Started."
+WriteInfoHighlighted "Waiting for Active Directory on $($DC.name) to be Started."
 do{
 $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
 	param($labconfig);
@@ -751,7 +751,7 @@ $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -
 	Start-Sleep 5
 }
 until ($test -ne $Null)
-WriteSuccess "DC is up."
+WriteSuccess "Active Directory on $($DC.name) is up."
 
 if (!$LABExists){
 	WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
@@ -1512,17 +1512,20 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 ################
 
 Remove-Item -Path "$workdir\temp" -Force -Recurse
+if (Test-Path "$workdir\unattend.xml") {remove-item "$workdir\unattend.xml"}
 
 #############
 # Finishing #
 #############
 
 WriteInfoHighlighted "Finishing..." 
-#get-vm | where name -like $prefix* | Start-VM
-$prefix=$labconfig.Prefix
+#get-vm | where name -like $($labconfig.Prefix) | Start-VM
 WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
-Get-VMNetworkAdapter -VMName $prefix* | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
-Get-VM | where name -like $prefix*  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
+Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+
+WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-1024"
+Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-1024"
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
