@@ -163,8 +163,8 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -e
 	WriteErrorAndExit "`t Hyper-V not installed. Please install hyper-v feature including Hyper-V management tools. Exiting"
 }
 
-WriteInfoHighlighted "Checking if Hyper-V tools are installed"
-if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Tools-All).state -eq "Enabled"){
+WriteInfoHighlighted "Checking if Hyper-V Powershell module is installed"
+if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -eq "Enabled"){
 	WriteSuccess "`t Hyper-V is Installed"
 }else{
 	WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
@@ -430,6 +430,7 @@ if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
 WriteInfoHighlighted "Creating DC VM"
 $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
 $DC | Set-VMProcessor -Count 2
+$DC | Set-VMMemory -DynamicMemoryEnabled $true
 $DC | Set-VM -MemoryMinimumBytes 2GB
 if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
 
