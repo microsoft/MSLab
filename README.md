@@ -56,6 +56,13 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole02.png)
 ![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole03.png)
 
+#Known issues
+
+* DISM sometimes throws errors on REFS volumes (especially during 2_CreateParentImages.ps1)
+* When waiting on DC to come online, the script trows some red errors. It's by design, nothing to worry about
+* DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
+
+
 #So what is it good for?
 
 Simulations such as

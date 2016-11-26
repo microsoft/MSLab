@@ -783,7 +783,8 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
         Restart-Computer    
     }
     Start-Sleep 10
-    WriteInfoHighlighted "Waiting for DC to restart"
+
+    WriteInfoHighlighted "$($DC.name) was restarted, waiting for Active Directory on $($DC.name) to be started."
     do{
     $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
         param($labconfig);
@@ -791,7 +792,8 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
         Start-Sleep 5
     }
     until ($test -ne $Null)
-    WriteSuccess "DC is up."
+    WriteSuccess "Active Directory on $($DC.name) is up."
+
     Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
     Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
         d:\scvmm\3_SCVMM_Install.ps1    
