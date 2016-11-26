@@ -386,7 +386,7 @@ If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
 
 # Downloading modules into Tools folder if needed.
 
-$modules=("xActiveDirectory","2.10.0.0"),("xDHCpServer","1.3.0.0"),("xNetworking","2.8.0.0"),("xPSDesiredStateConfiguration","3.9.0.0")
+$modules=("xActiveDirectory","2.14.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","3.0.0.0"),("xPSDesiredStateConfiguration","5.0.0.0")
 foreach ($module in $modules){
 	#testing if modules are present
 	WriteInfoHighlighted "Testing if modules are present" 
