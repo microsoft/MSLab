@@ -958,7 +958,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
