@@ -1524,8 +1524,10 @@ WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
 Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
 Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
 
-WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-1024"
-Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-1024"
+if ($labconfig.AllowedVLans){
+	WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to $($LabConfig.AllowedVlans)"
+	Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlans
+}
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
