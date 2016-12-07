@@ -19,6 +19,7 @@ $LabConfig=@{
 	DomainNetbiosName="Corp"					# (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
 	DomainName="Corp.contoso.com"		# (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used
 	DefaultOUName="Workshop"			# (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
+	AllowedVLANs="1-10" 				# (Optional) Sets the list of VLANs that can be used on Management vNICs.
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@()								# Just empty array for config below
 } 
@@ -138,6 +139,9 @@ DomainName (Optional)
 
 DefaultOUName (Optional)
 	Default Organization Unit Name for all computers and accounts. If nothing is specified, default "Workshop" will be used
+
+AllowedVLANs (Optional)
+	Allowed VLANs configured on all management adapters. Accepts "1-10" or "1,2,3,4,5,6,7,8,9,10"
 
 ##$LabConfig.VMs##
  Example: 
