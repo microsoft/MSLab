@@ -514,11 +514,11 @@ if (!$LabConfig.Prefix){
 }
 
 	# Checking for Compatible OS
-WriteInfoHighlighted "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer"
+WriteInfoHighlighted "Checking if OS is Windows 10 1511 (10586)/Server 2016 or newer"
 
 $BuildNumber=Get-WindowsBuildNumber
 if ($BuildNumber -ge 10586){
-	WriteSuccess "`t OS is Windows 10 TH2/Server 2016 TP4 or newer"
+	WriteSuccess "`t OS is Windows 10 1511 (10586)/Server 2016 or newer"
     }else{
     WriteErrorAndExit "`t Windows 10/ Server 2016 not detected. Exiting"
 }
@@ -536,10 +536,10 @@ if ($LABConfig.VMs.NestedVirt -contains $True){
 # Checking for vTPM support
 if ($LABConfig.VMs.vTPM -contains $true){
 	$BuildNumber=Get-WindowsBuildNumber
-	if ($BuildNumber -ge 14300){
-		WriteSuccess "`t Windows is build greated than 14300. vTPM will work"
+	if ($BuildNumber -ge 14393){
+		WriteSuccess "`t Windows is build greated than 14393. vTPM will work"
 		}else{
-		WriteErrorAndExit "`t Windows build older than 14300 detected. vTPM will not work Exiting"
+		WriteErrorAndExit "`t Windows build older than 14393 detected. vTPM will not work Exiting"
 	}
 	if (((Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).VirtualizationBasedSecurityStatus -ne 0) -and ((Get-Process "secure system") -ne $null )){
 		WriteSuccess "`t Virtualization Based Security is running. vTPM can be enabled"
@@ -1527,6 +1527,9 @@ Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $
 if ($labconfig.AllowedVLans){
 	WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to $($LabConfig.AllowedVlans)"
 	Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlans
+}else{
+	WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-10"
+	Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
 }
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
