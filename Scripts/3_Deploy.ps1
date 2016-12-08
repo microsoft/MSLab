@@ -1121,7 +1121,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
@@ -1272,7 +1272,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
@@ -1454,7 +1454,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}else{
 				if ($_.Win2012Djoin -eq $True){
 					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconig.DomainName
+					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
 				}else{
 					WriteInfo "`t Creating Unattend with djoin blob"
 					$path="c:\$vmname.txt"
@@ -1521,7 +1521,7 @@ if (Test-Path "$workdir\unattend.xml") {remove-item "$workdir\unattend.xml"}
 WriteInfoHighlighted "Finishing..." 
 #get-vm | where name -like $($labconfig.Prefix) | Start-VM
 WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
-Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" | Set-VMNetworkAdapter -MacAddressSpoofing On -AllowTeaming On
+Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
 Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
 
 if ($labconfig.AllowedVLans){
@@ -1531,6 +1531,9 @@ if ($labconfig.AllowedVLans){
 	WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-10"
 	Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
 }
+
+WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
+Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" 
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
