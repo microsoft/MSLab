@@ -80,11 +80,11 @@ If (!$LabConfig.DomainName){
 
 
 # Checking for Compatible OS
-WriteInfoHighlighted "Checking if OS is Windows 10 TH2/Server 2016 TP4 or newer"
+WriteInfoHighlighted "Checking if OS is Windows 10 1511 (10586)/Server 2016 or newer"
 
 $BuildNumber=Get-WindowsBuildNumber
 if ($BuildNumber -ge 10586){
-	WriteSuccess "`t OS is Windows 10 TH2/Server 2016 TP4 or newer"
+	WriteSuccess "`t OS is Windows 10 1511 (10586)/Server 2016 or newer"
     }else{
     WriteErrorAndExit "`t Windows version  $BuildNumber detected. Version 10586 and newer is needed. Exiting"
 }
