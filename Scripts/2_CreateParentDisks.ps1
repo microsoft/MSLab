@@ -221,7 +221,7 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 
 	if ( -not [bool]($ISOServer)){
 		WriteInfo "No ISO found in $Workdir\OSServer"
-		WriteInfoHighlighted "please select ISO file with Windows Server 2016 wim file. Please use TP5 and newer"
+		WriteInfoHighlighted "please select ISO file with Windows Server 2016 wim file"
 
 		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
 		$openFile = New-Object System.Windows.Forms.OpenFileDialog
@@ -254,7 +254,7 @@ If ($LabConfig.CreateClientParent -eq $true){
 
 		if ( -not [bool]($ISOClient)){
 			WriteInfo "No ISO found in $Workdir\OSOSClient"
-			WriteInfoHighlighted "please select ISO file with Windows 10 wim file. Please use 10586 and newer"
+			WriteInfoHighlighted "please select ISO file with Windows 10 wim file. Please use 1507 and newer"
 
 			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog

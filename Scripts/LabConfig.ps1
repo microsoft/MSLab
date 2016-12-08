@@ -16,10 +16,10 @@ $LabConfig=@{
     ClientEdition='Enterprise';			# (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
 	InstallSCVMM='No';					# (Optional) Yes/Prereqs/SQL/ADK/No
     AdditionalNetworksInDC=$false;		# (Optional) If Additional networks should be added also to DC
-	DomainNetbiosName="Corp"					# (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
+	DomainNetbiosName="Corp"			# (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
 	DomainName="Corp.contoso.com"		# (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used
 	DefaultOUName="Workshop"			# (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
-	AllowedVLANs="1-10" 				# (Optional) Sets the list of VLANs that can be used on Management vNICs.
+	AllowedVLANs="1-10" 				# (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@()								# Just empty array for config below
 } 
