@@ -58,7 +58,7 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 
 #Known issues
 
-* DISM sometimes throws errors on REFS volumes (especially during 2_CreateParentImages.ps1)
+* DISM sometimes throws errors on REFS volumes (especially during 2_CreateParentDisks.ps1)
 * When waiting on DC to come online, the script trows some red errors. It's by design, nothing to worry about
 * DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
 
