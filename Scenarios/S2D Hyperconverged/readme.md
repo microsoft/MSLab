@@ -125,10 +125,10 @@ Start-Sleep 5
 Clear-DnsClientCache
 ````
 
-* Enable S2D. It is specific to TP5 as you need to skip automatic configuration and skip eligibility checks (because all disks report with mediatype unknown, therefore eligibility check would fail)
+* Enable S2D.
 
 ```PowerShell
-Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0
+Enable-ClusterS2D -CimSession $ClusterName
 ````
 
 * To work with remote storage subsystem from DC, it is useful to register it with this command. I'm using $ClusterName, so I'll always work with some node that's online.
