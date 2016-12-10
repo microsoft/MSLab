@@ -221,10 +221,12 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 
 	if ( -not [bool]($ISOServer)){
 		WriteInfo "No ISO found in $Workdir\OSServer"
-		WriteInfoHighlighted "please select ISO file with Windows Server 2016 wim file"
+		WriteInfoHighlighted "Please select ISO image with Windows Server 2016"
 
 		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-		$openFile = New-Object System.Windows.Forms.OpenFileDialog
+		$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            Title="Please select ISO image with Windows Server 2016"
+        }
 		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 		If($openFile.ShowDialog() -eq “OK”)
 		{
@@ -254,10 +256,11 @@ If ($LabConfig.CreateClientParent -eq $true){
 
 		if ( -not [bool]($ISOClient)){
 			WriteInfo "No ISO found in $Workdir\OSOSClient"
-			WriteInfoHighlighted "please select ISO file with Windows 10 wim file. Please use 1507 and newer"
-
+			WriteInfoHighlighted "Please select ISO image with Windows 10. Please use 1507 and newer"
 			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-			$openFile = New-Object System.Windows.Forms.OpenFileDialog
+			$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select ISO image with Windows 10. Please use 1507 and newer"
+            }
 			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
 			If($openFile.ShowDialog() -eq “OK”){
 			   WriteInfo  "File $($openfile.FileName) selected"
@@ -276,16 +279,80 @@ If ($LabConfig.CreateClientParent -eq $true){
 
 #grab server packages
 $ServerPackages=Get-ChildItem "$workdir\OSServer\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
-$ClientPackages=Get-ChildItem "$workdir\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
 
 if ($ServerPackages -ne $null){
 WriteInfoHighlighted "Server Packages Found"
 $ServerPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
 }
 
-if ($ClientPackages -ne $null){
-WriteInfoHighlighted "Client Packages Found"
-$ClientPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
+if (!($ServerPackages)){
+    #ask for MSU patches
+    Write-Host -ForegroundColor Green "Please select latest Server Cumulative Update (.MSU)"
+    [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
+    $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        Multiselect = $true;
+        Title="Please select latest Windows Server 2016 Cumulative Update"
+    }
+    $ServerPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
+    If($ServerPackages.ShowDialog() -eq “OK”){
+    Write-Host -ForegroundColor Cyan  "Following patches selected:"
+    Write-Host "`t $($ServerPackages.filenames)"
+    } 
+
+    #exit if nothing is selected
+    if (!$ServerPackages.FileNames){
+            Write-Host -ForegroundColor Red  "no msu was selected... Exitting"
+            Write-Host "Press any key to continue ..."
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+            Exit
+    }
+}
+
+if ($Serverpackages.fullname){
+    $serverpackages=$serverpackages.FullName
+}else{
+    $serverpackages=$serverpackages.FileNames
+}
+
+#grab Client packages
+If ($LabConfig.CreateClientParent){
+    $ClientPackages=Get-ChildItem "$workdir\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
+    
+    if ($ClientPackages -ne $null){
+    WriteInfoHighlighted "Client Packages Found"
+    $ClientPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
+    }
+
+    if (!($ClientPackages)){
+        #ask for MSU patches
+        Write-Host -ForegroundColor Green "Please select latest Client Cumulative Update (MSU)"
+        [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
+        $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            Multiselect = $true;
+            Title="Please select Windows 10 Cumulative Update"
+        }
+        $ClientPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
+        If($ClientPackages.ShowDialog() -eq “OK”){
+        Write-Host -ForegroundColor Cyan  "Following patches selected:"
+        Write-Host "`t $($ClientPackages.filenames)"
+        } 
+
+        #exit if nothing is selected
+        if (!$ClientPackages.FileNames){
+                Write-Host -ForegroundColor Red  "no msu was selected... Exitting"
+                Write-Host "Press any key to continue ..."
+                $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+                $HOST.UI.RawUI.Flushinputbuffer()
+                Exit
+        }
+    }
+}
+
+if ($clientpackages.fullname){
+    $clientpackages=$clientpackages.FullName
+}else{
+    $clientpackages=$clientpackages.FileNames
 }
 
 #######################
@@ -353,18 +420,16 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
     WriteInfoHighlighted "Adding cabs and MSUs to parent images"
 	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
 		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ServerPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+		foreach ($ServerPackage in $ServerPackages){
+			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$workdir\Temp\mountdir
 		}
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 	}
 
 	If ($LabConfig.CreateClientParent -eq $True){
 		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-		$ClientPackages | ForEach-Object {
-			$packagepath=$_.FullName
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+		foreach ($ClientPackage in $ClientPackages){
+			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ClientPackage /Image:$workdir\Temp\mountdir
 		}
 		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 	}
@@ -414,9 +479,8 @@ Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition
 
 WriteInfoHighlighted "Adding cab/msu packages to DC"
 &"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$workdir\Temp\mountdir
-$ServerPackages | ForEach-Object {
-	$packagepath=$_.FullName
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$packagepath /Image:$workdir\Temp\mountdir
+foreach ($ServerPackage in $ServerPackages) {
+	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$workdir\Temp\mountdir
 }
 &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
 
