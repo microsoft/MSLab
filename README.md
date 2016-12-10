@@ -18,26 +18,24 @@
 **Step 2** Create folder and Unzip scripts there
 
 **Step 3** Right-click and run with PowerShell 1_Prereq.ps1
- * 1_Prereq.ps1 will create folder structure and download neccessary files from internet
+ * 1_Prereq.ps1 will create folder structure (if you want to run second script without asking for files, you can copy iso and CU there) and downloads neccessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
  
-**Step 4** Copy Cumulative Update into the OSServer\Packages folder.
+**Step 4* Right-click and run with PowerShell 2_CreateParentDisks.ps1
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file and Cumulative Update and then will hydrate parent disks and Domain Controller.
 
-**Step 5** Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, hydrate parent disks and hydrate Domain Controller.
-
-**Step 6** Right-click and run with PowerShell 3_Deploy.ps1
+**Step 5** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
  
-**Step 7** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
+**Step 6** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
 
 * This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
 
 * It will deploy 4 nanoservers simulating 200TB Storage
 
-**Step 8** Cleanup lab with Cleanup.ps1
+**Step 7** Cleanup lab with Cleanup.ps1
 
-**Step 9** Try different scenarios
+**Step 8** Try different scenarios
 * [Local Admin Password solution for NanoServer](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/LAPS%20on%20Nano)
 * [Testing Nano first boot performance](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Testing%20Nano%20performance)
 
