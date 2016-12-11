@@ -21,8 +21,8 @@
  * 1_Prereq.ps1 will create folder structure (if you want to run second script without asking for files, you can copy iso and CU there) and downloads neccessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
  
-**Step 4* Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file and Cumulative Update and then will hydrate parent disks and Domain Controller.
+**Step 4** Right-click and run with PowerShell 2_CreateParentDisks.ps1
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, Cumulative Update and then will hydrate parent disks and Domain Controller.
 
 **Step 5** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
@@ -56,8 +56,8 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 
 #Known issues
 
-* DISM sometimes throws errors on REFS volumes (especially during 2_CreateParentDisks.ps1)
-* When waiting on DC to come online, the script trows some red errors. It's by design, nothing to worry about
+* DISM sometimes throws errors on REFS volumes (especially during 2_CreateParentDisks.ps1). Use NTFS volume instead.
+* When waiting on DC to come online, the script trows some red errors. It's by design, nothing to worry about.
 * DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
 
 
