@@ -433,16 +433,15 @@ function WrapProcess
 ##########################################################################################
 #Some necessary stuff
 ##########################################################################################
-$Workdir=$PSScriptRoot
 
-Start-Transcript -Path "$workdir\Deploy.log"
+Start-Transcript -Path "$PSScriptRoot\Deploy.log"
 
 $StartDateTime = get-date
 WriteInfoHighlighted "Script started at $StartDateTime"
 
 
 ##Load LabConfig....
-. "$($workdir)\LabConfig.ps1"
+. "$PSScriptRoot\LabConfig.ps1"
 
 
 #####################
@@ -475,9 +474,9 @@ WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 $SwitchName=($labconfig.prefix+$LabConfig.SwitchName)
 WriteInfo "`t Switchname is $SwitchName" 
 
-WriteInfo "`t Workdir is $Workdir"
+WriteInfo "`t Workdir is $PSScriptRoot"
 
-$LABfolder="$Workdir\LAB"
+$LABfolder="$PSScriptRoot\LAB"
 WriteInfo "`t LabFolder is $LabFolder"
 
 $LABfolderDrivePath=$LABfolder.Substring(0,3)
@@ -638,10 +637,10 @@ $Labconfig.VMs | ForEach-Object {
 WriteInfo "Starting IP for AdditionalNetworks is $IP"
 
 WriteInfoHighlighted "Creating Mountdir"
-New-Item $workdir\Temp\MountDir -ItemType Directory -Force
+New-Item "$PSScriptRoot\Temp\MountDir" -ItemType Directory -Force
 
 WriteInfoHighlighted "Creating VMs dir"
-New-Item $workdir\LAB\VMs -ItemType Directory -Force
+New-Item "$PSScriptRoot\LAB\VMs" -ItemType Directory -Force
 
 
 ######################
@@ -651,7 +650,7 @@ New-Item $workdir\LAB\VMs -ItemType Directory -Force
 #get path for Tools disk
 
 WriteInfoHighlighted "Looking for Tools Parent Disks"
-$toolsparent=Get-ChildItem "$Workdir\ParentDisks" -Recurse | where name -eq tools.vhdx
+$toolsparent=Get-ChildItem "$PSScriptRoot\ParentDisks" -Recurse | where name -eq tools.vhdx
 if ($toolsparent -eq $null){
 	WriteErrorAndExit "`t Tools parent disk not found"
 }else{
@@ -844,7 +843,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -898,7 +897,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -968,17 +967,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
+			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1007,7 +1006,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1061,7 +1060,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1131,17 +1130,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
+			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1158,7 +1157,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1212,7 +1211,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1282,17 +1281,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
+			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1340,7 +1339,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem $Workdir"\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1394,7 +1393,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			#Generate DSC Config
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath $workdir\temp\dscconfig -DomainName $LabConfig.DomainName
+				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
 			}
 			
 			#configure nested virt
@@ -1464,17 +1463,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$workdir\Temp\Mountdir
-			&"$workdir\Tools\dism\dism" /image:$workdir\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $workdir\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $workdir\Temp\Mountdir\Windows\Panther\unattend.xml
+			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$workdir\temp\dscconfig\$name.meta.mof" -Destination "$workdir\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\Mountdir /Commit
+			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1505,8 +1504,8 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 # some Cleanup #
 ################
 
-Remove-Item -Path "$workdir\temp" -Force -Recurse
-if (Test-Path "$workdir\unattend.xml") {remove-item "$workdir\unattend.xml"}
+Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
+if (Test-Path "$PSScriptRoot\unattend.xml") {remove-item "$PSScriptRoot\unattend.xml"}
 
 #############
 # Finishing #

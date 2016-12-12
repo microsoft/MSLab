@@ -111,16 +111,13 @@ Function CreateUnattendFileVHD{
 #Some necessary stuff
 ##########################################################################################
 
-###Get workdirectory###
-$workdir=$PSScriptRoot
-
 ###Start LOG###
-Start-Transcript -Path $workdir\CreateParentDisks.log
+Start-Transcript -Path "$PSScriptRoot\CreateParentDisks.log"
 $StartDateTime = get-date
 WriteInfo "Script started at $StartDateTime"
 
 ##Load LabConfig....
-. "$($workdir)\LabConfig.ps1"
+. "$PSScriptRoot\LabConfig.ps1"
 
 #####################
 # Default variables #
@@ -175,7 +172,7 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Managemen
 
 if ($LabConfig.InstallSCVMM -eq "Yes"){
     "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
-        if(!(Test-Path -Path "$workdir\$_")){
+        if(!(Test-Path -Path "$PSScriptRoot\$_")){
             WriteErrorAndExit "files $_ needed for SCVMM install not found. Exitting"
         }
     }    
@@ -183,7 +180,7 @@ if ($LabConfig.InstallSCVMM -eq "Yes"){
 
 if ($LabConfig.InstallSCVMM -eq "Prereqs"){
     "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
-        if(!(Test-Path -Path "$workdir\$_")){
+        if(!(Test-Path -Path "$PSScriptRoot\$_")){
             WriteErrorAndExit "files $_ needed for SCVMM Prereqs install not found. Exitting"
         }
     } 
@@ -191,7 +188,7 @@ if ($LabConfig.InstallSCVMM -eq "Prereqs"){
     
 if ($LabConfig.InstallSCVMM -eq "SQL"){
     "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
-        if(!(Test-Path -Path "$workdir\$_")){
+        if(!(Test-Path -Path "$PSScriptRoot\$_")){
             WriteErrorAndExit "files $_ needed for SQL install not found. Exitting"
         }
     }
@@ -199,7 +196,7 @@ if ($LabConfig.InstallSCVMM -eq "SQL"){
 
 if ($LabConfig.InstallSCVMM -eq "ADK"){
     "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
-        if(!(Test-Path -Path "$workdir\$_")){
+        if(!(Test-Path -Path "$PSScriptRoot\$_")){
             WriteErrorAndExit "files $_ needed for ADK install not found. Exitting"
         }
     }
@@ -210,17 +207,17 @@ if ($LabConfig.InstallSCVMM -eq "ADK"){
 ##############
 
 ## Test for unpacked media - detect install.wim for Server OS
-If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
-	WriteInfo "ISO content found under $workdir\OSServer folder"
-	$ServerMediaPath="$workdir\OSServer"
+If (Test-Path -Path "$PSScriptRoot\OSServer\Sources\install.wim"){
+	WriteInfo "ISO content found under $PSScriptRoot\OSServer folder"
+	$ServerMediaPath="$PSScriptRoot\OSServer"
 }else{
 	## Test for ISO and if no ISO found, open file dialog to select one
-	If (Test-Path -Path "$workdir\OSServer"){
-		$ISOServer = Get-ChildItem -Path "$workdir\OSServer" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
+	If (Test-Path -Path "$PSScriptRoot\OSServer"){
+		$ISOServer = Get-ChildItem -Path "$PSScriptRoot\OSServer" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
 	}
 
 	if ( -not [bool]($ISOServer)){
-		WriteInfo "No ISO found in $Workdir\OSServer"
+		WriteInfo "No ISO found in $PSScriptRoot\OSServer"
 		WriteInfoHighlighted "Please select ISO image with Windows Server 2016"
 
 		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
@@ -245,17 +242,17 @@ If (Test-Path -Path "$workdir\OSServer\Sources\install.wim"){
 
 ## Test for unpacked media - detect install.wim for Client OS
 If ($LabConfig.CreateClientParent -eq $true){
-	If (Test-Path -Path "$workdir\OSClient\Sources\install.wim"){
-		WriteInfo "ISO content found under $workdir\OSClient folder"
-		$ClientMediaPath="$workdir\OSClient"
+	If (Test-Path -Path "$PSScriptRoot\OSClient\Sources\install.wim"){
+		WriteInfo "ISO content found under $PSScriptRoot\OSClient folder"
+		$ClientMediaPath="$PSScriptRoot\OSClient"
 	}else{
 		## Test for ISO and if no ISO found, open file dialog to select one
-		If (Test-Path -Path "$workdir\OSClient"){
-			$ISOClient = Get-ChildItem -Path "$workdir\OSClient" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
+		If (Test-Path -Path "$PSScriptRoot\OSClient"){
+			$ISOClient = Get-ChildItem -Path "$PSScriptRoot\OSClient" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
 		}
 
 		if ( -not [bool]($ISOClient)){
-			WriteInfo "No ISO found in $Workdir\OSOSClient"
+			WriteInfo "No ISO found in $PSScriptRoot\OSOSClient"
 			WriteInfoHighlighted "Please select ISO image with Windows 10. Please use 1507 and newer"
 			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
 			$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
@@ -278,7 +275,7 @@ If ($LabConfig.CreateClientParent -eq $true){
 }
 
 #grab server packages
-$ServerPackages=Get-ChildItem "$workdir\OSServer\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
+$ServerPackages=Get-ChildItem "$PSScriptRoot\OSServer\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
 
 if ($ServerPackages -ne $null){
 WriteInfoHighlighted "Server Packages Found"
@@ -317,7 +314,7 @@ if ($Serverpackages.fullname){
 
 #grab Client packages
 If ($LabConfig.CreateClientParent){
-    $ClientPackages=Get-ChildItem "$workdir\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
+    $ClientPackages=Get-ChildItem "$PSScriptRoot\OSClient\Packages" -Recurse | where {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
     
     if ($ClientPackages -ne $null){
     WriteInfoHighlighted "Client Packages Found"
@@ -361,77 +358,77 @@ if ($clientpackages.fullname){
 
 #create some folders
 'ParentDisks','Temp','Temp\mountdir','Tools\dism','Temp\packages' | ForEach-Object {
-    if (!( Test-Path "$Workdir\$_" )) { New-Item -Type Directory -Path "$workdir\$_" } }
+    if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 
-. "$workdir\tools\convert-windowsimage.ps1"
+. "$PSScriptRoot\tools\convert-windowsimage.ps1"
 
 WriteInfoHighlighted "Creating Server Parent"
-Convert-WindowsImage -SourcePath $ServerMediaPath'\sources\install.wim' -Edition ServerDataCenterCore -VHDPath $workdir'\ParentDisks\Win2016Core_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
+Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition ServerDataCenterCore -VHDPath "$PSScriptRoot\ParentDisks\Win2016Core_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 
 #Create client OS VHD
 If ($LabConfig.CreateClientParent -eq $true){
     WriteInfoHighlighted "Creating Client Parent"
-    Convert-WindowsImage -SourcePath $ClientMediaPath'\sources\install.wim' -Edition $LabConfig.ClientEdition -VHDPath $workdir'\ParentDisks\Win10_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
+    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
 }
 
 #copy dism tools (probably not needed, but this will make sure that dism is the newest one)
  
 #create some folders
 'sources\api*downlevel*.dll','sources\*provider*','sources\*dism*' | ForEach-Object {
-    WriteInfoHighlighted "Copying dism from server media to $workdir\Tools\dism"
-    Copy-Item -Path "$ServerMediaPath\$_" -Destination $workdir\Tools\dism -Force
+    WriteInfoHighlighted "Copying dism from server media to $PSScriptRoot\Tools\dism"
+    Copy-Item -Path "$ServerMediaPath\$_" -Destination $PSScriptRoot\Tools\dism -Force
 }
 
-WriteInfoHighlighted "Copying nano packages from server media to $workdir\Temp\packages\"
-Copy-Item -Path $ServerMediaPath'\nanoserver\packages\*' -Destination $workdir\Temp\packages\ -Recurse -Force
+WriteInfoHighlighted "Copying nano packages from server media to $PSScriptRoot\Temp\packages\"
+Copy-Item -Path "$ServerMediaPath\nanoserver\packages\*" -Destination "$PSScriptRoot\Temp\packages\" -Recurse -Force
 
 WriteInfoHighlighted "Creating Nano Server images"
 #The condition to test *en-us* is there because TP4 file structure was different.
 if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	#RTM version
-	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath $workdir'\ParentDisks\Win2016Nano_G2.vhdx' -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
-	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath "$PSScriptRoot\ParentDisks\Win2016Nano_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
+	&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
-	Copy-Item -Path "$workdir\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$workdir\ParentDisks\Win2016NanoHV_G2.vhdx"
+	Copy-Item -Path "$PSScriptRoot\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$PSScriptRoot\ParentDisks\Win2016NanoHV_G2.vhdx"
  
-	&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$workdir\Temp\mountdir
-    &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$workdir\Temp\mountdir
-    &"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$workdir\Temp\packages\en-us\Microsoft-NanoServer-ShieldedVM-Package_en-us.cab /Image:$workdir\Temp\mountdir
-	&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+	&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+    &"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+    &"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-ShieldedVM-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
 	#do some servicing (adding CABs and MSUs)
     WriteInfoHighlighted "Adding cabs and MSUs to parent images"
 	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
-		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\$_ /Index:1 /MountDir:$workdir\Temp\mountdir
+		&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\$_ /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
 		foreach ($ServerPackage in $ServerPackages){
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$workdir\Temp\mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$PSScriptRoot\Temp\mountdir
 		}
-		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+		&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 	}
 
 	If ($LabConfig.CreateClientParent -eq $True){
-		&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$workdir\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$workdir\Temp\mountdir
+		&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
 		foreach ($ClientPackage in $ClientPackages){
-			&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ClientPackage /Image:$workdir\Temp\mountdir
+			&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ClientPackage /Image:$PSScriptRoot\Temp\mountdir
 		}
-		&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+		&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 	}
 }else{
 	WriteErrorAndExit "`t Please use Windows Server TP5 and newer. Exiting"
@@ -441,25 +438,25 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 
 WriteInfoHighlighted "Creating Tools.vhdx"
 
-$toolsVHD=New-VHD -Path "$workdir\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+$toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
 $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
 
 $vhddisk = $VHDMount| get-disk 
 $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
 
 
-$VHDPathTest=Test-Path -Path "$workdir\Tools\ToolsVHD\"
+$VHDPathTest=Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\"
 if (!$VHDPathTest){
-	New-Item -Type Directory -Path $workdir'\Tools\ToolsVHD'
+	New-Item -Type Directory -Path $PSScriptRoot'\Tools\ToolsVHD'
 }
 if ($VHDPathTest){
-    WriteInfo "Found $workdir\Tools\ToolsVHD\*, copying files into VHDX"
-    Copy-Item -Path "$workdir\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+    WriteInfo "Found $PSScriptRoot\Tools\ToolsVHD\*, copying files into VHDX"
+    Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
 }else{
     WriteInfo "Files not found" 
-    WriteInfoHighlighted "Add required tools into $workdir\Tools\toolsVHD and Press any key to continue..."
+    WriteInfoHighlighted "Add required tools into $PSScriptRoot\Tools\toolsVHD and Press any key to continue..."
     $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-    Copy-Item -Path "$workdir\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+    Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
 }
 
 Dismount-VHD $vhddisk.Number
@@ -468,8 +465,8 @@ Dismount-VHD $vhddisk.Number
 # Hydrate DC #
 ##############
 
-$vhdpath="$workdir\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
-$VMPath="$Workdir\LAB\"
+$vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
+$VMPath="$PSScriptRoot\LAB\"
 
 #Create Parent VHD
 WriteInfoHighlighted "Creating VHD for DC"
@@ -478,11 +475,11 @@ Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition
 #do some servicing (adding cab/msu packages)
 
 WriteInfoHighlighted "Adding cab/msu packages to DC"
-&"$workdir\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$workdir\Temp\mountdir
+&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
 foreach ($ServerPackage in $ServerPackages) {
-	&"$workdir\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$workdir\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$PSScriptRoot\Temp\mountdir
 }
-&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\Temp\mountdir /Commit
+&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
 #If the switch does not already exist, then create a switch with the name $SwitchName
 
@@ -500,13 +497,13 @@ if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Of
 
 #Apply Unattend
 WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
-$unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$workdir\temp\"
-New-item -type directory -Path $Workdir\Temp\mountdir -force
-&"$workdir\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$Workdir\Temp\mountdir
-&"$workdir\Tools\dism\dism" /image:$Workdir\Temp\mountdir /Apply-Unattend:$unattendfile
-New-item -type directory -Path "$Workdir\Temp\mountdir\Windows\Panther" -force
-Copy-Item -Path $unattendfile -Destination "$Workdir\Temp\mountdir\Windows\Panther\unattend.xml" -force
-Copy-Item -Path "$workdir\tools\DSC\*" -Destination "$Workdir\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+$unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
+New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
+&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
+New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
+Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
+Copy-Item -Path "$PSScriptRoot\tools\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
 #Here goes Configuration and creation of pending.mof (DSC)
 
@@ -793,19 +790,19 @@ configuration LCMConfig
 }
 
 WriteInfo "Creating DSC Configs for DC"
-LCMConfig       -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData
-DCHydration     -OutputPath "$workdir\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
+LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
+DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
 
 WriteInfo "Copying DSC configurations (pending.mof and metaconfig.mof)"
-New-item -type directory -Path "$Workdir\Temp\config" -ErrorAction Ignore
-Copy-Item -path "$workdir\Temp\config\dc.mof"      -Destination "$workdir\Temp\mountdir\Windows\system32\Configuration\pending.mof"
-Copy-Item -Path "$workdir\Temp\config\dc.meta.mof" -Destination "$workdir\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
+New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
+Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\pending.mof"
+Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
 
 
 #####
 
 WriteInfo "Applying changes to VHD"
-&"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$Workdir\Temp\mountdir /Commit
+&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
 
 #Start and wait for configuration
@@ -923,7 +920,7 @@ $ISOClient | Dismount-DiskImage
 }
 
 WriteInfo "Deleting temp dir"
-Remove-Item -Path "$workdir\temp" -Force -Recurse
+Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
@@ -931,12 +928,12 @@ WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
 WriteInfo "(.\OSServer .\OSClient .\Tools\ToolsVHD .\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
 If ((Read-host "Please type Y or N") -eq "Y"){
     WriteInfo "`t Cleaning unnecessary items" 
-    "$workdir\OSServer","$workdir\OSClient","$workdir\Tools\ToolsVHD","$workdir\Tools\DSC","$workdir\1_Prereq.ps1","$workdir\2_CreateParentDisks.ps1" | ForEach-Object {
+    "$PSScriptRoot\OSServer","$PSScriptRoot\OSClient","$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
         WriteInfo "`t `t Removing $_"
         Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
     } 
-    WriteInfo "`t `t Renaming $workdir\3_Deploy.ps1 to Deploy.ps1"
-    Rename-Item -Path "$workdir\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
+    WriteInfo "`t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
+    Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
     
 }else{
     WriteInfo "You did not type Y, skipping cleanup"

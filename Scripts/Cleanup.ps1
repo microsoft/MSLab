@@ -83,10 +83,12 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
             WriteInfo "Turning off $($DC.Name)"
             $DC | Stop-VM -TurnOff -Force
             WriteInfo "Restoring snapshot on $($DC.Name)"
-            $DC | Restore-VMsnapshot -Name Initial -Confirm:$False
+            $DC | Restore-VMsnapshot -Name Initial -Confirm:$False -ErrorAction SilentlyContinue
             Start-Sleep 2
             WriteInfo "Removing snapshot from $($DC.Name)"
-            $DC | Remove-VMsnapshot -name Initial -Confirm:$False
+            $DC | Remove-VMsnapshot -name Initial -Confirm:$False -ErrorAction SilentlyContinue
+            WriteInfo "Removing DC $($DC.Name)"
+            $DC | Remove-VM -Force
         }
         if ($VMs){
             foreach ($VM in $VMs){
@@ -95,20 +97,21 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
             $VM | Remove-VM -Force
             }
         }
-        if ((Get-VMSwitch "$($vSwitch.SwitchName)")){
+
+        if (($vSwitch)){
             WriteInfo "Removing vSwitch $($vSwitch.SwitchName)"
             $vSwitch | Remove-VMSwitch -Force
         }
         
         # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
-        if ((Get-ChildItem -Path $workdir\temp\mountdir)){
+        if ((Get-ChildItem -Path $workdir\temp\mountdir -ErrorAction SilentlyContinue)){
             &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\temp\mountdir /discard
         }
 
 
         #Cleanup folders
         "$workdir\LAB\VMs","$workdir\temp" | ForEach-Object {
-            if ((Get-Item -Path $_)){
+            if ((Get-Item -Path $_ -ErrorAction SilentlyContinue)){
                 WriteInfo "Removing folder $_"
                 remove-item $_ -Confirm:$False -Recurse
             }    
