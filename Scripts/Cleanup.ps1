@@ -35,19 +35,12 @@ function WriteErrorAndExit($message)
 	Exit
 }
 
-Function Get-ScriptDirectory
-    {
-    Split-Path $script:MyInvocation.MyCommand.Path
-    }
-
-
 ##########################################################################################
 #   Cleanup
 ##########################################################################################
-$workdir=$PSScriptRoot
 
 #load LabConfig
-. "$($workdir)\LabConfig.ps1"
+. "$PSScriptRoot\LabConfig.ps1"
 $prefix=$LabConfig.Prefix
 
 if (!$prefix){
@@ -64,7 +57,7 @@ If ($VMs){
 }
 
 if ($vSwitch){
-WriteInfoHighlighted "SwitchName:"
+WriteInfoHighlighted "vSwitch:"
 Write-Output $vSwitch.name
 }
 
@@ -76,12 +69,17 @@ if ($DC){
 #just one more space
 WriteInfo ""
 
+# This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
+if ((Get-ChildItem -Path $PSScriptRoot\temp\mountdir -ErrorAction SilentlyContinue)){
+    &"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\temp\mountdir /discard
+}
+
 if (($vSwitch) -or ($VMs) -or ($DC)){
     $answer=read-host "This script will remove all VMs or (and) switches starting with $prefix (all above) Are you sure? (type  Y )"
     if ($answer -eq "Y"){
         if ($DC){
             WriteInfo "Turning off $($DC.Name)"
-            $DC | Stop-VM -TurnOff -Force
+            $DC | Stop-VM -TurnOff -Force -WarningAction SilentlyContinue
             WriteInfo "Restoring snapshot on $($DC.Name)"
             $DC | Restore-VMsnapshot -Name Initial -Confirm:$False -ErrorAction SilentlyContinue
             Start-Sleep 2
@@ -93,7 +91,7 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
         if ($VMs){
             foreach ($VM in $VMs){
             WriteInfo "Removing VMs $($VM.Name)"
-            $VM | Stop-VM -TurnOff -Force
+            $VM | Stop-VM -TurnOff -Force -WarningAction SilentlyContinue
             $VM | Remove-VM -Force
             }
         }
@@ -103,14 +101,8 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
             $vSwitch | Remove-VMSwitch -Force
         }
         
-        # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
-        if ((Get-ChildItem -Path $workdir\temp\mountdir -ErrorAction SilentlyContinue)){
-            &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\temp\mountdir /discard
-        }
-
-
         #Cleanup folders
-        "$workdir\LAB\VMs","$workdir\temp" | ForEach-Object {
+        "$PSScriptRoot\LAB\VMs","$PSScriptRoot\temp" | ForEach-Object {
             if ((Get-Item -Path $_ -ErrorAction SilentlyContinue)){
                 WriteInfo "Removing folder $_"
                 remove-item $_ -Confirm:$False -Recurse
@@ -118,15 +110,14 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
         }
         
         #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
-        $zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
-        $zipoutput="$workdir\LAB\DC\"
+        $zipfile= "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
+        $zipoutput="$PSScriptRoot\LAB\DC\"
 
         Expand-Archive -Path $zipfile -DestinationPath $zipoutput
 
         WriteSuccess "Job Done! Press any key to close window ..."
         $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-    }
-    else {
+    }else {
         WriteErrorAndExit "You did not type Y"
     }
 }else{
