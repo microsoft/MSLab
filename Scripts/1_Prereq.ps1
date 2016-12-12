@@ -51,14 +51,13 @@ function  Get-WindowsBuildNumber {
 # Lets start #
 ##############
 
-# Get workdirectory and Start Time
-$workdir       = Split-Path $script:MyInvocation.MyCommand.Path
-Start-Transcript -Path "$workdir\Prereq.log"
+# Start Time and Transcript
+Start-Transcript -Path "$PSScriptRoot\Prereq.log"
 $StartDateTime = get-date
 WriteInfo "Script started at $StartDateTime"
 
 ##Load LabConfig....
-. "$($workdir)\LabConfig.ps1"
+. "$PSScriptRoot\LabConfig.ps1"
 
 #####################
 # Default variables #
@@ -91,14 +90,14 @@ if ($BuildNumber -ge 10586){
 
 # Checking Folder Structure
 "OSClient","OSServer","Tools\DSC","Tools\ToolsVHD\DiskSpd","OSServer\Packages","OSClient\Packages","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
-    if (!( Test-Path "$Workdir\$_" )) { New-Item -Type Directory -Path "$workdir\$_" } }
+    if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 	
 "OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt","OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt","OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt","OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt","Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
-	  if (!( Test-Path "$Workdir\$_" )) { New-Item -Type File -Path "$workdir\$_" } }
+	  if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type File -Path "$PSScriptRoot\$_" } }
 
 # adding scripts for SCVMM install
-if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" )) {  
-    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File
+if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" )) {  
+    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File
     $fileContent =  @'
 
 # Sample SQL Install
@@ -113,9 +112,7 @@ If (!( $isAdmin )) {
 	exit
 }
 
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
-
-Start-Transcript -Path "$workdir\SQL_Install.log"
+Start-Transcript -Path "$PSScriptRoot\SQL_Install.log"
 
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
@@ -123,11 +120,11 @@ Write-host "Script started at $StartDateTime"
 #check for .net 3.5
 if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled'){
     do{
-        If (Test-Path -Path "$workdir\dotNET\microsoft-windows-netfx3-ondemand-package.cab"){
-            $dotNET = Get-Item -Path "$workdir\dotNET\microsoft-windows-netfx3-ondemand-package.cab" -ErrorAction SilentlyContinue
+        If (Test-Path -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab"){
+            $dotNET = Get-Item -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab" -ErrorAction SilentlyContinue
 		    Write-Host "microsoft-windows-netfx3-ondemand-package.cab found in dotNET folder... installing" -ForegroundColor Cyan
         }else{
-            Write-Host "No .NET found in $Workdir\dotNET" -ForegroundColor Cyan
+            Write-Host "No .NET found in $PSScriptRoot\dotNET" -ForegroundColor Cyan
 			Write-Host "please browse for dotNET package (microsoft-windows-netfx3-ondemand-package.cab)" -ForegroundColor Green
 
 			[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
@@ -152,8 +149,8 @@ if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled'
 
 #install SQL
 
-If (Test-Path -Path "$workdir\SQL\setup.exe"){
-    $setupfile = (Get-Item -Path "$workdir\SQL\setup.exe" -ErrorAction SilentlyContinue).fullname
+If (Test-Path -Path "$PSScriptRoot\SQL\setup.exe"){
+    $setupfile = (Get-Item -Path "$PSScriptRoot\SQL\setup.exe" -ErrorAction SilentlyContinue).fullname
     Write-Host "$Setupfile found..." -ForegroundColor Cyan
 }else{
     # Open File dialog
@@ -191,8 +188,8 @@ exit
     Set-Content -path $script -value $fileContent
 }
 
-if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" )) {  
-    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File
+if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" )) {  
+    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File
     $fileContent =  @'
 
 #Sample ADK install
@@ -208,15 +205,14 @@ If (!( $isAdmin )) {
 }
 
 
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
-Start-Transcript -Path "$workdir\ADK_Install.log"
+Start-Transcript -Path "$PSScriptRoot\ADK_Install.log"
 
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
 
-If (Test-Path -Path "$workdir\ADK\ADKsetup.exe"){
-    $setupfile = (Get-Item -Path "$workdir\ADK\ADKsetup.exe" -ErrorAction SilentlyContinue).fullname
+If (Test-Path -Path "$PSScriptRoot\ADK\ADKsetup.exe"){
+    $setupfile = (Get-Item -Path "$PSScriptRoot\ADK\ADKsetup.exe" -ErrorAction SilentlyContinue).fullname
 }else{
     # Open File dialog
     Write-Host "Please locate ADKSetup.exe" -ForegroundColor Green
@@ -245,8 +241,8 @@ exit
     Set-Content -path $script -value $fileContent
 }
 
-if (!( Test-Path "$Workdir\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" )) {  
-    $script = New-Item "$Workdir\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File
+if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" )) {  
+    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File
     $fileContent =  @'
 
 # Sample VMM Install
@@ -261,8 +257,7 @@ If (!( $isAdmin )) {
 	exit
 }
 
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
-Start-Transcript -Path "$workdir\SCVMM_Install.log"
+Start-Transcript -Path "$PSScriptRoot\SCVMM_Install.log"
 
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
@@ -274,8 +269,8 @@ if ((get-service MSSQLServer).Status -ne "Running"){
     }until ((get-service MSSQLServer).Status -eq "Running")
 }
 
-If (Test-Path -Path "$workdir\SCVMM\setup.exe"){
-    $setupfile = (Get-Item -Path "$workdir\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
+If (Test-Path -Path "$PSScriptRoot\SCVMM\setup.exe"){
+    $setupfile = (Get-Item -Path "$PSScriptRoot\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
     Write-Host "$Setupfile found..." -ForegroundColor Cyan
 }else{
 # Open File dialog
@@ -294,10 +289,8 @@ If (Test-Path -Path "$workdir\SCVMM\setup.exe"){
 Write-Host "Installing VMM..." -ForegroundColor Green
 
 ###Get workdirectory###
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
-#$workdir='e:'
 #Install VMM
-$unattendFile = New-Item "$workdir\VMServer.ini" -type File
+$unattendFile = New-Item "$PSScriptRoot\VMServer.ini" -type File
 $fileContent = @"
 [OPTIONS]
 CompanyName=Contoso
@@ -313,18 +306,18 @@ MUOptIn = 1
 Set-Content $unattendFile $fileContent
 
 Write-Host "VMM is being installed..." -ForegroundColor Cyan
-& $setupfile /server /i /f $workdir\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
+& $setupfile /server /i /f $PSScriptRoot\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
 do{
     Start-Sleep 1
 }until ((Get-Process | Where-Object {$_.Description -eq "Virtual Machine Manager Setup"} -ErrorAction SilentlyContinue) -eq $null)
 Write-Host "VMM is Installed" -ForegroundColor Green
 
-Remove-Item "$workdir\VMServer.ini" -ErrorAction Ignore
+Remove-Item "$PSScriptRoot\VMServer.ini" -ErrorAction Ignore
 
 Write-Host "VMM install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
 $StartDateTime = get-date
-$URs=(Get-ChildItem -Path $Workdir\UpdateRollup -Recurse | where extension -eq .msp).FullName
+$URs=(Get-ChildItem -Path $PSScriptRoot\UpdateRollup -Recurse | where extension -eq .msp).FullName
 
 Foreach ($UR in $URs){
     Write-Host "Update Rollup $UR is being installed"
@@ -352,32 +345,32 @@ Exit
 
 # Downloading diskspd if its not in tools folder
 WriteInfoHighlighted "Testing diskspd presence"
-If ( Test-Path -Path "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
+If ( Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
 		WriteSuccess "`t Diskspd is present, skipping download"
 }else{ 
 		WriteInfo "`t Diskspd not there - Downloading diskspd"
 		try {
 			$webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
 			$downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
-			Invoke-WebRequest -Uri $downloadurl -OutFile "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip"
+			Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
 		}catch{
 			WriteError "`t Failed to download Diskspd!"
 		}
 		# Unnzipping and extracting just diskspd.exe x64
-		Expand-Archive "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$workdir\Tools\ToolsVHD\DiskSpd\Unzip"
-		Copy-Item -Path (Get-ChildItem -Path "$workdir\tools\toolsvhd\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64fre*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$workdir\Tools\ToolsVHD\DiskSpd\"
-		Remove-Item -Path "$workdir\Tools\ToolsVHD\DiskSpd\diskspd.zip"
-		Remove-Item -Path "$workdir\Tools\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
+		Expand-Archive "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip"
+		Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\tools\toolsvhd\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64fre*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\"
+		Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
+		Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
 }
 
 # Download convert-windowsimage if its not in tools folder
 WriteInfoHighlighted "Testing convert-windowsimage presence"
-If ( Test-Path -Path "$workdir\Tools\convert-windowsimage.ps1" ) {
+If ( Test-Path -Path "$PSScriptRoot\Tools\convert-windowsimage.ps1" ) {
 	WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
 }else{ 
 		WriteInfo "`t Downloading Convert-WindowsImage"
 		try{
-			Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$workdir\Tools\convert-windowsimage.ps1"
+			Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
 		}catch{
 			WriteError "`t Failed to download convert-windowsimage.ps1!"
 		}
@@ -392,13 +385,13 @@ foreach ($module in $modules){
 	WriteInfoHighlighted "Testing if modules are present" 
 	$modulename=$module[0]
     $moduleversion=$module[1]
-	if (!(Test-Path $workdir'\Tools\DSC\'$modulename'\')){
+	if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\")){
 		WriteInfo "`t Module $module not found... Downloading"
 		#Install NuGET package provider   
 		if ((Get-PackageProvider -Name NuGet) -eq $null){   
 			Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 			}
-		Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path $workdir'\Tools\DSC'
+		Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Tools\DSC"
 	}else{
 		WriteSuccess "`t Module $modulename version found... Skipping Download"
 	}
@@ -413,7 +406,7 @@ foreach ($module in $modules) {
         WriteInfo "`t Module $module will be installed"
         $modulename=$module[0]
         $moduleversion=$module[1]
-        Copy-item -Path "$workdir\Tools\DSC\$modulename" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
+        Copy-item -Path "$PSScriptRoot\Tools\DSC\$modulename" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
         WriteSuccess "`t Module was installed."
         Get-DscResource -Module $modulename
     } else {
