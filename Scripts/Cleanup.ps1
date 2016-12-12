@@ -81,7 +81,7 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
     if ((read-host "(type Y or N)") -eq "Y"){
         WriteSuccess "You typed Y .. Cleaning lab"
         if ($DC){
-            WriteInfoHighlighted "Removing DC $($DC.Name)"
+            WriteInfoHighlighted "Removing DC"
             WriteInfo "`t Turning off $($DC.Name)"
             $DC | Stop-VM -TurnOff -Force -WarningAction SilentlyContinue
             WriteInfo "`t Restoring snapshot on $($DC.Name)"
