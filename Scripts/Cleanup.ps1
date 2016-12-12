@@ -54,9 +54,9 @@ if (!$prefix){
     WriteErrorAndExit "Prefix is empty. Exiting"
 }
 
-$VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC"
-$vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)"
-$DC=get-vm "$($prefix)DC"
+$VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC" -ErrorAction SilentlyContinue
+$vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)" -ErrorAction SilentlyContinue
+$DC=get-vm "$($prefix)DC" -ErrorAction SilentlyContinue
 
 If ($VMs){
     WriteInfoHighlighted "VMs:"
@@ -76,7 +76,7 @@ if ($DC){
 #just one more space
 WriteInfo ""
 
-if (($vSwitch) -or ($VMs)){
+if (($vSwitch) -or ($VMs) -or ($DC)){
     $answer=read-host "This script will remove all VMs or (and) switches starting with $prefix (all above) Are you sure? (type  Y )"
     if ($answer -eq "Y"){
         if ($DC){
@@ -128,4 +128,4 @@ if (($vSwitch) -or ($VMs)){
     }
 }else{
     WriteErrorAndExit "No VMs and Switches with prefix $prefix detected. Exitting"
-}    
+}
