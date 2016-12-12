@@ -112,7 +112,7 @@ Function CreateUnattendFileVHD{
 ##########################################################################################
 
 ###Get workdirectory###
-$workdir=Split-Path $script:MyInvocation.MyCommand.Path
+$workdir=$PSScriptRoot
 
 ###Start LOG###
 Start-Transcript -Path $workdir\CreateParentDisks.log

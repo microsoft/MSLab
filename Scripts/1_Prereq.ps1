@@ -52,7 +52,7 @@ function  Get-WindowsBuildNumber {
 ##############
 
 # Get workdirectory and Start Time
-$workdir       = Split-Path $script:MyInvocation.MyCommand.Path
+$workdir=$PSScriptRoot
 Start-Transcript -Path "$workdir\Prereq.log"
 $StartDateTime = get-date
 WriteInfo "Script started at $StartDateTime"
