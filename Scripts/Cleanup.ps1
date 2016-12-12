@@ -102,7 +102,8 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
         }
 
         if (($vSwitch)){
-            WriteInfoHighlighted "Removing vSwitch $($vSwitch.Name)"
+            WriteInfoHighlighted "Removing vSwitch"
+            WriteInfo "`t Removing vSwitch $($vSwitch.Name)"
             $vSwitch | Remove-VMSwitch -Force
         }
         
