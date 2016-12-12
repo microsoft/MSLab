@@ -258,12 +258,6 @@ param (
 "@
 }
 
-##########################################################################################
-
-Function Get-ScriptDirectory
-    {
-    Split-Path $script:MyInvocation.MyCommand.Path
-    }
 
 ##########################################################################################
 
@@ -439,7 +433,7 @@ function WrapProcess
 ##########################################################################################
 #Some necessary stuff
 ##########################################################################################
-$Workdir=Get-ScriptDirectory
+$Workdir=$PSScriptRoot
 
 Start-Transcript -Path "$workdir\Deploy.log"
 
