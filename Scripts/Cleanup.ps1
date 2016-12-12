@@ -53,17 +53,19 @@ $DC=get-vm "$($prefix)DC" -ErrorAction SilentlyContinue
 
 If ($VMs){
     WriteInfoHighlighted "VMs:"
-    Write-Output $VMs.Name
+    $VMS | ForEach-Object {
+        WriteInfo "`t $($_.Name)"
+    }
 }
 
 if ($vSwitch){
-WriteInfoHighlighted "vSwitch:"
-Write-Output $vSwitch.name
+    WriteInfoHighlighted "vSwitch:"
+    WriteInfo "`t $($vSwitch.name)"
 }
 
 if ($DC){
     WriteInfoHighlighted "DC:"
-    Write-Output $DC.Name
+    WriteInfo "`t $($DC.Name)"
 }
 
 #just one more space
@@ -75,40 +77,45 @@ if ((Get-ChildItem -Path $PSScriptRoot\temp\mountdir -ErrorAction SilentlyContin
 }
 
 if (($vSwitch) -or ($VMs) -or ($DC)){
-    $answer=read-host "This script will remove all VMs or (and) switches starting with $prefix (all above) Are you sure? (type  Y )"
-    if ($answer -eq "Y"){
+    WriteInfoHighlighted "This script will remove all items listed above. Do you want to remove it?"
+    if ((read-host "(type Y or N)") -eq "Y"){
+        WriteSuccess "You typed Y .. Cleaning lab"
         if ($DC){
-            WriteInfo "Turning off $($DC.Name)"
+            WriteInfoHighlighted "Removing DC $($DC.Name)"
+            WriteInfo "`t Turning off $($DC.Name)"
             $DC | Stop-VM -TurnOff -Force -WarningAction SilentlyContinue
-            WriteInfo "Restoring snapshot on $($DC.Name)"
+            WriteInfo "`t Restoring snapshot on $($DC.Name)"
             $DC | Restore-VMsnapshot -Name Initial -Confirm:$False -ErrorAction SilentlyContinue
             Start-Sleep 2
-            WriteInfo "Removing snapshot from $($DC.Name)"
+            WriteInfo "`t Removing snapshot from $($DC.Name)"
             $DC | Remove-VMsnapshot -name Initial -Confirm:$False -ErrorAction SilentlyContinue
-            WriteInfo "Removing DC $($DC.Name)"
+            WriteInfo "`t Removing DC $($DC.Name)"
             $DC | Remove-VM -Force
         }
         if ($VMs){
+            WriteInfoHighlighted "Removing VMs"
             foreach ($VM in $VMs){
-            WriteInfo "Removing VMs $($VM.Name)"
+            WriteInfo "`t Removing VM $($VM.Name)"
             $VM | Stop-VM -TurnOff -Force -WarningAction SilentlyContinue
             $VM | Remove-VM -Force
             }
         }
 
         if (($vSwitch)){
-            WriteInfo "Removing vSwitch $($vSwitch.SwitchName)"
+            WriteInfoHighlighted "Removing vSwitch $($vSwitch.Name)"
             $vSwitch | Remove-VMSwitch -Force
         }
         
-        #Cleanup folders
-        "$PSScriptRoot\LAB\VMs","$PSScriptRoot\temp" | ForEach-Object {
-            if ((Get-Item -Path $_ -ErrorAction SilentlyContinue)){
-                WriteInfo "Removing folder $_"
-                remove-item $_ -Confirm:$False -Recurse
-            }    
-        }
-        
+        #Cleanup folders       
+        if ((test-path "$PSScriptRoot\LAB\VMs") -or (test-path "$PSScriptRoot\temp") ){
+            WriteInfoHighlighted "Cleaning folders"
+            "$PSScriptRoot\LAB\VMs","$PSScriptRoot\temp" | ForEach-Object {
+                if ((test-path -Path $_)){
+                    WriteInfo "`t Removing folder $_"
+                    remove-item $_ -Confirm:$False -Recurse
+                }    
+            }
+        }        
         #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
         $zipfile= "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
         $zipoutput="$PSScriptRoot\LAB\DC\"
