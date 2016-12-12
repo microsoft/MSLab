@@ -54,57 +54,78 @@ if (!$prefix){
     WriteErrorAndExit "Prefix is empty. Exiting"
 }
 
-WriteInfoHighlighted "VMs:"
-Write-Output (get-vm -Name $prefix*).name
+$VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC"
+$vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)"
+$DC=get-vm "$($prefix)DC"
+
+If ($VMs){
+    WriteInfoHighlighted "VMs:"
+    Write-Output $VMs.Name
+}
+
+if ($vSwitch){
 WriteInfoHighlighted "SwitchName:"
-Write-Output (Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)").name
+Write-Output $vSwitch.name
+}
+
+if ($DC){
+    WriteInfoHighlighted "DC:"
+    Write-Output $DC.Name
+}
+
+#just one more space
 WriteInfo ""
 
-$answer=read-host "This script will remove all VMs and switches starting with $prefix (all above) Are you sure? (type  Y )"
+if (($vSwitch) -or ($VMs)){
+    $answer=read-host "This script will remove all VMs or (and) switches starting with $prefix (all above) Are you sure? (type  Y )"
+    if ($answer -eq "Y"){
+        if ($DC){
+            WriteInfo "Turning off $($DC.Name)"
+            $DC | Stop-VM -TurnOff -Force
+            WriteInfo "Restoring snapshot on $($DC.Name)"
+            $DC | Restore-VMsnapshot -Name Initial -Confirm:$False
+            Start-Sleep 2
+            WriteInfo "Removing snapshot from $($DC.Name)"
+            $DC | Remove-VMsnapshot -name Initial -Confirm:$False
+        }
+        if ($VMs){
+            foreach ($VM in $VMs){
+            WriteInfo "Removing VMs $($VM.Name)"
+            $VM | Stop-VM -TurnOff -Force
+            $VM | Remove-VM -Force
+            }
+        }
+        if ((Get-VMSwitch "$($vSwitch.SwitchName)")){
+            WriteInfo "Removing vSwitch $($vSwitch.SwitchName)"
+            $vSwitch | Remove-VMSwitch -Force
+        }
+        
+        # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
+        if ((Get-ChildItem -Path $workdir\temp\mountdir)){
+            &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\temp\mountdir /discard
+        }
 
-if ($answer -eq "Y"){
-    if ((get-vm "$($prefix)DC")){
-        WriteInfo "Turning off $($prefix)DC"
-        Stop-VM "$($prefix)DC" -TurnOff -Force
-        WriteInfo "Restoring snapshot on $($prefix)DC"
-        Restore-VMsnapshot -VmName "$($prefix)DC"  -Name Initial -Confirm:$False
-        Start-Sleep 2
-        WriteInfo "Removing snapshot from $($prefix)DC"
-        Remove-VMsnapshot -VMName "$($prefix)DC" -name Initial -Confirm:$False
-    }
-    if ((get-VM $prefix*)){
-        WriteInfo "Removing all VMs with prefix $prefix"
-        get-VM $prefix* | Stop-VM -TurnOff -Force
-        get-VM $prefix* | Remove-VM -Force
-    }
-    if ((Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)")){
-        WriteInfo "Removing vSwitch $($labconfig.prefix)$($LabConfig.SwitchName)"
-        Remove-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)" -Force
-    }
-    
-    # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
-    if ((Get-ChildItem -Path $workdir\temp\mountdir)){
-        &"$workdir\Tools\dism\dism" /Unmount-Image /MountDir:$workdir\temp\mountdir /discard
-    }
 
-    if ((Get-Item -Path "$workdir\LAB\VMs")){
-        WriteInfo "Removing folder $workdir\LAB\VMs"
-        remove-item "$workdir\LAB\VMs" -Confirm:$False -Recurse
+        #Cleanup folders
+        "$workdir\LAB\VMs","$workdir\temp" | ForEach-Object {
+            if ((Get-Item -Path $_)){
+                WriteInfo "Removing folder $_"
+                remove-item $_ -Confirm:$False -Recurse
+            }    
+        }
+        
+        #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
+        $zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
+        $zipoutput="$workdir\LAB\DC\"
+
+        Expand-Archive -Path $zipfile -DestinationPath $zipoutput
+
+        WriteSuccess "Job Done! Press any key to close window ..."
+        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
     }
-
-    if ((Get-Item -Path "$workdir\temp")){
-        WriteInfo "Removing folder $workdir\temp"
-        remove-item $workdir\temp -Confirm:$False -Recurse
+    else {
+        WriteErrorAndExit "You did not type Y"
     }
-    #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
-    $zipfile= "$workdir\LAB\DC\Virtual Machines.zip"
-    $zipoutput="$workdir\LAB\DC\"
-
-    Expand-Archive -Path $zipfile -DestinationPath $zipoutput
-
-    WriteSuccess "Job Done! Press any key to close window ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-}
-else {
-    WriteErrorAndExit "You did not type Y"
-}
+}else{
+    WriteErrorAndExit "No VMs and Switches with prefix $prefix detected. Exitting"
+}    
