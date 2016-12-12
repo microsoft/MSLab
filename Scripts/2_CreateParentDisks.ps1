@@ -927,6 +927,21 @@ Remove-Item -Path "$workdir\temp" -Force -Recurse
 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
+WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
+WriteInfo "(.\OSServer .\OSClient .\Tools\ToolsVHD .\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+If ((Read-host "Please type Y or N") -eq "Y"){
+    WriteInfo "`t Cleaning unnecessary items" 
+    "$workdir\OSServer","$workdir\OSClient","$workdir\Tools\ToolsVHD","$workdir\Tools\DSC","$workdir\1_Prereq.ps1","$workdir\2_CreateParentDisks.ps1" | ForEach-Object {
+        WriteInfo "`t `t Removing $_"
+        Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
+    } 
+    WriteInfo "`t `t Renaming $workdir\3_Deploy.ps1 to Deploy.ps1"
+    Rename-Item -Path "$workdir\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
+    
+}else{
+    WriteInfo "You did not type Y, skipping cleanup"
+}
+
 Stop-Transcript
 WriteSuccess "Job Done. Press any key to continue..."
 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
