@@ -307,9 +307,9 @@ if (!($ServerPackages)){
 }
 
 if ($Serverpackages.fullname){
-    $serverpackages=$serverpackages.FullName
+    $serverpackages=$serverpackages.FullName | Sort-Object
 }else{
-    $serverpackages=$serverpackages.FileNames
+    $serverpackages=$serverpackages.FileNames | Sort-Object
 }
 
 #grab Client packages
@@ -347,9 +347,9 @@ If ($LabConfig.CreateClientParent){
 }
 
 if ($clientpackages.fullname){
-    $clientpackages=$clientpackages.FullName
+    $clientpackages=$clientpackages.FullName | Sort-Object
 }else{
-    $clientpackages=$clientpackages.FileNames
+    $clientpackages=$clientpackages.FileNames | Sort-Object
 }
 
 #######################
