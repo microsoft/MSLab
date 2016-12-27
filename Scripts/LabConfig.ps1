@@ -22,6 +22,7 @@ $LabConfig=@{
 	AllowedVLANs="1-10" 				# (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
     AdditionalNetworksConfig=@();		# Just empty array for config below
     VMs=@()								# Just empty array for config below
+	ServerVHDs=@()						# Just empty array for config below
 } 
 
 # Specifying LabVMs
@@ -48,6 +49,19 @@ $LABConfig.AdditionalNetworksConfig += @{
 }
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
+
+#optional: (these are defaults images that will be created during 2_CreateParentDisks.ps1. If nothing is specified, the below config is automatically used)
+$LABConfig.ServerVHDs += @{
+	Edition="DataCenterCore" 
+	VHDName="Win2016Core_G2.vhdx"
+	Size=30GB
+}
+$LABConfig.ServerVHDs += @{ 
+	Edition="DataCenterNano"
+	VHDName="Win2016NanoHV_G2.vhdx"
+	NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-ShieldedVM-Package"
+	Size=30GB
+}
 
 #>
 
@@ -232,6 +246,27 @@ NetVLAN
 
 Subnet
 	Subnet of network.
+
+##$LabConfig.ServerVHDs##
+	Example:     $LABConfig.ServerVHDs += @{
+        			Edition="DataCenterNano" 
+        			VHDName="Win2016Nano_G2.vhdx"
+        			NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package"
+        			Size=30GB
+    			}
+
+Edition
+	Edition of VHD, consumed by convert-windowsimage
+	possible values: DatacenterNano, DatacenterCore, Datacenter, StandardNano, StandardCore, Standard
+
+VHDName
+	Name of VHD that will be created
+
+NanoPackages
+	Names of packages (it will automatically grab all files starting with the name provided, so all cabs with language cabs)
+
+Size
+	Size in bytes
 
 #>
 
