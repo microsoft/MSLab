@@ -440,14 +440,14 @@ if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
 	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
 	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$PSScriptRoot\Temp\mountdir
 	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-    &"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$PSScriptRoot\Temp\mountdir
 	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-    &"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
+	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
 	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-ShieldedVM-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
 	&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
 	#do some servicing (adding CABs and MSUs)
-    WriteInfoHighlighted "Adding cabs and MSUs to parent images"
+	WriteInfoHighlighted "Adding cabs and MSUs to parent images"
 	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
 		&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\$_ /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
 		foreach ($ServerPackage in $ServerPackages){
