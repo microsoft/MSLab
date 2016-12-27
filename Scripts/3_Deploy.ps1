@@ -967,7 +967,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPathTest -Index 1
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
 			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
 			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
 			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
@@ -1133,7 +1133,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPathTest -Index 1
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
 			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
 			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
 			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
@@ -1287,7 +1287,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPathTest -Index 1
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
 			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
 			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
 			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
@@ -1472,7 +1472,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPathTest -Index 1
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
 			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
 			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
 			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile

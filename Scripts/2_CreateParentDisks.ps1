@@ -535,7 +535,7 @@ if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Of
 WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
 $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
 New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
-Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPathTest -Index 1
+Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
 Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
 #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
 #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
