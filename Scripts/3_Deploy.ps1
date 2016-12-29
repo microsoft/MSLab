@@ -493,6 +493,8 @@ $DisableWCF=@'
 </component>
 '@
 
+$ExternalSwitchName="$($Labconfig.Prefix)$($LabConfig.Switchname)-External"
+
 #####################
 
 
@@ -614,6 +616,55 @@ if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){
     WriteInfoHighlighted "`t $SwitchName exists. Looks like lab with same prefix exists. "
 }
 
+if ($Labconfig.Internet){
+	WriteInfoHighlighted "Internet connectivity requested"
+	WriteInfo "`t Detecting external vSwitch $ExternalSwitchName"
+	$ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
+	if ($ExternalSwitch){
+		WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
+	}else{
+		WriteInfo "`t Detecting external VMSwitch"
+		$ExtSwitch=Get-VMSwitch -SwitchType External
+		if (!$ExtSwitch){
+			WriteInfoHighlighted "`t no External Switch detected. Will create one "
+			$TempNetAdapters=get-netadapter | Where-Object status -eq up
+			if ($TempNetAdapters.name.count -eq 1){
+				WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
+				$ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
+			}
+			if ($TempNetAdapters.name.count -gt 1){
+				WriteInfo "`t More than 1 NIC detected"
+				WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
+				$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -PassThru -Title "Please select adapter you want to use for External vSwitch"
+				if ($tempNetAdapter.name.count -gt 1){
+					do {
+					WriteError "`t Please, select just one"
+					$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -PassThru -Title "Please select adapter you want to use for External vSwitch"
+					} until ($tempNetAdapter.name.count -eq 1)
+				}
+				if (!$tempNetAdapter){
+					WriteErrorAndExit "You did not select any net adapter. Exitting."
+				}
+				$ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+			}
+		}
+		if ($ExtSwitch.count -eq 1){
+			WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
+			$ExternalSwitch=$ExtSwitch
+		}
+		if ($ExtSwitch.count -gt 1){
+			WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
+			$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
+			if ($ExtSwitch.count -gt 1){
+				do {
+					WriteError "`t Please, select just one"
+					$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
+				} until ($ExternalSwitch.count -eq 1)
+			}
+		}
+	}
+}
+
 WriteInfo "Testing if lab already exists."
 #Testing if lab already exists.
 if ($SwitchNameExists){
@@ -703,11 +754,17 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 		$IP++
 	}
 
+	if ($labconfig.internet){
+		WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
+		$DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
+		$DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -SwitchName $ExternalSwitch.Name
+	}
+
 	WriteInfo "`t Adding Tools disk to DC machine"
 
 	$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\tools.vhdx"
 
-	WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
+	WriteInfo "`t `t Adding Virtual Hard Disk $($VHD.Path)"
 	$DC | Add-VMHardDiskDrive -Path $vhd.Path
 
 	WriteInfo  "`t Starting Virtual Machine $($DC.name)"
@@ -759,6 +816,22 @@ if (!$LABExists){
 		param($labconfig);
 		Get-DhcpServerInDC | Remove-DHCPServerInDC
 		Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
+	}
+	If ($labconfig.internet){
+		WriteInfo "`t Configuring NAT"
+		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+			Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature
+			Set-Service -Name RemoteAccess -StartupType Automatic
+			Start-Service -Name RemoteAccess
+			netsh.exe routing ip nat install
+			netsh.exe routing ip nat add interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name
+			netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
+			netsh.exe ras set conf confstate = enabled
+			netsh.exe routing ip dnsproxy install
+			Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
+			Add-DNSServerForwarder -IPAddress 8.8.8.8 -PassThru 
+			Add-DNSServerForwarder -IPAddress 217.31.204.130 -PassThru #NIC.CZ open DNS as backup
+		}
 	}
 }
 #################

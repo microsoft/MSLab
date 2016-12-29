@@ -20,6 +20,7 @@ $LabConfig=@{
 	DomainName="Corp.contoso.com";		# (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used
 	DefaultOUName="Workshop";			# (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
 	AllowedVLANs="1-10";				# (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
+	Internet=$false						# (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
 	AdditionalNetworksConfig=@();		# Just empty array for config below
 	VMs=@();							# Just empty array for config below
 	ServerVHDs=@()						# Just empty array for config below
@@ -156,6 +157,16 @@ DefaultOUName (Optional)
 
 AllowedVLANs (Optional)
 	Allowed VLANs configured on all management adapters. Accepts "1-10" or "1,2,3,4,5,6,7,8,9,10"
+
+Internet (Optional)
+	If $True, it will configure vSwitch based on following Logic (designed to not ask you anything most of the times):
+		If no vSwitch exists:
+			If only one connected adapter exists, then it will create vSwitch from it.
+			If more connected adapters exists, it will ask for only one
+		If vSwitch named "$($labconfig.Prefix)$($labconfig.Switchname)-External" exists, it will be used (in case lab already exists)
+		If only one vSwitch exists, then it will be used
+		If more vSwitches exists, you will be prompted for what to use.
+	It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
 
 ##$LabConfig.VMs##
  Example: 
