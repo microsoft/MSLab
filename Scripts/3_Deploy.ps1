@@ -638,13 +638,7 @@ if ($Labconfig.Internet){
 			if ($TempNetAdapters.name.count -gt 1){
 				WriteInfo "`t More than 1 NIC detected"
 				WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
-				$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -PassThru -Title "Please select adapter you want to use for External vSwitch"
-				if ($tempNetAdapter.name.count -gt 1){
-					do {
-					WriteError "`t Please, select just one"
-					$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -PassThru -Title "Please select adapter you want to use for External vSwitch"
-					} until ($tempNetAdapter.name.count -eq 1)
-				}
+				$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -OutputMode Single -PassThru -Title "Please select adapter you want to use for External vSwitch" 
 				if (!$tempNetAdapter){
 					WriteErrorAndExit "You did not select any net adapter. Exitting."
 				}
@@ -657,13 +651,7 @@ if ($Labconfig.Internet){
 		}
 		if ($ExtSwitch.count -gt 1){
 			WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
-			$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
-			if ($ExtSwitch.count -gt 1){
-				do {
-					WriteError "`t Please, select just one"
-					$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
-				} until ($ExternalSwitch.count -eq 1)
-			}
+			$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
 		}
 	}
 }
