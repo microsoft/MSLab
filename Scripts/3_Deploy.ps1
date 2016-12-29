@@ -628,6 +628,9 @@ if ($Labconfig.Internet){
 		if (!$ExtSwitch){
 			WriteInfoHighlighted "`t no External Switch detected. Will create one "
 			$TempNetAdapters=get-netadapter | Where-Object status -eq up
+			if (!$TempNetAdapters){
+				WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
+			}
 			if ($TempNetAdapters.name.count -eq 1){
 				WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
 				$ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
