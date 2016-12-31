@@ -1,7 +1,7 @@
 ﻿# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
 	exit
 }
@@ -55,7 +55,7 @@ param (
 )
 
     if ( Test-Path "Unattend.xml" ) {
-      del .\Unattend.xml
+      Remove-Item .\Unattend.xml
     }
     $unattendFile = New-Item "Unattend.xml" -type File
     $fileContent = @"
@@ -125,7 +125,7 @@ param (
 )
 
     if ( Test-Path "Unattend.xml" ) {
-      del .\Unattend.xml
+      Remove-Item .\Unattend.xml
     }
     $unattendFile = New-Item "Unattend.xml" -type File
     $fileContent = @"
@@ -181,7 +181,7 @@ param (
 )
 
     if ( Test-Path "Unattend.xml" ) {
-      del .\Unattend.xml
+      Remove-Item .\Unattend.xml
     }
     $unattendFile = New-Item "Unattend.xml" -type File
     $fileContent = @"
@@ -493,6 +493,8 @@ $DisableWCF=@'
 </component>
 '@
 
+$ExternalSwitchName="$($Labconfig.Prefix)$($LabConfig.Switchname)-External"
+
 #####################
 
 
@@ -540,7 +542,7 @@ if ($LABConfig.VMs.vTPM -contains $true){
 		WriteErrorAndExit "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration"
 	}
 	#load Guardian
-	$guardian=Get-HgsGuardian | select -first 1
+	$guardian=Get-HgsGuardian | Select-Object -first 1
 	if($guardian -eq $null){
 		$guardian=New-HgsGuardian -Name LabGuardian -GenerateCertificates
 		WriteInfo "`t HGS with name LabGuardian created"
@@ -614,6 +616,46 @@ if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){
     WriteInfoHighlighted "`t $SwitchName exists. Looks like lab with same prefix exists. "
 }
 
+if ($Labconfig.Internet){
+	WriteInfoHighlighted "Internet connectivity requested"
+	WriteInfo "`t Detecting external vSwitch $ExternalSwitchName"
+	$ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
+	if ($ExternalSwitch){
+		WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
+	}else{
+		WriteInfo "`t Detecting external VMSwitch"
+		$ExtSwitch=Get-VMSwitch -SwitchType External
+		if (!$ExtSwitch){
+			WriteInfoHighlighted "`t no External Switch detected. Will create one "
+			$TempNetAdapters=get-netadapter | Where-Object status -eq up
+			if (!$TempNetAdapters){
+				WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
+			}
+			if ($TempNetAdapters.name.count -eq 1){
+				WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
+				$ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
+			}
+			if ($TempNetAdapters.name.count -gt 1){
+				WriteInfo "`t More than 1 NIC detected"
+				WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
+				$tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -OutputMode Single -PassThru -Title "Please select adapter you want to use for External vSwitch" 
+				if (!$tempNetAdapter){
+					WriteErrorAndExit "You did not select any net adapter. Exitting."
+				}
+				$ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+			}
+		}
+		if ($ExtSwitch.count -eq 1){
+			WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
+			$ExternalSwitch=$ExtSwitch
+		}
+		if ($ExtSwitch.count -gt 1){
+			WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
+			$ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -PassThru -Title 'Please Select External Switch you want to use for Internet Connectivity'
+		}
+	}
+}
+
 WriteInfo "Testing if lab already exists."
 #Testing if lab already exists.
 if ($SwitchNameExists){
@@ -650,7 +692,7 @@ New-Item "$PSScriptRoot\LAB\VMs" -ItemType Directory -Force
 #get path for Tools disk
 
 WriteInfoHighlighted "Looking for Tools Parent Disks"
-$toolsparent=Get-ChildItem "$PSScriptRoot\ParentDisks" -Recurse | where name -eq tools.vhdx
+$toolsparent=Get-ChildItem "$PSScriptRoot\ParentDisks" -Recurse | Where-Object name -eq tools.vhdx
 if ($toolsparent -eq $null){
 	WriteErrorAndExit "`t Tools parent disk not found"
 }else{
@@ -663,7 +705,7 @@ WriteInfo "`t Tools parent disk $($toolsparent.fullname) found"
 
 if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 	WriteInfoHighlighted "Looking for DC to be imported"
-	get-childitem $LABFolder -Recurse | where {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
+	get-childitem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
 		$DC=Import-VM -Path $_.FullName
 		if ($DC -eq $null){
 			WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
@@ -685,7 +727,7 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 	}
 
 	If($labconfig.MGMTNICsInDC -ge 2){
-		2..$labconfig.MGMTNICsInDC | % {
+		2..$labconfig.MGMTNICsInDC | ForEach-Object {
 			WriteInfo "`t Adding Network Adapter Management$_"
 			$DC | Add-VMNetworkAdapter -Name Management$_
 		}
@@ -703,11 +745,17 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 		$IP++
 	}
 
+	if ($labconfig.internet){
+		WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
+		$DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
+		$DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -SwitchName $ExternalSwitch.Name
+	}
+
 	WriteInfo "`t Adding Tools disk to DC machine"
 
 	$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\tools.vhdx"
 
-	WriteInfo "`t Adding Virtual Hard Disk $($VHD.Path)"
+	WriteInfo "`t `t Adding Virtual Hard Disk $($VHD.Path)"
 	$DC | Add-VMHardDiskDrive -Path $vhd.Path
 
 	WriteInfo  "`t Starting Virtual Machine $($DC.name)"
@@ -750,8 +798,8 @@ if (!$LABExists){
 	WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
 	#make tools disk online
 	WriteInfo "`t Making tools disk online"
-	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
-	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | where operationalstatus -eq offline | Set-Disk -IsOffline $false}
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | Where-Object operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
+	Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | Where-Object operationalstatus -eq offline | Set-Disk -IsOffline $false}
 
 	#authorize DHCP (if more networks added, then re-authorization is needed. Also if you add multiple networks once, it messes somehow even with parent VM for DC)
 	WriteInfo "`t Authorizing DHCP"
@@ -759,6 +807,22 @@ if (!$LABExists){
 		param($labconfig);
 		Get-DhcpServerInDC | Remove-DHCPServerInDC
 		Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
+	}
+	If ($labconfig.internet){
+		WriteInfo "`t Configuring NAT"
+		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+			Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature
+			Set-Service -Name RemoteAccess -StartupType Automatic
+			Start-Service -Name RemoteAccess
+			netsh.exe routing ip nat install
+			netsh.exe routing ip nat add interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name
+			netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
+			netsh.exe ras set conf confstate = enabled
+			netsh.exe routing ip dnsproxy install
+			Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
+			Add-DNSServerForwarder -IPAddress 8.8.8.8 -PassThru 
+			Add-DNSServerForwarder -IPAddress 217.31.204.130 -PassThru #NIC.CZ open DNS as backup
+		}
 	}
 }
 #################
@@ -828,12 +892,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$SharedSSDs=$null
 					$SharedHDDs=$null
 					If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){  
-						$SharedSSDs= 1..$_.ssdnumber | % {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
-						$SharedSSDs | % {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
+						$SharedSSDs= 1..$_.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
+						$SharedSSDs | ForEach-Object {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
 					}
 					If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)){  
-						$SharedHDDs= 1..$_.hddnumber | % {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
-						$SharedHDDs | % {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
+						$SharedHDDs= 1..$_.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
+						$SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
 					}
 			}else{
 					$SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD*$VMSet*.VHDS"
@@ -843,7 +907,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -872,7 +936,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | % {
+				2..$MGMTNICs | ForEach-Object {
 					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
@@ -957,7 +1021,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
 						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
 					}else{
@@ -967,17 +1031,20 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -990,11 +1057,11 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			
 			WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 
-			$SharedSSDs | % {
+			$SharedSSDs | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
 				WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
-			$SharedHDDs | % {
+			$SharedHDDs | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
 				WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
@@ -1006,7 +1073,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1035,7 +1102,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | % {
+				2..$MGMTNICs | ForEach-Object {
 					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
@@ -1120,7 +1187,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
 						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
 					}else{
@@ -1130,17 +1197,20 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1157,7 +1227,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1186,7 +1256,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | % {
+				2..$MGMTNICs | ForEach-Object {
 					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
@@ -1271,7 +1341,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
 						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
 					}else{
@@ -1281,17 +1351,20 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1304,9 +1377,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 						
 			If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){         
 				$SSDSize=$_.SSDSize
-				$SSDs= 1..$_.SSDNumber | % { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
+				$SSDs= 1..$_.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
 				WriteInfoHighlighted "`t Adding Virtual SSD Disks"
-				$SSDs | % {
+				$SSDs | ForEach-Object {
 					Add-VMHardDiskDrive -Path $_.path -VMName $VMname
 					WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
 				}
@@ -1314,9 +1387,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 			If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)) {
 				$HDDSize=$_.HDDSize
-				$HDDs= 1..$_.HDDNumber | % { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
+				$HDDs= 1..$_.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
 				WriteInfoHighlighted "`t Adding Virtual HDD Disks"
-				$HDDs | % {
+				$HDDs | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname
 				WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 				}	
@@ -1328,9 +1401,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			$VMSet=$_.VMSet
 			if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
 				$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $_.ReplicaHDDSize
-				$ReplicaHDD | % {WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB created"}
+				$ReplicaHDD | ForEach-Object {WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB created"}
 				$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $_.ReplicaLogSize
-				$ReplicaLog | % {WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB created"}
+				$ReplicaLog | ForEach-Object {WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB created"}
 			}else{
 				$ReplicaHDD=Get-VHD -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS"
 				$ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
@@ -1339,7 +1412,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
 			Write-Host "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | where Name -eq $_.ParentVHD
+			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
 				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
@@ -1368,7 +1441,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | % {
+				2..$MGMTNICs | ForEach-Object {
 					WriteInfo "`t Adding Network Adapter Management$_"
 					$VMTemp | Add-VMNetworkAdapter -Name Management$_
 				}
@@ -1453,7 +1526,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$path="c:\$vmname.txt"
 					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
 					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); del $path} -ArgumentList $path
+					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
 					if ($_.DisableWCF -eq $True){
 						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
 					}else{
@@ -1463,17 +1536,20 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			WriteInfo "`t Adding unattend to VHD"
-			&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
 			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			copy $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
 			
 			if ($_.DSCMode -eq 'Pull'){
 				WriteInfo "`t Adding metaconfig.mof to VHD"
-				copy "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
 			}
 			
-			&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
 
 			#add toolsdisk
 			if ($_.AddToolsVHD -eq $True){
@@ -1485,12 +1561,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 #endregion
 			
 			WriteInfoHighlighted "`t Attaching Shared Disks..."
-			$ReplicaHdd | % {
+			$ReplicaHdd | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
 				WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
 
-			$ReplicaLog | % {
+			$ReplicaLog | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
 				WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB added to $VMname"
 			}
@@ -1512,10 +1588,10 @@ if (Test-Path "$PSScriptRoot\unattend.xml") {remove-item "$PSScriptRoot\unattend
 #############
 
 WriteInfoHighlighted "Finishing..." 
-#get-vm | where name -like $($labconfig.Prefix) | Start-VM
+#get-vm | Where-Object name -like $($labconfig.Prefix) | Start-VM
 WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
 Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
-Get-VM | where name -like "$($labconfig.Prefix)*"  | % { WriteSuccess "Machine $($_.VMName) provisioned" }
+Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
 if ($labconfig.AllowedVLans){
 	WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to $($LabConfig.AllowedVlans)"

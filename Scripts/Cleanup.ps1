@@ -49,6 +49,7 @@ if (!$prefix){
 
 $VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC" -ErrorAction SilentlyContinue
 $vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)" -ErrorAction SilentlyContinue
+$extvSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)-External" -ErrorAction SilentlyContinue
 $DC=get-vm "$($prefix)DC" -ErrorAction SilentlyContinue
 
 If ($VMs){
@@ -61,6 +62,11 @@ If ($VMs){
 if ($vSwitch){
     WriteInfoHighlighted "vSwitch:"
     WriteInfo "`t $($vSwitch.name)"
+}
+
+if ($extvSwitch){
+    WriteInfoHighlighted "External vSwitch:"
+    WriteInfo "`t $($extvSwitch.name)"
 }
 
 if ($DC){
@@ -76,7 +82,7 @@ if ((Get-ChildItem -Path $PSScriptRoot\temp\mountdir -ErrorAction SilentlyContin
     &"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\temp\mountdir /discard
 }
 
-if (($vSwitch) -or ($VMs) -or ($DC)){
+if (($extvSwitch) -or ($vSwitch) -or ($VMs) -or ($DC)){
     WriteInfoHighlighted "This script will remove all items listed above. Do you want to remove it?"
     if ((read-host "(type Y or N)") -eq "Y"){
         WriteSuccess "You typed Y .. Cleaning lab"
@@ -105,6 +111,12 @@ if (($vSwitch) -or ($VMs) -or ($DC)){
             WriteInfoHighlighted "Removing vSwitch"
             WriteInfo "`t Removing vSwitch $($vSwitch.Name)"
             $vSwitch | Remove-VMSwitch -Force
+        }
+
+        if (($extvSwitch)){
+            WriteInfoHighlighted "Removing vSwitch"
+            WriteInfo "`t Removing vSwitch $($extvSwitch.Name)"
+            $extvSwitch | Remove-VMSwitch -Force
         }
         
         #Cleanup folders       

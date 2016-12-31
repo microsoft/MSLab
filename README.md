@@ -13,7 +13,8 @@
 **Step 1** Download required files (prerequisities):
 * [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
 * [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016
+* [Servicing stack update](https://support.microsoft.com/en-us/kb/3199986) is needed as prerequisite for December Cumulative Update
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016.
 
 **Step 2** Create folder and Unzip scripts there
 
@@ -23,6 +24,7 @@
  
 **Step 4** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, Cumulative Update and then will hydrate parent disks and Domain Controller.
+ * When selecting updates, rename them that they are sorted (Prerequisite update first, Cumulative Update second)
 
 **Step 5** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
