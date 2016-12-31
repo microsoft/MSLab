@@ -1,7 +1,7 @@
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
 	exit
 }
@@ -389,7 +389,7 @@ foreach ($module in $modules){
 		WriteInfo "`t Module $module not found... Downloading"
 		#Install NuGET package provider   
 		if ((Get-PackageProvider -Name NuGet) -eq $null){   
-			Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+			Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Confirm:$false -Force
 			}
 		Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Tools\DSC"
 	}else{
