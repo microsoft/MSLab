@@ -626,7 +626,7 @@ if ($Labconfig.Internet){
 		WriteInfo "`t Detecting external VMSwitch"
 		$ExtSwitch=Get-VMSwitch -SwitchType External
 		if (!$ExtSwitch){
-			WriteInfoHighlighted "`t no External Switch detected. Will create one "
+			WriteInfoHighlighted "`t No External Switch detected. Will create one "
 			$TempNetAdapters=get-netadapter | Where-Object status -eq up
 			if (!$TempNetAdapters){
 				WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
@@ -809,9 +809,28 @@ if (!$LABExists){
 		Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
 	}
 	If ($labconfig.internet){
-		WriteInfo "`t Configuring NAT"
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-			Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature
+		WriteInfoHighlighted "`t Configuring NAT"
+		WriteInfo "`t `t Installing Routing and RSAT-RemoteAccess features"
+		$cmd=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+			Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
+		}
+		if ($cmd.restartneeded -eq "Yes"){
+			WriteInfo "`t `t Restart of DC is requested"
+			WriteInfo "`t `t Restarting DC"
+			$DC | Restart-VM -Force
+			Start-Sleep 10
+			WriteInfoHighlighted "`t `t Waiting for Active Directory on $($DC.name) to be Started."
+			do{
+			$test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
+				param($labconfig);
+				Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue}
+				Start-Sleep 5
+			}
+			until ($test -ne $Null)
+			WriteSuccess "`t `t Active Directory on $($DC.name) is up."
+		}
+		WriteInfoHighlighted "`t `t Configuring NAT with netSH and starting services"
+		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {	
 			Set-Service -Name RemoteAccess -StartupType Automatic
 			Start-Service -Name RemoteAccess
 			netsh.exe routing ip nat install
