@@ -1,7 +1,7 @@
 #$Labconfig.VMs
 
-1..2 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’; ParentVHD = ‘Win2016Nano_G2.vhdx’; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig1’)} }
-3..4 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’; ParentVHD = ‘Win2016Nano_G2.vhdx’; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig2’)} }
+1..2 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’; ParentVHD = ‘Win2016NanoHV_G2.vhdx’; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig1’)} }
+3..4 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’; ParentVHD = ‘Win2016NanoHV_G2.vhdx’; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig2’)} }
 
 
 #starting VMs one by one (bug in LCM DB)
