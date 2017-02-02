@@ -925,7 +925,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			Write-Host "`t Looking for Parent Disk"
+			WriteInfo "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
@@ -1091,7 +1091,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			Write-Host "`t Looking for Parent Disk"
+			WriteInfo "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
@@ -1245,7 +1245,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			Write-Host "`t Looking for Parent Disk"
+			WriteInfo "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
@@ -1430,7 +1430,7 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			
 #region Todo:convert this Block to function
 			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			Write-Host "`t Looking for Parent Disk"
+			WriteInfo "`t Looking for Parent Disk"
 			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
 			
 			if ($serverparent -eq $null){
