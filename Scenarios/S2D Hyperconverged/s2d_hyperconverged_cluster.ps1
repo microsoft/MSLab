@@ -1,7 +1,7 @@
 ﻿##S2D Cluster##
 #This scenario simulates hyperconverged cluster consisting of 3,4,8,or 16 nodes. This simulates 3tier configuration, but without S2D cache
 
-##### VMS Config in variables.ps1 #####
+##### Labconfig.ps1 #####
 $LabConfig=@{
     DomainAdminName='Claus'; 			
 	AdminPassword='LS1setup!'; 			
@@ -25,7 +25,7 @@ $LabConfig=@{
 	} 
 } 
 
-#### Or with Nested Virtualization. But you need host with (almost) same build number (win 10 insider preview, or Windows Server TP5 #####
+#### Or with Nested Virtualization. ####
 
 1..4 | % { 
 	$VMNames="S2D"; 							
@@ -41,6 +41,8 @@ $LabConfig=@{
         NestedVirt=$True 				
 	} 
 }
+
+##### Labconfig.ps1 ends here ##########
 
 #######################################
 # Paste into PowerShell running in DC #
@@ -75,10 +77,10 @@ Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clusterin
 
 <#install Hyper-V for core servers - in case you are deploying core servers instead of Nano
 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
-foreach ($server in $servers) {Install-WindowsFeature -Name Failover-Clustering,Failover-Clustering-S2D,Hyper-V-PowerShell -ComputerName $server} 
+foreach ($server in $servers) {Install-WindowsFeature -Name Failover-Clustering,Hyper-V-PowerShell -ComputerName $server} 
 #restart and wait for computers
 Invoke-Command -ComputerName $servers -ScriptBlock {Restart-Computer -Force}
-Start-Sleep 60
+Start-Sleep 90
 #>
 
 if ($Networking -eq "Yes"){

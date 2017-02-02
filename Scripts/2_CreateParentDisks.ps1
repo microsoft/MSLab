@@ -299,7 +299,7 @@ $ServerPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
 
 if (!($ServerPackages)){
     #ask for MSU patches
-    Write-Host -ForegroundColor Green "Please select latest Server Cumulative Update (.MSU)"
+    WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
     [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
     $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
         Multiselect = $true;
@@ -307,17 +307,13 @@ if (!($ServerPackages)){
     }
     $ServerPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
     If($ServerPackages.ShowDialog() -eq “OK”){
-    Write-Host -ForegroundColor Cyan  "Following patches selected:"
-    Write-Host "`t $($ServerPackages.filenames)"
+    WriteInfoHighlighted  "Following patches selected:"
+    WriteInfo "`t $($ServerPackages.filenames)"
     } 
 
     #exit if nothing is selected
     if (!$ServerPackages.FileNames){
-            Write-Host -ForegroundColor Red  "no msu was selected... Exitting"
-            Write-Host "Press any key to continue ..."
-            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-            $HOST.UI.RawUI.Flushinputbuffer()
-            Exit
+            WriteErrorAndExit "no msu was selected... Exitting"
     }
 }
 
@@ -338,7 +334,7 @@ If ($LabConfig.CreateClientParent){
 
     if (!($ClientPackages)){
         #ask for MSU patches
-        Write-Host -ForegroundColor Green "Please select latest Client Cumulative Update (MSU)"
+        WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU)"
         [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
         $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
             Multiselect = $true;
@@ -346,17 +342,13 @@ If ($LabConfig.CreateClientParent){
         }
         $ClientPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
         If($ClientPackages.ShowDialog() -eq “OK”){
-        Write-Host -ForegroundColor Cyan  "Following patches selected:"
-        Write-Host "`t $($ClientPackages.filenames)"
+        WriteInfoHighlighted  "Following patches selected:"
+        WriteInfo "`t $($ClientPackages.filenames)"
         } 
 
         #exit if nothing is selected
         if (!$ClientPackages.FileNames){
-                Write-Host -ForegroundColor Red  "no msu was selected... Exitting"
-                Write-Host "Press any key to continue ..."
-                $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-                $HOST.UI.RawUI.Flushinputbuffer()
-                Exit
+                WriteErrorAndExit "no msu was selected... Exitting"
         }
     }
 }
