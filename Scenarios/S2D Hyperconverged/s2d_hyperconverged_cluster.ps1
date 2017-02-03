@@ -122,7 +122,7 @@ if ($numberofnodes -le 3){
     }
 }else{
     1..$MRTNumber | ForEach-Object {
-    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1TB,9TB
+    New-Volume -StoragePoolFriendlyName $pool.FriendlyName -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB
     }
 }
 start-sleep 10
