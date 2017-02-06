@@ -9,10 +9,10 @@
 
 #Videos
 
-[1 Lab Hydration](https://youtu.be/xDrMYdSCIpM)
-[2 Lab Deployment](https://youtu.be/SzewA7C9lzI)
-[3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
-[4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
+* [1 Lab Hydration](https://youtu.be/xDrMYdSCIpM)
+* [2 Lab Deployment](https://youtu.be/SzewA7C9lzI)
+* [3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
+* [4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
 
 #Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
 
