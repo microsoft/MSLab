@@ -155,7 +155,7 @@ if (!$Labconfig.ServerVHDs){
     $LABConfig.ServerVHDs += @{ 
         Edition="DataCenterNano"
         VHDName="Win2016NanoHV_G2.vhdx"
-        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-ShieldedVM-Package"
+        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
         Size=30GB
     }
 }
@@ -957,7 +957,7 @@ WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTim
 
 WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
 WriteInfo "(.\OSServer .\OSClient .\Tools\ToolsVHD .\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
-If ((Read-host "Please type Y or N") -eq "Y"){
+If ((Read-host "Please type Y or N") -like "*Y"){
     WriteInfo "`t Cleaning unnecessary items" 
     "$PSScriptRoot\OSServer","$PSScriptRoot\OSClient","$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
         WriteInfo "`t `t Removing $_"
