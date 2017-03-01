@@ -1,6 +1,6 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'S2DHyperConverged-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 <# Same as above, but with more explanation
@@ -8,7 +8,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'S
 $LabConfig=@{
 	DomainAdminName='LabAdmin';			# Used during 2_CreateParentDisks (no affect if changed after this step)
 	AdminPassword='LS1setup!';			# Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
-	Prefix = 'S2DHyperConverged-';		# All VMs and vSwitch are created with this prefix, so you can identify the lab
+	Prefix = 'ws2016lab-';				# All VMs and vSwitch are created with this prefix, so you can identify the lab
 	SwitchName = 'LabSwitch';			# Name of vSwitch
 	SecureBoot=$true;					# (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
 	DCEdition='ServerDataCenter';		# ServerDataCenter or ServerDataCenterCore (or if you prefer standard)
@@ -189,7 +189,7 @@ VMSet (Mandatory for Shared and Replica configuration)
 
 ParentVHD (Mandatory)
 	'Win2016Core_G2.vhdx'     - Windows Server 2016 Core
-	'Win2016Nano_G2.vhdx'    - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
+	'Win2016NanoHV_G2.vhdx'    - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
 	'Win2016NanoHV_G2.vhdx'   - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM, Compute, SCVMM Compute
 	'Win10_G2.vhdx'		- Windows 10 if you selected to hydrate it with create client parent.
 
@@ -261,7 +261,7 @@ Subnet
 ##$LabConfig.ServerVHDs##
 	Example:	$LABConfig.ServerVHDs += @{
 					Edition="DataCenterNano" 
-					VHDName="Win2016Nano_G2.vhdx"
+					VHDName="Win2016NanoHV_G2.vhdx"
 					NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package"
 					Size=30GB
 				}
@@ -286,36 +286,36 @@ Size
 
 Just some VMs
 $LabConfig.VMs = @(
-    @{ VMName = 'Simple1'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
-    @{ VMName = 'Simple2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
-    @{ VMName = 'Simple3'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
-    @{ VMName = 'Simple4'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'     ; MemoryStartupBytes= 512MB }
+    @{ VMName = 'Simple1'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
+    @{ VMName = 'Simple2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
+    @{ VMName = 'Simple3'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
+    @{ VMName = 'Simple4'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }
 )
 
 or you can use this to deploy 100 simple VMs with name NanoServer1, NanoServer2...
-1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
+1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
 
 or you can use this to deploy 100 server VMs with 1 Client OS with name Windows10
-1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
+1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
 $LabConfig.VMs += @{ VMName = 'Windows10' ; Configuration = 'Simple'  ; ParentVHD = 'Win10_G2.vhdx'    ; MemoryStartupBytes= 512MB ; AddToolsVHD=$True ; DisableWCF=$True}
 
 or you can use this to deploy 100 nanoservers and 100 Windows 10 machines named Windows10_.. 
-1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
+1..100 | % {"NanoServer$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
 1..100 | % {"Windows10_$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'          ; MemoryStartupBytes= 512MB ;   AddToolsVHD=$True ; DisableWCF=$True } }
 
 or Several different servers 
 * you need to provide your GPT VHD for win 2012 (like created with convertwindowsimage script)
 $LabConfig.VMs += @{ VMName = 'Win2016'      ; Configuration = 'Simple'   ; ParentVHD = 'Win2016_G2.vhdx'          ; MemoryStartupBytes= 512MB ; SkipDjoin=$True }
 $LabConfig.VMs += @{ VMName = 'Win2016_Core' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Core_G2.vhdx'      ; MemoryStartupBytes= 512MB }
-$LabConfig.VMs += @{ VMName = 'Win2016_Nano' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Nano_G2.vhdx'      ; MemoryStartupBytes= 128MB }
+$LabConfig.VMs += @{ VMName = 'Win2016_Nano' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 256MB }
 $LabConfig.VMs += @{ VMName = 'Win2012'      ; Configuration = 'Simple'   ; ParentVHD = 'Win2012r2_G2.vhdx'        ; MemoryStartupBytes= 512MB ; Win2012Djoin=$True }
 $LabConfig.VMs += @{ VMName = 'Win2012_Core' ; Configuration = 'Simple'   ; ParentVHD = 'Win2012r2Core_G2.vhdx'    ; MemoryStartupBytes= 512MB ; Win2012Djoin=$True }
 
 Example with sets of different DSC Configs
-1..2 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’	; ParentVHD = ‘Win2016Nano_G2.vhdx’	; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig1’)} }
-3..4 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’	; ParentVHD = ‘Win2016Nano_G2.vhdx’	; MemoryStartupBytes= 128MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig2’)} }
-1..6 | % {"DSC$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'	; ParentVHD = 'Win2016Nano_G2.vhdx' ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig=@('Config1','Config2')} }
-7..12| % {"DSC$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'	; ParentVHD = 'Win2016Nano_G2.vhdx' ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig='Config3'} }
+1..2 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’	; ParentVHD = ‘Win2016NanoHV_G2.vhdx’	; MemoryStartupBytes= 256MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig1’)} }
+3..4 | % {“Nano$_“} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = ‘Simple’	; ParentVHD = ‘Win2016NanoHV_G2.vhdx’	; MemoryStartupBytes= 256MB ; DSCMode=‘Pull’; DSCConfig=@(‘LAPS_Nano_Install’,‘LAPSConfig2’)} }
+1..6 | % {"DSC$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'	; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig=@('Config1','Config2')} }
+7..12| % {"DSC$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'	; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; MemoryStartupBytes= 512MB ; DSCMode='Pull'; DSCConfig='Config3'} }
 
 Hyperconverged S2D with nano and nested virtualization (see https://msdn.microsoft.com/en-us/virtualization/hyperv_on_windows/user_guide/nesting for more info)
 1..4 | % {"S2D$_"}  | % { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'S2D'       ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True} }
