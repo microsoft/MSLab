@@ -829,8 +829,18 @@ if (!$LABExists){
 			until ($test -ne $Null)
 			WriteSuccess "`t `t Active Directory on $($DC.name) is up."
 		}
+		WriteInfoHighlighted "`t Requesting DNS settings from Host"
+		$vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
+		$DNSServers=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses
+		if ($DNSServers){
+			WriteSuccess "Following DNSServers found: $DNSServers "
+		}else{
+			WriteError "no DNSServers detected on vNICname vEthernet ($vNICName). Adding public DNSServers 217.31.204.130 and 8.8.8.8 " #in case no DNS servers found, setting public DNSServers 
+			$DNSServers="8.8.8.8","217.31.204.130"
+		}		
 		WriteInfoHighlighted "`t `t Configuring NAT with netSH and starting services"
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {	
+		Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $DNSServers -ScriptBlock {	
+			param($DNSServers);
 			Set-Service -Name RemoteAccess -StartupType Automatic
 			Start-Service -Name RemoteAccess
 			netsh.exe routing ip nat install
@@ -839,8 +849,9 @@ if (!$LABExists){
 			netsh.exe ras set conf confstate = enabled
 			netsh.exe routing ip dnsproxy install
 			Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
-			Add-DNSServerForwarder -IPAddress 8.8.8.8 -PassThru 
-			Add-DNSServerForwarder -IPAddress 217.31.204.130 -PassThru #NIC.CZ open DNS as backup
+    		foreach ($DNSServer in $DNSServers){
+        		Add-DnsServerForwarder $DNSServer
+    		}
 		}
 	}
 }
