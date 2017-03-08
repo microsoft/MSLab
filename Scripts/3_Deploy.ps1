@@ -833,7 +833,7 @@ if (!$LABExists){
 		$vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
 		$DNSServers=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses
 		if ($DNSServers){
-			WriteSuccess "Following DNSServers found: $DNSServers "
+			WriteSuccess "`t `t Following DNSServers found: $DNSServers "
 		}else{
 			WriteError "no DNSServers detected on vNICname vEthernet ($vNICName). Adding public DNSServers 217.31.204.130 and 8.8.8.8 " #in case no DNS servers found, setting public DNSServers 
 			$DNSServers="8.8.8.8","217.31.204.130"
