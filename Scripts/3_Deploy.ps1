@@ -835,7 +835,7 @@ if (!$LABExists){
 		$DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
 		$DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
 		WriteInfoHighlighted "`t `t Configuring NAT with netSH and starting services"
-		Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $DNSServers -ScriptBlock {	
+		Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {	
 			param($DNSServers);
 			Set-Service -Name RemoteAccess -StartupType Automatic
 			Start-Service -Name RemoteAccess
