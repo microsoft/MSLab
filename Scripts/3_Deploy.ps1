@@ -831,13 +831,9 @@ if (!$LABExists){
 		}
 		WriteInfoHighlighted "`t Requesting DNS settings from Host"
 		$vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
-		$DNSServers=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses
-		if ($DNSServers){
-			WriteSuccess "`t `t Following DNSServers found: $DNSServers "
-		}else{
-			WriteError "no DNSServers detected on vNICname vEthernet ($vNICName). Adding public DNSServers 217.31.204.130 and 8.8.8.8 " #in case no DNS servers found, setting public DNSServers 
-			$DNSServers="8.8.8.8","217.31.204.130"
-		}		
+		$DNSServers=@()
+		$DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+		$DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
 		WriteInfoHighlighted "`t `t Configuring NAT with netSH and starting services"
 		Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $DNSServers -ScriptBlock {	
 			param($DNSServers);
