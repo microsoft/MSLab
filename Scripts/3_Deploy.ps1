@@ -344,13 +344,13 @@ Function Set-VMNetworkConfiguration {
         }
 
         if ($job.JobState -eq 7) {
-            WriteInfoHighlighted "Success"
+            WriteInfoHighlighted "`t Success"
         }
         else {
             $job.GetError()
         }
     } elseif($setip.ReturnValue -eq 0) {
-        WriteInfoHighlighted "Success"
+        WriteInfoHighlighted "`t Success"
     }
 }
 
@@ -736,12 +736,12 @@ if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
 	$DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
 
 	if ($labconfig.AdditionalNetworksInDC -eq $True){
-		WriteInfoHighlighted "Adding network Additional networks"
-		$Labconfig.AdditionalNetworksConfig | ForEach-Object {
-			$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-			WriteInfo "`t`t Adding Adapter $($_.NetName) with IP $($_.NetAddress)$IP"
-			$DC | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkConfiguration -IPAddress "$($_.NetAddress)$IP" -Subnet $_.Subnet
-			if($_.NetVLAN -ne 0){ $DC | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+		WriteInfoHighlighted "`t Configuring Additional networks"
+		foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+			$DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+			WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+			$DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+			if($AdditionalNetworkConfig.NetVLAN -ne 0){ $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
 		}
 		$IP++
 	}
@@ -977,12 +977,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "Adding network Additional networks"
-				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
-					WriteInfo "`t`t Adding Adapter $($_.NetName) with IP $($_.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress "$($_.NetAddress)$IP" -Subnet $_.Subnet
-					if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+				WriteInfoHighlighted "`t Configuring Additional networks"
+				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
 				}
 				$IP++
 			}
@@ -1145,12 +1145,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "Adding network Additional networks"
-				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
-					WriteInfo "`t`t Adding Adapter $($_.NetName) with IP $($_.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress "$($_.NetAddress)$IP" -Subnet $_.Subnet
-					if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+				WriteInfoHighlighted "`t Configuring Additional networks"
+				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
 				}
 				$IP++
 			}
@@ -1301,12 +1301,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "Adding network Additional networks"
-				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
-					WriteInfo "`t`t Adding Adapter $($_.NetName) with IP $($_.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress "$($_.NetAddress)$IP" -Subnet $_.Subnet
-					if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+				WriteInfoHighlighted "`t Configuring Additional networks"
+				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
 				}
 				$IP++
 			}
@@ -1488,12 +1488,12 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}
 
 			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "Adding network Additional networks"
-				$LabConfig.AdditionalNetworksConfig | ForEach-Object {
-					WriteInfo "`t`t Adding Adapter $($_.NetName) with IP $($_.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $_.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $_.NetName  | Set-VMNetworkConfiguration -IPAddress "$($_.NetAddress)$IP" -Subnet $_.Subnet
-					if($_.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $_.NetName | Set-VMNetworkAdapterVlan -VlanId $_.NetVLAN -Access }
+				WriteInfoHighlighted "`t Configuring Additional networks"
+				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
 				}
 				$IP++
 			}
