@@ -33,8 +33,8 @@ Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clusterin
 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
 foreach ($server in $servers) {Install-WindowsFeature -Name Failover-Clustering,Hyper-V-PowerShell -ComputerName $server} 
 #restart and wait for computers
-Invoke-Command -ComputerName $servers -ScriptBlock {Restart-Computer -Force}
-Start-Sleep 90
+Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
+Start-Sleep 10 #Failsafe
 #>
 
 if ($Networking -eq "Yes"){
