@@ -221,142 +221,88 @@ if ($LabConfig.InstallSCVMM -eq "ADK"){
 # Lets start #
 ##############
 
-## Test for unpacked media - detect install.wim for Server OS
-If (Test-Path -Path "$PSScriptRoot\OSServer\Sources\install.wim"){
-	WriteInfo "ISO content found under $PSScriptRoot\OSServer folder"
-	$ServerMediaPath="$PSScriptRoot\OSServer"
-}else{
-	## Test for ISO and if no ISO found, open file dialog to select one
-	If (Test-Path -Path "$PSScriptRoot\OSServer"){
-		$ISOServer = Get-ChildItem -Path "$PSScriptRoot\OSServer" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-	}
+#Grab Server ISO
+WriteInfoHighlighted "Please select ISO image with Windows Server 2016"
 
-	if ( -not [bool]($ISOServer)){
-		WriteInfo "No ISO found in $PSScriptRoot\OSServer"
-		WriteInfoHighlighted "Please select ISO image with Windows Server 2016"
-
-		[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-		$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select ISO image with Windows Server 2016"
-        }
-		$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
-		If($openFile.ShowDialog() -eq “OK”)
-		{
-		   WriteInfo  "File $($openfile.FileName) selected"
-		} 
-        if (!$openFile.FileName){
-		        WriteErrorAndExit  "Iso was not selected... Exitting"
-		 }
-		$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-	}else {
-		WriteSuccess "Found ISO $($ISOServer.FullName)"
-		$ISOServer = Mount-DiskImage -ImagePath $ISOServer.FullName -PassThru
-	}
-	$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
+[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+    Title="Please select ISO image with Windows Server 2016"
 }
-
-## Test for unpacked media - detect install.wim for Client OS
-If ($LabConfig.CreateClientParent -eq $true){
-	If (Test-Path -Path "$PSScriptRoot\OSClient\Sources\install.wim"){
-		WriteInfo "ISO content found under $PSScriptRoot\OSClient folder"
-		$ClientMediaPath="$PSScriptRoot\OSClient"
-	}else{
-		## Test for ISO and if no ISO found, open file dialog to select one
-		If (Test-Path -Path "$PSScriptRoot\OSClient"){
-			$ISOClient = Get-ChildItem -Path "$PSScriptRoot\OSClient" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-		}
-
-		if ( -not [bool]($ISOClient)){
-			WriteInfo "No ISO found in $PSScriptRoot\OSOSClient"
-			WriteInfoHighlighted "Please select ISO image with Windows 10. Please use 1507 and newer"
-			[reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-			$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Title="Please select ISO image with Windows 10. Please use 1507 and newer"
-            }
-			$openFile.Filter = “iso files (*.iso)|*.iso|All files (*.*)|*.*” 
-			If($openFile.ShowDialog() -eq “OK”){
-			   WriteInfo  "File $($openfile.FileName) selected"
-			} 
-        if (!$openFile.FileName){
-		        WriteErrorAndExit  "Iso was not selected... Exitting"
-		 }
-			$ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-		}else {
-			WriteSuccess "Found ISO $($ISOClient.FullName)"
-			$ISOClient = Mount-DiskImage -ImagePath $ISOClient.FullName -PassThru
-		}
-		$ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
-	}
-}
-
-#grab server packages
-$ServerPackages=Get-ChildItem "$PSScriptRoot\OSServer\Packages" -Recurse | Where-Object {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
-
-if ($ServerPackages -ne $null){
-WriteInfoHighlighted "Server Packages Found"
-$ServerPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
-}
-
-if (!($ServerPackages)){
-    #ask for MSU patches
-    WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
-    [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-    $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-        Multiselect = $true;
-        Title="Please select latest Windows Server 2016 Cumulative Update"
+$openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+If($openFile.ShowDialog() -eq "OK")
+{
+    WriteInfo  "File $($openfile.FileName) selected"
+} 
+if (!$openFile.FileName){
+        WriteErrorAndExit  "Iso was not selected... Exitting"
     }
-    $ServerPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
-    If($ServerPackages.ShowDialog() -eq “OK”){
-    WriteInfoHighlighted  "Following patches selected:"
-    WriteInfo "`t $($ServerPackages.filenames)"
-    } 
+#Mount ISO
+$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+#Generate Media Path
+$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
 
-    #exit if nothing is selected
-    if (!$ServerPackages.FileNames){
-            WriteErrorAndExit "no msu was selected... Exitting"
-    }
-}
-
-if ($Serverpackages.fullname){
-    $serverpackages=$serverpackages.FullName | Sort-Object
-}else{
-    $serverpackages=$serverpackages.FileNames | Sort-Object
-}
-
-#grab Client packages
+#Ask for Client ISO
 If ($LabConfig.CreateClientParent){
-    $ClientPackages=Get-ChildItem "$PSScriptRoot\OSClient\Packages" -Recurse | Where-Object {$_.Extension -eq ".msu" -or $_.Extension -eq ".cab"}
-    
-    if ($ClientPackages -ne $null){
-    WriteInfoHighlighted "Client Packages Found"
-    $ClientPackages | ForEach-Object {WriteInfo "`t $($_.Name)"}
+    WriteInfoHighlighted "Please select ISO image with Windows 10. Please use 1507 and newer"
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        Title="Please select ISO image with Windows 10. Please use 1507 and newer"
     }
+    $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+    If($openFile.ShowDialog() -eq "OK"){
+        WriteInfo  "File $($openfile.FileName) selected"
+    } 
+    if (!$openFile.FileName){
+            WriteErrorAndExit  "Iso was not selected... Exitting"
+    }
+#Mount ISO
+    $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+#Generate Media Path		
+    $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
+}
 
-    if (!($ClientPackages)){
+if (!$labconfig.SkipCU){
+    #grab server packages
         #ask for MSU patches
-        WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU)"
-        [reflection.assembly]::loadwithpartialname(“System.Windows.Forms”)
-        $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
+        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+        $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
             Multiselect = $true;
-            Title="Please select Windows 10 Cumulative Update"
+            Title="Please select latest Windows Server 2016 Cumulative Update"
         }
-        $ClientPackages.Filter = “msu files (*.msu)|*.msu|All files (*.*)|*.*” 
-        If($ClientPackages.ShowDialog() -eq “OK”){
-        WriteInfoHighlighted  "Following patches selected:"
-        WriteInfo "`t $($ClientPackages.filenames)"
+        $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+        If($ServerPackages.ShowDialog() -eq "OK"){
+            WriteInfoHighlighted  "Following patches selected:"
+            WriteInfo "`t $($ServerPackages.filenames)"
         } 
 
         #exit if nothing is selected
-        if (!$ClientPackages.FileNames){
-                WriteErrorAndExit "no msu was selected... Exitting"
+        if (!$ServerPackages.FileNames){
+            WriteErrorAndExit "no msu was selected... Exitting"
         }
-    }
-}
 
-if ($clientpackages.fullname){
-    $clientpackages=$clientpackages.FullName | Sort-Object
-}else{
-    $clientpackages=$clientpackages.FileNames | Sort-Object
+        $serverpackages=$serverpackages.FileNames | Sort-Object
+
+    #grab Client packages
+    If ($LabConfig.CreateClientParent){
+        #ask for MSU patches
+        WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU)"
+        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+        $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            Multiselect = $true;
+            Title="Please select Windows 10 Cumulative Update"
+        }
+        $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+        If($ClientPackages.ShowDialog() -eq "OK"){
+            WriteInfoHighlighted  "Following patches selected:"
+            WriteInfo "`t $($ClientPackages.filenames)"
+        } 
+        #exit if nothing is selected
+        if (!$ClientPackages.FileNames){
+            WriteErrorAndExit "no msu was selected... Exitting"
+        }
+        $clientpackages=$clientpackages.FileNames | Sort-Object    
+    }
 }
 
 #######################
@@ -365,21 +311,31 @@ if ($clientpackages.fullname){
 
 #create some folders
 'ParentDisks','Temp','Temp\mountdir' | ForEach-Object {
-    if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
+    if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } 
+}
 
 . "$PSScriptRoot\tools\convert-windowsimage.ps1"
 
 #Create client OS VHD
 If ($LabConfig.CreateClientParent -eq $true){
     WriteInfoHighlighted "Creating Client Parent"
-    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
+    if ($ClientPackages){
+        Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
+    }else{
+        Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
+    }
 }
+
 
 #Create Servers Parent Images
 foreach ($ServerVHD in $labconfig.ServerVHDs){
     if ($serverVHD.Edition -notlike "*nano"){
         WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
-        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+        if ($serverpackages){     
+            Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+        }else{
+            Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
+        }
     }
     if ($serverVHD.Edition -like "*nano"){
         $NanoPackages=@()
@@ -387,78 +343,13 @@ foreach ($ServerVHD in $labconfig.ServerVHDs){
         $NanoPackages+=(Get-ChildItem -Path "$ServerMediaPath\NanoServer\" -Recurse | Where-Object Name -like $NanoPackage*).FullName
         }
         WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
-        Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+        if ($serverpackages){
+            Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+        }else{
+            Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
+        }
     }
 }
-
-<#
-#copy dism tools (probably not needed, but this will make sure that dism is the newest one)
- 
-#create some folders
-'sources\api*downlevel*.dll','sources\*provider*','sources\*dism*' | ForEach-Object {
-    WriteInfoHighlighted "Copying dism from server media to $PSScriptRoot\Tools\dism"
-    Copy-Item -Path "$ServerMediaPath\$_" -Destination $PSScriptRoot\Tools\dism -Force
-}
-#>
-
-<#
-WriteInfoHighlighted "Copying nano packages from server media to $PSScriptRoot\Temp\packages\"
-Copy-Item -Path "$ServerMediaPath\nanoserver\packages\*" -Destination "$PSScriptRoot\Temp\packages\" -Recurse -Force
-#>
-
-<#
-WriteInfoHighlighted "Creating Nano Server images"
-#The condition to test *en-us* is there because TP4 file structure was different.
-if (Test-Path -Path $ServerMediaPath'\nanoserver\Packages\en-us\*en-us*'){
-	#RTM version
-	Convert-WindowsImage -SourcePath $ServerMediaPath'\Nanoserver\NanoServer.wim' -edition 2 -VHDPath "$PSScriptRoot\ParentDisks\Win2016Nano_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI
-	&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win2016Nano_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-DSC-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-DSC-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-FailoverCluster-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-FailoverCluster-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Guest-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Guest-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Storage-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Storage-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SCVMM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
-
-	Copy-Item -Path "$PSScriptRoot\Parentdisks\Win2016Nano_G2.vhdx" -Destination "$PSScriptRoot\ParentDisks\Win2016NanoHV_G2.vhdx"
- 
-	&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win2016NanoHV_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-Compute-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SCVMM-Compute-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SCVMM-Compute-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-SecureStartup-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-SecureStartup-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\Microsoft-NanoServer-ShieldedVM-Package.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$PSScriptRoot\Temp\packages\en-us\Microsoft-NanoServer-ShieldedVM-Package_en-us.cab /Image:$PSScriptRoot\Temp\mountdir
-	&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
-
-	#do some servicing (adding CABs and MSUs)
-	WriteInfoHighlighted "Adding cabs and MSUs to parent images"
-	'Win2016Core_G2.vhdx','Win2016Nano_G2.vhdx','Win2016NanoHV_G2.vhdx' | ForEach-Object {
-		&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\$_ /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-		foreach ($ServerPackage in $ServerPackages){
-			&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$PSScriptRoot\Temp\mountdir
-		}
-		&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
-	}
-
-	If ($LabConfig.CreateClientParent -eq $True){
-		&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$PSScriptRoot\Parentdisks\Win10_G2.vhdx /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-		foreach ($ClientPackage in $ClientPackages){
-			&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ClientPackage /Image:$PSScriptRoot\Temp\mountdir
-		}
-		&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
-	}
-}else{
-	WriteErrorAndExit "`t Please use Windows Server TP5 and newer. Exiting"
-}
-#>
 
 #create Tools VHDX from .\tools\ToolsVHD
 
@@ -496,19 +387,11 @@ $VMPath="$PSScriptRoot\LAB\"
 
 #Create Parent VHD
 WriteInfoHighlighted "Creating VHD for DC"
-Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
-
-<#
-#do some servicing (adding cab/msu packages)
-
-WriteInfoHighlighted "Adding cab/msu packages to DC"
-&"$PSScriptRoot\Tools\dism\dism" /Mount-Image /ImageFile:$vhdpath /Index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-foreach ($ServerPackage in $ServerPackages) {
-	&"$PSScriptRoot\Tools\dism\dism" /Add-Package /PackagePath:$ServerPackage /Image:$PSScriptRoot\Temp\mountdir
+if ($serverpackages){
+    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
+}else{
+    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
 }
-&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
-#>
-
 #If the switch does not already exist, then create a switch with the name $SwitchName
 
 if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
@@ -956,10 +839,10 @@ Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
 WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
-WriteInfo "(.\OSServer .\OSClient .\Tools\ToolsVHD .\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+WriteInfo "(.\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
 If ((Read-host "Please type Y or N") -like "*Y"){
     WriteInfo "`t Cleaning unnecessary items" 
-    "$PSScriptRoot\OSServer","$PSScriptRoot\OSClient","$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
+    "$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
         WriteInfo "`t `t Removing $_"
         Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
     } 
