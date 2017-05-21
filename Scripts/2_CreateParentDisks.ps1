@@ -261,7 +261,7 @@ If ($LabConfig.CreateClientParent){
     $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
 }
 
-if (!$labconfig.SkipCU){
+if (!$labconfig.Insider){
     #grab server packages
         #ask for MSU patches
         WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
