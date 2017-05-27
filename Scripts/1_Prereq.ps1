@@ -89,10 +89,10 @@ if ($BuildNumber -ge 10586){
 }
 
 # Checking Folder Structure
-"OSClient","OSServer","Tools\DSC","Tools\ToolsVHD\DiskSpd","OSServer\Packages","OSClient\Packages","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
+"Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
     if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 	
-"OSServer\Copy_WindowsServer_ISO_or_its_content_here.txt","OSClient\Copy_WindowsClient_ISO_or_its_content_here.txt","OSServer\Packages\Copy_MSU_or_Cab_packages_here.txt","OSClient\Packages\Copy_MSU_or_Cab_packages_here.txt","Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
+"Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
 	  if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type File -Path "$PSScriptRoot\$_" } }
 
 # adding scripts for SCVMM install
@@ -376,6 +376,133 @@ If ( Test-Path -Path "$PSScriptRoot\Tools\convert-windowsimage.ps1" ) {
 		}
 }	
 
+if (!( Test-Path "$PSScriptRoot\Tools\CreateParentDisk.ps1" )) {  
+    $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File
+    $fileContent =  @'
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (!( $isAdmin )) {
+	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+	exit
+}
+
+
+#############
+# Functions #
+#############
+
+function WriteInfo($message)
+{
+    Write-Host $message
+}
+
+function WriteInfoHighlighted($message)
+{
+    Write-Host $message -ForegroundColor Cyan
+}
+
+function WriteSuccess($message)
+{
+    Write-Host $message -ForegroundColor Green
+}
+
+function WriteError($message)
+{
+    Write-Host $message -ForegroundColor Red
+}
+
+function WriteErrorAndExit($message)
+{
+	Write-Host $message -ForegroundColor Red
+	Write-Host "Press any key to continue ..."
+	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+	$HOST.UI.RawUI.Flushinputbuffer()
+	Exit
+}
+
+
+
+
+#Ask for ISO
+[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+    Title="Please select ISO image with Windows Server 2016"
+}
+$openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+If($openFile.ShowDialog() -eq "OK")
+{
+	WriteInfo  "File $($openfile.FileName) selected"
+} 
+if (!$openFile.FileName){
+		WriteErrorAndExit  "Iso was not selected... Exitting"
+	}
+$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+
+$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
+
+
+#ask for MSU patches
+WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
+[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+$ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+    Multiselect = $true;
+    Title="Please select latest Windows Server 2016 Cumulative Update"
+}
+$ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+If($ServerPackages.ShowDialog() -eq "OK"){
+WriteInfoHighlighted  "Following patches selected:"
+WriteInfo "`t $($ServerPackages.filenames)"
+} 
+
+#exit if nothing is selected
+if (!$ServerPackages.FileNames){
+        $ISOServer | Dismount-DiskImage
+        WriteErrorAndExit "no msu was selected... Exitting"
+}
+
+if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
+	#download latest convert-windowsimage
+	# Download convert-windowsimage if its not in tools folder
+
+	WriteInfo "`t Downloading Convert-WindowsImage"
+	try{
+		Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+	}catch{
+		WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
+	}
+}
+
+#load convert-windowsimage
+. "$PSScriptRoot\convert-windowsimage.ps1"
+
+#ask for server edition
+$Edition=(Get-WindowsImage -ImagePath "$ServerMediaPath\sources\install.wim" | Out-GridView -OutputMode Single).ImageName
+
+#ask for imagename
+$vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016_G2.vhdx is used")
+if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
+
+#ask for size
+[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB (if nothing specified, 60GB is used)")
+$size=$size*1GB
+if (!$size){$size=60GB}
+
+#Create VHD
+Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages.FileNames
+
+WriteInfo "Dismounting ISO Image"
+if ($ISOServer -ne $Null){
+$ISOServer | Dismount-DiskImage
+}
+
+WriteSuccess "Job Done. Press any key to continue..."
+$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+
+'@
+
+Set-Content -path $script -value $fileContent
+}
 
 # Downloading modules into Tools folder if needed.
 
