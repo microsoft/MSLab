@@ -1,4 +1,4 @@
-﻿# Verify Running as Admin
+# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
 	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
@@ -429,6 +429,166 @@ function WrapProcess
             return, $output
     }
 }
+
+##########################################################################################
+Function BuildVM {
+    [cmdletbinding()]
+    param(
+    [PSObject]$VMConfig,
+    [PSObject]$LabConfig,
+    [string]$LabFolder
+    )
+		WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
+		WriteInfo "`t Looking for Parent Disk"
+		$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
+			
+		if ($serverparent -eq $null){
+			WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found"
+		}else{
+			WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+		}
+					
+		$VMname=$Labconfig.Prefix+$VMConfig.VMName
+		$folder="$LabFolder\VMs\$VMname"
+		$vhdpath="$folder\$VMname.vhdx"
+		WriteInfo "`t Creating OS VHD"
+		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+		WriteInfo "`t Creating VM"
+		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp | Set-VMProcessor -Count 2
+		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
+		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+
+		$MGMTNICs=$VMConfig.MGMTNICs
+		If($MGMTNICs -eq $null){
+			$MGMTNICs = 2
+		}
+
+		If($MGMTNICs -gt 8){
+			$MGMTNICs=8
+		}
+
+		If($MGMTNICs -ge 2){
+			2..$MGMTNICs | ForEach-Object {
+				WriteInfo "`t Adding Network Adapter Management$_"
+				$VMTemp | Add-VMNetworkAdapter -Name Management$_
+			}
+		}
+		WriteInfo "`t Connecting vNIC to $switchname"
+		$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
+
+		if ($LabConfig.Secureboot -eq $False) {
+			WriteInfo "`t Disabling Secureboot"
+			$VMTemp | Set-VMFirmware -EnableSecureBoot Off
+		}
+
+		if ($VMConfig.AdditionalNetworks -eq $True){
+			WriteInfoHighlighted "`t Configuring Additional networks"
+			foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
+				WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+				$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
+				$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+				if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
+			}
+			$IP++
+		}
+
+		#Generate DSC Config
+		if ($VMConfig.DSCMode -eq 'Pull'){
+			WriteInfo "`t Setting DSC Mode to Pull"
+			PullClientConfig -ComputerName $VMConfig.VMName -DSCConfig $VMConfig.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
+		}
+			
+		#configure nested virt
+		if ($VMConfig.NestedVirt -eq $True){
+			WriteInfo "`t Enabling NestedVirt"
+			$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
+		}		
+
+		#configure vTPM
+		if ($VMConfig.vTPM -eq $True){
+			WriteInfo "`t Enabling vTPM"
+			$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+			Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+			Enable-VMTPM -VM $VMTemp 
+		}
+
+		#set MemoryMinimumBytes
+		if ($VMConfig.MemoryMinimumBytes -ne $null){
+			WriteInfo "`t Configuring MemoryMinimumBytes to $($VMConfig.MemoryMinimumBytes/1MB)MB"
+			Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
+		}
+			
+		#Set static Memory
+		if ($VMConfig.StaticMemory -eq $true){
+			WriteInfo "`t Configuring StaticMemory"
+			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+		}		
+
+		$Name=$VMConfig.VMName
+			
+		if ($VMConfig.SkipDjoin -eq $True){
+			WriteInfo "`t Skipping Djoin"				
+			if ($VMConfig.DisableWCF -eq $True){
+					if ($VMConfig.AdditionalLocalAdmin -ne $null){
+						WriteInfo "`t WCF will be disabled and Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
+						$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
+						$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+					}else{
+						WriteInfo "`t WCF will be disabled"
+						$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+					}			
+			}else{
+					if ($VMConfig.AdditionalLocalAdmin -ne $null){
+						WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
+						$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
+						$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+					}else{
+						$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+					}	
+				}
+		}else{
+			if ($VMConfig.Win2012Djoin -eq $True){
+				WriteInfo "`t Creating Unattend with win2012 domain join"
+				$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
+			}else{
+				WriteInfo "`t Creating Unattend with djoin blob"
+				$path="c:\$vmname.txt"
+				Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+				$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+				Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
+				if ($VMConfig.DisableWCF -eq $True){
+					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+				}else{
+					$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+				}
+			}
+		}
+
+		WriteInfo "`t Adding unattend to VHD"
+		Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+		Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+		#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+		#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+		New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+		Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+			
+		if ($VMConfig.DSCMode -eq 'Pull'){
+			WriteInfo "`t Adding metaconfig.mof to VHD"
+			Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+		}
+			
+		Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+		#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+
+		#add toolsdisk
+		if ($VMConfig.AddToolsVHD -eq $True){
+			$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
+			WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
+			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
+		}
+}
+##########################################################################################
 
 ##########################################################################################
 #Some necessary stuff
@@ -931,159 +1091,10 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
 			}
 
-#region Todo:convert this Block to function
-			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			WriteInfo "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
-			
-			if ($serverparent -eq $null){
-				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
-			}else{
-				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
-			}
-					
-			$VMname=$Labconfig.Prefix+$_.VMName
-			$folder="$LabFolder\VMs\$VMname"
-			$vhdpath="$folder\$VMname.vhdx"
-			WriteInfo "`t Creating OS VHD"
-			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-			WriteInfo "`t Creating VM"
-			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
-			$VMTemp | Set-VMProcessor -Count 2
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-			$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
 
-			$MGMTNICs=$_.MGMTNICs
-			If($MGMTNICs -eq $null){
-				$MGMTNICs = 2
-			}
+            $VMname=$Labconfig.Prefix+$_.VMName
 
-			If($MGMTNICs -gt 8){
-				$MGMTNICs=8
-			}
-
-			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | ForEach-Object {
-					WriteInfo "`t Adding Network Adapter Management$_"
-					$VMTemp | Add-VMNetworkAdapter -Name Management$_
-				}
-			}
-			WriteInfo "`t Connecting vNIC to $switchname"
-			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-
-			if ($LabConfig.Secureboot -eq $False) {
-				WriteInfo "`t Disabling Secureboot"
-				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
-			}
-
-			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "`t Configuring Additional networks"
-				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
-					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
-					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
-				}
-				$IP++
-			}
-
-			#Generate DSC Config
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
-			}
-			
-			#configure nested virt
-			if ($_.NestedVirt -eq $True){
-				WriteInfo "`t Enabling NestedVirt"
-				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			}		
-
-			#configure vTPM
-			if ($_.vTPM -eq $True){
-				WriteInfo "`t Enabling vTPM"
-				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-				Enable-VMTPM -VM $VMTemp 
-			}
-
-			#set MemoryMinimumBytes
-			if ($_.MemoryMinimumBytes -ne $null){
-				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
-				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
-			}
-			
-			#Set static Memory
-			if ($_.StaticMemory -eq $true){
-				WriteInfo "`t Configuring StaticMemory"
-				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}		
-
-			$Name=$_.VMName
-			
-			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"				
-				if ($_.DisableWCF -eq $True){
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							WriteInfo "`t WCF will be disabled"
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-						}			
-				}else{
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-						}	
-					}
-			}else{
-				if ($_.Win2012Djoin -eq $True){
-					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
-				}else{
-					WriteInfo "`t Creating Unattend with djoin blob"
-					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-					if ($_.DisableWCF -eq $True){
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-					}else{
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
-					}
-				}
-			}
-
-			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-			
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Adding metaconfig.mof to VHD"
-				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
-			}
-			
-			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
-
-			#add toolsdisk
-			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
-				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
-				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
-			}
-
-#endregion
-			
 			WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 
 			$SharedSSDs | ForEach-Object {
@@ -1099,315 +1110,17 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 		
 		if ($_.configuration -eq 'Simple'){
 
-#region Todo:convert this Block to function
-			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			WriteInfo "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
-			
-			if ($serverparent -eq $null){
-				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
-			}else{
-				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
-			}
-					
-			$VMname=$Labconfig.Prefix+$_.VMName
-			$folder="$LabFolder\VMs\$VMname"
-			$vhdpath="$folder\$VMname.vhdx"
-			WriteInfo "`t Creating OS VHD"
-			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-			WriteInfo "`t Creating VM"
-			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
-			$VMTemp | Set-VMProcessor -Count 2
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-			$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+            BuildVM -VMConfig $($_) -LabConfig $labconfig -LabFolder $LABfolder
 
-			$MGMTNICs=$_.MGMTNICs
-			If($MGMTNICs -eq $null){
-				$MGMTNICs = 2
-			}
-
-			If($MGMTNICs -gt 8){
-				$MGMTNICs=8
-			}
-
-			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | ForEach-Object {
-					WriteInfo "`t Adding Network Adapter Management$_"
-					$VMTemp | Add-VMNetworkAdapter -Name Management$_
-				}
-			}
-			WriteInfo "`t Connecting vNIC to $switchname"
-			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-
-			if ($LabConfig.Secureboot -eq $False) {
-				WriteInfo "`t Disabling Secureboot"
-				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
-			}
-
-			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "`t Configuring Additional networks"
-				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
-					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
-					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
-				}
-				$IP++
-			}
-
-			#Generate DSC Config
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
-			}
-			
-			#configure nested virt
-			if ($_.NestedVirt -eq $True){
-				WriteInfo "`t Enabling NestedVirt"
-				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			}		
-
-			#configure vTPM
-			if ($_.vTPM -eq $True){
-				WriteInfo "`t Enabling vTPM"
-				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-				Enable-VMTPM -VM $VMTemp 
-			}
-
-			#set MemoryMinimumBytes
-			if ($_.MemoryMinimumBytes -ne $null){
-				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
-				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
-			}
-			
-			#Set static Memory
-			if ($_.StaticMemory -eq $true){
-				WriteInfo "`t Configuring StaticMemory"
-				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}		
-
-			$Name=$_.VMName
-			
-			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"				
-				if ($_.DisableWCF -eq $True){
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							WriteInfo "`t WCF will be disabled"
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-						}			
-				}else{
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-						}	
-					}
-			}else{
-				if ($_.Win2012Djoin -eq $True){
-					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
-				}else{
-					WriteInfo "`t Creating Unattend with djoin blob"
-					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-					if ($_.DisableWCF -eq $True){
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-					}else{
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
-					}
-				}
-			}
-
-			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-			
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Adding metaconfig.mof to VHD"
-				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
-			}
-			
-			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
-
-			#add toolsdisk
-			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
-				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
-				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
-			}
-
-#endregion
 		}
 
 		if ($_.configuration -eq 'S2D'){
 
-#region Todo:convert this Block to function
-			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			WriteInfo "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
-			
-			if ($serverparent -eq $null){
-				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
-			}else{
-				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
-			}
-					
-			$VMname=$Labconfig.Prefix+$_.VMName
-			$folder="$LabFolder\VMs\$VMname"
-			$vhdpath="$folder\$VMname.vhdx"
-			WriteInfo "`t Creating OS VHD"
-			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-			WriteInfo "`t Creating VM"
-			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
-			$VMTemp | Set-VMProcessor -Count 2
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-			$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
 
-			$MGMTNICs=$_.MGMTNICs
-			If($MGMTNICs -eq $null){
-				$MGMTNICs = 2
-			}
-
-			If($MGMTNICs -gt 8){
-				$MGMTNICs=8
-			}
-
-			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | ForEach-Object {
-					WriteInfo "`t Adding Network Adapter Management$_"
-					$VMTemp | Add-VMNetworkAdapter -Name Management$_
-				}
-			}
-			WriteInfo "`t Connecting vNIC to $switchname"
-			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-
-			if ($LabConfig.Secureboot -eq $False) {
-				WriteInfo "`t Disabling Secureboot"
-				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
-			}
-
-			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "`t Configuring Additional networks"
-				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
-					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
-					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
-				}
-				$IP++
-			}
-
-			#Generate DSC Config
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
-			}
-			
-			#configure nested virt
-			if ($_.NestedVirt -eq $True){
-				WriteInfo "`t Enabling NestedVirt"
-				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			}		
-
-			#configure vTPM
-			if ($_.vTPM -eq $True){
-				WriteInfo "`t Enabling vTPM"
-				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-				Enable-VMTPM -VM $VMTemp 
-			}
-
-			#set MemoryMinimumBytes
-			if ($_.MemoryMinimumBytes -ne $null){
-				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
-				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
-			}
-			
-			#Set static Memory
-			if ($_.StaticMemory -eq $true){
-				WriteInfo "`t Configuring StaticMemory"
-				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}		
-
-			$Name=$_.VMName
-			
-			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"				
-				if ($_.DisableWCF -eq $True){
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							WriteInfo "`t WCF will be disabled"
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-						}			
-				}else{
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-						}	
-					}
-			}else{
-				if ($_.Win2012Djoin -eq $True){
-					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
-				}else{
-					WriteInfo "`t Creating Unattend with djoin blob"
-					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-					if ($_.DisableWCF -eq $True){
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-					}else{
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
-					}
-				}
-			}
-
-			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-			
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Adding metaconfig.mof to VHD"
-				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
-			}
-			
-			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
-
-			#add toolsdisk
-			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
-				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
-				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
-			}
-
-#endregion
-						
+            $VMname=$Labconfig.Prefix+$_.VMName
+            $folder="$LabFolder\VMs\$VMname"
+            						
 			If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){         
 				$SSDSize=$_.SSDSize
 				$SSDs= 1..$_.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
@@ -1442,159 +1155,10 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				$ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
 			}
 			
-#region Todo:convert this Block to function
-			WriteInfoHighlighted "Creating VM $($_.VMName)"
-			WriteInfo "`t Looking for Parent Disk"
-			$serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $_.ParentVHD
-			
-			if ($serverparent -eq $null){
-				WriteErrorAndExit "Server parent disk $($_.ParentVHD) not found"
-			}else{
-				WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
-			}
-					
-			$VMname=$Labconfig.Prefix+$_.VMName
-			$folder="$LabFolder\VMs\$VMname"
-			$vhdpath="$folder\$VMname.vhdx"
-			WriteInfo "`t Creating OS VHD"
-			New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-			WriteInfo "`t Creating VM"
-			$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $_.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
-			$VMTemp | Set-VMProcessor -Count 2
-			$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
-			$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
 
-			$MGMTNICs=$_.MGMTNICs
-			If($MGMTNICs -eq $null){
-				$MGMTNICs = 2
-			}
-
-			If($MGMTNICs -gt 8){
-				$MGMTNICs=8
-			}
-
-			If($MGMTNICs -ge 2){
-				2..$MGMTNICs | ForEach-Object {
-					WriteInfo "`t Adding Network Adapter Management$_"
-					$VMTemp | Add-VMNetworkAdapter -Name Management$_
-				}
-			}
-			WriteInfo "`t Connecting vNIC to $switchname"
-			$VMTemp | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-
-			if ($LabConfig.Secureboot -eq $False) {
-				WriteInfo "`t Disabling Secureboot"
-				$VMTemp | Set-VMFirmware -EnableSecureBoot Off
-			}
-
-			if ($_.AdditionalNetworks -eq $True){
-				WriteInfoHighlighted "`t Configuring Additional networks"
-				foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
-					WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
-					$VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-					$VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
-					if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
-				}
-				$IP++
-			}
-
-			#Generate DSC Config
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Setting DSC Mode to Pull"
-				PullClientConfig -ComputerName $_.VMName -DSCConfig $_.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
-			}
-			
-			#configure nested virt
-			if ($_.NestedVirt -eq $True){
-				WriteInfo "`t Enabling NestedVirt"
-				$VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-			}		
-
-			#configure vTPM
-			if ($_.vTPM -eq $True){
-				WriteInfo "`t Enabling vTPM"
-				$keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-				Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-				Enable-VMTPM -VM $VMTemp 
-			}
-
-			#set MemoryMinimumBytes
-			if ($_.MemoryMinimumBytes -ne $null){
-				WriteInfo "`t Configuring MemoryMinimumBytes to $($_.MemoryMinimumBytes/1MB)MB"
-				Set-VM -VM $VMTemp -MemoryMinimumBytes $_.MemoryMinimumBytes
-			}
-			
-			#Set static Memory
-			if ($_.StaticMemory -eq $true){
-				WriteInfo "`t Configuring StaticMemory"
-				$VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-			}		
-
-			$Name=$_.VMName
-			
-			if ($_.SkipDjoin -eq $True){
-				WriteInfo "`t Skipping Djoin"				
-				if ($_.DisableWCF -eq $True){
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t WCF will be disabled and Additional Local Admin $($_.AdditionalLocalAdmin) will be added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							WriteInfo "`t WCF will be disabled"
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-						}			
-				}else{
-						if ($_.AdditionalLocalAdmin -ne $null){
-							WriteInfo "`t Additional Local Admin $($_.AdditionalLocalAdmin) will added"
-							$AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $_.AdditionalLocalAdmin
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
-						}else{
-							$unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
-						}	
-					}
-			}else{
-				if ($_.Win2012Djoin -eq $True){
-					WriteInfo "`t Creating Unattend with win2012 domain join"
-					$unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
-				}else{
-					WriteInfo "`t Creating Unattend with djoin blob"
-					$path="c:\$vmname.txt"
-					Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-					$blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-					Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-					if ($_.DisableWCF -eq $True){
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
-					}else{
-						$unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
-					}
-				}
-			}
-
-			WriteInfo "`t Adding unattend to VHD"
-			Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-			Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-			#&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-			#&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-			New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-			Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-			
-			if ($_.DSCMode -eq 'Pull'){
-				WriteInfo "`t Adding metaconfig.mof to VHD"
-				Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
-			}
-			
-			Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-			#&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
-
-			#add toolsdisk
-			if ($_.AddToolsVHD -eq $True){
-				$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
-				WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
-				$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
-			}
-
-#endregion
-			
+            $VMname=$Labconfig.Prefix+$_.VMName
+            			
 			WriteInfoHighlighted "`t Attaching Shared Disks..."
 			$ReplicaHdd | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
