@@ -1068,22 +1068,21 @@ Configuration PullClientConfig
 
 WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
 
-$LABConfig.VMs.GetEnumerator() | ForEach-Object {
-
-	if (!(Get-VM -Name ($labconfig.prefix+$_.vmname) -ErrorAction SilentlyContinue)){
-		if ($_.configuration -eq 'Shared'){
-			$VMSet=$_.VMSet
+foreach ($LabconfigVM in $LABConfig.VMs.GetEnumerator()){
+	if (!(Get-VM -Name ($labconfig.prefix+$LabconfigVM.vmname) -ErrorAction SilentlyContinue)){
+		if ($LabconfigVM.configuration -eq 'Shared'){
+			$VMSet=$LabconfigVM.VMSet
 			if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
-					$SSDSize=$_.SSDSize
-					$HDDSize=$_.HDDSize
+					$SSDSize=$LabconfigVM.SSDSize
+					$HDDSize=$LabconfigVM.HDDSize
 					$SharedSSDs=$null
 					$SharedHDDs=$null
-					If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){  
-						$SharedSSDs= 1..$_.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
+					If (($LabconfigVM.SSDNumber -ge 1) -and ($LabconfigVM.SSDNumber -ne $null)){  
+						$SharedSSDs= 1..$LabconfigVM.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
 						$SharedSSDs | ForEach-Object {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
 					}
-					If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)){  
-						$SharedHDDs= 1..$_.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
+					If (($LabconfigVM.HDDNumber -ge 1) -and ($LabconfigVM.HDDNumber -ne $null)){  
+						$SharedHDDs= 1..$LabconfigVM.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
 						$SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
 					}
 			}else{
@@ -1091,9 +1090,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 					$SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
 			}
 
-            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
+            BuildVM -VMConfig $LabconfigVM -LabConfig $labconfig -LabFolder $LABfolder
 
-            $VMname=$Labconfig.Prefix+$_.VMName
+            $VMname=$Labconfig.Prefix+$LabconfigVM.VMName
 
 			WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 
@@ -1108,22 +1107,22 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			
 		}
 		
-		if ($_.configuration -eq 'Simple'){
+		if ($LabconfigVM.configuration -eq 'Simple'){
 
-            BuildVM -VMConfig $($_) -LabConfig $labconfig -LabFolder $LABfolder
+            BuildVM -VMConfig $($LabconfigVM) -LabConfig $labconfig -LabFolder $LABfolder
 
 		}
 
-		if ($_.configuration -eq 'S2D'){
+		if ($LabconfigVM.configuration -eq 'S2D'){
 
-            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
+            BuildVM -VMConfig $LabconfigVM -LabConfig $labconfig -LabFolder $LABfolder
 
-            $VMname=$Labconfig.Prefix+$_.VMName
+            $VMname=$Labconfig.Prefix+$LabconfigVM.VMName
             $folder="$LabFolder\VMs\$VMname"
             						
-			If (($_.SSDNumber -ge 1) -and ($_.SSDNumber -ne $null)){         
-				$SSDSize=$_.SSDSize
-				$SSDs= 1..$_.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
+			If (($LabconfigVM.SSDNumber -ge 1) -and ($LabconfigVM.SSDNumber -ne $null)){         
+				$SSDSize=$LabconfigVM.SSDSize
+				$SSDs= 1..$LabconfigVM.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
 				WriteInfoHighlighted "`t Adding Virtual SSD Disks"
 				$SSDs | ForEach-Object {
 					Add-VMHardDiskDrive -Path $_.path -VMName $VMname
@@ -1131,9 +1130,9 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 				}
 			}
 
-			If (($_.HDDNumber -ge 1) -and ($_.HDDNumber -ne $null)) {
-				$HDDSize=$_.HDDSize
-				$HDDs= 1..$_.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
+			If (($LabconfigVM.HDDNumber -ge 1) -and ($LabconfigVM.HDDNumber -ne $null)) {
+				$HDDSize=$LabconfigVM.HDDSize
+				$HDDs= 1..$LabconfigVM.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
 				WriteInfoHighlighted "`t Adding Virtual HDD Disks"
 				$HDDs | ForEach-Object {
 				Add-VMHardDiskDrive -Path $_.path -VMName $VMname
@@ -1142,22 +1141,22 @@ $LABConfig.VMs.GetEnumerator() | ForEach-Object {
 			}      
 		}
 			
-		if ($_.configuration -eq 'Replica'){
+		if ($LabconfigVM.configuration -eq 'Replica'){
 			
-			$VMSet=$_.VMSet
+			$VMSet=$LabconfigVM.VMSet
 			if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
-				$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $_.ReplicaHDDSize
+				$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $LabconfigVM.ReplicaHDDSize
 				$ReplicaHDD | ForEach-Object {WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB created"}
-				$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $_.ReplicaLogSize
+				$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $LabconfigVM.ReplicaLogSize
 				$ReplicaLog | ForEach-Object {WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB created"}
 			}else{
 				$ReplicaHDD=Get-VHD -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS"
 				$ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
 			}
 			
-            BuildVM -VMConfig $_ -LabConfig $labconfig -LabFolder $LABfolder
+            BuildVM -VMConfig $LabconfigVM -LabConfig $labconfig -LabFolder $LABfolder
 
-            $VMname=$Labconfig.Prefix+$_.VMName
+            $VMname=$Labconfig.Prefix+$LabconfigVM.VMName
             			
 			WriteInfoHighlighted "`t Attaching Shared Disks..."
 			$ReplicaHdd | ForEach-Object {
