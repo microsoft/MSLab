@@ -249,12 +249,12 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
     #Create vDisks
         if ($numberofnodes -le 3){
             1..$NumberOfDisks | ForEach-Object {
-            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
             }
         }else{
             1..$NumberOfDisks | ForEach-Object {
-            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
-            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance -StorageTierSizes 2TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance -StorageTierSizes 2TB -CimSession $ClusterName
             }
         }
 
@@ -270,8 +270,6 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 #endregion
 
 #region configure other cluster settings
-    ###Configure quorum###
-
     #ConfigureWitness on DC
         #Create new directory
             $WitnessName=$Clustername+"Witness"
@@ -296,6 +294,9 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
         #configure Live Migration 
             Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
             Set-VMHost –VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+#endregion
+
+#region create some VMs and optimize pNICs
 
     #create some fake VMs
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
@@ -311,7 +312,6 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }
         }
-
 
     #move NICs out of CPU 0 (not much tested)
         if ($RealHW){
@@ -337,9 +337,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
                 }
             }
         }
-
 #endregion
-
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
