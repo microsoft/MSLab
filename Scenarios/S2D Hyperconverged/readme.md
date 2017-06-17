@@ -1,9 +1,9 @@
 # Scenario Description
 
 * In this scenario 2-16 node S2D cluster can be created.
-* It is just simulation "how it would look like". Performance is not a subject here.
-* It is just to test look and feel
+* It is just simulation "how it would look like". Performance is not a subject here - it is just to test look and feel
 * Script is well tested, on both real and simulated environments. However if you need assist, ask your Premier Field Engineer
+* you can also use Nano Servers (its eating less resources). However as communicated [here](https://blogs.technet.microsoft.com/hybridcloud/2017/06/15/delivering-continuous-innovation-with-windows-server/), our focus is Core Server for physical infrastructure servers.
 * This is just one of many scripts that I did internally for Microsoft employees. Shoud be used for education purposes. For real-world deployments it may differ, therefore never ever just paste the script into production! If you want assist, please ask your Technical Accout Manager, or ping me at jaromirk@microsoft.com and I'll help you find PFE resource to assist you in your region.
 
 
