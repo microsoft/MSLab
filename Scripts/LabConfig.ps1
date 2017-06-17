@@ -1,7 +1,7 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 <# Same as above, but with more explanation
 
@@ -33,7 +33,7 @@ $LabConfig=@{
 	$LABConfig.VMs += @{
 		VMName = "$VMNames$_" ;
 		Configuration = 'S2D' ;					# Simple/S2D/Shared/Replica
-		ParentVHD = 'Win2016NanoHV_G2.vhdx';	# VHD Name from .\ParentDisks folder
+		ParentVHD = 'Win2016Core_G2.vhdx';	# VHD Name from .\ParentDisks folder
 		SSDNumber = 0;							# Number of "SSDs" (its just simulation of SSD-like sized HDD, just bunch of smaller disks)
 		SSDSize=800GB ;							# Size of "SSDs"
 		HDDNumber = 12;							# Number of "HDDs"

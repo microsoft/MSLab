@@ -5,17 +5,16 @@
 
  This solution is used in Microsoft Premier Workshop for Software Defined Storage.
  
- Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios!
+ Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
 
 # Videos
+
+Videos are bit outdated as subtle changes are in scripts.
 
 * [1 Lab Hydration](https://youtu.be/xDrMYdSCIpM)
 * [2 Lab Deployment](https://youtu.be/SzewA7C9lzI)
 * [3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
 * [4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
-
-# Usage (more info in [wiki](https://github.com/Microsoft/ws2016lab/wiki) )
-
 
 **Step 1** Download required files (prerequisities):
 * [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
@@ -73,7 +72,7 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 # So what is it good for?
 
 Simulations such as
-* how to script against nano servers
+* how to script against servers
 * how to automate configuration
 * what will happen when I run this and that command
 * how change drive in S2D cluster
