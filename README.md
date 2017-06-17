@@ -26,12 +26,11 @@ Videos are bit outdated as subtle changes are in scripts.
 **Step 2** Create folder and Unzip scripts there
 
 **Step 3** Right-click and run with PowerShell 1_Prereq.ps1
- * 1_Prereq.ps1 will create folder structure (if you want to run second script without asking for files, you can copy iso and CU there) and downloads neccessary files from internet
+ * 1_Prereq.ps1 will create folder structure and downloads neccessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
  
 **Step 4** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, Cumulative Update and then will hydrate parent disks and Domain Controller.
- * When selecting updates, rename them that they are sorted (Prerequisite update first, Cumulative Update second)
 
 **Step 5** Right-click and run with PowerShell 3_Deploy.ps1
  * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
@@ -40,7 +39,7 @@ Videos are bit outdated as subtle changes are in scripts.
 
 * This scenario will help you understand new Windows Server 2016 feature Storage Spaces Direct.
 
-* It will deploy 4 Servers Core simulating 200TB Storage
+* It will deploy 4 Servers simulating 200TB Storage
 
 **Step 7** Cleanup lab with Cleanup.ps1
 

@@ -151,7 +151,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx
-
+#just some examples for Rack/Chassis fault domains.
 if ($numberofnodes -eq 4){
 $xml =  @"
 <Topology>
@@ -269,7 +269,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 
 #endregion
 
-#region configure other cluster settings
+#region configure Witness and other cluster settings
     #ConfigureWitness on DC
         #Create new directory
             $WitnessName=$Clustername+"Witness"
