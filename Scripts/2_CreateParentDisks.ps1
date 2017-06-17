@@ -103,53 +103,55 @@ If (!( $isAdmin )) {
 
 #endregion
 
-###Start LOG###
-    Start-Transcript -Path "$PSScriptRoot\CreateParentDisks.log"
-    $StartDateTime = get-date
-    WriteInfo "Script started at $StartDateTime"
+#region Initialization
+    #Start Log
+        Start-Transcript -Path "$PSScriptRoot\CreateParentDisks.log"
+        $StartDateTime = get-date
+        WriteInfo "Script started at $StartDateTime"
 
-##Load LabConfig....
-    . "$PSScriptRoot\LabConfig.ps1"
+    #Load LabConfig....
+        . "$PSScriptRoot\LabConfig.ps1"
 
-#region process labconfig
-
-    If (!$LabConfig.DomainNetbiosName){
-        $LabConfig.DomainNetbiosName="Corp"
-    }
-
-    If (!$LabConfig.DomainName){
-        $LabConfig.DomainName="Corp.contoso.com"
-    }
-
-    If (!$LabConfig.DefaultOUName){
-        $LabConfig.DefaultOUName="Workshop"
-    }
-
-    $DN=$null
-    $LabConfig.DomainName.Split(".") | ForEach-Object {
-        $DN+="DC=$_,"   
-    }
-    
-    $LabConfig.DN=$DN.TrimEnd(",")
-
-    $AdminPassword=$LabConfig.AdminPassword
-    $Switchname='DC_HydrationSwitch'
-    $DCName='DC'
-
-    if (!$Labconfig.ServerVHDs){
-        $Labconfig.ServerVHDs=@()
-        $LABConfig.ServerVHDs += @{
-            Edition="DataCenterCore" 
-            VHDName="Win2016Core_G2.vhdx"
-            Size=30GB
+    #create variables if not already in labconfig
+        If (!$LabConfig.DomainNetbiosName){
+            $LabConfig.DomainNetbiosName="Corp"
         }
-        $LABConfig.ServerVHDs += @{ 
-        Edition="DataCenterNano"
-        VHDName="Win2016NanoHV_G2.vhdx"
-        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
-        Size=30GB
+
+        If (!$LabConfig.DomainName){
+            $LabConfig.DomainName="Corp.contoso.com"
         }
-    }   
+
+        If (!$LabConfig.DefaultOUName){
+            $LabConfig.DefaultOUName="Workshop"
+        }
+
+    #create some variables
+        $DN=$null
+        $LabConfig.DomainName.Split(".") | ForEach-Object {
+            $DN+="DC=$_,"   
+        }
+        
+        $LabConfig.DN=$DN.TrimEnd(",")
+
+        $AdminPassword=$LabConfig.AdminPassword
+        $Switchname='DC_HydrationSwitch'
+        $DCName='DC'
+
+    #create $serverVHDs variables if not already in $labconfig
+        if (!$Labconfig.ServerVHDs){
+            $Labconfig.ServerVHDs=@()
+            $LABConfig.ServerVHDs += @{
+                Edition="DataCenterCore" 
+                VHDName="Win2016Core_G2.vhdx"
+                Size=30GB
+            }
+            $LABConfig.ServerVHDs += @{ 
+                Edition="DataCenterNano"
+                VHDName="Win2016NanoHV_G2.vhdx"
+                NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
+                Size=30GB
+            }
+        }   
 #endregion
 
 #region Check prerequisites
