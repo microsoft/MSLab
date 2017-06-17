@@ -1,9 +1,11 @@
 # Project Description
  Deployment Automation of Windows Server 2016 labs on WS2016/Windows10 Hyper-V
-
+ 
  Simply deploy your lab just with these scripts and ISO file.
 
- This solution is used in Microsoft Premier Workshop for Software Defined Storage.
+ Major differentiator is that once hydrated (first 2 scripts), deploy takes ~5 minutes. Cleanup is ~10s. 
+
+ This solution is used in Microsoft Premier Workshop for Software Defined Storage, Hyper-V and System Center VMM
  
  Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
 
@@ -36,15 +38,15 @@ Videos are bit outdated as subtle changes are in scripts.
  
 **Step 6** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
 
-* This scenario will help you understand new Windows Server 2016 feature called Storage Spaces Direct.
+* This scenario will help you understand new Windows Server 2016 feature Storage Spaces Direct.
 
-* It will deploy 4 nanoservers simulating 200TB Storage
+* It will deploy 4 Servers Core simulating 200TB Storage
 
 **Step 7** Cleanup lab with Cleanup.ps1
 
 **Step 8** Try different scenarios
 * [Local Admin Password solution for NanoServer](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/LAPS%20on%20Nano)
-* [Testing Nano first boot performance](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Testing%20Nano%20performance)
+* [Testing first boot performance](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Testing%20Nano%20performance)
 
 # What's in the lab
 
