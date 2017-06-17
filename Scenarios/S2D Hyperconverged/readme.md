@@ -4,7 +4,7 @@
 * It is just simulation "how it would look like". Performance is not a subject here.
 * It is just to test look and feel
 * Script is well tested, on both real and simulated environments. However if you need assist, ask your Premier Field Engineer
-* This is just one of many scripts that I did internally for Microsoft employees. Shoud be used for education purposes. For real-world deployments it may differ, therefore never ever just paste the script into production! If you want assist, please ask your Technical Accout Manager, or ping me at jaromirk@microsoft.com
+* This is just one of many scripts that I did internally for Microsoft employees. Shoud be used for education purposes. For real-world deployments it may differ, therefore never ever just paste the script into production! If you want assist, please ask your Technical Accout Manager, or ping me at jaromirk@microsoft.com and I'll help you find PFE resource to assist you in your region.
 
 
 # Scenario requirements
