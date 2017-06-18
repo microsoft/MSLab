@@ -1048,14 +1048,14 @@ If (!( $isAdmin )) {
 						#Add disks
 							WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 							$SharedSSDs | ForEach-Object {
-								$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
+								$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 								Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-								WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
+								WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 							}
 							$SharedHDDs | ForEach-Object {
-								$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
+								$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 								Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-								WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
+								WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 							}
 					}
 				
@@ -1115,15 +1115,15 @@ If (!( $isAdmin )) {
 							WriteInfoHighlighted "`t Attaching Shared Disks..."
 							#Add HDD
 								$ReplicaHdd | ForEach-Object {
-									$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
+									$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 									Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-									WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
+									WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 								}
 							#add Log Disk
 								$ReplicaLog | ForEach-Object {
-									$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
+									$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 									Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-									WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
+									WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 								}
 					}
 			}
