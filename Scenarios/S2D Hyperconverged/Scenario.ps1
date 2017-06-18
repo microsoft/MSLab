@@ -44,7 +44,7 @@ Write-host "Script started at $StartDateTime"
 
 
 #install features for management
-    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Storage-Replica,RSAT-Hyper-V-Tools
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
 #Region configure servers
     #install roles and features
@@ -95,51 +95,54 @@ Write-host "Script started at $StartDateTime"
                 Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_1" –ManagementOS –PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
                 Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_2" –ManagementOS –PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
             }
-
-            #Verify Networking
-                #verify mapping
-                    Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
-                #Verify that the VlanID is set
-                    Get-VMNetworkAdapterVlan –ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
-                #verify RDMA
-                    Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
-                #verify ip config 
-                    Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+        }
+    
+    #Verify Networking
+        if ($Networking){
+            #verify mapping
+                Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
+            #Verify that the VlanID is set
+                Get-VMNetworkAdapterVlan –ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
+            #verify RDMA
+                Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+            #verify ip config 
+                Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
 
         }
 
+    #configure DCB if requested
+        if ($DCB -eq $True){
+            #Install DCB
+                if (!$NanoServer){
+                    foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+                }
+            ##Configure QoS
+                New-NetQosPolicy "SMB" –NetDirectPortMatchCondition 445 –PriorityValue8021Action 3 -CimSession $servers
 
-    if ($DCB -eq $True){
-        #Install DCB
-            if (!$NanoServer){
-                foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
-            }
-        ##Configure QoS
-            New-NetQosPolicy "SMB" –NetDirectPortMatchCondition 445 –PriorityValue8021Action 3 -CimSession $servers
+            #Turn on Flow Control for SMB
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl –Priority 3}
 
-        #Turn on Flow Control for SMB
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl –Priority 3}
+            #Disable flow control for other traffic
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl –Priority 0,1,2,4,5,6,7}
 
-        #Disable flow control for other traffic
-            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl –Priority 0,1,2,4,5,6,7}
+            #validate flow control setting
+                Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
 
-        #validate flow control setting
-            Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
+            #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
-        #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+            #validate policy
+                Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-        #validate policy
-            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
+            #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
+        }
 
-        #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
-    }
-
-    #enable iWARP firewall rule
+    #enable iWARP firewall rule if requested
         if ($iWARP -eq $True){
             Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $servers
         }
+
 #endregion
 
 #Region test and create new cluster 
@@ -239,7 +242,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
     #show fault domain configuration
         Get-ClusterFaultDomainxml -CimSession $ClusterName
 
-#endregion Create Fault Domains
+#endregion
 
 #region configure S2D and create vDisks
 
@@ -299,6 +302,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 #region create some VMs and optimize pNICs
 
     #create some fake VMs
+        Start-Sleep -Seconds 30 #just to a bit wait as I saw sometimes that first VM fails to create
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)

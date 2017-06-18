@@ -409,12 +409,11 @@ If (!( $isAdmin )) {
 		}
 					
 		$VMname=$Labconfig.Prefix+$VMConfig.VMName
-		$folder="$LabFolder\VMs\$VMname"
-		$vhdpath="$folder\$VMname.vhdx"
+		$vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
 		WriteInfo "`t Creating OS VHD"
 		New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
 		WriteInfo "`t Creating VM"
-		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path $folder -SwitchName $SwitchName -Generation 2
+		$VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
 		$VMTemp | Set-VMProcessor -Count 2
 		$VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
 		$VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
@@ -543,7 +542,7 @@ If (!( $isAdmin )) {
 
 		#add toolsdisk
 		if ($VMConfig.AddToolsVHD -eq $True){
-			$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$folder\tools.vhdx"
+			$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$$LabFolder\VMs\$VMname\Virtual Hard Disks\tools.vhdx"
 			WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
 			$VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
 		}
@@ -862,7 +861,7 @@ If (!( $isAdmin )) {
 		
 		#add tools disk
 			WriteInfo "`t Adding Tools disk to DC machine"
-			$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\tools.vhdx"
+			$VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\ToolsDiskDC.vhdx"
 			WriteInfo "`t `t Adding Virtual Hard Disk $($VHD.Path)"
 			$DC | Add-VMHardDiskDrive -Path $vhd.Path
 
@@ -1049,12 +1048,14 @@ If (!( $isAdmin )) {
 						#Add disks
 							WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 							$SharedSSDs | ForEach-Object {
+								$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 								Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-								WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
+								WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
 							}
 							$SharedHDDs | ForEach-Object {
+								$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 								Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-								WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
+								WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
 							}
 					}
 				
@@ -1070,24 +1071,25 @@ If (!( $isAdmin )) {
 						#compose VM name
 							$VMname=$Labconfig.Prefix+$VMConfig.VMName
 						
-						#Add disks
-							$folder="$LabFolder\VMs\$VMname"						
+						#Add disks						
 							#add "SSDs"
 								If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
-									$SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $VMConfig.SSDSize}
+									$SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\SSD-$_.VHDX" -Dynamic –Size $VMConfig.SSDSize}
 									WriteInfoHighlighted "`t Adding Virtual SSD Disks"
 									$SSDs | ForEach-Object {
+										$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
-										WriteInfo "`t`t SSD $($_.path) size $($_.size /1GB)GB added to $VMname"
+										WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 									}
 								}
 							#add "HDDs"
 								If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)) {
-									$HDDs= 1..$VMConfig.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $VMConfig.HDDSize}
+									$HDDs= 1..$VMConfig.HDDNumber | ForEach-Object { New-VHD -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\HDD-$_.VHDX" -Dynamic –Size $VMConfig.HDDSize}
 									WriteInfoHighlighted "`t Adding Virtual HDD Disks"
 									$HDDs | ForEach-Object {
+										$filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
-										WriteInfo "`t`t HDD $($_.path) size $($_.size /1GB)GB added to $VMname"
+										WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
 									}	
 								}      
 					}
@@ -1113,13 +1115,15 @@ If (!( $isAdmin )) {
 							WriteInfoHighlighted "`t Attaching Shared Disks..."
 							#Add HDD
 								$ReplicaHdd | ForEach-Object {
+									$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 									Add-VMHardDiskDrive -Path $_.path -VMName $VMname -SupportPersistentReservations
-									WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB added to $VMname"
+									WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
 								}
 							#add Log Disk
 								$ReplicaLog | ForEach-Object {
+									$Filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
 									Add-VMHardDiskDrive -Path $_.Path -VMName $VMname -SupportPersistentReservations
-									WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB added to $VMname"
+									WriteInfo "`t`t $Filename size $($_.size /1GB)GB added to $VMname"
 								}
 					}
 			}
