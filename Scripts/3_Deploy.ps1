@@ -1,4 +1,4 @@
-# Verify Running as Admin
+﻿# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
 	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
@@ -1021,23 +1021,23 @@ If (!( $isAdmin )) {
 
 	#process $labconfig.VMs and create VMs (skip if machine already exists)
 		WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
-		foreach ($LABConfigVM in $LABConfig.VMs.GetEnumerator()){
-			if (!(Get-VM -Name "$($labconfig.prefix)$($LABConfigVM.vmname)" -ErrorAction SilentlyContinue)){
+		foreach ($VMConfig in $LABConfig.VMs.GetEnumerator()){
+			if (!(Get-VM -Name "$($labconfig.prefix)$($VMConfig.vmname)" -ErrorAction SilentlyContinue)){
 				#create VM with Shared configuration
-					if ($LABConfigVM.configuration -eq 'Shared'){
+					if ($VMConfig.configuration -eq 'Shared'){
 						#create disks (if not already created)
-							$VMSet=$LABConfigVM.VMSet
+							$VMSet=$VMConfig.VMSet
 							if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
-								$SSDSize=$LABConfigVM.SSDSize
-								$HDDSize=$LABConfigVM.HDDSize
+								$SSDSize=$VMConfig.SSDSize
+								$HDDSize=$VMConfig.HDDSize
 								$SharedSSDs=$null
 								$SharedHDDs=$null
-								If (($LABConfigVM.SSDNumber -ge 1) -and ($LABConfigVM.SSDNumber -ne $null)){  
-									$SharedSSDs= 1..$LABConfigVM.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
+								If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){  
+									$SharedSSDs= 1..$VMConfig.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
 									$SharedSSDs | ForEach-Object {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
 								}
-								If (($LABConfigVM.HDDNumber -ge 1) -and ($LABConfigVM.HDDNumber -ne $null)){  
-									$SharedHDDs= 1..$LABConfigVM.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
+								If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)){  
+									$SharedHDDs= 1..$VMConfig.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
 									$SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
 								}
 							}else{
@@ -1045,9 +1045,9 @@ If (!( $isAdmin )) {
 								$SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
 							}
 						#Build VM
-							BuildVM -VMConfig $LABConfigVM -LabConfig $labconfig -LabFolder $LABfolder					
+							BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder					
 						#Compose VMName
-							$VMname=$Labconfig.Prefix+$LABConfigVM.VMName
+							$VMname=$Labconfig.Prefix+$VMConfig.VMName
 						#Add disks
 							WriteInfoHighlighted "`t Attaching Shared Disks to $VMname"
 							$SharedSSDs | ForEach-Object {
@@ -1061,23 +1061,23 @@ If (!( $isAdmin )) {
 					}
 				
 				#create VM with Simple configuration
-					if ($LABConfigVM.configuration -eq 'Simple'){
-						BuildVM -VMConfig $($LABConfigVM) -LabConfig $labconfig -LabFolder $LABfolder
+					if ($VMConfig.configuration -eq 'Simple'){
+						BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
 					}
 
 				#create VM with S2D configuration 
-					if ($LABConfigVM.configuration -eq 'S2D'){
+					if ($VMConfig.configuration -eq 'S2D'){
 						#build VM
-							BuildVM -VMConfig $LABConfigVM -LabConfig $labconfig -LabFolder $LABfolder
+							BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
 						#compose VM name
-							$VMname=$Labconfig.Prefix+$LABConfigVM.VMName
+							$VMname=$Labconfig.Prefix+$VMConfig.VMName
 						
 						#Add disks
 							$folder="$LabFolder\VMs\$VMname"						
 							#add "SSDs"
-								If (($LABConfigVM.SSDNumber -ge 1) -and ($LABConfigVM.SSDNumber -ne $null)){         
-									$SSDSize=$LABConfigVM.SSDSize
-									$SSDs= 1..$LABConfigVM.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
+								If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
+									$SSDSize=$VMConfig.SSDSize
+									$SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
 									WriteInfoHighlighted "`t Adding Virtual SSD Disks"
 									$SSDs | ForEach-Object {
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
@@ -1085,9 +1085,9 @@ If (!( $isAdmin )) {
 									}
 								}
 							#add "HDDs"
-								If (($LABConfigVM.HDDNumber -ge 1) -and ($LABConfigVM.HDDNumber -ne $null)) {
-									$HDDSize=$LABConfigVM.HDDSize
-									$HDDs= 1..$LABConfigVM.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
+								If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)) {
+									$HDDSize=$VMConfig.HDDSize
+									$HDDs= 1..$VMConfig.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
 									WriteInfoHighlighted "`t Adding Virtual HDD Disks"
 									$HDDs | ForEach-Object {
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
@@ -1097,23 +1097,23 @@ If (!( $isAdmin )) {
 					}
 
 				#create VM with Replica configuration	
-					if ($LABConfigVM.configuration -eq 'Replica'){
+					if ($VMConfig.configuration -eq 'Replica'){
 						#create shared drives if not already created
-							$VMSet=$LABConfigVM.VMSet
+							$VMSet=$VMConfig.VMSet
 							if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
-								$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $LABConfigVM.ReplicaHDDSize
+								$ReplicaHDD= New-vhd -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS" -Dynamic –Size $VMConfig.ReplicaHDDSize
 								$ReplicaHDD | ForEach-Object {WriteInfo "`t`t ReplicaHDD $($_.path) size $($_.size /1GB)GB created"}
-								$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $LABConfigVM.ReplicaLogSize
+								$ReplicaLog= New-vhd -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS" -Dynamic –Size $VMConfig.ReplicaLogSize
 								$ReplicaLog | ForEach-Object {WriteInfo "`t`t ReplicaLog $($_.path) size $($_.size /1GB)GB created"}
 							}else{
 								$ReplicaHDD=Get-VHD -Path "$LABfolder\VMs\ReplicaHDD-$VMSet.VHDS"
 								$ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
 							}
 						#build VM
-							BuildVM -VMConfig $LABConfigVM -LabConfig $labconfig -LabFolder $LABfolder
+							BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
 						
 						#Add disks
-							$VMname=$Labconfig.Prefix+$LABConfigVM.VMName				
+							$VMname=$Labconfig.Prefix+$VMConfig.VMName				
 							WriteInfoHighlighted "`t Attaching Shared Disks..."
 							#Add HDD
 								$ReplicaHdd | ForEach-Object {

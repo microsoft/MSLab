@@ -45,7 +45,7 @@ If (!( $isAdmin )) {
         }
 
     #grab all VMs, switches and DC
-        $VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC" -ErrorAction SilentlyContinue
+        $VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC" -ErrorAction SilentlyContinue | Sort-Object -Property Name
         $vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)" -ErrorAction SilentlyContinue
         $extvSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)-External" -ErrorAction SilentlyContinue
         $DC=get-vm "$($prefix)DC" -ErrorAction SilentlyContinue
