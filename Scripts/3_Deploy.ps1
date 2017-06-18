@@ -1028,16 +1028,14 @@ If (!( $isAdmin )) {
 						#create disks (if not already created)
 							$VMSet=$VMConfig.VMSet
 							if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
-								$SSDSize=$VMConfig.SSDSize
-								$HDDSize=$VMConfig.HDDSize
 								$SharedSSDs=$null
 								$SharedHDDs=$null
 								If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){  
-									$SharedSSDs= 1..$VMConfig.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $SSDSize}
+									$SharedSSDs= 1..$VMConfig.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic –Size $VMConfig.SSDSize}
 									$SharedSSDs | ForEach-Object {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
 								}
 								If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)){  
-									$SharedHDDs= 1..$VMConfig.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $HDDSize}
+									$SharedHDDs= 1..$VMConfig.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic –Size $VMConfig.HDDSize}
 									$SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
 								}
 							}else{
@@ -1076,8 +1074,7 @@ If (!( $isAdmin )) {
 							$folder="$LabFolder\VMs\$VMname"						
 							#add "SSDs"
 								If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
-									$SSDSize=$VMConfig.SSDSize
-									$SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $SSDSize}
+									$SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$folder\SSD-$_.VHDX" -Dynamic –Size $VMConfig.SSDSize}
 									WriteInfoHighlighted "`t Adding Virtual SSD Disks"
 									$SSDs | ForEach-Object {
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
@@ -1086,8 +1083,7 @@ If (!( $isAdmin )) {
 								}
 							#add "HDDs"
 								If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)) {
-									$HDDSize=$VMConfig.HDDSize
-									$HDDs= 1..$VMConfig.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $HDDSize}
+									$HDDs= 1..$VMConfig.HDDNumber | ForEach-Object { New-VHD -Path "$folder\HDD-$_.VHDX" -Dynamic –Size $VMConfig.HDDSize}
 									WriteInfoHighlighted "`t Adding Virtual HDD Disks"
 									$HDDs | ForEach-Object {
 										Add-VMHardDiskDrive -Path $_.path -VMName $VMname
