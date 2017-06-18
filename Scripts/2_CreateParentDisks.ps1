@@ -302,22 +302,30 @@ If (!( $isAdmin )) {
 
     #Create client OS VHD
         If ($LabConfig.CreateClientParent -eq $true){
-            WriteInfoHighlighted "Creating Client Parent"
-            if ($ClientPackages){
-                Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
+            if (!(Test-Path "$PSScriptRoot\ParentDisks\Win10_G2.vhdx")){
+                WriteInfoHighlighted "Creating Client Parent"
+                if ($ClientPackages){
+                    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
+                }else{
+                    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
+                }
             }else{
-                Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\Win10_G2.vhdx" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
+                WriteInfoHighlighted "Client Parent found, skipping creation"
             }
         }
 
     #Create Servers Parent VHDs
         foreach ($ServerVHD in $labconfig.ServerVHDs){
             if ($serverVHD.Edition -notlike "*nano"){
-                WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
-                if ($serverpackages){     
-                    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+                if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
+                    WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
+                    if ($serverpackages){     
+                        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+                    }else{
+                        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
+                    }
                 }else{
-                    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
+                    WriteInfoHighlighted "Server Parent $($ServerVHD.VHDName) found, skipping creation"
                 }
             }
             if ($serverVHD.Edition -like "*nano"){
@@ -325,38 +333,46 @@ If (!( $isAdmin )) {
                 foreach ($NanoPackage in $serverVHD.NanoPackages){
                     $NanoPackages+=(Get-ChildItem -Path "$ServerMediaPath\NanoServer\" -Recurse | Where-Object Name -like $NanoPackage*).FullName
                 }
-                WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
-                if ($serverpackages){
-                    Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+                if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
+                    WriteInfoHighlighted "Creating Server Parent $($ServerVHD.VHDName)"
+                    if ($serverpackages){
+                        Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+                    }else{
+                        Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
+                    }
                 }else{
-                    Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
+                    WriteInfoHighlighted "Server Parent $($ServerVHD.VHDName) found, skipping creation"
                 }
             }
         }
 
     #create Tools VHDX from .\tools\ToolsVHD
-        WriteInfoHighlighted "Creating Tools.vhdx"
-        $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
-        #mount and format VHD
-            $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
-            $vhddisk = $VHDMount| get-disk 
-            $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
+        if (!(Test-Path "$PSScriptRoot\ParentDisks\tools.vhdx")){
+            WriteInfoHighlighted "Creating Tools.vhdx"
+            $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+            #mount and format VHD
+                $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
+                $vhddisk = $VHDMount| get-disk 
+                $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
 
-        $VHDPathTest=Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\"
-        if (!$VHDPathTest){
-            New-Item -Type Directory -Path $PSScriptRoot'\Tools\ToolsVHD'
-        }
-        if ($VHDPathTest){
-            WriteInfo "Found $PSScriptRoot\Tools\ToolsVHD\*, copying files into VHDX"
-            Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+            $VHDPathTest=Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\"
+            if (!$VHDPathTest){
+                New-Item -Type Directory -Path "$PSScriptRoot\Tools\ToolsVHD"
+            }
+            if ($VHDPathTest){
+                WriteInfo "Found $PSScriptRoot\Tools\ToolsVHD\*, copying files into VHDX"
+                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
+            }else{
+                WriteInfo "Files not found" 
+                WriteInfoHighlighted "Add required tools into $PSScriptRoot\Tools\toolsVHD and Press any key to continue..."
+                $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+            }
+
+            Dismount-VHD $vhddisk.Number
         }else{
-            WriteInfo "Files not found" 
-            WriteInfoHighlighted "Add required tools into $PSScriptRoot\Tools\toolsVHD and Press any key to continue..."
-            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-            Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+            WriteInfoHighlighted "Tools.vhdx found, skipping creation"
         }
-
-        Dismount-VHD $vhddisk.Number
 #endregion
 
 #region Hydrate DC
@@ -372,6 +388,8 @@ If (!( $isAdmin )) {
 
     #reuse VHD if already created
      if (Test-Path $DCVHDSource){
+         WriteInfoHighlighted "$DCVHDSource found, reusing copying to $vhdpath"
+         New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
          Copy-Item -Path $DCVHDSource -Destination $vhdpath
      }else{
         #Create Parent VHD
@@ -400,6 +418,9 @@ If (!( $isAdmin )) {
     #Apply Unattend to VM
         WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
         $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
+        if (Test-Path "$PSScriptRoot\Temp\"){
+            Remove-Item -Path "$PSScriptRoot\Temp\" -Recurse
+        }
         New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
         Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
         Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
