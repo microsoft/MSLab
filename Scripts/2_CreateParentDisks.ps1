@@ -1,9 +1,9 @@
 ﻿# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
 #region Functions
@@ -173,33 +173,33 @@ If (!( $isAdmin )) {
 
     #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested
         if ($LabConfig.InstallSCVMM -eq "Yes"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
                 if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "files $_ needed for SCVMM install not found. Exitting"
+                    WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
                 }
             }    
         }
 
         if ($LabConfig.InstallSCVMM -eq "Prereqs"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
                 if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "files $_ needed for SCVMM Prereqs install not found. Exitting"
+                    WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
                 }
             } 
         }
     
         if ($LabConfig.InstallSCVMM -eq "SQL"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
                 if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "files $_ needed for SQL install not found. Exitting"
+                    WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
                 }
             }
         }    
 
         if ($LabConfig.InstallSCVMM -eq "ADK"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\dotNET\microsoft-windows-netfx3-ondemand-package.cab" | ForEach-Object {
+            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
                 if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "files $_ needed for ADK install not found. Exitting"
+                    WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
                 }
             }
         }   
@@ -241,7 +241,7 @@ If (!( $isAdmin )) {
             }
         #Mount ISO
         $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-        #Generate Media Path		
+        #Generate Media Path        
             $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
         }
 
@@ -372,6 +372,7 @@ If (!( $isAdmin )) {
             Dismount-VHD $vhddisk.Number
         }else{
             WriteInfoHighlighted "Tools.vhdx found, skipping creation"
+            $toolsVHD=Get-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx"
         }
 #endregion
 
@@ -387,11 +388,11 @@ If (!( $isAdmin )) {
     }
 
     #reuse VHD if already created
-     if (Test-Path $DCVHDSource){
+    if (Test-Path $DCVHDSource){
          WriteInfoHighlighted "$DCVHDSource found, reusing copying to $vhdpath"
          New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
          Copy-Item -Path $DCVHDSource -Destination $vhdpath
-     }else{
+    }else{
         #Create Parent VHD
         WriteInfoHighlighted "Creating VHD for DC"
         if ($serverpackages){
@@ -399,7 +400,7 @@ If (!( $isAdmin )) {
         }else{
             Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
         }
-     }
+    }
 
     #If the switch does not already exist, then create a switch with the name $SwitchName
         if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
@@ -417,10 +418,10 @@ If (!( $isAdmin )) {
 
     #Apply Unattend to VM
         WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
-        $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
         if (Test-Path "$PSScriptRoot\Temp\"){
             Remove-Item -Path "$PSScriptRoot\Temp\" -Recurse
         }
+        $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
         New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
         Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
         Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
