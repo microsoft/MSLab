@@ -75,11 +75,11 @@
         }
 
     # Checking Folder Structure
-        "Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\dotNET","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
+        "Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
             if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
-	
-        "Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\dotNET\Copy_microsoft-windows-netfx3-ondemand-package.cab_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
-	        if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type File -Path "$PSScriptRoot\$_" } }
+    
+        "Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
+            if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type File -Path "$PSScriptRoot\$_" } }
 #endregion
 
 #region add scripts for SCVMM
@@ -90,14 +90,14 @@
     
 # Sample SQL Install
 
-# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
+# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2016
 
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
 Start-Transcript -Path "$PSScriptRoot\SQL_Install.log"
@@ -105,35 +105,37 @@ Start-Transcript -Path "$PSScriptRoot\SQL_Install.log"
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
+<#
 #check for .net 3.5
 if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled'){
     do{
         If (Test-Path -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab"){
             $dotNET = Get-Item -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab" -ErrorAction SilentlyContinue
-		    Write-Host "microsoft-windows-netfx3-ondemand-package.cab found in dotNET folder... installing" -ForegroundColor Cyan
+            Write-Host "microsoft-windows-netfx3-ondemand-package.cab found in dotNET folder... installing" -ForegroundColor Cyan
         }else{
             Write-Host "No .NET found in $PSScriptRoot\dotNET" -ForegroundColor Cyan
-			Write-Host "please browse for dotNET package (microsoft-windows-netfx3-ondemand-package.cab)" -ForegroundColor Green
+            Write-Host "please browse for dotNET package (microsoft-windows-netfx3-ondemand-package.cab)" -ForegroundColor Green
 
-			[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-			$openFile = New-Object System.Windows.Forms.OpenFileDialog
-			$openFile.Filter = "cab files (*.cab)|*.cab|All files (*.*)|*.*" 
-			If($openFile.ShowDialog() -eq "OK"){
-			   Write-Host  "File $openfile selected" -ForegroundColor Cyan
-               $dotNET = Get-Item -Path $openfile.filename -ErrorAction SilentlyContinue
-            } 
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog
+            $openFile.Filter = "cab files (*.cab)|*.cab|All files (*.*)|*.*" 
+            If($openFile.ShowDialog() -eq "OK"){
+                Write-Host  "File $openfile selected" -ForegroundColor Cyan
+                $dotNET = Get-Item -Path $openfile.filename -ErrorAction SilentlyContinue
+            }
             if (!$openFile.FileName){
-		        Write-Host  "CAB was not selected... Exitting" -ForegroundColor Red
+                Write-Host  "CAB was not selected... Exitting" -ForegroundColor Red
                 Write-Host "Press any key to continue ..."
-	            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	            $HOST.UI.RawUI.Flushinputbuffer()
-	            Exit 
-		     } 
+                $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+                $HOST.UI.RawUI.Flushinputbuffer()
+                Exit 
+             } 
         }
     install-windowsfeature WAS-NET-Environment -Source $dotnet.Directory    
     }
     until ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -eq 'Enabled')
 }
+#>
 
 #install SQL
 
@@ -152,16 +154,16 @@ If (Test-Path -Path "$PSScriptRoot\SQL\setup.exe"){
        Write-Host  "File $setupfile selected" -ForegroundColor Cyan
     }
     if (!$openFile.FileName){
-		    Write-Host  "setup.exe was not selected... Exitting" -ForegroundColor Red
+            Write-Host  "setup.exe was not selected... Exitting" -ForegroundColor Red
             Write-Host "Press any key to continue ..."
-	        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	        $HOST.UI.RawUI.Flushinputbuffer()
-	        Exit 
-	}
+            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+            $HOST.UI.RawUI.Flushinputbuffer()
+            Exit 
+    }
 }  
      
 Write-Host "Installing SQL..." -ForegroundColor Green
-& $setupfile /q /ACTION=Install /FEATURES=SQLEngine,SSMS /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="DomainNameGoesHere\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="DomainNameGoesHere\Domain admins" /AGTSVCACCOUNT="DomainNameGoesHere\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
+& $setupfile /q /ACTION=Install /FEATURES=SQLEngine /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="DomainNameGoesHere\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="DomainNameGoesHere\Domain admins" /AGTSVCACCOUNT="DomainNameGoesHere\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
 
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
@@ -171,7 +173,7 @@ Start-Sleep 5
 exit
 
 '@
-    	    $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
             $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
             Set-Content -path $script -value $fileContent
         }
@@ -182,14 +184,14 @@ exit
 
 #Sample ADK install
 
-# You can grab ADK here: 	https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx
+# You can grab ADK here:     https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx
 
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
 
@@ -241,9 +243,9 @@ exit
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
 Start-Transcript -Path "$PSScriptRoot\SCVMM_Install.log"
@@ -323,7 +325,7 @@ Exit
 
 '@
 
-	        $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
             $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
             Set-Content -path $script -value $fileContent
         }
@@ -335,9 +337,9 @@ Exit
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-	Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-	exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
 
@@ -367,11 +369,11 @@ function WriteError($message)
 
 function WriteErrorAndExit($message)
 {
-	Write-Host $message -ForegroundColor Red
-	Write-Host "Press any key to continue ..."
-	$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-	$HOST.UI.RawUI.Flushinputbuffer()
-	Exit
+    Write-Host $message -ForegroundColor Red
+    Write-Host "Press any key to continue ..."
+    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+    $HOST.UI.RawUI.Flushinputbuffer()
+    Exit
 }
 
 
@@ -385,11 +387,11 @@ $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
 $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
 If($openFile.ShowDialog() -eq "OK")
 {
-	WriteInfo  "File $($openfile.FileName) selected"
+    WriteInfo  "File $($openfile.FileName) selected"
 } 
 if (!$openFile.FileName){
-		WriteErrorAndExit  "Iso was not selected... Exitting"
-	}
+        WriteErrorAndExit  "Iso was not selected... Exitting"
+    }
 $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 
 $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
@@ -415,15 +417,15 @@ if (!$ServerPackages.FileNames){
 }
 
 if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
-	#download latest convert-windowsimage
-	# Download convert-windowsimage if its not in tools folder
+    #download latest convert-windowsimage
+    # Download convert-windowsimage if its not in tools folder
 
-	WriteInfo "`t Downloading Convert-WindowsImage"
-	try{
-		Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
-	}catch{
-		WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
-	}
+    WriteInfo "`t Downloading Convert-WindowsImage"
+    try{
+        Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+    }catch{
+        WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
+    }
 }
 
 #load convert-windowsimage
@@ -463,35 +465,35 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
     # Downloading diskspd if its not in tools folder
         WriteInfoHighlighted "Testing diskspd presence"
         If ( Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
-		    WriteSuccess "`t Diskspd is present, skipping download"
+            WriteSuccess "`t Diskspd is present, skipping download"
         }else{ 
-		    WriteInfo "`t Diskspd not there - Downloading diskspd"
-		    try {
-			    $webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
-			    $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
-			    Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
-		    }catch{
-			    WriteError "`t Failed to download Diskspd!"
-		    }
-	        # Unnzipping and extracting just diskspd.exe x64
-		        Expand-Archive "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip"
-		        Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\tools\toolsvhd\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64fre*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\"
-		        Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
-		        Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
+            WriteInfo "`t Diskspd not there - Downloading diskspd"
+            try {
+                $webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
+                $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
+                Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
+            }catch{
+                WriteError "`t Failed to download Diskspd!"
+            }
+            # Unnzipping and extracting just diskspd.exe x64
+                Expand-Archive "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip"
+                Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\tools\toolsvhd\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64fre*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\"
+                Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
+                Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
         }
 
     # Download convert-windowsimage if its not in tools folder
         WriteInfoHighlighted "Testing convert-windowsimage presence"
         If ( Test-Path -Path "$PSScriptRoot\Tools\convert-windowsimage.ps1" ) {
-	        WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
+            WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
         }else{ 
-		    WriteInfo "`t Downloading Convert-WindowsImage"
-		    try{
-			    Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
-		    }catch{
-			    WriteError "`t Failed to download convert-windowsimage.ps1!"
-		    }
-        }	
+            WriteInfo "`t Downloading Convert-WindowsImage"
+            try{
+                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
+            }catch{
+                WriteError "`t Failed to download convert-windowsimage.ps1!"
+            }
+        }    
 #endregion
 
 #region Downloading required Posh Modules
