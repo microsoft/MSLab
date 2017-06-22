@@ -133,10 +133,10 @@ InstallSCVMM * (Optional)
     'ADK'         - installs just ADK
     'SQL'         - installs just SQL
     'Prereqs'     - installs ADK and SQL
-    'No'         - No, or anything else, nothing is installed.
+    'No'          - No, or anything else, nothing is installed.
         
         *requires install files in toolsVHD\SCVMM\, or it will fail. You can download all tools here:
-            SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2014
+            SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2016
             SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
             ADK: https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx (you need to run setup and download the content. 2Meg file is not enough)
 

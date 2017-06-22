@@ -418,8 +418,8 @@ If (!( $isAdmin )) {
 
     #Apply Unattend to VM
         WriteInfoHighlighted "Applying Unattend and copying Powershell DSC Modules"
-        if (Test-Path "$PSScriptRoot\Temp\"){
-            Remove-Item -Path "$PSScriptRoot\Temp\" -Recurse
+        if (Test-Path "$PSScriptRoot\Temp\*"){
+            Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
         }
         $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
         New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
