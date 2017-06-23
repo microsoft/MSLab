@@ -299,7 +299,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
             Set-VMHost –VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
 #endregion
 
-#region create some VMs and optimize pNICs
+#region create some VMs and optimize pNICs and activate High Perf Power Plan
 
     #create some fake VMs
         Start-Sleep -Seconds 30 #just to a bit wait as I saw sometimes that first VM fails to create
@@ -341,6 +341,17 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
                 }
             }
         }
+
+    #activate High Performance Power plan
+        #show enabled power plan
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+        #Grab instances of power plans
+            $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
+        #activate plan
+            foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
+        #show enabled power plan
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+
 #endregion
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
