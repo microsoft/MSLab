@@ -22,6 +22,7 @@ $LabConfig=@{
     AllowedVLANs="1-10";                   # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
     Internet=$false                        # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
     Insider=$false                         # (Optional) If $true, you will not be asked for Cumulative Update. Useful for Server Insider Preview
+    DisableAMSI=$false                     # (Optional) If $true, script will disable Defender Antimalware Scan Interface during create parent disk
     AdditionalNetworksConfig=@();          # Just empty array for config below
     VMs=@();                               # Just empty array for config below
     ServerVHDs=@()                         # Just empty array for config below
@@ -171,6 +172,9 @@ Internet (Optional)
 
 Insider (optional)
     If $True, you will not be asked for Cumulative Updates
+
+DisableAMSI (optional)
+    If $True, Defender AMSI will be disabled during create parent disks.
 
 ##$LabConfig.VMs##
  Example: 
