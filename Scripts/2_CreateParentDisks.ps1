@@ -292,6 +292,12 @@ If (!( $isAdmin )) {
 #endregion
 
 #region Create parent disks
+    #Disable AMSI
+        WriteInfoHighlighted "Disabling AMSI to speed up VHD creation"
+        if ($Labconfig.DisableAMSI){
+            Set-MpPreference -DisableScriptScanning $true
+        }
+
     #create some folders
         'ParentDisks','Temp','Temp\mountdir' | ForEach-Object {
             if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } 
@@ -374,6 +380,11 @@ If (!( $isAdmin )) {
             WriteInfoHighlighted "Tools.vhdx found, skipping creation"
             $toolsVHD=Get-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx"
         }
+    #Enable AMSI
+        WriteInfoHighlighted "Enabling AMSI"
+        if ($Labconfig.DisableAMSI){
+            Set-MpPreference -DisableScriptScanning $false
+        }
 #endregion
 
 #region Hydrate DC
@@ -393,6 +404,11 @@ If (!( $isAdmin )) {
          New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
          Copy-Item -Path $DCVHDSource -Destination $vhdpath
     }else{
+        #Disable AMSI
+            WriteInfoHighlighted "Disabling AMSI to speed up VHD creation"
+            if ($Labconfig.DisableAMSI){
+                Set-MpPreference -DisableScriptScanning $true
+            }
         #Create Parent VHD
         WriteInfoHighlighted "Creating VHD for DC"
         if ($serverpackages){
@@ -400,6 +416,11 @@ If (!( $isAdmin )) {
         }else{
             Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
         }
+        #Enable AMSI
+            WriteInfoHighlighted "Enabling AMSI"
+            if ($Labconfig.DisableAMSI){
+                Set-MpPreference -DisableScriptScanning $false
+            }
     }
 
     #If the switch does not already exist, then create a switch with the name $SwitchName
