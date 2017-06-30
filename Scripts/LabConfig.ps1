@@ -21,8 +21,7 @@ $LabConfig=@{
     DefaultOUName="Workshop";              # (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
     AllowedVLANs="1-10";                   # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
     Internet=$false                        # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
-    Insider=$false                         # (Optional) If $true, you will not be asked for Cumulative Update. Useful for Server Insider Preview
-    DisableAMSI=$false                     # (Optional) If $true, script will disable Defender Antimalware Scan Interface during create parent disk
+    PullServerDC=$true                     # (Optional) If $false, then DSC Pull Server will not be configured on DC
     AdditionalNetworksConfig=@();          # Just empty array for config below
     VMs=@();                               # Just empty array for config below
     ServerVHDs=@()                         # Just empty array for config below
@@ -170,11 +169,8 @@ Internet (Optional)
         If more vSwitches exists, you will be prompted for what to use.
     It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
 
-Insider (optional)
-    If $True, you will not be asked for Cumulative Updates
-
-DisableAMSI (optional)
-    If $True, Defender AMSI will be disabled during create parent disks.
+PullServerDC (optional)
+    If $False, Pull Server will not be setup.
 
 ##$LabConfig.VMs##
  Example: 

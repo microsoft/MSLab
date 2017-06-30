@@ -125,6 +125,10 @@ If (!( $isAdmin )) {
             $LabConfig.DefaultOUName="Workshop"
         }
 
+        If ($Labconfig.PullServerDC -eq $null){
+            $LabConfig.PullServerDC=$true
+        }
+
     #create some variables
         $DN=$null
         $LabConfig.DomainName.Split(".") | ForEach-Object {
@@ -245,59 +249,43 @@ If (!( $isAdmin )) {
             $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
         }
 
-    #Grab packages if not insider
-        if (!$labconfig.Insider){
-            #grab server packages
-                #ask for MSU patches
-                WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
-                [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Multiselect = $true;
-                    Title="Please select latest Windows Server 2016 Cumulative Update"
-                }
-                $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                If($ServerPackages.ShowDialog() -eq "OK"){
-                    WriteInfoHighlighted  "Following patches selected:"
-                    WriteInfo "`t $($ServerPackages.filenames)"
-                } 
-
-                #exit if nothing is selected
-                if (!$ServerPackages.FileNames){
-                    WriteErrorAndExit "no msu was selected... Exitting"
-                }
-
-                $serverpackages=$serverpackages.FileNames | Sort-Object
-
-            #grab Client packages
-            If ($LabConfig.CreateClientParent){
-                #ask for MSU patches
-                WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU)"
-                [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Multiselect = $true;
-                    Title="Please select Windows 10 Cumulative Update"
-                }
-                $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                If($ClientPackages.ShowDialog() -eq "OK"){
-                    WriteInfoHighlighted  "Following patches selected:"
-                    WriteInfo "`t $($ClientPackages.filenames)"
-                } 
-                #exit if nothing is selected
-                if (!$ClientPackages.FileNames){
-                    WriteErrorAndExit "no msu was selected... Exitting"
-                }
-                $clientpackages=$clientpackages.FileNames | Sort-Object    
+    #Grab packages
+        #grab server packages
+            #ask for MSU patches
+            WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU). Click Cancel if you don't want any."
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Multiselect = $true;
+                Title="Please select latest Windows Server 2016 Cumulative Update. Click Cancel if you don't want any."
             }
-    }
+            $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($ServerPackages.ShowDialog() -eq "OK"){
+                WriteInfoHighlighted  "Following patches selected:"
+                WriteInfo "`t $($ServerPackages.filenames)"
+            }
+
+            $serverpackages=$serverpackages.FileNames | Sort-Object
+
+        #grab Client packages
+        If ($LabConfig.CreateClientParent){
+            #ask for MSU patches
+            WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU) and (or) RSAT. Click Cancel if you don't want any."
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Multiselect = $true;
+                Title="Please select Windows 10 Cumulative Update and (or) RSAT. Click Cancel if you don't want any."
+            }
+            $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($ClientPackages.ShowDialog() -eq "OK"){
+                WriteInfoHighlighted  "Following patches selected:"
+                WriteInfo "`t $($ClientPackages.filenames)"
+            }
+            $clientpackages=$clientpackages.FileNames | Sort-Object    
+        }
+
 #endregion
 
 #region Create parent disks
-    #Disable AMSI
-        WriteInfoHighlighted "Disabling AMSI to speed up VHD creation"
-        if ($Labconfig.DisableAMSI){
-            Set-MpPreference -DisableScriptScanning $true
-        }
-
     #create some folders
         'ParentDisks','Temp','Temp\mountdir' | ForEach-Object {
             if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } 
@@ -380,11 +368,6 @@ If (!( $isAdmin )) {
             WriteInfoHighlighted "Tools.vhdx found, skipping creation"
             $toolsVHD=Get-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx"
         }
-    #Enable AMSI
-        WriteInfoHighlighted "Enabling AMSI"
-        if ($Labconfig.DisableAMSI){
-            Set-MpPreference -DisableScriptScanning $false
-        }
 #endregion
 
 #region Hydrate DC
@@ -404,11 +387,6 @@ If (!( $isAdmin )) {
          New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
          Copy-Item -Path $DCVHDSource -Destination $vhdpath
     }else{
-        #Disable AMSI
-            WriteInfoHighlighted "Disabling AMSI to speed up VHD creation"
-            if ($Labconfig.DisableAMSI){
-                Set-MpPreference -DisableScriptScanning $true
-            }
         #Create Parent VHD
         WriteInfoHighlighted "Creating VHD for DC"
         if ($serverpackages){
@@ -416,11 +394,6 @@ If (!( $isAdmin )) {
         }else{
             Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LABConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
         }
-        #Enable AMSI
-            WriteInfoHighlighted "Enabling AMSI"
-            if ($Labconfig.DisableAMSI){
-                Set-MpPreference -DisableScriptScanning $false
-            }
     }
 
     #If the switch does not already exist, then create a switch with the name $SwitchName
@@ -476,10 +449,10 @@ If (!( $isAdmin )) {
 
             )
         
-            Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.14.0.0"
-            Import-DSCResource -ModuleName xNetworking -ModuleVersion "3.0.0.0"
+            Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.16.0.0"
+            Import-DSCResource -ModuleName xNetworking -ModuleVersion "4.1.0.0"
             Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.5.0.0"
-            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "5.0.0.0"
+            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "6.4.0.0"
             Import-DscResource –ModuleName PSDesiredStateConfiguration
 
             Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
@@ -679,26 +652,28 @@ If (!( $isAdmin )) {
                     Name   = "DSC-Service"
                 }
 
-                xDscWebService PSDSCPullServer
-                {
-                    UseSecurityBestPractices = $false
-                    Ensure                  = "Present"
-                    EndpointName            = "PSDSCPullServer"
-                    Port                    = 8080
-                    PhysicalPath            = "$env:SystemDrive\inetpub\wwwroot\PSDSCPullServer"
-                    CertificateThumbPrint   = "AllowUnencryptedTraffic"
-                    ModulePath              = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Modules"
-                    ConfigurationPath       = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
-                    State                   = "Started"
-                    DependsOn               = "[WindowsFeature]DSCServiceFeature"
-                }
-                
-                File RegistrationKeyFile
-                {
-                    Ensure = 'Present'
-                    Type   = 'File'
-                    DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
-                    Contents        = $Node.RegistrationKey
+                If ($Labconfig.PullServerDC){
+                    xDscWebService PSDSCPullServer
+                    {
+                        UseSecurityBestPractices = $false
+                        Ensure                  = "Present"
+                        EndpointName            = "PSDSCPullServer"
+                        Port                    = 8080
+                        PhysicalPath            = "$env:SystemDrive\inetpub\wwwroot\PSDSCPullServer"
+                        CertificateThumbPrint   = "AllowUnencryptedTraffic"
+                        ModulePath              = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Modules"
+                        ConfigurationPath       = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
+                        State                   = "Started"
+                        DependsOn               = "[WindowsFeature]DSCServiceFeature"
+                    }
+                    
+                    File RegistrationKeyFile
+                    {
+                        Ensure = 'Present'
+                        Type   = 'File'
+                        DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
+                        Contents        = $Node.RegistrationKey
+                    }
                 }
             }
         }
@@ -766,12 +741,15 @@ If (!( $isAdmin )) {
             $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
             if ($test -eq $null) {
                 WriteInfo "`t Configuration in Progress. Sleeping 10 seconds"
-            }else{
+                Start-Sleep 10
+            }elseif ($test.status -ne "Success" ) {
                 WriteInfo "`t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
                 WriteInfoHighlighted "`t Invoking DSC Configuration again" 
                 Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
+            }elseif ($test.status -eq "Success" ) {
+                WriteInfo "`t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+                WriteInfoHighlighted "`t DSC Configured DC Successfully" 
             }
-            Start-Sleep 10
         }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
         $test
 
@@ -874,7 +852,6 @@ If (!( $isAdmin )) {
 #endregion
 
 #region finishing
-
     WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
