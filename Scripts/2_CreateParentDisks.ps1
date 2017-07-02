@@ -214,19 +214,31 @@ If (!( $isAdmin )) {
         }
 
     #check if parent images already exist (this is useful if you have parent disks from another lab and you want to rebuild for example scvmm)
-        WriteInfoHighlighted "Testing if some parent disk already exist"
+        WriteInfoHighlighted "Testing if some parent disk already exists and can be used"
         
         #grab all files in parentdisks folder
             $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
 
-        #Find Tools
-            if ($ParentDisksNames -contains "tools.vhdx"){
-                WriteSuccess "`t Tools.vhdx found"
-            }else{
-                WriteInfo "`t Tools.vhdx not found, will be created"
-            }
 
-        #List all disks
+        #Find Disk eligible for DC
+            #find VHD Name defined in $LabConfig.ServerVHDs matching requested edition in $LabConfig.DCEdition
+                $DCVHDName=($LabConfig.ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
+                WriteInfo "`t $DCVHDName eligible for DC Hydration requested in Labconfig.ServerVHDs. "
+
+            #test if some VHD can be used for DC
+                If (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+                    WriteSuccess "`t $DCVHDName parent disk usable for DC exists (as per ServerVHDs and DCEdition in LabConfig)."
+                }elseif(($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
+                    WriteSuccess "`t $CoreServerVHDName exists, will be used for DC Creation."
+                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
+                    WriteSuccess "`t $FullServerVHDName exists, will be used for DC Creation."
+                }elseif($DCVHDName){
+                #    WriteInfo "`t $DCVHDName will be created in ParentDisks and used for DC creation" #duplicite information
+                }else{
+                    WriteInfo "`t VHD For not found DC will be created after ParentDisks are created."
+                }
+
+        #Test if some ParentDisks already exists
             foreach ($ServerVHD in $LabConfig.ServerVHDs){
                 if ($ParentDisksNames -contains $ServerVHD.VHDName){
                     WriteSuccess "`t $($ServerVHD.VHDName) found"
@@ -235,55 +247,37 @@ If (!( $isAdmin )) {
                 }
             }
 
-        #Find Disk eligible for DC
-            #test if file defined in ServerVHDs exists matching requested edition in $LabConfig.DCEdition
-                $DCVHDName=($LabConfig.ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
+        #Test if Tools.vhdx already exists
+            if ($ParentDisksNames -contains "tools.vhdx"){
+                WriteSuccess "`t Tools.vhdx found"
+            }else{
+                WriteInfo "`t Tools.vhdx not found, will be created"
+            }
 
-                If (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
-                    WriteSuccess "`t $DCVHDName parent disk usable for DC found (as per ServerVHDs and DCEdition in LabConfig)."
-                }else{
-                    WriteInfo "`t No parent disk for DC found (as per ServerVHDs and DCEdition in LabConfig)"
-                }
-
-            #test if $CoreServerVHDName or $FullServerVHDName already exist. So it can be used with DC.
-                if (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
-                    WriteSuccess "`t DC Core was requested and $CoreServerVHDName found. It will be used."
-                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
-                    WriteSuccess "`t DC full was requested and $FullServerVHDName found. It will be used."
-                }else{
-                    WriteInfo "`t VHD For DC will be created."
-                }
-
-            #Configure paths that will be used for DC
-                if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
-                    $DCVHDSource="$PSScriptRoot\ParentDisks\$DCVHDName"
-                }elseif (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
-                    $DCVHDSource="$PSScriptRoot\ParentDisks\$CoreServerVHDName"
-                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
-                    $DCVHDSource="$PSScriptRoot\ParentDisks\$FullServerVHDName"
-                }
-                
-                if ($DCVHDSource){
-                    WriteInfo "`t $DCVHDSource will be used for DC hydration"
-                }
-
-        #test if Client parent is present
+        #test if Client parent already exists
             if (($LabConfig.CreateClientParent -eq $true) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
-                WriteSuccess "`t $ClientVHDName found. It will be used."
+                WriteSuccess "`t $ClientVHDName already exists. Creation will be skipped."
             }elseif ($LabConfig.CreateClientParent -eq $true){
                 WriteInfo "`t $ClientVHDName for client will be created."
             }
 
-        #Check if all media are present
-            #All requested disks are present in Parent disks?
+        #Check if all requested VHDs already exists (so its safe to skip prompt for ISO and MSU files)
+            #Test1 - All requested VHDs exists in Parent disks?
                 if ($ParentDisksNames -eq $null){
                     $test1=$False
                 }else{
                     $test1=if (!(Compare-Object -ReferenceObject $labconfig.ServerVHDs.vhdname -DifferenceObject $ParentDisksNames | where SideIndicator -eq "<=")){$true}
                 }
-            #DC Media present?
-                $test2=if ($DCVHDSource){$true}
-            #Windows 10 requested and present?
+            #Test 2 - DC VHD exists?
+                if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+                    $Test2=$True
+                }elseif (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
+                    $Test2=$True
+                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
+                    $Test2=$True
+                }
+
+            #Test 3 - Windows 10 VHD requested and exists?
                 $test3=if (($labconfig.CreateClientParent) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){$True}
         
             if ($test1 -and $test2){
@@ -293,9 +287,9 @@ If (!( $isAdmin )) {
             }
 
             if ($test3){
-                $ClientMediaNeeded=$false
+                $ClientMediaNeeded=$False
             }else{
-                $ClientMediaNeeded=$true
+                $ClientMediaNeeded=$True
             }
 
 #endregion
