@@ -217,46 +217,47 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted "Testing if some parent disk already exist"
         
         #grab all files in parentdisks folder
-            $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks").Name
-        
+            $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
+
         #Find Tools
             if ($ParentDisksNames -contains "tools.vhdx"){
-                WriteSuccess "`t Tools.vhdx found in ParentDisks folder"
+                WriteSuccess "`t Tools.vhdx found"
             }else{
-                WriteInfo "`t Tools.vhdx not found in ParentDisks folder, will be created"
+                WriteInfo "`t Tools.vhdx not found, will be created"
             }
 
         #List all disks
             foreach ($ServerVHD in $LabConfig.ServerVHDs){
                 if ($ParentDisksNames -contains $ServerVHD.VHDName){
-                    WriteSuccess "`t $($ServerVHD.VHDName) found in ParentDisks folder"
+                    WriteSuccess "`t $($ServerVHD.VHDName) found"
                 }else{
-                    WriteInfo "`t $($ServerVHD.VHDName) not found in ParentDisks folder, will be created"
+                    WriteInfo "`t $($ServerVHD.VHDName) not found, will be created"
                 }
             }
 
         #Find Disk eligible for DC
             #test if file defined in ServerVHDs exists matching requested edition in $LabConfig.DCEdition
                 $DCVHDName=($LabConfig.ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
-                If ($DCVHDName){
-                    WriteSuccess "`t $DCVHDName parent disk Edition $($LabConfig.DCEdition) usable for DC found (according to ServerVHDs and DCEdition in LabConfig)."
+
+                If (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+                    WriteSuccess "`t $DCVHDName parent disk usable for DC found (as per ServerVHDs and DCEdition in LabConfig)."
                 }else{
-                    WriteInfo "`t No parent disk usable for DC edition $($LabConfig.DCEdition) was found (as per ServerVHDs and DCEdition in LabConfig)"
+                    WriteInfo "`t No parent disk for DC found (as per ServerVHDs and DCEdition in LabConfig)"
                 }
 
             #test if $CoreServerVHDName or $FullServerVHDName already exist. So it can be used with DC.
                 if (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
-                    WriteSuccess "`t DC Core was requested and $CoreServerVHDName found in Parent disks. It will be used."
+                    WriteSuccess "`t DC Core was requested and $CoreServerVHDName found. It will be used."
                 }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
-                    WriteSuccess "`t DC full was requested and $FullServerVHDName found in Parent disks. It will be used."
+                    WriteSuccess "`t DC full was requested and $FullServerVHDName found. It will be used."
                 }else{
                     WriteInfo "`t VHD For DC will be created."
                 }
 
             #Configure paths that will be used for DC
-                if ($DCVHDName){
+                if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
                     $DCVHDSource="$PSScriptRoot\ParentDisks\$DCVHDName"
-                }elseif ($LabConfig.DCEdition -like "*core"){
+                }elseif (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
                     $DCVHDSource="$PSScriptRoot\ParentDisks\$CoreServerVHDName"
                 }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
                     $DCVHDSource="$PSScriptRoot\ParentDisks\$FullServerVHDName"
@@ -266,25 +267,36 @@ If (!( $isAdmin )) {
                     WriteInfo "`t $DCVHDSource will be used for DC hydration"
                 }
 
-            #Check if all media are present
-                #All requested disks are present in Parent disks?
-                    $test1=if (!(Compare-Object -ReferenceObject $labconfig.ServerVHDs.vhdname -DifferenceObject $ParentDisksNames | where SideIndicator -eq "<=")){$true}
-                #DC Media present?
-                    $test2=if ($DCVHDSource){$true}
-                #Windows 10 requested and present?
-                    $test3=if (($labconfig.CreateClientParent) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){$True}
-            
-                if ($test1 -and $test2){
-                    $ServerMediaNeeded=$False
-                }else{
-                    $ServerMediaNeeded=$True
-                }
+        #test if Client parent is present
+            if (($LabConfig.CreateClientParent -eq $true) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
+                WriteSuccess "`t $ClientVHDName found. It will be used."
+            }elseif ($LabConfig.CreateClientParent -eq $true){
+                WriteInfo "`t $ClientVHDName for client will be created."
+            }
 
-                if ($test3){
-                    $ClientMediaNeeded=$false
+        #Check if all media are present
+            #All requested disks are present in Parent disks?
+                if ($ParentDisksNames -eq $null){
+                    $test1=$False
                 }else{
-                    $ClientMediaNeeded=$true
+                    $test1=if (!(Compare-Object -ReferenceObject $labconfig.ServerVHDs.vhdname -DifferenceObject $ParentDisksNames | where SideIndicator -eq "<=")){$true}
                 }
+            #DC Media present?
+                $test2=if ($DCVHDSource){$true}
+            #Windows 10 requested and present?
+                $test3=if (($labconfig.CreateClientParent) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){$True}
+        
+            if ($test1 -and $test2){
+                $ServerMediaNeeded=$False
+            }else{
+                $ServerMediaNeeded=$True
+            }
+
+            if ($test3){
+                $ClientMediaNeeded=$false
+            }else{
+                $ClientMediaNeeded=$true
+            }
 
 #endregion
 
@@ -304,15 +316,15 @@ If (!( $isAdmin )) {
                 WriteErrorAndExit  "Iso was not selected... Exitting"
             }
             #Mount ISO
-            $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+                $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
             #Generate Media Path
-            $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
+                $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
         }
 
     #Ask for Client ISO
         if ($ClientMediaNeeded){
             If ($LabConfig.CreateClientParent){
-                WriteInfoHighlighted "Please select ISO image with Windows 10. Please use 1507 and newer"
+                WriteInfoHighlighted "Please select ISO image with Windows 10."
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
                 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                     Title="Please select ISO image with Windows 10. Please use 1507 and newer"
@@ -325,8 +337,8 @@ If (!( $isAdmin )) {
                     WriteErrorAndExit  "Iso was not selected... Exitting"
                 }
             #Mount ISO
-            $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-            #Generate Media Path        
+                $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+            #Generate Media Path
                 $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
             }
         }
@@ -385,9 +397,8 @@ If (!( $isAdmin )) {
 
     #Create client OS VHD
         If ($LabConfig.CreateClientParent -eq $true){
-            WriteInfoHighlighted "Creating Client Parent"
+            WriteInfoHighlighted "Creating Client Parent disk"
             if (!(Test-Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
-                WriteInfoHighlighted "Creating Client Parent"
                 if ($ClientPackages){
                     Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
                 }else{
@@ -399,7 +410,7 @@ If (!( $isAdmin )) {
         }
 
     #Create Servers Parent VHDs
-        WriteInfoHighlighted "Creating Server Parents"
+        WriteInfoHighlighted "Creating Server Parent disk(s)"
         foreach ($ServerVHD in $LabConfig.ServerVHDs){
             if ($serverVHD.Edition -notlike "*nano"){
                 if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
@@ -470,10 +481,10 @@ If (!( $isAdmin )) {
     $VMPath="$PSScriptRoot\LAB\"
 
     #reuse VHD if already created
-    if ($DCVHDSource){
-         WriteSuccess "`t $DCVHDSource found, reusing, and copying to $vhdpath"
+    if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+         WriteSuccess "`t $DCVHDName found, reusing, and copying to $vhdpath"
          New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
-         Copy-Item -Path $DCVHDSource -Destination $vhdpath
+         Copy-Item -Path "$PSScriptRoot\ParentDisks\$DCVHDName" -Destination $vhdpath
     }else{
         #Create Parent VHD
         WriteInfoHighlighted "`t Creating VHD for DC"
@@ -801,42 +812,42 @@ If (!( $isAdmin )) {
         }
 
     #create DSC MOF files
-        WriteInfoHighlighted "Creating DSC Configs for DC"
+        WriteInfoHighlighted "`t Creating DSC Configs for DC"
         LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
         DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
     
     #copy DSC MOF files to DC
-        WriteInfoHighlighted "Copying DSC configurations (pending.mof and metaconfig.mof)"
+        WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
         New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
         Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\pending.mof"
         Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
 
     #close VHD and apply changes
-        WriteInfoHighlighted "Applying changes to VHD"
+        WriteInfoHighlighted "`t Applying changes to VHD"
         Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
         #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
     #Start DC VM and wait for configuration
-        WriteInfoHighlighted "Starting DC"
+        WriteInfoHighlighted "`t Starting DC"
         $DC | Start-VM
 
         $VMStartupTime = 250 
-        WriteInfoHighlighted "Configuring DC using DSC takes a while."
-        WriteInfo "`t Initial configuration in progress. Sleeping $VMStartupTime seconds"
+        WriteInfoHighlighted "`t Configuring DC using DSC takes a while."
+        WriteInfo "`t `t Initial configuration in progress. Sleeping $VMStartupTime seconds"
         Start-Sleep $VMStartupTime
 
         do{
             $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
             if ($test -eq $null) {
-                WriteInfo "`t Configuration in Progress. Sleeping 10 seconds"
+                WriteInfo "`t `t Configuration in Progress. Sleeping 10 seconds"
                 Start-Sleep 10
             }elseif ($test.status -ne "Success" ) {
-                WriteInfo "`t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
-                WriteInfoHighlighted "`t Invoking DSC Configuration again" 
+                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+                WriteInfoHighlighted "`t `t Invoking DSC Configuration again" 
                 Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
             }elseif ($test.status -eq "Success" ) {
-                WriteInfo "`t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
-                WriteInfoHighlighted "`t DSC Configured DC Successfully" 
+                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+                WriteInfoHighlighted "`t `t DSC Configured DC Successfully" 
             }
         }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
         $test
