@@ -42,9 +42,13 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-
 #install features for management
-    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+    $InstallationType=(Get-ComputerInfo).WindowsInstallationType
+    if ($InstallationType -eq "Server"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+    }elseif ($InstallationType -eq "Server Core"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+    }
 
 #Region configure servers
     #install roles and features
