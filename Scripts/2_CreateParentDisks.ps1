@@ -235,7 +235,7 @@ If (!( $isAdmin )) {
                 }elseif($DCVHDName){
                 #    WriteInfo "`t $DCVHDName will be created in ParentDisks and used for DC creation" #duplicite information
                 }else{
-                    WriteInfo "`t VHD For not found DC will be created after ParentDisks are created."
+                    WriteInfo "`t VHD eligible for DC not found. VHD for DC will be created after ParentDisks are created."
                 }
 
         #Test if some ParentDisks already exists
@@ -249,7 +249,7 @@ If (!( $isAdmin )) {
 
         #Test if Tools.vhdx already exists
             if ($ParentDisksNames -contains "tools.vhdx"){
-                WriteSuccess "`t Tools.vhdx found"
+                WriteSuccess "`t Tools.vhdx already exists. Creation will be skipped"
             }else{
                 WriteInfo "`t Tools.vhdx not found, will be created"
             }
@@ -258,7 +258,7 @@ If (!( $isAdmin )) {
             if (($LabConfig.CreateClientParent -eq $true) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
                 WriteSuccess "`t $ClientVHDName already exists. Creation will be skipped."
             }elseif ($LabConfig.CreateClientParent -eq $true){
-                WriteInfo "`t $ClientVHDName for client will be created."
+                WriteInfo "`t $ClientVHDName not found, will be created."
             }
 
         #Check if all requested VHDs already exists (so its safe to skip prompt for ISO and MSU files)
@@ -279,18 +279,20 @@ If (!( $isAdmin )) {
 
             #Test 3 - Windows 10 VHD requested and exists?
                 $test3=if (($labconfig.CreateClientParent) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){$True}
-        
-            if ($test1 -and $test2){
-                $ServerMediaNeeded=$False
-            }else{
-                $ServerMediaNeeded=$True
-            }
 
-            if ($test3){
-                $ClientMediaNeeded=$False
-            }else{
-                $ClientMediaNeeded=$True
-            }
+            #Server Media Needed?
+                if ($test1 -and $test2){
+                    $ServerMediaNeeded=$False
+                }else{
+                    $ServerMediaNeeded=$True
+                }
+
+            #Client media needed?
+                if ($test3){
+                    $ClientMediaNeeded=$False
+                }else{
+                    $ClientMediaNeeded=$True
+                }
 
 #endregion
 
@@ -311,17 +313,17 @@ If (!( $isAdmin )) {
             }
             #Mount ISO
                 $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-            #Generate Media Path
-                $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
+            #Grab Server Media Letter
+                $ServerMediaDriveLetter = (Get-Volume -DiskImage $ISOServer).DriveLetter
         }
 
     #Ask for Client ISO
         if ($ClientMediaNeeded){
             If ($LabConfig.CreateClientParent){
-                WriteInfoHighlighted "Please select ISO image with Windows 10."
+                WriteInfoHighlighted "Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition."
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
                 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Title="Please select ISO image with Windows 10. Please use 1507 and newer"
+                    Title="Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition"
                 }
                 $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
                 If($openFile.ShowDialog() -eq "OK"){
@@ -332,8 +334,8 @@ If (!( $isAdmin )) {
                 }
             #Mount ISO
                 $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-            #Generate Media Path
-                $ClientMediaPath = (Get-Volume -DiskImage $ISOClient).DriveLetter+':'
+            #Grab Client Media Letter
+                $ClientMediaDriveLetter = (Get-Volume -DiskImage $ISOClient).DriveLetter
             }
         }
 
@@ -393,10 +395,23 @@ If (!( $isAdmin )) {
         If ($LabConfig.CreateClientParent -eq $true){
             WriteInfoHighlighted "Creating Client Parent disk"
             if (!(Test-Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
+
+                #exit if client wim not found
+                If (!(Test-Path -Path "$($ClientMediaDriveLetter):\sources\install.wim")){
+                    WriteInfo "`t Dismounting ISO Images"
+                        if ($ISOServer -ne $Null){
+                            $ISOServer | Dismount-DiskImage
+                        }
+                        if ($ISOClient -ne $Null){
+                            $ISOClient | Dismount-DiskImage
+                        }
+                    WriteErrorAndExit "$($ClientMediaDriveLetter):\sources\install.wim not found. Can you try different Client media?"
+                }
+
                 if ($ClientPackages){
-                    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
+                    Convert-WindowsImage -SourcePath "$($ClientMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
                 }else{
-                    Convert-WindowsImage -SourcePath "$ClientMediaPath\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
+                    Convert-WindowsImage -SourcePath "$($ClientMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
                 }
             }else{
                 WriteSuccess "`t Client Parent found, skipping creation"
@@ -409,10 +424,23 @@ If (!( $isAdmin )) {
             if ($serverVHD.Edition -notlike "*nano"){
                 if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
                     WriteInfo "`t Creating Server Parent $($ServerVHD.VHDName)"
-                    if ($serverpackages){     
-                        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+
+                    #exit if server wim not found
+                    If (!(Test-Path -Path "$($ServerMediaDriveLetter):\sources\install.wim")){
+                        WriteInfo "`t Dismounting ISO Images"
+                            if ($ISOServer -ne $Null){
+                                $ISOServer | Dismount-DiskImage
+                            }
+                            if ($ISOClient -ne $Null){
+                                $ISOClient | Dismount-DiskImage
+                            }
+                        WriteErrorAndExit "$($ServerMediaDriveLetter):\sources\install.wim not found. Can you try different Server media?"
+                    }
+
+                    if ($serverpackages){
+                        Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
                     }else{
-                        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
+                        Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
                     }
                 }else{
                     WriteSuccess "`t Server Parent $($ServerVHD.VHDName) found, skipping creation"
@@ -423,14 +451,14 @@ If (!( $isAdmin )) {
                     #grab Nano packages
                         $NanoPackages=@()
                         foreach ($NanoPackage in $serverVHD.NanoPackages){
-                            $NanoPackages+=(Get-ChildItem -Path "$ServerMediaPath\NanoServer\" -Recurse | Where-Object Name -like $NanoPackage*).FullName
+                            $NanoPackages+=(Get-ChildItem -Path "$($ServerMediaDriveLetter):\NanoServer\" -Recurse | Where-Object Name -like $NanoPackage*).FullName
                         }
                     #create parent disks
                         WriteInfo "`t Creating Server Parent $($ServerVHD.VHDName)"
                         if ($serverpackages){
-                            Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+                            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
                         }else{
-                            Convert-WindowsImage -SourcePath "$ServerMediaPath\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
+                            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
                         }
                 }else{
                     WriteSuccess "`t Server Parent $($ServerVHD.VHDName) found, skipping creation"
@@ -483,9 +511,9 @@ If (!( $isAdmin )) {
         #Create Parent VHD
         WriteInfoHighlighted "`t Creating VHD for DC"
         if ($serverpackages){
-            Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
+            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
         }else{
-            Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
+            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
         }
     }
 
@@ -909,28 +937,29 @@ If (!( $isAdmin )) {
 #endregion
 
 #region backup DC and cleanup
+    WriteInfoHighlighted "Backup DC and cleanup"
     #shutdown DC 
-        WriteInfo "Disconnecting VMNetwork Adapter from DC"
+        WriteInfo "`t Disconnecting VMNetwork Adapter from DC"
         $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
-        WriteInfo "Shutting down DC"
+        WriteInfo "`t Shutting down DC"
         $DC | Stop-VM
         $DC | Set-VM -MemoryMinimumBytes 512MB
 
     #Backup DC config, remove from Hyper-V, return DC config
-        WriteInfo "Creating backup of DC VM configuration"
+        WriteInfo "`t Creating backup of DC VM configuration"
         Copy-Item -Path "$vmpath\$DCName\Virtual Machines\" -Destination "$vmpath\$DCName\Virtual Machines_Bak\" -Recurse
-        WriteInfo "Removing DC"
+        WriteInfo "`t Removing DC"
         $DC | Remove-VM -Force
-        WriteInfo "Returning VM config and adding to Virtual Machines.zip"
+        WriteInfo "`t Returning VM config and adding to Virtual Machines.zip"
         Remove-Item -Path "$vmpath\$DCName\Virtual Machines\" -Recurse
         Rename-Item -Path "$vmpath\$DCName\Virtual Machines_Bak\" -NewName 'Virtual Machines'
         Compress-Archive -Path "$vmpath\$DCName\Virtual Machines\" -DestinationPath "$vmpath\$DCName\Virtual Machines.zip"
 
     #Cleanup The rest ###
-        WriteInfo "Removing switch $Switchname"
+        WriteInfo "`t Removing switch $Switchname"
         Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
 
-        WriteInfo "Removing ISO Images"
+        WriteInfo "`t Dismounting ISO Images"
         if ($ISOServer -ne $Null){
             $ISOServer | Dismount-DiskImage
         }
@@ -939,27 +968,27 @@ If (!( $isAdmin )) {
             $ISOClient | Dismount-DiskImage
         }
 
-        WriteInfo "Deleting temp dir"
+        WriteInfo "`t Deleting temp dir"
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
 
 #endregion
 
 #region finishing
-    WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+    WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
-    WriteInfo "(.\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
-    If ((Read-host "Please type Y or N") -like "*Y"){
-        WriteInfo "`t Cleaning unnecessary items" 
+    WriteInfo "`t (.\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+    If ((Read-host "`t Please type Y or N") -like "*Y"){
+        WriteInfo "`t `t Cleaning unnecessary items" 
         "$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
-            WriteInfo "`t `t Removing $_"
+            WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
         } 
-        WriteInfo "`t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
+        WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
         
     }else{
-        WriteInfo "You did not type Y, skipping cleanup"
+        WriteInfo "`t You did not type Y, skipping cleanup"
     }
 
     Stop-Transcript
