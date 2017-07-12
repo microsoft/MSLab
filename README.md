@@ -20,6 +20,8 @@ Videos are bit outdated as subtle changes are in scripts.
 * [3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
 * [4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
 
+# HowTo
+
 **Step 1** Download required files (prerequisities):
 * [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
 * [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
