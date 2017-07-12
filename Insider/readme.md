@@ -23,8 +23,18 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 
 * DSC Pull server is not configured on DC as there is a bug in 16273 that prevents setting up Pull server using DSC. It is specified in LabConfig to skip Pull server configuration.
 
+
+### Script setting S2D cluster from Host using PowerShell Direct (simple LabConfig)
 ![Script setting S2D cluster from Host using PowerShell Direct (simple LabConfig)](/Insider/Screenshots/2017-07-11-01-19-42.png)
+
+### Errors creating Volume
 ![Errors creating Volume](/Insider/Screenshots/2017-07-11-02-14-04.png)
+
+### Errors during Power Plan setting
 ![Errors during Power Plan setting](/Insider/Screenshots/2017-07-11-02-19-34.png)
+
+### Server Manager in Windows 10 management machine (default LabConfig)
 ![Server Manager in Windows 10 management machine (default LabConfig)](/Insider/Screenshots/2017-07-11-02-07-23.png)
+
+### Cluadmin in Windows 10 management machine (default LabConfig)
 ![Cluadmin in Windows 10 management machine (default LabConfig)](/Insider/Screenshots/2017-07-11-02-12-39.png)
