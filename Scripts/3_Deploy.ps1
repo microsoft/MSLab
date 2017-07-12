@@ -542,7 +542,7 @@ If (!( $isAdmin )) {
 
         #add toolsdisk
         if ($VMConfig.AddToolsVHD -eq $True){
-            $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$$LabFolder\VMs\$VMname\Virtual Hard Disks\tools.vhdx"
+            $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\tools.vhdx"
             WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
             $VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
         }
@@ -906,7 +906,7 @@ If (!( $isAdmin )) {
 
     #if DC was just created, configure additional settings with PowerShell direct
         if (!$LABExists){
-            WriteInfoHighlighted "Performing some some actions against DC with powershell Direct"
+            WriteInfoHighlighted "Performing some actions against DC with powershell Direct"
             #make tools disk online
                 WriteInfo "`t Making tools disk online"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | Where-Object operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
@@ -947,7 +947,7 @@ If (!( $isAdmin )) {
                     $DNSServers=@()
                     $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
                     $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
-                    WriteInfoHighlighted "`t `t Configuring NAT with netSH and starting services"
+                    WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
                     Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
                         param($DNSServers);
                         Set-Service -Name RemoteAccess -StartupType Automatic

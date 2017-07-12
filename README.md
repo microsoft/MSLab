@@ -9,6 +9,8 @@
  
  Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
 
+ Want to try Server insider builds? Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Insider) page 
+
 # Videos
 
 Videos are bit outdated as subtle changes are in scripts.
