@@ -1,6 +1,6 @@
 ﻿#basic, S2D Hyperconverged example. For more see https://github.com/Microsoft/ws2016lab/wiki/LabConfig.ps1-examples or scroll down
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 <# Same as above, but with more explanation
@@ -21,7 +21,7 @@ $LabConfig=@{
     DefaultOUName="Workshop";              # (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
     AllowedVLANs="1-10";                   # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
     Internet=$false                        # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
-    Insider=$false                         # (Optional) If $true, you will not be asked for Cumulative Update. Useful for Server Insider Preview
+    PullServerDC=$true                     # (Optional) If $false, then DSC Pull Server will not be configured on DC
     AdditionalNetworksConfig=@();          # Just empty array for config below
     VMs=@();                               # Just empty array for config below
     ServerVHDs=@()                         # Just empty array for config below
@@ -169,8 +169,8 @@ Internet (Optional)
         If more vSwitches exists, you will be prompted for what to use.
     It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
 
-Insider (optional)
-    If $True, you will not be asked for Cumulative Updates
+PullServerDC (optional)
+    If $False, Pull Server will not be setup.
 
 ##$LabConfig.VMs##
  Example: 

@@ -499,7 +499,7 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 #region Downloading required Posh Modules
     # Downloading modules into Tools folder if needed.
 
-        $modules=("xActiveDirectory","2.14.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","3.0.0.0"),("xPSDesiredStateConfiguration","5.0.0.0")
+        $modules=("xActiveDirectory","2.16.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","4.1.0.0"),("xPSDesiredStateConfiguration","6.4.0.0")
         foreach ($module in $modules){
             WriteInfoHighlighted "Testing if modules are present" 
             $modulename=$module[0]
