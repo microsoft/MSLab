@@ -1,6 +1,6 @@
-﻿###############
-# Run from DC #
-###############
+﻿################################
+# Run from DC or Management VM #
+################################
 
 Start-Transcript -Path '.\S2DHydration.log'
 
@@ -43,11 +43,45 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #install features for management
-    $InstallationType=(Get-ComputerInfo).WindowsInstallationType
-    if ($InstallationType -eq "Server"){
+    $WindowsInstallationType=(Get-ComputerInfo).WindowsInstallationType
+    if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
-    }elseif ($InstallationType -eq "Server Core"){
+    }elseif ($WindowsInstallationType -eq "Server Core"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+    }elseif ($WindowsInstallationType -eq "Client"){
+        #Validate RSAT Installed
+            if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
+                Write-Host "Please install RSAT, Exitting in 5s"
+                Start-Sleep 5
+                Exit
+            }
+        #Install Hyper-V Management features
+            if ((Get-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -ne "Enabled"){
+                #Install all features and then remove all except Management (fails when installing just management)
+                Enable-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-All -NoRestart
+                Disable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -NoRestart
+                $Q=Read-Host -Prompt "Restart is needed. Do you want to restart now? Y/N"
+                If ($Q -eq "Y"){
+                    Write-Host "Restarting Computer"
+                    Start-Sleep 3
+                    Restart-Computer
+                }else{
+                    Write-Host "You did not type Y, please restart Computer. Exitting"
+                    Start-Sleep 3
+                    Exit
+                }
+            }elseif((get-command -Module Hyper-V) -eq $null){
+                $Q=Read-Host -Prompt "Restart is needed to load Hyper-V Management. Do you want to restart now? Y/N"
+                If ($Q -eq "Y"){
+                    Write-Host "Restarting Computer"
+                    Start-Sleep 3
+                    Restart-Computer
+                }else{
+                    Write-Host "You did not type Y, please restart Computer. Exitting"
+                    Start-Sleep 3
+                    Exit
+                }
+            }
     }
 
 #Region configure servers
