@@ -5,7 +5,7 @@ To create Insider lab, just replace LabConfig.ps1 with the insider from this pag
 
 Download bits [here](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
-Hydrate labs as usual. Just click cancel when asked for Server Cumulative Update. 
+Hydrate labs as [usual](https://github.com/Microsoft/ws2016lab#HowTo), just click cancel when asked for Server Cumulative Update. 
 
 If you hydrate lab with Windows 10 (default), you will be asked for Windows 10 media. You can use [RS2 evaluation version](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-10-enterprise) or [RS3 Insider Preview ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewadvanced)
 
