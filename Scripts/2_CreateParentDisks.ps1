@@ -223,15 +223,19 @@ If (!( $isAdmin )) {
         #Find Disk eligible for DC
             #find VHD Name defined in $LabConfig.ServerVHDs matching requested edition in $LabConfig.DCEdition
                 $DCVHDName=($LabConfig.ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
-                WriteInfo "`t $DCVHDName eligible for DC Hydration requested in Labconfig.ServerVHDs. "
+                If ($DCVHDName){
+                    WriteInfo "`t $DCVHDName eligible for DC Hydration requested in Labconfig.ServerVHDs. "
+                }
 
             #test if some VHD can be used for DC
-                If (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+                If ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
                     WriteSuccess "`t $DCVHDName parent disk usable for DC exists (as per ServerVHDs and DCEdition in LabConfig)."
                 }elseif(($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
                     WriteSuccess "`t $CoreServerVHDName exists, will be used for DC Creation."
+                    $DCVHDName=$CoreServerVHDName
                 }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
                     WriteSuccess "`t $FullServerVHDName exists, will be used for DC Creation."
+                    $DCVHDName=$FullServerVHDName
                 }elseif($DCVHDName){
                 #    WriteInfo "`t $DCVHDName will be created in ParentDisks and used for DC creation" #duplicite information
                 }else{
@@ -268,12 +272,9 @@ If (!( $isAdmin )) {
                 }else{
                     $test1=if (!(Compare-Object -ReferenceObject $labconfig.ServerVHDs.vhdname -DifferenceObject $ParentDisksNames | where SideIndicator -eq "<=")){$true}
                 }
+
             #Test 2 - DC VHD exists?
-                if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
-                    $Test2=$True
-                }elseif (($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
-                    $Test2=$True
-                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
+                if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
                     $Test2=$True
                 }
 
@@ -503,7 +504,7 @@ If (!( $isAdmin )) {
     $VMPath="$PSScriptRoot\LAB\"
 
     #reuse VHD if already created
-    if (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName"){
+    if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
          WriteSuccess "`t $DCVHDName found, reusing, and copying to $vhdpath"
          New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
          Copy-Item -Path "$PSScriptRoot\ParentDisks\$DCVHDName" -Destination $vhdpath
