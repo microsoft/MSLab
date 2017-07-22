@@ -444,12 +444,12 @@ If (!( $isAdmin )) {
         if ($VMConfig.AdditionalNetworks -eq $True){
             WriteInfoHighlighted "`t Configuring Additional networks"
             foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
-                WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
+                WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$global:IP"
                 $VMTemp | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-                $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+                $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$global:IP" -Subnet $AdditionalNetworkConfig.Subnet
                 if($AdditionalNetworkConfig.NetVLAN -ne 0){ $VMTemp | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access }
             }
-            $IP++
+            $global:IP++
         }
 
         #Generate DSC Config
@@ -582,7 +582,7 @@ If (!( $isAdmin )) {
     }
     $LabConfig.DN=$DN.TrimEnd(",")
 
-    $IP=1
+    $global:IP=1
 
     WriteInfoHighlighted "List of variables used"
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
@@ -775,16 +775,16 @@ If (!( $isAdmin )) {
 
     #If lab exists, correct starting IP will be calculated
         if (($LABExists) -and ($labconfig.AdditionalNetworksInDC)) {
-            $IP++
+            $global:IP++
         }
 
         $Labconfig.VMs | ForEach-Object {
             if (((Get-VM -Name ($labconfig.prefix+$_.vmname) -ErrorAction SilentlyContinue) -ne $null) -and ($_.AdditionalNetworks -eq $True)){
-                $IP++
+                $global:IP++
             }
         }
 
-        WriteInfo "Starting IP for AdditionalNetworks is $IP"
+        WriteInfo "Starting IP for AdditionalNetworks is $global:IP"
 
     #Create Mount nd VMs directories
         WriteInfoHighlighted "Creating Mountdir"
@@ -844,13 +844,13 @@ If (!( $isAdmin )) {
                 WriteInfoHighlighted "`t Configuring Additional networks"
                 foreach ($AdditionalNetworkConfig in $Labconfig.AdditionalNetworksConfig){
                     $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
-                    WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$IP"
-                    $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$IP" -Subnet $AdditionalNetworkConfig.Subnet
+                    WriteInfo "`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$global:IP"
+                    $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$global:IP" -Subnet $AdditionalNetworkConfig.Subnet
                     if($AdditionalNetworkConfig.NetVLAN -ne 0){ 
                         $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access
                     }
                 }
-                $IP++
+                $global:IP++
             }
         #connect to internet
             if ($labconfig.internet){
@@ -1042,7 +1042,7 @@ If (!( $isAdmin )) {
                                 $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
                             }
                         #Build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder                    
+                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #Compose VMName
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
                         #Add disks
