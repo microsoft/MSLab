@@ -85,5 +85,4 @@ Invoke-Command -ComputerName MyClusterNode -ScriptBlock {
         $pool | get-physicaldisk | Set-PhysicalDisk -MediaType HDD
 }
 ```
-
 That’s it! I hope you enjoyed it.
