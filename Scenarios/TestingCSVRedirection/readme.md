@@ -14,13 +14,13 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * VMs on non-coordinator node SAN1
 * Disks owned by node SAN2
 
-![](/Hyper-V/TestingRedirection/Screenshots/SAN_VMs.PNG)
-![](/Hyper-V/TestingRedirection/Screenshots/SAN_Disks.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SAN_VMs.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SAN_Disks.PNG)
 
 * NTFS state is Direct on both nodes
 * ReFS state is FileSystemRedirected on both nodes
 
-![](/Hyper-V/TestingRedirection/Screenshots/SAN_CSVState.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SAN_CSVState.png)
 
 ## IO flow - SAN
 
@@ -28,8 +28,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * VM reads and writes directly into volume
 * No redirected IO
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_Direct.png)
-![](/Hyper-V/TestingRedirection/Screenshots/SAN.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_Direct.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SAN.PNG)
 
 ### ReFS - SAN
 
@@ -37,8 +37,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * CSVFS redirects IO to coordinator
 * Notice 0 in CSV volume manager as CSVFS did send it over network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_FileSystemRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/SAN.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_FileSystemRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SAN.PNG)
 
 
 # Hyper-V backed by Shared Storage Spaces
@@ -47,14 +47,14 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * VMs on non-coordinator node SharedSS1
 * Disks owned by node SharedSS2
 
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS_VMs.PNG)
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS_Disks.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS_VMs.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS_Disks.PNG)
 
 
 * NTFS is BlockRedirected on non-coordinator (SharedSS1)
 * TieredNTFS and ReFS are FileSystemRedirected
 
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS_CSVState.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS_CSVState.png)
 
 
 ## IO Flow - SharedSS
@@ -65,8 +65,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * IO flows through CSVFS (direct IO) to  CSV Volume Manager
 * Volume Manager redirects it to coordinator over the network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_BlockRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_BlockRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS.PNG)
 
 ### Tiered NTFS - SharedSS
 
@@ -74,8 +74,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * CSVFS redirects IO to coordinator
 * Notice 0 in CSV volume manager as CSVFS did send it over the network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_FileSystemRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_FileSystemRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS.PNG)
 
 ### ReFS - SharedSS
 
@@ -83,8 +83,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * CSVFS redirects IO to coordinator
 * Notice 0 in CSV volume manager as CSVFS did send it over the network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_FileSystemRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/SharedSS.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_FileSystemRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS.PNG)
 
 
 # Hyper-V backed by Storage Spaces Direct
@@ -93,14 +93,14 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * VMs on non-coordinator node S2D1
 * Disks owned by node S2D2
 
-![](/Hyper-V/TestingRedirection/Screenshots/S2D_VMs.PNG)
-![](/Hyper-V/TestingRedirection/Screenshots/S2D_Disks.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/S2D_VMs.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/S2D_Disks.PNG)
 
 * To CSV it looks the same as Shared Storage Spaces (Therefore same applies)
 * NTFS is BlockRedirected on non-coordinator
 * ReFS is FileSystemRedirected
 
-![](/Hyper-V/TestingRedirection/Screenshots/S2D_CSVState.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/S2D_CSVState.png)
 
 ## IO Flow - Storage Spaces Direct
 
@@ -110,8 +110,8 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * IO flows through CSVFS (direct IO) to CSV Volume Manager
 * Volume Manager redirects it to coordinator over the network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_BlockRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/S2D.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_BlockRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/S2D.PNG)
 
 ### ReFS - Storage Spaces Direct
 
@@ -119,5 +119,5 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 * CSVFS redirects IO to coordinator
 * Notice 0 in CSV volume manager as CSVFS did send it over the network
 
-![](/Hyper-V/TestingRedirection/Screenshots/Drawing_FileSystemRedirected.png)
-![](/Hyper-V/TestingRedirection/Screenshots/S2D.PNG)
+![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_FileSystemRedirected.png)
+![](/Scenarios/TestingCSVRedirection/Screenshots/S2D.PNG)
