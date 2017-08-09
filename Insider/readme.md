@@ -1,7 +1,7 @@
 # Server Insider lab
 
 ## Howto
-To create Insider lab, just replace LabConfig.ps1 with the insider from this page. It will hydrate DC and S2D servers with core edition, Windows 10 for management and connects lab to your connected physical NIC to get internet connectivity. Optionally (commented section in LabConfig) you can have just DC and S2D servers without internet connectivity.
+To create Insider lab, just replace LabConfig.ps1 with the insider from this page. It will hydrate DC and S2D servers with core edition, Windows 10 for management. Optionally (commented section in LabConfig) you can have just DC and S2D servers.
 
 Download bits [here](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
