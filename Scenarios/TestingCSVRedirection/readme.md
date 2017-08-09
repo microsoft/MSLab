@@ -31,7 +31,7 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 ![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_Direct.png)
 ![](/Scenarios/TestingCSVRedirection/Screenshots/SAN.PNG)
 
-### ReFS - SAN
+### ReFS 3.0+ - SAN
 
 * ReFS is File System Redirected
 * CSVFS redirects IO to coordinator
@@ -77,7 +77,7 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 ![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_FileSystemRedirected.png)
 ![](/Scenarios/TestingCSVRedirection/Screenshots/SharedSS.PNG)
 
-### ReFS - SharedSS
+### ReFS 3.0+ - SharedSS
 
 * ReFS is FileSystem redirected
 * CSVFS redirects IO to coordinator
@@ -113,7 +113,7 @@ Lab uses NanoServers (altrought it's not recommended for bare metal) as it is re
 ![](/Scenarios/TestingCSVRedirection/Screenshots/Drawing_BlockRedirected.png)
 ![](/Scenarios/TestingCSVRedirection/Screenshots/S2D.PNG)
 
-### ReFS - Storage Spaces Direct
+### ReFS 3.0+ - Storage Spaces Direct
 
 * ReFS is FileSystem redirected
 * CSVFS redirects IO to coordinator
