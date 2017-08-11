@@ -25,7 +25,7 @@ Videos are bit outdated as subtle changes are in scripts.
 **Step 1** Download required files (prerequisities):
 * [Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true)
 * [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016.
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20)  for Windows Server 2016 and [Servicing Stack Update](https://support.microsoft.com/en-us/help/4035631/servicing-stack-update-for-windows-10-version-1607-and-windows-server)
 
 **Step 2** Create folder and Unzip scripts there
 
