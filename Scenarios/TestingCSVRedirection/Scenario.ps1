@@ -3,13 +3,17 @@
 $SANServers="SAN1","SAN2"
 $SharedSSServers="SharedSS1","SharedSS2"
 $S2DServers="S2D1","S2D2"
+$SRServersSite1="SRSite1_Node1","SRSite1_Node2"
+$SRServersSite2="SRSite2_Node1","SRSite2_Node2"
+$SRServers=$SRServersSite1+$SRServersSite2
 
-$allservers=$SANServers+$SharedSSServers+$S2DServers
+$allservers=$SANServers+$SharedSSServers+$S2DServers+$SRServers
 
 #ClusterNames
 $SANClusterName="SAN-Cluster"
 $SharedSSClusterName="SSS-Cluster"
 $S2DClusterName="S2D-Cluster"
+$SRClusterName="SR-Cluster"
 
 #Nano server?
 $nano=$true
@@ -31,9 +35,9 @@ $nano=$true
 #install features for management on DC
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Storage-Replica,RSAT-Hyper-V-Tools
 
-#install failover clustering
+#install failover clustering and Storage Replica
     if ($Nano -eq $false){
-        Invoke-Command -ComputerName $allservers -ScriptBlock {Install-WindowsFeature -Name "Failover-Clustering","Data-Center-Bridging","Hyper-V","Hyper-V-PowerShell"} -
+        Invoke-Command -ComputerName $allservers -ScriptBlock {Install-WindowsFeature -Name "Failover-Clustering","Data-Center-Bridging","Hyper-V","Hyper-V-PowerShell"}
         #restart and wait for computers
         Restart-Computer -ComputerName $Allservers -Protocol WSMan -Wait -For PowerShell
         Start-Sleep 20 #Failsafe
@@ -43,7 +47,7 @@ $nano=$true
     New-Cluster –Name $SANClusterName –Node $SANServers 
     New-Cluster –Name $SharedSSClusterName –Node $SharedSSServers 
     New-Cluster –Name $S2DClusterName –Node $S2DServers
-
+    New-Cluster –Name $SRClusterName –Node $SRServers
 
     Start-Sleep 5
     Clear-DnsClientCache
@@ -113,6 +117,82 @@ $nano=$true
             Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $S2DClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
         }
 
+#Configure SR on SRServers
+    #Enable SR Feture
+        Foreach ($Server in $SRServers){
+            Install-WindowsFeature -Name "Storage-Replica","RSAT-Storage-Replica","FS-FileServer" -ComputerName $Server
+        }
+        #restart and wait for computers
+        Restart-Computer -ComputerName $SRServers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 20 #Failsafe
+
+    #configure fault domains
+        New-ClusterFaultDomain -Name Site1 -Type Site -Description "Primary" -Location "Site1 Datacenter" -CimSession $SRClusterName
+        New-ClusterFaultDomain -Name Site2 -Type Site -Description "Secondary" -Location "Site2 Datacenter" -CimSession $SRClusterName
+
+        foreach ($Server in $SRServersSite1){
+            Set-ClusterFaultDomain -Name $Server -Parent Site1 -CimSession $SRClusterName
+        }
+        foreach ($Server in $SRServersSite2){
+            Set-ClusterFaultDomain -Name $Server -Parent Site2 -CimSession $SRClusterName
+        }
+
+        (Get-Cluster -Name $SRClusterName).PreferredSite="Site1"
+
+    #get Cluster Fault domain XML to validate configuration
+        Get-ClusterFaultDomainXML -CimSession $SRClusterName
+
+    #Configure Storage (ErrorAction SilentlyContinue is there just to hide message about error configuring failover clustering for volume. Its expected)
+        new-volume -DiskNumber 1 -FriendlyName Log  -FileSystem NTFS -AccessPath L: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
+        new-volume -DiskNumber 2 -FriendlyName ReFS -FileSystem ReFS -AccessPath R: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
+        new-volume -DiskNumber 3 -FriendlyName NTFS -FileSystem NTFS -AccessPath N: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
+
+
+        new-volume -DiskNumber 1 -FriendlyName Log  -FileSystem NTFS -AccessPath L: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
+        new-volume -DiskNumber 2 -FriendlyName ReFS -FileSystem ReFS -AccessPath R: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
+        new-volume -DiskNumber 3 -FriendlyName NTFS -FileSystem NTFS -AccessPath N: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
+
+    #Add disks to CSV
+        function Add-DiskToCSV ($ClusterName,$FileSystemLabel,$ClusterNodeName)
+        {
+            $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+            foreach ($DiskResource in $DiskResources){
+                $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+                if (Get-Disk -CimSession $ClusterNodeName | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume | where filesystemlabel -eq $FileSystemLabel){
+                    $ClusterDiskName=$DiskResource.name
+                }
+            }
+            $ClusterDisk=Get-ClusterResource -Cluster $ClusterName -name $ClusterDiskName
+            $ClusterSharedVolume = Add-ClusterSharedVolume -Cluster $ClusterName -InputObject $ClusterDisk
+            $ClusterSharedVolume.Name = $FileSystemLabel
+            $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
+            $path=$path.Substring($path.LastIndexOf("\")+1)
+            $FullPath = Join-Path -Path "\\$ClusterName\ClusterStorage$\" -ChildPath $Path
+            Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
+        }
+
+        #move group AvailableStorage to site 1 server 1
+            Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
+        #add to CSV in Site1
+            Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel ReFS -ClusterNodeName $SRServersSite1[0]
+            Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel NTFS -ClusterNodeName $SRServersSite1[0]
+
+    #Configure SR
+        New-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceVolumeName "C:\ClusterStorage\ReFS" -SourceLogVolumeName l: -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationVolumeName R: -DestinationLogVolumeName L:
+        Set-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceAddVolumePartnership "C:\ClusterStorage\NTFS" -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationAddVolumePartnership N:
+
+    #Wait until synced
+        do{
+            $r=(Get-SRGroup -CimSession $SRServersSite2[0] -Name Site2RG).replicas
+            [System.Console]::Write("Number of remaining GB {0}`r", $r.NumOfBytesRemaining/1GB)
+            Start-Sleep 5
+        }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
+        Write-Output "Replica Status: "$r.replicationstatus
+    
+    #move CSVs to node 2 in Site1
+        Move-ClusterSharedVolume -Name "ReFS" -Node $SRServersSite1[1] -Cluster $SRClusterName
+        Move-ClusterSharedVolume -Name "NTFS" -Node $SRServersSite1[1] -Cluster $SRClusterName
+
 #Create VMs
     #Function to create VM
         function Create-CustomVM ($ClusterName,$VolumeName,$VMName,$VHDPath)
@@ -126,10 +206,12 @@ $nano=$true
     Create-CustomVM -ClusterName $SANClusterName -VolumeName NTFS -VMName NTFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $SANClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $S2DClusterName -VolumeName NTFS -VMName NTFS -VHDPath $VHDPath
-    Create-CustomVM -ClusterName $S2DClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPat
+    Create-CustomVM -ClusterName $S2DClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $SharedSSClusterName -VolumeName NTFS -VMName NTFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $SharedSSClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $SharedSSClusterName -VolumeName TieredNTFS -VMName TieredNTFS -VHDPath $VHDPath
+    Create-CustomVM -ClusterName $SRClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPath
+    Create-CustomVM -ClusterName $SRClusterName -VolumeName NTFS -VMName NTFS -VHDPath $VHDPath
 
 #enable perf rules
     If ($nano){
@@ -169,3 +251,4 @@ $nano=$true
 Get-ClusterSharedVolumeState -Cluster $SANClusterName      | sort VolumeFriendlyName,Node | Ft VolumeFriendlyName,Node,StateInfo,BlockRedirectedIOReason,FileSystemRedirectedIOReason
 Get-ClusterSharedVolumeState -Cluster $SharedSSClusterName | sort VolumeFriendlyName,Node | Ft VolumeFriendlyName,Node,StateInfo,BlockRedirectedIOReason,FileSystemRedirectedIOReason
 Get-ClusterSharedVolumeState -Cluster $S2DClusterName      | sort VolumeFriendlyName,Node | Ft VolumeFriendlyName,Node,StateInfo,BlockRedirectedIOReason,FileSystemRedirectedIOReason
+Get-ClusterSharedVolumeState -Cluster $SRClusterName       | sort VolumeFriendlyName,Node | Ft VolumeFriendlyName,Node,StateInfo,BlockRedirectedIOReason,FileSystemRedirectedIOReason
