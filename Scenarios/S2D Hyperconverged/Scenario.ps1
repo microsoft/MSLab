@@ -34,7 +34,7 @@ Write-host "Script started at $StartDateTime"
     #iWARP?
         $iWARP=$False
 
-    #Number of Disks Created. If >4 nodes, then x MRT and x Mirror disks are created
+    #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
         $NumberOfDisks=$numberofnodes
 
     #Nano server?
@@ -290,12 +290,12 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
     #Create vDisks
         if ($numberofnodes -le 3){
             1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
             }
         }else{
             1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance -StorageTierSizes 2TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_                  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance          -StorageTierSizes 2TB     -CimSession $ClusterName
             }
         }
 
