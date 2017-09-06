@@ -15,13 +15,12 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 
 ## Issues
 
-* creating Volumes may not succeed. It may throw errors.
-
-* DSC Pull server is not configured on DC as there is a bug in 16257 that prevents setting up Pull server using DSC. It is specified in LabConfig to skip Pull server configuration.
-
+* creating Volumes may not succeed. It may throw errors as RHS sometimes crashes.
+* DSC Pull server is not configured on DC as there is a bug that prevents setting up Pull server using DSC. It is specified in LabConfig to skip Pull server configuration.
 * RRAS configuration on DC fails, so you will not have internet connection in the lab (bug in server)
-
-
+* Setting witness on DC will fail
+* Setting performance power plan fails
+* RSAT version 16250 fails to create cluster (you can run scenario script from DC)
 
 ### Server Manager in Windows 10 management machine (default LabConfig)
 ![](/Insider/Screenshots/ServerManager.png)
@@ -29,8 +28,8 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 ### Cluadmin in Windows 10 management machine (default LabConfig)
 ![](/Insider/Screenshots/cluadmin.png)
 
-### Errors creating Volumes
-![](/Insider/Screenshots/Volumes.png)
-
 ### Core resources crashing
 ![](/Insider/Screenshots/coreresourcescrashing.png)
+
+### PowerPlan fails to set
+![](/Insider/Screenshots/powerplan.png)
