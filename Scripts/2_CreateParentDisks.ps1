@@ -45,7 +45,10 @@ If (!( $isAdmin )) {
             $AdminPassword,
             [parameter(Mandatory=$true)]
             [string]
-            $Path
+            $Path,
+            [parameter(Mandatory=$true)]
+            [string]
+            $TimeZone
         )
 
         if ( Test-Path "$path\Unattend.xml" ) {
@@ -89,6 +92,7 @@ If (!( $isAdmin )) {
         <SkipMachineOOBE>true</SkipMachineOOBE> 
         <SkipUserOOBE>true</SkipUserOOBE> 
       </OOBE>
+      <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
 </unattend>
@@ -161,6 +165,9 @@ If (!( $isAdmin )) {
                 Size=30GB
             }
         }
+    
+    #Grab TimeZone
+    $TimeZone=(Get-TimeZone).id
 #endregion
 
 #region Check prerequisites
@@ -537,7 +544,7 @@ If (!( $isAdmin )) {
         if (Test-Path "$PSScriptRoot\Temp\*"){
             Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
         }
-        $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\"
+        $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
         New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
         Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
         Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
