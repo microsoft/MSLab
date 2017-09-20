@@ -439,7 +439,7 @@ $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016
 if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
 
 #ask for size
-[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB (if nothing specified, 60GB is used)")
+[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
 $size=$size*1GB
 if (!$size){$size=60GB}
 
