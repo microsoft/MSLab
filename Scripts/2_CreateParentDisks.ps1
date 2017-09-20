@@ -344,11 +344,11 @@ If (!( $isAdmin )) {
         #grab server packages
             if ($ServerMediaNeeded){
                 #ask for MSU patches
-                WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU). Click Cancel if you don't want any."
+                WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
                 $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                     Multiselect = $true;
-                    Title="Please select latest Windows Server 2016 Cumulative Update. Click Cancel if you don't want any."
+                    Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
                 }
                 $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
                 If($ServerPackages.ShowDialog() -eq "OK"){
