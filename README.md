@@ -43,7 +43,7 @@ Videos are bit outdated as subtle changes are in scripts.
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, nd the it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
 
 **Step 7** Right-click and run with PowerShell 3_Deploy.ps1
- * 3_Deploy.ps1 will deploy servers as specified in Labconfig.ps1 By default, it will deploy servers = for S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios)
+ * 3_Deploy.ps1 will deploy servers as specified in Labconfig.ps1 By default, it will deploy servers for S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios)
  
 **Step 8** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) which will guide you to deploy 4 Node Storage Spaces Direct cluster.
 
