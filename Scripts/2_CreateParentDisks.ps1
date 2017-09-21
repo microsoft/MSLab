@@ -142,7 +142,7 @@ If (!( $isAdmin )) {
         $LabConfig.DN=$DN.TrimEnd(",")
 
         $AdminPassword=$LabConfig.AdminPassword
-        $Switchname='DC_HydrationSwitch'
+        $Switchname="DC_HydrationSwitch_$([guid]::NewGuid())"
         $DCName='DC'
 
         $ClientVHDName="Win10_G2.vhdx"
@@ -577,11 +577,12 @@ If (!( $isAdmin )) {
                 [pscredential]$NewADUserCred
 
             )
-        
+
             Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.16.0.0"
-            Import-DSCResource -ModuleName xNetworking -ModuleVersion "4.1.0.0"
-            Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.5.0.0"
-            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "6.4.0.0"
+            #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
+            Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.1.0.0"
+            Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
+            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "7.0.0.0"
             Import-DscResource –ModuleName PSDesiredStateConfiguration
 
             Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
@@ -726,8 +727,7 @@ If (!( $isAdmin )) {
 
                 xIPaddress IP
                 {
-                    IPAddress = '10.0.0.1'
-                    PrefixLength = 24
+                    IPAddress = '10.0.0.1/24'
                     AddressFamily = 'IPv4'
                     InterfaceAlias = 'Ethernet'
                 }
@@ -746,33 +746,32 @@ If (!( $isAdmin )) {
                 } 
 
                 xDhcpServerScope ManagementScope
-                
                 {
-                Ensure = 'Present'
-                IPStartRange = '10.0.0.10'
-                IPEndRange = '10.0.0.254'
-                Name = 'ManagementScope'
-                SubnetMask = '255.255.255.0'
-                LeaseDuration = '00:08:00'
-                State = 'Active'
-                AddressFamily = 'IPv4'
-                DependsOn = "[WindowsFeature]DHCPServerManagement"
+                    Ensure = 'Present'
+                    IPStartRange = '10.0.0.10'
+                    IPEndRange = '10.0.0.254'
+                    Name = 'ManagementScope'
+                    SubnetMask = '255.255.255.0'
+                    LeaseDuration = '00:08:00'
+                    State = 'Active'
+                    AddressFamily = 'IPv4'
+                    DependsOn = "[WindowsFeature]DHCPServerManagement"
                 }
 
                 xDhcpServerOption Option
                 {
-                Ensure = 'Present'
-                ScopeID = '10.0.0.0'
-                DnsDomain = $Node.DomainName
-                DnsServerIPAddress = '10.0.0.1'
-                AddressFamily = 'IPv4'
-                Router = '10.0.0.1'
-                DependsOn = "[xDHCPServerScope]ManagementScope"
+                    Ensure = 'Present'
+                    ScopeID = '10.0.0.0'
+                    DnsDomain = $Node.DomainName
+                    DnsServerIPAddress = '10.0.0.1'
+                    AddressFamily = 'IPv4'
+                    Router = '10.0.0.1'
+                    DependsOn = "[xDHCPServerScope]ManagementScope"
                 }
                 
                 xDhcpServerAuthorization LocalServerActivation
                 {
-                Ensure = 'Present'
+                    Ensure = 'Present'
                 }
 
                 WindowsFeature DSCServiceFeature
@@ -780,6 +779,17 @@ If (!( $isAdmin )) {
                     Ensure = "Present"
                     Name   = "DSC-Service"
                 }
+
+                <# Does not work, ideas?
+                xDnsServerADZone addReverseADZone
+                {
+                    Name = "0.0.10.in-addr.arpa"
+                    DynamicUpdate = "Secure"
+                    ReplicationScope = "Forest"
+                    Ensure = "Present"
+                    DependsOn = "[xDhcpServerOption]Option"
+                }
+                #>
 
                 If ($LabConfig.PullServerDC){
                     xDscWebService PSDSCPullServer
@@ -882,10 +892,11 @@ If (!( $isAdmin )) {
         }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
         $test
 
-    #configure default OU where new Machines will be created using redircmp
+    #configure default OU where new Machines will be created using redircmp and add reverse lookup zone (as setting reverse lookup does not work with DSC)
         Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
             Param($LabConfig);
             redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
+            Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
         } 
     #install SCVMM or its prereqs if specified so
         if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
