@@ -499,12 +499,12 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 #region Downloading required Posh Modules
     # Downloading modules into Tools folder if needed.
 
-        $modules=("xActiveDirectory","2.16.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","4.1.0.0"),("xPSDesiredStateConfiguration","6.4.0.0")
+        $modules=("xActiveDirectory","2.16.0.0"),("xDHCpServer","1.6.0.0"),<#("xDNSServer","1.8.0.0"),#>("xNetworking","5.1.0.0"),("xPSDesiredStateConfiguration","7.0.0.0")
         foreach ($module in $modules){
             WriteInfoHighlighted "Testing if modules are present" 
             $modulename=$module[0]
             $moduleversion=$module[1]
-            if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\")){
+            if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\$Moduleversion")){
                 WriteInfo "`t Module $module not found... Downloading"
                 #Install NuGET package provider   
                 if ((Get-PackageProvider -Name NuGet) -eq $null){   
