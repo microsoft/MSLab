@@ -31,13 +31,13 @@ Videos are bit outdated as subtle changes are in scripts.
 
 **Step 2** Create folder and Unzip scripts there
 
-**Step 3** Check the LabConfig.p1 script and edit it to specify the lab setup that you require (such as different domain name, Domain Admin name..) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.) 
+**Step 3** (Optional) Check the LabConfig.p1 script and edit it to specify the lab setup that you require (such as different domain name, Domain Admin name..) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.) 
 
 **Step 4** Right-click and run with PowerShell 1_Prereq.ps1
  * 1_Prereq.ps1 will create folder structure and downloads some additional necessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
 
-**Step 5** If you modified labconfig.ps1 to also deploy SCVMM, populate the Tools\SCVMM folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
+**Step 5** If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the Tools\SCVMM folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
  
 **Step 6** Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, nd the it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
