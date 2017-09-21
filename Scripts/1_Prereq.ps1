@@ -84,9 +84,8 @@
 
 #region add scripts for SCVMM
     #adding scripts for SQL install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File
-            $fileContent =  @'
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File -Force
+        $fileContent =  @'
     
 # Sample SQL Install
 
@@ -173,14 +172,13 @@ Start-Sleep 5
 exit
 
 '@
-            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-            $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-            Set-Content -path $script -value $fileContent
-        }
+        $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+        $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
+        Set-Content -path $script -value $fileContent
+
     # adding scripts for ADK install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File
-            $fileContent =  @'
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File -Force
+        $fileContent =  @'
 
 #Sample ADK install
 
@@ -228,13 +226,11 @@ Start-Sleep 5
 exit
 
 '@
-            Set-Content -path $script -value $fileContent
-        }
-    
-    # adding scripts for SCVMM install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File
-            $fileContent =  @'
+        Set-Content -path $script -value $fileContent
+
+    # adding scripts for SCVMM install 
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File -Force
+        $fileContent =  @'
 
 # Sample VMM Install
 
@@ -325,15 +321,15 @@ Exit
 
 '@
 
-            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-            $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-            Set-Content -path $script -value $fileContent
-        }
+        $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+        $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
+        Set-Content -path $script -value $fileContent
+
 
     # adding createparentdisks script
-        if (!( Test-Path "$PSScriptRoot\Tools\CreateParentDisk.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File
-            $fileContent =  @'
+
+        $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File -Force
+        $fileContent =  @'
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
@@ -456,8 +452,8 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 
 '@
 
-            Set-Content -path $script -value $fileContent
-        }
+        Set-Content -path $script -value $fileContent
+
 
 #endregion
 
