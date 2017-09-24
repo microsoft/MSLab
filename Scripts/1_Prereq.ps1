@@ -84,9 +84,8 @@
 
 #region add scripts for SCVMM
     #adding scripts for SQL install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File
-            $fileContent =  @'
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File -Force
+        $fileContent =  @'
     
 # Sample SQL Install
 
@@ -173,14 +172,13 @@ Start-Sleep 5
 exit
 
 '@
-            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-            $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-            Set-Content -path $script -value $fileContent
-        }
+        $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+        $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
+        Set-Content -path $script -value $fileContent
+
     # adding scripts for ADK install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File
-            $fileContent =  @'
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File -Force
+        $fileContent =  @'
 
 #Sample ADK install
 
@@ -228,13 +226,11 @@ Start-Sleep 5
 exit
 
 '@
-            Set-Content -path $script -value $fileContent
-        }
-    
-    # adding scripts for SCVMM install
-        if (!( Test-Path "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File
-            $fileContent =  @'
+        Set-Content -path $script -value $fileContent
+
+    # adding scripts for SCVMM install 
+        $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File -Force
+        $fileContent =  @'
 
 # Sample VMM Install
 
@@ -325,15 +321,15 @@ Exit
 
 '@
 
-            $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-            $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-            Set-Content -path $script -value $fileContent
-        }
+        $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+        $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
+        Set-Content -path $script -value $fileContent
+
 
     # adding createparentdisks script
-        if (!( Test-Path "$PSScriptRoot\Tools\CreateParentDisk.ps1" )) {  
-            $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File
-            $fileContent =  @'
+
+        $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File -Force
+        $fileContent =  @'
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
@@ -439,7 +435,7 @@ $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016
 if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
 
 #ask for size
-[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB (if nothing specified, 60GB is used)")
+[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
 $size=$size*1GB
 if (!$size){$size=60GB}
 
@@ -456,8 +452,8 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 
 '@
 
-            Set-Content -path $script -value $fileContent
-        }
+        Set-Content -path $script -value $fileContent
+
 
 #endregion
 
@@ -499,12 +495,12 @@ $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
 #region Downloading required Posh Modules
     # Downloading modules into Tools folder if needed.
 
-        $modules=("xActiveDirectory","2.16.0.0"),("xDHCpServer","1.5.0.0"),("xNetworking","4.1.0.0"),("xPSDesiredStateConfiguration","6.4.0.0")
+        $modules=("xActiveDirectory","2.16.0.0"),("xDHCpServer","1.6.0.0"),<#("xDNSServer","1.8.0.0"),#>("xNetworking","5.1.0.0"),("xPSDesiredStateConfiguration","7.0.0.0")
         foreach ($module in $modules){
             WriteInfoHighlighted "Testing if modules are present" 
             $modulename=$module[0]
             $moduleversion=$module[1]
-            if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\")){
+            if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\$Moduleversion")){
                 WriteInfo "`t Module $module not found... Downloading"
                 #Install NuGET package provider   
                 if ((Get-PackageProvider -Name NuGet) -eq $null){   

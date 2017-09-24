@@ -41,6 +41,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $AdminPassword,
+            [parameter(Mandatory=$true)]
+            [string]
+            $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
             $Specialize
@@ -77,7 +80,7 @@ If (!( $isAdmin )) {
        <SkipMachineOOBE>true</SkipMachineOOBE> 
        <SkipUserOOBE>true</SkipUserOOBE> 
       </OOBE>
-      <TimeZone>Pacific Standard Time</TimeZone>
+      <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
 
@@ -107,6 +110,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $AdminPassword,
+            [parameter(Mandatory=$true)]
+            [string]
+            $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
             $Specialize,
@@ -144,6 +150,7 @@ If (!( $isAdmin )) {
         <SkipMachineOOBE>true</SkipMachineOOBE> 
         <SkipUserOOBE>true</SkipUserOOBE> 
       </OOBE>
+      <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
 </unattend>
@@ -164,6 +171,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $AdminPassword,
+            [parameter(Mandatory=$true)]
+            [string]
+            $TimeZone,
             [parameter(Mandatory=$true)]
             [string]
             $DomainName
@@ -205,6 +215,7 @@ If (!( $isAdmin )) {
         <SkipMachineOOBE>true</SkipMachineOOBE> 
         <SkipUserOOBE>true</SkipUserOOBE> 
       </OOBE>
+      <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
 </unattend>
@@ -492,24 +503,24 @@ If (!( $isAdmin )) {
                 if ($VMConfig.AdditionalLocalAdmin -ne $null){
                     WriteInfo "`t WCF will be disabled and Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
                     $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
                 }else{
                     WriteInfo "`t WCF will be disabled"
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
                 }            
             }else{
                 if ($VMConfig.AdditionalLocalAdmin -ne $null){
                     WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
                     $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
                 }else{
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
                 }    
             }
         }else{
             if ($VMConfig.Win2012Djoin -eq $True){
                 WriteInfo "`t Creating Unattend with win2012 domain join"
-                $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName
+                $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -TimeZone $TimeZone
             }else{
                 WriteInfo "`t Creating Unattend with djoin blob"
                 $path="c:\$vmname.txt"
@@ -517,9 +528,9 @@ If (!( $isAdmin )) {
                 $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
                 if ($VMConfig.DisableWCF -eq $True){
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF
+                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
                 }else{
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword
+                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
                 }
             }
         }
@@ -610,6 +621,9 @@ If (!( $isAdmin )) {
 '@
 
     $ExternalSwitchName="$($Labconfig.Prefix)$($LabConfig.Switchname)-External"
+
+    #Grab TimeZone
+    $TimeZone=(Get-TimeZone).id
 
 #endregion
 
@@ -1038,8 +1052,8 @@ If (!( $isAdmin )) {
                                     $SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
                                 }
                             }else{
-                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD*$VMSet*.VHDS"
-                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD*$VMSet*.VHDS"
+                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD-$VMSet-*.VHDS"
+                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS"
                             }
                         #Build VM
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder

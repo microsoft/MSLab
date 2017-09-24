@@ -5,6 +5,8 @@
 
  Major differentiator is that once hydrated (first 2 scripts), deploy takes ~5 minutes. Cleanup is ~10s. 
 
+ Options for setting up a Windows Server 2016-based lab are simpler than with some of the other available lab automation systems as the project is based on well-crafted Powershell scripts and, rather than XML or DSC configuration files.
+
  This solution is used in Microsoft Premier Workshop for Software Defined Storage, Hyper-V and System Center VMM
  
  Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
@@ -29,25 +31,27 @@ Videos are bit outdated as subtle changes are in scripts.
 
 **Step 2** Create folder and Unzip scripts there
 
-**Step 3** Right-click and run with PowerShell 1_Prereq.ps1
- * 1_Prereq.ps1 will create folder structure and downloads neccessary files from internet
+**Step 3** (Optional) Check the LabConfig.p1 script and edit it to specify the lab setup that you require (such as different domain name, Domain Admin name..) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.) 
+
+**Step 4** Right-click and run with PowerShell 1_Prereq.ps1
+ * 1_Prereq.ps1 will create folder structure and downloads some additional necessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
+
+**Step 5** If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the Tools\SCVMM folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
  
-**Step 4** Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, Cumulative Update and then will hydrate parent disks and Domain Controller.
+**Step 6** Right-click and run with PowerShell 2_CreateParentDisks.ps1
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, nd the it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
 
-**Step 5** Right-click and run with PowerShell 3_Deploy.ps1
- * 3_Deploy.ps1 will deploy S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) defined in Labconfig.ps1 [different examples](https://github.com/Microsoft/ws2016lab/blob/master/Scripts/LabConfig.ps1)
+**Step 7** Right-click and run with PowerShell 3_Deploy.ps1
+ * 3_Deploy.ps1 will deploy servers as specified in Labconfig.ps1 By default, it will deploy servers for S2D Hyperconverged [scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios)
  
-**Step 6** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
+**Step 8** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) which will guide you to deploy 4 Node Storage Spaces Direct cluster.
 
-* This scenario will help you understand new Windows Server 2016 feature Storage Spaces Direct.
+Sidenote: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
 
-* It will deploy 4 Servers simulating 200TB Storage
+**Step 9** Cleanup lab with Cleanup.ps1
 
-**Step 7** Cleanup lab with Cleanup.ps1
-
-**Step 8** Try different scenarios
+**Step 10** Try different scenarios
 * [Local Admin Password solution for NanoServer](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/LAPS%20on%20Nano)
 * [Testing first boot performance](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Testing%20Nano%20performance)
 
@@ -69,7 +73,7 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 # Known issues
 
 * DISM does not work on Cluster Shared Volumes
-* When waiting on DC to come online, the script trows some red errors. It's by design, nothing to worry about.
+* When waiting on DC to come online, the script throws some red errors. It's by design, nothing to worry about.
 * DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
 * sometimes if all machines are started at once, some are not domain joined. Just cleanup and deploy again.
 

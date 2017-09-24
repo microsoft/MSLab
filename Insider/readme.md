@@ -15,7 +15,7 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 
 ## Issues
 
-* creating Volumes may not succeed. It may throw errors as RHS sometimes crashes.
+* creating Volumes may not succeed. It may throw errors as RHS sometimes crashes (Update: in RS3 is CSV cache configured to 512MB by default. It may consume all memory, since hosts are configured with low memory alredy. To mitigate, give S2D nodes more RAM or configure CSV cache to 0)
 * DSC Pull server is not configured on DC as there is a bug that prevents setting up Pull server using DSC. It is specified in LabConfig to skip Pull server configuration.
 * RRAS configuration on DC fails, so you will not have internet connection in the lab (bug in server)
 * Setting witness on DC will fail
@@ -27,9 +27,6 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 
 ### Cluadmin in Windows 10 management machine (default LabConfig)
 ![](/Insider/Screenshots/cluadmin.png)
-
-### Core resources crashing
-![](/Insider/Screenshots/coreresourcescrashing.png)
 
 ### PowerPlan fails to set
 ![](/Insider/Screenshots/powerplan.png)
