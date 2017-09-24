@@ -69,8 +69,11 @@ $nano=$true
         $ClusterSharedVolume.Name = $volumename
         $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
         $path=$path.Substring($path.LastIndexOf("\")+1)
-        $FullPath = Join-Path -Path "\\$SANClusterName\ClusterStorage$\" -ChildPath $Path
-        Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
+        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
+            param($fullpath,$volumename);
+            Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        }
 
     #REFS
         $CSV_disk=$CSV_disks[1]
@@ -85,8 +88,11 @@ $nano=$true
         $ClusterSharedVolume.Name = $volumename
         $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
         $path=$path.Substring($path.LastIndexOf("\")+1)
-        $FullPath = Join-Path -Path "\\$SANClusterName\ClusterStorage$\" -ChildPath $Path
-        Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
+        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
+            param($fullpath,$volumename);
+            Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        }
 
 #create vDisks on Shared Spaces
     Get-StorageProvider | Register-StorageSubsystem -ComputerName $SharedSSClusterName
@@ -167,8 +173,11 @@ $nano=$true
             $ClusterSharedVolume.Name = $FileSystemLabel
             $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
             $path=$path.Substring($path.LastIndexOf("\")+1)
-            $FullPath = Join-Path -Path "\\$ClusterName\ClusterStorage$\" -ChildPath $Path
-            Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
+            $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
+            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
+                param($fullpath,$volumename);
+                Rename-Item -Path $FullPath -NewName $volumename -PassThru
+            }
         }
 
         #move group AvailableStorage to site 1 server 1

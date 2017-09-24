@@ -11,7 +11,7 @@ $LabConfig=@{
     Prefix = 'ws2016lab-';                 # All VMs and vSwitch are created with this prefix, so you can identify the lab
     SwitchName = 'LabSwitch';              # Name of vSwitch
     SecureBoot=$true;                      # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
-    DCEdition='ServerDataCenter';          # ServerDataCenter or ServerDataCenterCore (or if you prefer standard)
+    DCEdition='DataCenter';                # DataCenter or DataCenterCore (or if you prefer standard)
     CreateClientParent=$false;             # (Optional) If True, client OS will be hydrated
     ClientEdition='Enterprise';            # (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
     InstallSCVMM='No';                     # (Optional) Yes/Prereqs/SQL/ADK/No
