@@ -174,9 +174,9 @@ $nano=$true
             $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
             $path=$path.Substring($path.LastIndexOf("\")+1)
             $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
-                param($fullpath,$volumename);
-                Rename-Item -Path $FullPath -NewName $volumename -PassThru
+            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$FileSystemLabel -ScriptBlock {
+                param($fullpath,$FileSystemLabel);
+                Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
             }
         }
 
