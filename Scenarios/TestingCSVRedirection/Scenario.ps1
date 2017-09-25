@@ -185,7 +185,7 @@ $nano=$true
         #add to CSV in Site1
             Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel ReFS -ClusterNodeName $SRServersSite1[0]
             Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel NTFS -ClusterNodeName $SRServersSite1[0]
-            Start-Sleep 60 #Failsafe. New-SR Partnership failed if ran just after adding disks to CSV
+            Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
 
     #Configure SR
         New-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceVolumeName "C:\ClusterStorage\ReFS" -SourceLogVolumeName l: -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationVolumeName R: -DestinationLogVolumeName L:
