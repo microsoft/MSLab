@@ -26,7 +26,7 @@ Write-host "Script started at $StartDateTime"
         $IP=1
 
     #Real hardware?
-        $RealHW=$False #will configure VMQ not to use CPU 0 if $True
+        $RealHW=$False #will configure VMQ not to use CPU 0 if $True, configures power plan
 
     #PFC?
         $DCB=$False #$true for ROCE, $false for iWARP
@@ -381,14 +381,16 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
         }
 
     #activate High Performance Power plan
-        #show enabled power plan
-            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
-        #Grab instances of power plans
-            $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
-        #activate plan
-            foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
-        #show enabled power plan
-            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+        if ($RealHW){
+            #show enabled power plan
+                Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+            #Grab instances of power plans
+                $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
+            #activate plan
+                foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
+            #show enabled power plan
+                Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+        }
 
 #endregion
 #finishing

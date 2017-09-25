@@ -174,9 +174,9 @@ $nano=$true
             $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
             $path=$path.Substring($path.LastIndexOf("\")+1)
             $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
-                param($fullpath,$volumename);
-                Rename-Item -Path $FullPath -NewName $volumename -PassThru
+            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$FileSystemLabel -ScriptBlock {
+                param($fullpath,$FileSystemLabel);
+                Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
             }
         }
 
@@ -185,6 +185,7 @@ $nano=$true
         #add to CSV in Site1
             Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel ReFS -ClusterNodeName $SRServersSite1[0]
             Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel NTFS -ClusterNodeName $SRServersSite1[0]
+            Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
 
     #Configure SR
         New-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceVolumeName "C:\ClusterStorage\ReFS" -SourceLogVolumeName l: -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationVolumeName R: -DestinationLogVolumeName L:
@@ -193,8 +194,10 @@ $nano=$true
     #Wait until synced
         do{
             $r=(Get-SRGroup -CimSession $SRServersSite2[0] -Name Site2RG).replicas
-            [System.Console]::Write("Number of remaining GB {0}`r", $r.NumOfBytesRemaining/1GB)
-            Start-Sleep 5
+            if ($r.NumOfBytesRemaining -ne 0){ 
+                [System.Console]::Write("Number of remaining GB {0}`r", $r.NumOfBytesRemaining/1GB)
+                Start-Sleep 5
+            }
         }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
         Write-Output "Replica Status: "$r.replicationstatus
     
