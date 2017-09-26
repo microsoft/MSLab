@@ -44,10 +44,10 @@ $nano=$true
     }
 
 #Create clusters
-    New-Cluster –Name $SANClusterName –Node $SANServers 
-    New-Cluster –Name $SharedSSClusterName –Node $SharedSSServers 
-    New-Cluster –Name $S2DClusterName –Node $S2DServers
-    New-Cluster –Name $SRClusterName –Node $SRServers
+    New-Cluster -Name $SANClusterName -Node $SANServers 
+    New-Cluster -Name $SharedSSClusterName -Node $SharedSSServers 
+    New-Cluster -Name $S2DClusterName -Node $S2DServers
+    New-Cluster -Name $SRClusterName -Node $SRServers
 
     Start-Sleep 5
     Clear-DnsClientCache
