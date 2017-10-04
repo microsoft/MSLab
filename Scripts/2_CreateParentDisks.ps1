@@ -307,10 +307,10 @@ If (!( $isAdmin )) {
 #region Ask for ISO images and Cumulative updates
     #Grab Server ISO
         if ($ServerMediaNeeded){
-            WriteInfoHighlighted "Please select ISO image with Windows Server 2016"
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
             $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Title="Please select ISO image with Windows Server 2016"
+                Title="Please select ISO image with Windows Server 2016, 1709 or later"
             }
             $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
             If($openFile.ShowDialog() -eq "OK"){
@@ -533,11 +533,14 @@ If (!( $isAdmin )) {
 
     #create VM DC
         WriteInfoHighlighted "`t Creating DC VM"
-        $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
+        $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
         $DC | Set-VMProcessor -Count 2
         $DC | Set-VMMemory -DynamicMemoryEnabled $true
         $DC | Set-VM -MemoryMinimumBytes 2GB
         if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
+        if ($DC.AutomaticCheckpointsEnabled -eq $True){
+            $DC | Set-VM -AutomaticCheckpointsEnabled $False
+        }
 
     #Apply Unattend to VM
         WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"

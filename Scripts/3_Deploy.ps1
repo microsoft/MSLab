@@ -428,6 +428,9 @@ If (!( $isAdmin )) {
         $VMTemp | Set-VMProcessor -Count 2
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+        if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
+            $VMTemp | Set-VM -AutomaticCheckpointsEnabled $False
+        }
 
         $MGMTNICs=$VMConfig.MGMTNICs
         If($MGMTNICs -eq $null){
