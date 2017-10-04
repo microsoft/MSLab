@@ -19,6 +19,7 @@ Write-host "Script started at $StartDateTime"
         $ClusterName="S2D-Cluster"
 
     ## Networking ##
+        $ClusterIP="10.0.0.111"
         $Networking=$True
         $StorNet="172.16.1."
         $StorVLAN=1
@@ -185,7 +186,7 @@ Write-host "Script started at $StartDateTime"
 
 #Region test and create new cluster 
     Test-Cluster –Node $servers –Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
-    New-Cluster –Name $ClusterName –Node $servers
+    New-Cluster –Name $ClusterName –Node $servers -StaticAddress $ClusterIP
     Start-Sleep 5
     Clear-DnsClientCache
 
