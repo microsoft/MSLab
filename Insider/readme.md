@@ -3,6 +3,7 @@
 ## Howto
 To create Insider lab, just replace LabConfig.ps1 with the insider labconfig from this page. It will hydrate DC, S2D servers with core edition and Windows 10 for management. 
 
+Download insider [Labconfig.ps1] (https://github.com/Microsoft/ws2016lab/blob/master/Insider/LabConfig.ps1)
 Download bits [here](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
 Hydrate labs as [usual](https://github.com/Microsoft/ws2016lab#howto), just click cancel when asked for Server Cumulative Update. 
