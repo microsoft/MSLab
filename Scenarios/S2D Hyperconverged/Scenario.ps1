@@ -164,8 +164,14 @@ Write-host "Script started at $StartDateTime"
             #Disable flow control for other traffic
                 Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl –Priority 0,1,2,4,5,6,7}
 
+            #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+
             #validate flow control setting
                 Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
+
+            #Validate DCBX setting
+                Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
 
             #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
