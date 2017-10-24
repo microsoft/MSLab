@@ -2,8 +2,6 @@
 # Run from DC or Management VM #
 ################################
 
-Start-Transcript -Path '.\S2DHydration.log'
-
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
@@ -441,4 +439,3 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 #endregion
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript
