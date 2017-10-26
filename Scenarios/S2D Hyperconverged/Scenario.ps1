@@ -47,6 +47,7 @@ Write-host "Script started at $StartDateTime"
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
+        $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
 
 #endregion
 
@@ -113,6 +114,7 @@ Write-host "Script started at $StartDateTime"
             $features="Failover-Clustering","Hyper-V-PowerShell"
             if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
             if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
+            if ($Deduplication){$features+="FS-Data-Deduplication"}
             
             #install features
             foreach ($server in $servers) {Install-WindowsFeature -Name $features -ComputerName $server} 
