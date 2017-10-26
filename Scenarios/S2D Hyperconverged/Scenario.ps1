@@ -44,12 +44,16 @@ Write-host "Script started at $StartDateTime"
     #Nano server?
         $NanoServer=$False
 
+    #Additional Features
+        $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
+        $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
+
 #endregion
 
 #install features for management
     $WindowsInstallationType=(Get-ComputerInfo).WindowsInstallationType
     if ($WindowsInstallationType -eq "Server"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt
     }elseif ($WindowsInstallationType -eq "Server Core"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
     }elseif ($WindowsInstallationType -eq "Client"){
@@ -104,7 +108,14 @@ Write-host "Script started at $StartDateTime"
         if (!$NanoServer){
             #install Hyper-V using DISM (if nested virtualization is not enabled install-windowsfeature would fail)
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
-            foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering","Hyper-V-PowerShell" -ComputerName $server} 
+            
+            #define features
+            $features="Failover-Clustering","Hyper-V-PowerShell"
+            if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
+            if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
+            
+            #install features
+            foreach ($server in $servers) {Install-WindowsFeature -Name $features -ComputerName $server} 
             #restart and wait for computers
             Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
             Start-Sleep 10 #Failsafe
