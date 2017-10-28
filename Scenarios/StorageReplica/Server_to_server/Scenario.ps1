@@ -6,9 +6,6 @@
 # Run from DC #
 ###############
 
-
-Start-Transcript -Path '.\ReplicaHydration.log'
-
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
@@ -123,4 +120,3 @@ Get-WinEvent -ComputerName $Server2 -ProviderName Microsoft-Windows-StorageRepli
 
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript

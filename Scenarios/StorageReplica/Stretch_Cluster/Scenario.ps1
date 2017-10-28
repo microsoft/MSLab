@@ -5,8 +5,6 @@
 # Run from DC #
 ###############
 
-Start-Transcript -Path '.\ReplicaHydration.log'
-
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
@@ -209,4 +207,3 @@ $NanoServer=$False
 
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript

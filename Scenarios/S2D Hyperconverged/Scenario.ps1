@@ -2,8 +2,6 @@
 # Run from DC or Management VM #
 ################################
 
-Start-Transcript -Path '.\S2DHydration.log'
-
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
@@ -18,16 +16,21 @@ Write-host "Script started at $StartDateTime"
     #Cluster Name
         $ClusterName="S2D-Cluster"
 
+    #Cluster-Aware-Updating role name
+        $CAURoleName="S2D-Clus-CAU"
+
     ## Networking ##
-        $ClusterIP="10.0.0.111"
+        $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
         $Networking=$True
         $StorNet="172.16.1."
         $StorVLAN=1
+        $SRIOV=$false #Deploy SR-IOV enabled switch
     #start IP
         $IP=1
 
     #Real hardware?
         $RealHW=$False #will configure VMQ not to use CPU 0 if $True, configures power plan
+        $DellHW=$False #include Dell recommendations
 
     #PFC?
         $DCB=$False #$true for ROCE, $false for iWARP
@@ -41,12 +44,17 @@ Write-host "Script started at $StartDateTime"
     #Nano server?
         $NanoServer=$False
 
+    #Additional Features
+        $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
+        $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
+        $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
+
 #endregion
 
 #install features for management
     $WindowsInstallationType=(Get-ComputerInfo).WindowsInstallationType
     if ($WindowsInstallationType -eq "Server"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt
     }elseif ($WindowsInstallationType -eq "Server Core"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
     }elseif ($WindowsInstallationType -eq "Client"){
@@ -86,11 +94,30 @@ Write-host "Script started at $StartDateTime"
     }
 
 #Region configure servers
+    #Tune HW timeout to 10 minutes (6minutes is default) for Dell servers
+        if ($DellHW){
+            Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
+        }
+    
+    #Configure Active memory dump
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Set-ItemProperty –Path HKLM:\System\CurrentControlSet\Control\CrashControl –Name CrashDumpEnabled –value 1
+            Set-ItemProperty –Path HKLM:\System\CurrentControlSet\Control\CrashControl –Name FilterPages –value 1
+        }
+
     #install roles and features
         if (!$NanoServer){
             #install Hyper-V using DISM (if nested virtualization is not enabled install-windowsfeature would fail)
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
-            foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering","Hyper-V-PowerShell" -ComputerName $server} 
+            
+            #define features
+            $features="Failover-Clustering","Hyper-V-PowerShell"
+            if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
+            if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
+            if ($Deduplication){$features+="FS-Data-Deduplication"}
+            
+            #install features
+            foreach ($server in $servers) {Install-WindowsFeature -Name $features -ComputerName $server} 
             #restart and wait for computers
             Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
             Start-Sleep 10 #Failsafe
@@ -99,19 +126,29 @@ Write-host "Script started at $StartDateTime"
     ###Configure networking###
         if ($Networking){
 
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            if ($SRIOV){
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            }else{
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            }
+
             $Servers | ForEach-Object {
                     #Configure vNICs
                     Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
-                    Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
-                    Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
                     Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
                     Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
+
+                    #configure weights
+                    if (-not $SRIOV){
+                        Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
+                        Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
+                    }
+
                     #configure IP Addresses
                     New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
                     $IP++
                     New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
-                    $IP++         
+                    $IP++
             }
 
             Start-Sleep 5
@@ -179,7 +216,7 @@ Write-host "Script started at $StartDateTime"
             #validate policy
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-            #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
+            #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
         }
 
@@ -192,7 +229,11 @@ Write-host "Script started at $StartDateTime"
 
 #Region test and create new cluster 
     Test-Cluster –Node $servers –Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
-    New-Cluster –Name $ClusterName –Node $servers -StaticAddress $ClusterIP
+    if ($ClusterIP){
+        New-Cluster –Name $ClusterName –Node $servers -StaticAddress $ClusterIP
+    }else{
+        New-Cluster –Name $ClusterName –Node $servers
+    }
     Start-Sleep 5
     Clear-DnsClientCache
 
@@ -399,7 +440,15 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
                 Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
         }
 
+    #configure Cluster-Aware-Updating
+        #Install required features on nodes.
+            $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+            foreach ($ClusterNode in $ClusterNodes){
+                Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+            }
+        #add role
+            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) –verbose
+
 #endregion
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript
