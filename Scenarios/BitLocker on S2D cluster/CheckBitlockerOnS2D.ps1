@@ -10,22 +10,14 @@ if (-not $ClusterName){
     Exit
 }
 
-
-$CSVs=Get-ClusterSharedVolume -Cluster $clustername
-
 #check if bitlocker powershell is installed on nodes
 $InstallStates=Invoke-Command -computername (Get-ClusterNode -Cluster $ClusterName).Name -scriptblock {Get-WindowsFeature -Name RSAT-Feature-Tools-BitLocker}
-$NodesWithMissingBL=@()
-foreach ($InstallState in $InstallStates){
-    If ($InstallState.InstallState -ne "Installed"){
-        $NodesWithMissingBL+=$InstallState.PSComputerName
-    }
-}
+$NodesWithMissingBL=$InstallStates | Where-Object installstate -ne "Installed"
 
-#if BL is missing, exit
+#RSAT-Feature-Tools-BitLocker is missing, exit
 if ($NodesWithMissingBL){
     Write-Output "RSAT-Feature-Tools-BitLocker is missing on following computers: "
-    $NodesWithMissingBL | sort
+    $NodesWithMissingBL.PSComputername
     Write-Output "Exitting"
     Start-Sleep 5
     Exit
@@ -33,6 +25,7 @@ if ($NodesWithMissingBL){
 
 #list all CSVs and check for bitlocker status
 $Output=@()
+$CSVs=Get-ClusterSharedVolume -Cluster $clustername
 foreach ($CSV in $CSVs){
     $owner=$csv.ownernode.name
     $CsvPath = ($CSV).SharedVolumeInfo.FriendlyVolumeName
