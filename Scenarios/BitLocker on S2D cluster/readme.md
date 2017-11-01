@@ -67,13 +67,31 @@ Notice, that all suspend/resume actions are being tried until it succeeds.
 
 ## Add Bitlocker registry keys
 
-To be able to backup recovery key to AD, policy or registry has to be set. Following registries are the the same regs as will be created when following GPO is set (I also like checkbox in the bottom to not enable BitLocker, if recovery info is not stored in AD)
+To be able to backup recovery key to AD, policy or registry has to be set. Following commented registries are the the same regs as will are created when GPO on screenshot below is set (I also like checkbox in the bottom to not enable BitLocker, if recovery info is not stored in AD). Only 2 registries are actually needed.
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerGPO.png)
 
 ````PowerShell
-#enable policies to backup Bitlocker key to AD
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+        #Create FVE key if not exist
+        if (-not (Get-Item -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue)){
+            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE
+        }
+
+        #Configure required registries to enable Recovery and AD Backup (FDVActiveDirectoryBackup and FDVRecovery). FDV stands for Fixed Disk Volume.
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1
+        }
+
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1
+        }
+    
+        <# these are registries that are set by GPO 
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup        -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryInfoToStore   -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
@@ -82,6 +100,7 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryKey                  -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryPassword             -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRequireActiveDirectoryBackup -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
+        #>
     }
 
 ````
@@ -169,7 +188,6 @@ foreach ($CSV in $CSVs){
 }
 
 ````
-
 ## Some Screenshots
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/ClusterSelect.png)
@@ -179,3 +197,8 @@ foreach ($CSV in $CSVs){
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CSVsSelection.png)
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerRecoveryKeys.png)
+
+### CheckBitlockerOnS2D.ps1
+
+![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CheckBitlockerOnS2D.png)
+

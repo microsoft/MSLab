@@ -73,6 +73,25 @@ if ($installationType -eq "Nano Server"){
 
 #enable policies to backup Bitlocker key to AD
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+        #Create FVE key if not exist
+        if (-not (Get-Item -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue)){
+            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE
+        }
+
+        #Configure required registries to enable Recovery and AD Backup (FDVActiveDirectoryBackup and FDVRecovery). FDV stands for Fixed Disk Volume.
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1
+        }
+
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1
+        }
+    
+        <# these are registries that are set by GPO 
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup        -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryInfoToStore   -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
@@ -81,6 +100,7 @@ if ($installationType -eq "Nano Server"){
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryKey                  -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryPassword             -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRequireActiveDirectoryBackup -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
+        #>
     }
 
 #if you want to encrypt all volumes
