@@ -6,11 +6,11 @@ To try this scenario, deploy [S2D HyperConverged cluster](https://github.com/Mic
 
 ## High level overview
 
-To Successfully encrypt CSV, you first need BitLocker feature and BitLocker PowerShell module on all nodes (as all BitLocker commands must run from cluster nodes). The catch is, that if you did not install it before, you will have to restart each S2D cluster node. To safely reboot, you can wait to next Windows Update cycle (so CAU will take care) or you have to safely reboot all nodes manually (that’s really annoying) or with script. After BitLocker feature is enabled, you may want to configure BitLocker recovery password backup to Active Directory. This can be done with adding registry keys or editing local/domain GPO. After all this is done, you may proceed to enabling BitLocker. The caveat is, that BitLocker can be enabled on CSV only when its suspended. And Suspended volume means also, that all VMs that have VHD located on that volume would go offline (in case of 2016 server it will not BlueScreen, but it will go into the Paused-Critical state instead and when volume is resumed, VMs will resume also). You may want to shut these VMs off or use Storage Live Migration to move it. Once CSV is suspended, you can start adding protectors to the volume. First one is RecoveryPasswordProtector, that can (should) be backed into AD Computer Account. As all actions are done from volume owner, it will be backed into owner AD Account. Then you will enable BitLocker with AD Account Protector. To do this, you have to use your account to work with AD. As you are doing this from management machine, you just get into the Double-Hop issue (where you have your credentials in your Management machine, you use it in S2D Cluster Node and from there you need to authenticate to AD). This is because of BitLocker commands do not have -CimSession parameter, you have to push all commands with invoke-command to remote computer. To be able to successfully set this up, you need to temporarily enable CredSSP authentication. After BitLocker is enabled, you can resume volume and VMs. What I like to do is backing RecoveryPasswordProtector to all other cluster nodes, so you will be safe if someone deletes one node from AD.
+To Successfully encrypt CSV, you first need BitLocker feature and BitLocker PowerShell module on all nodes (as all BitLocker commands must run from cluster nodes). The catch is, that if you did not install it before, you will have to restart each S2D cluster node. To safely reboot, you can wait to next Windows Update cycle (so CAU will take care) or you have to safely reboot all nodes manually (that’s really annoying) or with script. After BitLocker feature is enabled, you may want to configure BitLocker recovery password backup to Active Directory. This can be done after registry keys or editing local/domain GPO. After all this is done, you may proceed to enabling BitLocker. The caveat is, that BitLocker can be enabled on CSV only when its suspended. And Suspended volume means also, that all VMs that have VHD located on that volume would go offline (in case of 2016 server it will not BlueScreen, but it will go into the Paused-Critical state instead and when volume is resumed, VMs will resume also). You may want to shut these VMs off or use Storage Live Migration to move it. Once CSV is suspended, you can start adding protectors to the volume. First one is RecoveryPasswordProtector, that can (should) be backed into AD Computer Account. As all actions are done from volume owner, it will be backed into owner AD Account. Then you will enable BitLocker with AD Account Protector. To do this, you have to use your account to work with AD. As you are doing this from management machine, you just get into the Double-Hop issue (where you have your credentials in your Management machine, you use it in S2D Cluster Node and from there you need to authenticate to AD). This is because of BitLocker commands do not have -CimSession parameter, you have to push all commands with invoke-command to remote computer. To be able to successfully set this up, you need to temporarily enable CredSSP authentication. After BitLocker is enabled, you can resume volume and VMs. What I like to do is backing RecoveryPasswordProtector to all other cluster nodes, so you will be safe if someone deletes one node from AD.
 
 ## Install Required features and safely reboot nodes
 
-This Posh is bit complex. It runs node by node, checking if Bitlocker,RSAT-Feature-Tools-BitLocker is installed and if reboot is required. If reboot is required, it will check, if there are any running storage repair jobs. If so, it will show how much GB are processed and how much GB is it processing in total. I did have an minor issue in my lab (running in laptop), that sometimes I was seeing suspended repair job, that was blocking suspending cluster node (as one volume was unhealthy due to repair job). So the script includes logic to check for this job and resuming it by invoking volume repair. Once this is done, cluster node is suspended, restarted and then resumed again.
+This Posh is bit complex. It runs node by node, checking if Bitlocker,RSAT-Feature-Tools-BitLocker is installed and if reboot is required. If reboot is required, it will check, if there are any running storage repair jobs. If so, it will show how much GB are processed and how much GB is it processing in total. I did have minor issue in my lab (running in laptop), that sometimes I was seeing suspended repair job, that was blocking suspending cluster node (as one volume was unhealthy due to repair job). So the script includes logic to check for this job and resuming it by invoking volume repair. Once this is done, cluster node is suspended, restarted and then resumed again.
 
 Notice, that all suspend/resume actions are being tried until it succeeds.
 
@@ -67,13 +67,31 @@ Notice, that all suspend/resume actions are being tried until it succeeds.
 
 ## Add Bitlocker registry keys
 
-To be able to backup recovery key to AD, policy or registry has to be set. Following registries are the the same regs as will be created when following GPO is set (I also like checkbox in the bottom to not enable BitLocker, if recovery info is not stored in AD)
+To be able to backup recovery key to AD, policy or registry has to be set. Following commented registries are the the same regs as will are created when GPO on screenshot below is set (I also like checkbox in the bottom to not enable BitLocker, if recovery info is not stored in AD). Only 2 registries are actually needed.
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerGPO.png)
 
 ````PowerShell
-#enable policies to backup Bitlocker key to AD
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+        #Create FVE key if not exist
+        if (-not (Get-Item -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue)){
+            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE
+        }
+
+        #Configure required registries to enable Recovery and AD Backup (FDVActiveDirectoryBackup and FDVRecovery). FDV stands for Fixed Disk Volume.
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1
+        }
+
+        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue)){
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD
+        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue) -ne 1){
+            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1
+        }
+    
+        <# these are registries that are set by GPO 
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup        -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryInfoToStore   -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
@@ -82,6 +100,7 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryKey                  -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecoveryPassword             -Value 2 -PropertyType DWORD -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRequireActiveDirectoryBackup -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
+        #>
     }
 
 ````
@@ -169,7 +188,6 @@ foreach ($CSV in $CSVs){
 }
 
 ````
-
 ## Some Screenshots
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/ClusterSelect.png)
@@ -179,3 +197,8 @@ foreach ($CSV in $CSVs){
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CSVsSelection.png)
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerRecoveryKeys.png)
+
+### CheckBitlockerOnS2D.ps1
+
+![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CheckBitlockerOnS2D.png)
+
