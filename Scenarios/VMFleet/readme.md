@@ -26,7 +26,11 @@ And after it will create Volumes, copy VHD into collect volume, and install fail
 
 Provisioning VMs will take some time, I usually dedup volumes during this process, as it quickly fills all available space. But after this, you will be able to play with VMFleet
 
-![](/Scenarios/VMFleet/Screenshots/VMFleetInAction.png)
+![](/Scenarios/VMFleet/Screenshots/VMfleetInAction.png)
+
+For additional commands take a look here https://blogs.technet.microsoft.com/larryexchange/2016/08/17/leverage-vm-fleet-testing-the-performance-of-storage-space-direct/
+
+
 
 
 
