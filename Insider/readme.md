@@ -3,19 +3,21 @@
 ## Howto
 To create Insider lab, just replace LabConfig.ps1 with the insider labconfig from this page. It will hydrate DC, S2D servers with core edition and Windows 10 for management. 
 
-Download insider [Labconfig.ps1] (https://github.com/Microsoft/ws2016lab/blob/master/Insider/LabConfig.ps1)
+### Download following
 
-Download bits [here](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
+[Scripts](https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip)
 
-Hydrate labs as [usual](https://github.com/Microsoft/ws2016lab#howto), just click cancel when asked for Server Cumulative Update. 
+[Windows Server Insider and RSAT 64-bit](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
-If you hydrate lab with Windows 10 (default), you will be asked for Windows 10 media. Use English Enterprise 64-bit version (to match RSAT) [RS3 Insider Preview ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewadvanced)
+[Windows 10 Insider Enterprise 64-bit](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewadvanced)
 
-[download RSAT](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver) to manage the environment. Provide it when asked for Cumulative Update.
+[Project Honolulu](http://aka.ms/honoluludownload)
 
-Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged)
+### Hydrate labs
+Hydrate labs as [usual](https://github.com/Microsoft/ws2016lab#howto), just replace labconfig with [Insider Labconfig.ps1](https://github.com/Microsoft/ws2016lab/blob/master/Insider/LabConfig.ps1)
+. During 2_CreateParentDisks click cancel, when asked for Server Cumulative Update for Server and choose RSAT for Windows 10.
 
-Give a try to [Project Honolulu](http://aka.ms/honoluludownload). Just download honolulu bits, copy over to Management machine and install.
+Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged). You can then install Honolulu to manage HyperConverged cluster.
 
 ## Issues
 
