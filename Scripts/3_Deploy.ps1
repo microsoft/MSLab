@@ -1175,7 +1175,7 @@ If (!( $isAdmin )) {
 
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
-        Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" 
+        Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" -ErrorAction SilentlyContinue
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
