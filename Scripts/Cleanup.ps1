@@ -133,8 +133,8 @@ If (!( $isAdmin )) {
                 Expand-Archive -Path $zipfile -DestinationPath $zipoutput
 
             #finishing    
-                WriteSuccess "Job Done! Press any key to close window ..."
-                    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+                WriteSuccess "Job Done! Press enter to close window ..."
+                $exit=Read-Host
         }else {
             WriteErrorAndExit "You did not type Y"
         }
