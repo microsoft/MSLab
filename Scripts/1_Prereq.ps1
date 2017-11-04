@@ -447,8 +447,8 @@ if ($ISOServer -ne $Null){
 $ISOServer | Dismount-DiskImage
 }
 
-WriteSuccess "Job Done. Press any key to continue..."
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+WriteSuccess "Job Done. Press enter to continue..."
+$exit=Read-Host
 
 '@
 
@@ -827,5 +827,5 @@ $exit=Read-Host
 # finishing 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
-WriteSuccess "Press any key to continue..."
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+WriteSuccess "Press enter to continue..."
+$exit=Read-Host

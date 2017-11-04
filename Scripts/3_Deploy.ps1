@@ -1182,6 +1182,6 @@ If (!( $isAdmin )) {
 
     Stop-Transcript
 
-    WriteSuccess "Press any key to continue ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+    WriteSuccess "Press enter to continue ..."
+    $exit=Read-Host
 #endregion
