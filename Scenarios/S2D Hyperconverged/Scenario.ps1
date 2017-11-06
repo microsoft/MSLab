@@ -217,6 +217,7 @@ Write-host "Script started at $StartDateTime"
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
             #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
+            #This value needs to match physical switch configuration. Value might vary based on your needs.
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
         }
 
