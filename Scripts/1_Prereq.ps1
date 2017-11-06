@@ -29,9 +29,8 @@ function WriteError($message){
 
 function WriteErrorAndExit($message){
     Write-Host $message -ForegroundColor Red
-    Write-Host "Press any key to continue ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-    $HOST.UI.RawUI.Flushinputbuffer()
+    Write-Host "Press enter to continue ..."
+    $exit=Read-Host
     Exit
 }
 
@@ -333,123 +332,119 @@ Exit
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (!( $isAdmin )) {
-Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-exit
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
 }
 
-
-#############
-# Functions #
-#############
-
-function WriteInfo($message)
-{
-Write-Host $message
-}
-
-function WriteInfoHighlighted($message)
-{
-Write-Host $message -ForegroundColor Cyan
-}
-
-function WriteSuccess($message)
-{
-Write-Host $message -ForegroundColor Green
-}
-
-function WriteError($message)
-{
-Write-Host $message -ForegroundColor Red
-}
-
-function WriteErrorAndExit($message)
-{
-Write-Host $message -ForegroundColor Red
-Write-Host "Press any key to continue ..."
-$host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-$HOST.UI.RawUI.Flushinputbuffer()
-Exit
-}
+#region Functions
 
 
+    function WriteInfo($message){
+        Write-Host $message
+    }
+
+    function WriteInfoHighlighted($message){
+        Write-Host $message -ForegroundColor Cyan
+    }
+
+    function WriteSuccess($message){
+        Write-Host $message -ForegroundColor Green
+    }
+
+    function WriteError($message){
+        Write-Host $message -ForegroundColor Red
+    }
+
+    function WriteErrorAndExit($message){
+        Write-Host $message -ForegroundColor Red
+        Write-Host "Press enter to continue ..."
+        $exit=Read-Host
+        Exit
+    }
+
+#endregion
 
 
-#Ask for ISO
-[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-Title="Please select ISO image with Windows Server 2016"
-}
-$openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-If($openFile.ShowDialog() -eq "OK")
-{
-WriteInfo  "File $($openfile.FileName) selected"
-} 
-if (!$openFile.FileName){
-    WriteErrorAndExit  "Iso was not selected... Exitting"
-}
-$ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+#region Ask for ISO
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        Title="Please select ISO image with Windows Server 2016"
+    }
+    $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+    If($openFile.ShowDialog() -eq "OK"){
+        WriteInfo  "File $($openfile.FileName) selected"
+    }
+    if (!$openFile.FileName){
+        WriteErrorAndExit  "Iso was not selected... Exitting"
+    }
+    $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
 
-$ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
+    $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
 
+#endregion
 
-#ask for MSU patches
-WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
-[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-$ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-Multiselect = $true;
-Title="Please select latest Windows Server 2016 Cumulative Update"
-}
-$ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-If($ServerPackages.ShowDialog() -eq "OK"){
-WriteInfoHighlighted  "Following patches selected:"
-WriteInfo "`t $($ServerPackages.filenames)"
-} 
+#region ask for MSU patches
+    WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
+    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+    $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+        Multiselect = $true;
+        Title="Please select latest Windows Server 2016 Cumulative Update"
+    }
+    $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+    If($ServerPackages.ShowDialog() -eq "OK"){
+        WriteInfoHighlighted  "Following patches selected:"
+        WriteInfo "`t $($ServerPackages.filenames)"
+    } 
 
-#exit if nothing is selected
-if (!$ServerPackages.FileNames){
+    #exit if nothing is selected
+    if (!$ServerPackages.FileNames){
+        $ISOServer | Dismount-DiskImage
+        WriteErrorAndExit "no msu was selected... Exitting"
+    }
+
+#endregion
+
+#region download convert-windowsimage if needed and load it
+
+    if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
+        WriteInfo "`t Downloading Convert-WindowsImage"
+        try{
+            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+        }catch{
+        WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
+        }
+    }
+
+    #load convert-windowsimage
+    . "$PSScriptRoot\convert-windowsimage.ps1"
+
+#endregion
+
+#region do the job
+    #ask for server edition
+    $Edition=(Get-WindowsImage -ImagePath "$ServerMediaPath\sources\install.wim" | Out-GridView -OutputMode Single).ImageName
+
+    #ask for imagename
+    $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016_G2.vhdx is used")
+    if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
+
+    #ask for size
+    [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
+    $size=$size*1GB
+    if (!$size){$size=60GB}
+
+    #Create VHD
+    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages.FileNames
+
+    WriteInfo "Dismounting ISO Image"
+    if ($ISOServer -ne $Null){
     $ISOServer | Dismount-DiskImage
-    WriteErrorAndExit "no msu was selected... Exitting"
-}
+    }
 
-if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
-#download latest convert-windowsimage
-# Download convert-windowsimage if its not in tools folder
-
-WriteInfo "`t Downloading Convert-WindowsImage"
-try{
-    Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
-}catch{
-    WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
-}
-}
-
-#load convert-windowsimage
-. "$PSScriptRoot\convert-windowsimage.ps1"
-
-#ask for server edition
-$Edition=(Get-WindowsImage -ImagePath "$ServerMediaPath\sources\install.wim" | Out-GridView -OutputMode Single).ImageName
-
-#ask for imagename
-$vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016_G2.vhdx is used")
-if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
-
-#ask for size
-[int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
-$size=$size*1GB
-if (!$size){$size=60GB}
-
-#Create VHD
-Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages.FileNames
-
-WriteInfo "Dismounting ISO Image"
-if ($ISOServer -ne $Null){
-$ISOServer | Dismount-DiskImage
-}
-
-WriteSuccess "Job Done. Press enter to continue..."
-$exit=Read-Host
-
+    WriteSuccess "Job Done. Press enter to continue..."
+    $exit=Read-Host
+#endregion
 '@
 
     Set-Content -path $script -value $fileContent
@@ -488,12 +483,10 @@ If (!( $isAdmin )) {
         Write-Host $message -ForegroundColor Red
     }
 
-    function WriteErrorAndExit($message)
-    {
+    function WriteErrorAndExit($message){
         Write-Host $message -ForegroundColor Red
-        Write-Host "Press any key to continue ..."
-        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-        $HOST.UI.RawUI.Flushinputbuffer()
+        Write-Host "Press enter to continue ..."
+        $exit=Read-Host
         Exit
     }
 

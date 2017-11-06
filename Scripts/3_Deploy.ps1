@@ -26,9 +26,8 @@ If (!( $isAdmin )) {
 
     function WriteErrorAndExit($message){
         Write-Host $message -ForegroundColor Red
-        Write-Host "Press any key to continue ..."
-        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-        $HOST.UI.RawUI.Flushinputbuffer()
+        Write-Host "Press enter to continue ..."
+        $exit=Read-Host
         Exit
     }
 
