@@ -26,9 +26,8 @@ If (!( $isAdmin )) {
 
     function WriteErrorAndExit($message){
         Write-Host $message -ForegroundColor Red
-        Write-Host "Press any key to continue ..."
-        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-        $HOST.UI.RawUI.Flushinputbuffer()
+        Write-Host "Press enter to continue ..."
+        $exit=Read-Host
         Exit
     }
 
@@ -1175,13 +1174,13 @@ If (!( $isAdmin )) {
 
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
-        Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" 
+        Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" -ErrorAction SilentlyContinue
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     Stop-Transcript
 
-    WriteSuccess "Press any key to continue ..."
-    $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
+    WriteSuccess "Press enter to continue ..."
+    $exit=Read-Host
 #endregion
