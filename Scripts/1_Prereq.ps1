@@ -249,10 +249,12 @@ $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
 if ((get-service MSSQLServer).Status -ne "Running"){
-do{
-    Write-Host "Waiting for SQL Service to start"
-    Start-Sleep 1
-}until ((get-service MSSQLServer).Status -eq "Running")
+    do{
+        Write-Host "Waiting for SQL Service to start"
+        Start-Sleep 10
+        Start-Service -Name MSSQLServer
+    }until ((get-service MSSQLServer).Status -eq "Running")
+    Write-Host "SQL Service is running"
 }
 
 If (Test-Path -Path "$PSScriptRoot\SCVMM\setup.exe"){
