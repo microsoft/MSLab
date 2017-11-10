@@ -534,8 +534,7 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted "`t Creating DC VM"
         $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
         $DC | Set-VMProcessor -Count 2
-        $DC | Set-VMMemory -DynamicMemoryEnabled $true
-        $DC | Set-VM -MemoryMinimumBytes 2GB
+        $DC | Set-VMMemory -DynamicMemoryEnabled $true -MinimumBytes 2GB
         if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
         if ($DC.AutomaticCheckpointsEnabled -eq $True){
             $DC | Set-VM -AutomaticCheckpointsEnabled $False
