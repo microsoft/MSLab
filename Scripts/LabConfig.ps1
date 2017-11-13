@@ -26,9 +26,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
         AllowedVLANs="1-10";                   # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
         Internet=$false                        # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
         PullServerDC=$true                     # (Optional) If $false, then DSC Pull Server will not be configured on DC
-        ClientISOFolder=""                     # (Optional) If configured, script will use first ISO located in this folder for Windows Client hydration
+        ClientISOFolder=""                     # (Optional) If configured, script will use ISO located in this folder for Windows Client hydration (if more ISOs are present, then out-grid view is called)
         ClientMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into client OS
-        ServerISOFolder=""                     # (Optional) If configured, script will use first ISO located in this folder for Windows Server hydration
+        ServerISOFolder=""                     # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
         ServerMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into server OS
         AdditionalNetworksConfig=@();          # Just empty array for config below
         VMs=@();                               # Just empty array for config below
@@ -179,7 +179,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
 
     ServerISOFolder,ClientISOFolder
         Example: ServerISOFolder="d:\ISO\Server2016"
-        Script will try to find ISO in this folder and subfolders. Only first will be selected.
+        Script will try to find ISO in this folder and subfolders. If more ISOs are present, then out-grid view is called and you will be promted to select only one
 
     ServerMSUsFolder,ClientMSUsFolder
         Example: ServerMSUsFolder="d:\Updates\Server2016"

@@ -307,11 +307,15 @@ If (!( $isAdmin )) {
     #Grab Server ISO
         if ($ServerMediaNeeded){
             if ($LabConfig.ServerISOFolder){
-                $ServerISOItem = Get-ChildItem -Path WriteErrorAndExit  "Iso was not selected... Exitting" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue | Select-Object -First 1
+                $ServerISOItem = Get-ChildItem -Path $LabConfig.ServerISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
+                if ($ServerISOItem.count -gt 1){
+                    WriteInfoHighlighted "Multiple ISO files found. Please select the one you want"
+                    $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select the one you want" -OutputMode Single
+                }
                 if (!$ServerISOItem){
                     WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
                 }
-                $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName
+                $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
             }else{
                 WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
@@ -336,11 +340,15 @@ If (!( $isAdmin )) {
         if ($ClientMediaNeeded){
             If ($LabConfig.CreateClientParent){
                 if ($LabConfig.ClientISOFolder){
-                    $ClientISOItem = Get-ChildItem -Path $LabConfig.ClientISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue | Select-Object -First 1
+                    $ClientISOItem = Get-ChildItem -Path $LabConfig.ClientISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
+                    if ($ClientISOItem.count -gt 1){
+                        WriteInfoHighlighted "Multiple ISO files found. Please select the one you want"
+                        $ClientISOItem=$ClientISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select the one you want" -OutputMode Single
+                    }
                     if (!$ClientISOItem){
                         WriteErrorAndExit  "No iso was found in $($LabConfig.ClientISOFolder) ... Exitting"
                     }
-                    $ISOClient = Mount-DiskImage -ImagePath $ClientISOItem.FullName
+                    $ISOClient = Mount-DiskImage -ImagePath $ClientISOItem.FullName -PassThru
                 }else{
                     WriteInfoHighlighted "Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition."
                     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
