@@ -309,8 +309,8 @@ If (!( $isAdmin )) {
             if ($LabConfig.ServerISOFolder){
                 $ServerISOItem = Get-ChildItem -Path $LabConfig.ServerISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
                 if ($ServerISOItem.count -gt 1){
-                    WriteInfoHighlighted "Multiple ISO files found. Please select the one you want"
-                    $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select the one you want" -OutputMode Single
+                    WriteInfoHighlighted "Multiple ISO files found. Please select Server ISO one you want"
+                    $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Server ISO you want" -OutputMode Single
                 }
                 if (!$ServerISOItem){
                     WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
@@ -342,8 +342,8 @@ If (!( $isAdmin )) {
                 if ($LabConfig.ClientISOFolder){
                     $ClientISOItem = Get-ChildItem -Path $LabConfig.ClientISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
                     if ($ClientISOItem.count -gt 1){
-                        WriteInfoHighlighted "Multiple ISO files found. Please select the one you want"
-                        $ClientISOItem=$ClientISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select the one you want" -OutputMode Single
+                        WriteInfoHighlighted "Multiple ISO files found. Please select Client ISO you want"
+                        $ClientISOItem=$ClientISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Client ISO you want" -OutputMode Single
                     }
                     if (!$ClientISOItem){
                         WriteErrorAndExit  "No iso was found in $($LabConfig.ClientISOFolder) ... Exitting"
