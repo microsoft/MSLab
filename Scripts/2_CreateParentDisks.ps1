@@ -306,31 +306,17 @@ If (!( $isAdmin )) {
 #region Ask for ISO images and Cumulative updates
     #Grab Server ISO
         if ($ServerMediaNeeded){
-            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
-            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Title="Please select ISO image with Windows Server 2016, 1709 or later"
-            }
-            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-            If($openFile.ShowDialog() -eq "OK"){
-                WriteInfo  "File $($openfile.FileName) selected"
-            } 
-            if (!$openFile.FileName){
-                WriteErrorAndExit  "Iso was not selected... Exitting"
-            }
-            #Mount ISO
-                $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-            #Grab Server Media Letter
-                $ServerMediaDriveLetter = (Get-Volume -DiskImage $ISOServer).DriveLetter
-        }
-
-    #Ask for Client ISO
-        if ($ClientMediaNeeded){
-            If ($LabConfig.CreateClientParent){
-                WriteInfoHighlighted "Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition."
+            if ($LabConfig.ServerISOFolder){
+                $ServerISOItem = Get-ChildItem -Path WriteErrorAndExit  "Iso was not selected... Exitting" -Recurse -Include '*.iso' -ErrorAction SilentlyContinue | Select-Object -First 1
+                if (!$ServerISOItem){
+                    WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
+                }
+                $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName
+            }else{
+                WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
                 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Title="Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition"
+                    Title="Please select ISO image with Windows Server 2016, 1709 or later"
                 }
                 $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
                 If($openFile.ShowDialog() -eq "OK"){
@@ -339,8 +325,38 @@ If (!( $isAdmin )) {
                 if (!$openFile.FileName){
                     WriteErrorAndExit  "Iso was not selected... Exitting"
                 }
-            #Mount ISO
-                $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+                #Mount ISO
+                    $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+            }
+            #Grab Server Media Letter
+                $ServerMediaDriveLetter = (Get-Volume -DiskImage $ISOServer).DriveLetter
+        }
+
+    #Ask for Client ISO
+        if ($ClientMediaNeeded){
+            If ($LabConfig.CreateClientParent){
+                if ($LabConfig.ClientISOFolder){
+                    $ClientISOItem = Get-ChildItem -Path $LabConfig.ClientISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if (!$ClientISOItem){
+                        WriteErrorAndExit  "No iso was found in $($LabConfig.ClientISOFolder) ... Exitting"
+                    }
+                    $ISOClient = Mount-DiskImage -ImagePath $ClientISOItem.FullName
+                }else{
+                    WriteInfoHighlighted "Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition."
+                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+                    $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                        Title="Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition"
+                    }
+                    $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+                    If($openFile.ShowDialog() -eq "OK"){
+                        WriteInfo  "File $($openfile.FileName) selected"
+                    } 
+                    if (!$openFile.FileName){
+                        WriteErrorAndExit  "Iso was not selected... Exitting"
+                    }
+                    #Mount ISO
+                        $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+                }
             #Grab Client Media Letter
                 $ClientMediaDriveLetter = (Get-Volume -DiskImage $ISOClient).DriveLetter
             }
@@ -349,38 +365,50 @@ If (!( $isAdmin )) {
     #Grab packages
         #grab server packages
             if ($ServerMediaNeeded){
-                #ask for MSU patches
-                WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
-                [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Multiselect = $true;
-                    Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
-                }
-                $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                If($ServerPackages.ShowDialog() -eq "OK"){
-                    WriteInfoHighlighted  "Following patches selected:"
-                    WriteInfo "`t $($ServerPackages.filenames)"
-                }
+                if ($LabConfig.ServerISOFolder){
+                    if ($LabConfig.ServerMSUsFolder){
+                        $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
+                    }
+                }else{
+                    #ask for MSU patches
+                    WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+                    $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                        Multiselect = $true;
+                        Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+                    }
+                    $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+                    If($ServerPackages.ShowDialog() -eq "OK"){
+                        WriteInfoHighlighted  "Following patches selected:"
+                        WriteInfo "`t $($ServerPackages.filenames)"
+                    }
 
-                $serverpackages=$serverpackages.FileNames | Sort-Object
+                    $serverpackages=$serverpackages.FileNames | Sort-Object
+                }
             }
 
         #grab Client packages
         If ($ClientMediaNeeded){
             If ($LabConfig.CreateClientParent){
-                #ask for MSU patches
-                WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU) and (or) RSAT. Click Cancel if you don't want any."
-                [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Multiselect = $true;
-                    Title="Please select Windows 10 Cumulative Update and (or) RSAT. Click Cancel if you don't want any."
+                if ($LabConfig.ClientISOFolder){
+                    if ($LabConfig.ClientMSUsFolder){
+                        $clientpackages = (Get-ChildItem -Path $LabConfig.ClientMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
+                    }
+                }else{
+                    #ask for MSU patches
+                    WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU) and (or) RSAT. Click Cancel if you don't want any."
+                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+                    $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                        Multiselect = $true;
+                        Title="Please select Windows 10 Cumulative Update and (or) RSAT. Click Cancel if you don't want any."
+                    }
+                    $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+                    If($ClientPackages.ShowDialog() -eq "OK"){
+                        WriteInfoHighlighted  "Following patches selected:"
+                        WriteInfo "`t $($ClientPackages.filenames)"
+                    }
+                    $clientpackages=$clientpackages.FileNames | Sort-Object
                 }
-                $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                If($ClientPackages.ShowDialog() -eq "OK"){
-                    WriteInfoHighlighted  "Following patches selected:"
-                    WriteInfo "`t $($ClientPackages.filenames)"
-                }
-                $clientpackages=$clientpackages.FileNames | Sort-Object
             }
         }
 
