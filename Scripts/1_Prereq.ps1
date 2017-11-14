@@ -623,18 +623,25 @@ If (!( $isAdmin )) {
     publicKeyToken="31bf3856ad364e35"
     versionScope="nonSxS"
     >
-    <SanPolicy>1</SanPolicy>
 </component>
 </settings>
 <settings pass="specialize">
 <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <ComputerName>VMFleet</ComputerName>
     <RegisteredOwner>PFE</RegisteredOwner>
     <RegisteredOrganization>Contoso</RegisteredOrganization>
 </component>
 </settings>
 <settings pass="oobeSystem">
 <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <AutoLogon>
+    <Password>
+        <Value>$AdminPassword</Value>
+        <PlainText>true</PlainText>
+    </Password>
+    <Enabled>true</Enabled>
+    <LogonCount>999</LogonCount>
+    <Username>administrator</Username>
+    </AutoLogon>
     <UserAccounts>
     <AdministratorPassword>
         <Value>$AdminPassword</Value>
@@ -704,7 +711,6 @@ WriteInfoHighlighted "Run following commands from $($ClusterNodes[0])"
 "c:\VMFleet\set-vmfleet.ps1 -ProcessorCount 2 -MemoryStartupBytes 512MB -MemoryMinimumBytes 512MB -MemoryMaximumBytes 2GB"
 "c:\VMFleet\Start-Vmfleet.ps1"
 "c:\VMFleet\start-sweep.ps1 -b 4 -t 2 -o 40 -w 0 -d 300"
-"c:\VMFleet\Start-Vmfleet.ps1"
 "c:\VMFleet\watch-cluster.ps1"
 
 WriteSuccess "Press enter to exit..."
