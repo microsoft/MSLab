@@ -17,7 +17,7 @@ Script will also ask you for Password, that will be injected in answer file into
 ![](/Scenarios/VMFleet/Screenshots/VMFleet_Step3.png)
 
 Will also ask you for VHD with windows server (it will inject answer file and create users\administrator folder, so vmfleet will be able to use it). I recommend copying VHD there before deployment - just mount toolsVHD, copy and eject.
-**Make sure you use different VHD than for cluster nodes. See known issues in the bottom**
+**Make sure you use different VHD than for cluster nodes. See known issues in the bottom** You can create another VHD with CreateParentDisk.ps1 located in tools folder.
 
 ![](/Scenarios/VMFleet/Screenshots/VMFleet_Step4.png)
 
@@ -33,10 +33,10 @@ For additional commands take a look here https://blogs.technet.microsoft.com/lar
 
 # Known isues
 
-Make sure you use different VHD than for HOST.
+Make sure you use different VHD than for s2d cluster node. Following screenshot shows disk, that fails to go online as there is same GUID/UniqueID as OS Disk.
 
 ![](/Scenarios/VMFleet/Screenshots/Error_wrongVHD.png)
 
-If you use the same, OS wil fail to online volume, therefore vmfleet will fail to add drive letter and will fail with following errors.
+Therefore you use the same as OS, OS wil fail to online volume and vmfleet will fail to add drive letter. You will also see following errors.
 
 ![](/Scenarios/VMFleet/Screenshots/Error_wrongVHD1.png)
