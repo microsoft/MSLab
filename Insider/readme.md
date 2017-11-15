@@ -21,16 +21,9 @@ Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/
 
 ## Issues
 
-* creating Volumes may not succeed. It may throw errors as RHS sometimes crashes. To mitigate the issue, configure CSV Cache to 0 and create cluster with static IP Address
-````PowerShell
-    New-Cluster –Name $ClusterName –Node $servers -StaticAddress "10.0.0.111"
-    Start-Sleep 5
-    Clear-DnsClientCache
-    (get-cluster -Name $clustername).BlockCacheSize=0
-````
+* creating Volumes may not succeed. It may throw errors as RHS sometimes crashes.
 * DSC Pull server is not configured on DC as there is a bug that prevents setting up Pull server using DSC. It is specified in LabConfig to skip Pull server configuration.
 * RRAS configuration on DC fails, so you will not have internet connection in the lab (bug in server)
-* Setting witness on DC will fail
 * Setting performance power plan fails
 
 ### Server Manager in Windows 10 management machine (default LabConfig)

@@ -47,28 +47,11 @@ Videos are bit outdated as subtle changes are in scripts.
  
 **Step 8** Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) which will guide you to deploy 4 Node Storage Spaces Direct cluster.
 
-Sidenote: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
+Note: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
 
 **Step 9** Cleanup lab with Cleanup.ps1
 
-**Step 10** Try different scenarios
-* [Local Admin Password solution for NanoServer](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/LAPS%20on%20Nano)
-* [Testing first boot performance](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Testing%20Nano%20performance)
-
-# What's in the lab
-
-Automatically hydrated Domain Controller with DHCP and one scope. There are several accounts automatically provisioned - SQL Run As Account, SQL Agent Account,  VMM Service Account and one additional Domain Admin with name you can specify, so you can install SQL + SC VMM easily.
-
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/dhcp01.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ActiveDirectory01.png)
-
-You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node nano s2d cluster with 200TB capacity - all running on ultrabook.
-
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/HVConsole01.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/ServerManager01.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole01.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole02.png)
-![](https://github.com/Microsoft/ws2016lab/blob/master/Docs/Screenshots/FCConsole03.png)
+**Step 10** Try different [scenarios](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/)
 
 # Known issues
 
@@ -76,7 +59,6 @@ You can then modify LabConfig.ps1 to hydrate whatever you want. Like this 4 node
 * When waiting on DC to come online, the script throws some red errors. It's by design, nothing to worry about.
 * DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
 * sometimes if all machines are started at once, some are not domain joined. Just cleanup and deploy again.
-
 
 # So what is it good for?
 
