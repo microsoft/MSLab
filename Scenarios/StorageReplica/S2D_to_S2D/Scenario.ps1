@@ -119,8 +119,8 @@ foreach ($clustername in ($Cluster1Name,$Cluster2Name)){
     } 
 }
 
-Grant-SRAccess -ComputerName $Cluster1Servers[0]  –Cluster $Cluster2Name
-Grant-SRAccess -ComputerName $Cluster2Servers[0]  –Cluster $Cluster1Name
+Grant-SRAccess -ComputerName $Cluster1Servers[0]  -Cluster $Cluster2Name
+Grant-SRAccess -ComputerName $Cluster2Servers[0]  -Cluster $Cluster1Name
 
 New-SRPartnership -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName -SourceVolumeName c:\ClusterStorage\Data -SourceLogVolumeName e: -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName -DestinationVolumeName c:\ClusterStorage\Data -DestinationLogVolumeName e:
 
@@ -184,13 +184,13 @@ if ($TypeOfWorkload -eq "IWFS"){
     Add-ClusterScaleOutFileServerRole -Name SOFS1 -Cluster $Cluster1Name
     Add-ClusterScaleOutFileServerRole -Name SOFS2 -Cluster $Cluster2Name
     #create share
-    New-SmbShare -CimSession $Cluster1Name -Path "C:\ClusterStorage\Data\" -ScopeName SOFS1 -Name "Share" –FullAccess Everyone
+    New-SmbShare -CimSession $Cluster1Name -Path "C:\ClusterStorage\Data\" -ScopeName SOFS1 -Name "Share" -FullAccess Everyone
     #disable CA
     Set-SMBShare -CimSession $Cluster1Name -Name Share -ContinuouslyAvailable $false -Force
     #Flip replication
     Set-SRPartnership -NewSourceComputerName $Cluster2Name -SourceRGName $DestinationRGName -DestinationComputerName $Cluster1Name -DestinationRGName $SourceRGName -confirm:$false
     #create share
-    New-SmbShare -CimSession $Cluster2Name -Path "C:\ClusterStorage\Data\" -ScopeName SOFS2 -Name "Share" –FullAccess Everyone
+    New-SmbShare -CimSession $Cluster2Name -Path "C:\ClusterStorage\Data\" -ScopeName SOFS2 -Name "Share" -FullAccess Everyone
     #disable CA
     Set-SMBShare -CimSession $Cluster2Name -Name Share -ContinuouslyAvailable $false -Force
 

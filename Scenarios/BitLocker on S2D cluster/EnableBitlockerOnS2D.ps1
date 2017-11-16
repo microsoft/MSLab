@@ -141,7 +141,7 @@ foreach ($CSV in $CSVs){
 
         #Enable CredSSP delegation to be able to encrypt CSV
         Write-Output "Enabling CredSSP delegation to $owner"
-        Enable-WSManCredSSP Client –DelegateComputer $owner -Force
+        Enable-WSManCredSSP Client -DelegateComputer $owner -Force
         Invoke-Command -ComputerName $owner -ScriptBlock {Enable-WSManCredSSP Server -Force}
 
         #Encrypt Volume

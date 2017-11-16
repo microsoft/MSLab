@@ -149,8 +149,8 @@ Write-host "Script started at $StartDateTime"
         #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
         Invoke-Command -ComputerName $servers -ScriptBlock {
             $physicaladapters=Get-NetAdapter | where status -eq up | where Name -NotLike vEthernet* | Sort-Object
-            Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_1" –ManagementOS –PhysicalNetAdapterName ($physicaladapters[0]).name
-            Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_2" –ManagementOS –PhysicalNetAdapterName ($physicaladapters[1]).name
+            Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName ($physicaladapters[0]).name
+            Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName ($physicaladapters[1]).name
         }
         #Validate mapping
         Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
@@ -164,20 +164,20 @@ Write-host "Script started at $StartDateTime"
 
   
     #Verify that the VlanID is set
-    Get-VMNetworkAdapterVlan –ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
+    Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
 
     #verify ip config 
     Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
 
     if ($DCB -eq $True){
         ##Configure QoS
-        New-NetQosPolicy "SMB" –NetDirectPortMatchCondition 445 –PriorityValue8021Action 3 -CimSession $servers
+        New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
 
         #Turn on Flow Control for SMB
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl –Priority 3}
+            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
 
         #Disable flow control for other traffic
-            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl –Priority 0,1,2,4,5,6,7}
+            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
 
         #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
@@ -195,14 +195,14 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
         #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
     }
 
 #endregion
 
 #region Create and configure Cluster
     #create new cluster #
-        New-Cluster –Name $ClusterName –Node $servers -StaticAddress $ClusterIP
+        New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
         Start-Sleep 5
         Clear-DnsClientCache
 

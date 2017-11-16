@@ -72,8 +72,8 @@ Test-SRTopology -GenerateReport -DataPath \\dc\c$\replicaresults\
 Add-ClusterSharedVolume -Name "Cluster Disk 1" -Cluster $Cluster1Name
 Add-ClusterSharedVolume -Name "Cluster Disk 1" -Cluster $Cluster2Name
 
-Grant-SRAccess -ComputerName $Cluster1Servers[0]  –Cluster $Cluster2Name
-Grant-SRAccess -ComputerName $Cluster2Servers[0]  –Cluster $Cluster1Name
+Grant-SRAccess -ComputerName $Cluster1Servers[0]  -Cluster $Cluster2Name
+Grant-SRAccess -ComputerName $Cluster2Servers[0]  -Cluster $Cluster1Name
 
 New-SRPartnership -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName -SourceVolumeName c:\ClusterStorage\Volume1 -SourceLogVolumeName e: -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName -DestinationVolumeName c:\ClusterStorage\Volume1 -DestinationLogVolumeName e:
 
