@@ -19,8 +19,10 @@ Deployment result
 
 ![](/Insider/Screenshots/17035with14393DC.png)
 
-Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged). You can then install Honolulu into Windows 10 machine to manage HyperConverged cluster.
+Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged). To PowerShell in new window in server core, type "Start PowerShell" and paste script there. After finish, you can install Honolulu into Windows 10 machine to manage HyperConverged cluster.
 
-## Hydration fails
+## Issues
+
+### Hydration fails
 
 ![](/Insider/Screenshots/17035HydrationFail.png)
