@@ -101,8 +101,8 @@ Write-host "Script started at $StartDateTime"
     
     #Configure Active memory dump
         Invoke-Command -ComputerName $servers -ScriptBlock {
-            Set-ItemProperty –Path HKLM:\System\CurrentControlSet\Control\CrashControl –Name CrashDumpEnabled –value 1
-            Set-ItemProperty –Path HKLM:\System\CurrentControlSet\Control\CrashControl –Name FilterPages –value 1
+            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
+            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
         }
 
     #install roles and features
@@ -168,8 +168,8 @@ Write-host "Script started at $StartDateTime"
             #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
             Invoke-Command -ComputerName $servers -ScriptBlock {
                 $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
-                Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_1" –ManagementOS –PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
-                Set-VMNetworkAdapterTeamMapping –VMNetworkAdapterName "SMB_2" –ManagementOS –PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
             }
         }
     
@@ -178,7 +178,7 @@ Write-host "Script started at $StartDateTime"
             #verify mapping
                 Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
             #Verify that the VlanID is set
-                Get-VMNetworkAdapterVlan –ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
+                Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
             #verify RDMA
                 Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
             #verify ip config 
@@ -193,13 +193,13 @@ Write-host "Script started at $StartDateTime"
                     foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
                 }
             ##Configure QoS
-                New-NetQosPolicy "SMB" –NetDirectPortMatchCondition 445 –PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
 
             #Turn on Flow Control for SMB
-                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl –Priority 3}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
 
             #Disable flow control for other traffic
-                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl –Priority 0,1,2,4,5,6,7}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
 
             #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
                 Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
@@ -218,7 +218,7 @@ Write-host "Script started at $StartDateTime"
 
             #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" –Priority 3 –BandwidthPercentage 30 –Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
         }
 
     #enable iWARP firewall rule if requested
@@ -228,17 +228,24 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#Region test and create new cluster 
-    Test-Cluster –Node $servers –Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
+#Region test and create new cluster, configure CSV Cache 
+    Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
     if ($ClusterIP){
-        New-Cluster –Name $ClusterName –Node $servers -StaticAddress $ClusterIP
+        New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
     }else{
-        New-Cluster –Name $ClusterName –Node $servers
+        New-Cluster -Name $ClusterName -Node $servers
     }
     Start-Sleep 5
     Clear-DnsClientCache
 
+    #Configure CSV Cache
+    if ($RealHW){
+        (Get-Cluster $ClusterName).BlockCacheSize = 10240
+    }else{
+        (Get-Cluster $ClusterName).BlockCacheSize = 0
+    }
 #endregion
+
 
 #region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx
 #just some examples for Rack/Chassis fault domains.
@@ -374,22 +381,19 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
     #configure other cluster settings
-        #set CSV Cache 
-            #(Get-Cluster $ClusterName).BlockCacheSize = 10240 
-
         #rename networks
             (Get-ClusterNetwork -Cluster $clustername | where Address -eq $StorNet"0").Name="SMB"
             (Get-ClusterNetwork -Cluster $clustername | where Address -eq "10.0.0.0").Name="Management"
 
         #configure Live Migration 
             Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
-            Set-VMHost –VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+            Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
 #endregion
 
 #region create some VMs and optimize pNICs and activate High Perf Power Plan
 
     #create some fake VMs
-        Start-Sleep -Seconds 30 #just to a bit wait as I saw sometimes that first VM fails to create
+        Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
@@ -448,7 +452,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
                 Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
             }
         #add role
-            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) –verbose
+            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
 
 #endregion
 #finishing
