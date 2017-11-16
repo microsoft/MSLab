@@ -369,9 +369,10 @@ If (!( $isAdmin )) {
 
 
 #region Ask for ISO
+    WriteInfoHighlighted "Please select ISO image"
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
     $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-        Title="Please select ISO image with Windows Server 2016"
+        Title="Please select ISO image"
     }
     $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
     If($openFile.ShowDialog() -eq "OK"){
@@ -386,12 +387,12 @@ If (!( $isAdmin )) {
 
 #endregion
 
-#region ask for MSU patches
-    WriteInfoHighlighted "Please select latest Server Cumulative Update (.MSU)"
+#region ask for MSU packages
+    WriteInfoHighlighted "Please select msu packages you want to add to image. Click cancel if you don't want any."
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
     $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
         Multiselect = $true;
-        Title="Please select latest Windows Server 2016 Cumulative Update"
+        Title="Please select msu packages you want to add to image. Click cancel if you don't want any."
     }
     $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
     If($ServerPackages.ShowDialog() -eq "OK"){
@@ -399,10 +400,9 @@ If (!( $isAdmin )) {
         WriteInfo "`t $($ServerPackages.filenames)"
     } 
 
-    #exit if nothing is selected
+    #Write info if nothing is selected
     if (!$ServerPackages.FileNames){
-        $ISOServer | Dismount-DiskImage
-        WriteErrorAndExit "no msu was selected... Exitting"
+        WriteError "No msu was selected..."
     }
 
 #endregion
@@ -437,8 +437,11 @@ If (!( $isAdmin )) {
     if (!$size){$size=60GB}
 
     #Create VHD
-    Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages.FileNames
-
+    if ($serverpackages.FileNames -ne $null){
+        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages.FileNames
+    }else{
+        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI
+    }
     WriteInfo "Dismounting ISO Image"
     if ($ISOServer -ne $Null){
     $ISOServer | Dismount-DiskImage

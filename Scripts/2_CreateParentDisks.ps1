@@ -620,7 +620,7 @@ If (!( $isAdmin )) {
             Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.1.0.0"
             Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
             Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "7.0.0.0"
-            Import-DscResource –ModuleName PSDesiredStateConfiguration
+            Import-DscResource -ModuleName PSDesiredStateConfiguration
 
             Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
                 

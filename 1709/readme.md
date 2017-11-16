@@ -16,6 +16,6 @@ Download latest [RSAT](http://aka.ms/RSAT) for Windows 10.
 
 Hydrate labs as [usual](https://github.com/Microsoft/ws2016lab#howto)
 
-Continue with [Hyper-V with SAN scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Hyper-V%201709%20with%20SAN) (add servers in labconfig as per scenario labconfig)
+Continue with [Hyper-V with SAN scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/Hyper-V%201709%20with%20SAN) (add servers in labconfig as per scenario)
 
 Give a try to [Project Honolulu](http://aka.ms/honoluludownload). Just download honolulu bits, copy over to Management machine and install.

@@ -18,8 +18,8 @@
         foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering" -ComputerName $server} 
 
     #test and create new cluster 
-        Test-Cluster –Node $servers –Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
-        New-Cluster –Name $ClusterName –Node $servers
+        Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
+        New-Cluster -Name $ClusterName -Node $servers
         Start-Sleep 5
         Clear-DnsClientCache
 
