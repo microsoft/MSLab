@@ -21,41 +21,7 @@ Deployment result
 
 Continue with [S2D scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged). To PowerShell in new window in server core, type "Start PowerShell" and paste script there. After finish, you can install Honolulu into Windows 10 machine to manage HyperConverged cluster.
 
-Virtual disk will fail to create as there are different tiers in 17035.
-
-![](/Insider/Screenshots/17035Tiers.png)
-
-Run following command to create volumes and VMs in the same window the above scenario finished.
-
-````PowerShell
-#Create Volumes
-    1..$NumberOfDisks | ForEach-Object {
-        New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames MirrorOnHDD -StorageTierSizes 2TB -CimSession $ClusterName
-    }
-
-#Rename Volumes
-    Get-ClusterSharedVolume -Cluster $ClusterName | % {
-        $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-        $newname=$_.name.Substring(22,$_.name.Length-23)
-        Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
-    } 
-
-#Create 3 VMs on each volume
-    $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-    foreach ($CSV in $CSVs){
-        $CSV=$CSV.Substring(22)
-        $CSV=$CSV.TrimEnd(")")
-        1..3 | ForEach-Object {
-            $VMName="TestVM$($CSV)_$_"
-            Invoke-Command -ComputerName (Get-ClusterNode -Cluster $ClusterName).name[0] -ArgumentList $CSV,$VMName -ScriptBlock {
-                param($CSV,$VMName);
-                New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
-            }
-            Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-        }
-    }
- 
-````
+Virtual disk creation may fail sometimes. Also sometimes VM creation fails.
 
 ## Result
 
