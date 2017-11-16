@@ -389,7 +389,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 #region create some VMs and optimize pNICs and activate High Perf Power Plan
 
     #create some fake VMs
-        Start-Sleep -Seconds 30 #just to a bit wait as I saw sometimes that first VM fails to create
+        Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
