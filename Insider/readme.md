@@ -1,7 +1,7 @@
 # Server Insider lab 17035
 
 ## Howto
-To create Insider lab, hydrate regular 2016 lab (to have dc), download insider VHD and add it to parent disks. Following labconfig will hydrate 4 s2d nodes with VHD from insider and also machine, where you will paste script (as you need to have RS4 RSAT that was not provided this time).
+To create Insider lab, hydrate regular 2016 lab (to have dc), [download](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver) insider VHD and add it to parent disks. Following labconfig will hydrate 4 s2d nodes with VHD from insider and also machine, where you will paste script (as you need to have RS4 RSAT that was not provided this time).
 
 You can create Win10 VHD with script provided in tools folder (please download latest prereq from dev as I just modified it, that if you hit cancel when asked for MSU, it will continue)
 
