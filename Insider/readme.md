@@ -25,7 +25,7 @@ Virtual disk will fail to create as there are different tiers in 17035.
 
 ![](/Insider/Screenshots/17035Tiers.png)
 
-Run following command to create volumes and VMs
+Run following command to create volumes and VMs in the same window the above scenario finished.
 
 ````PowerShell
 #Create Volumes
