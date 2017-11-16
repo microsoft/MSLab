@@ -20,7 +20,7 @@ We recognize Primordial pool and named Pool. Primordial is list of disks, that a
 
 ![](/Scenarios/S2D%20on%20AWS%20and%20VMware/screenshots/ListOfAvailDiskPowerShell.png)
 
-When pool is created and disks are claimed, special partition is created to claim the space. This partition is called "Storage Spaces Protective Partition". On the below screenshot you can also see, that delete is greyed out. This is just to prevent accidental deletion. Normally you are not able to see this partition as when storage spaces are enabled, disk "disappears" from system. This is possible as it was mounted externally. Also notice, that the partition has the same name as Pool – in this case "S2D on S2D-Cluster" 
+When pool is created and disks are claimed, special partition is created to claim the space. This partition is called "Storage Spaces Protective Partition". On the below screenshot you can also see, that delete is greyed out. This is just to prevent accidental deletion. Normally you are not able to see this partition as when storage spaces are enabled, disk "disappears" from system. This is possible as it was mounted externally. Also notice, that the partition has the same name as Pool - in this case "S2D on S2D-Cluster" 
 
 **Storage Spaces Protective Partition in disk management**
 
