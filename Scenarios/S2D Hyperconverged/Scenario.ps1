@@ -228,7 +228,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#Region test and create new cluster 
+#Region test and create new cluster, configure CSV Cache 
     Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
     if ($ClusterIP){
         New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
@@ -238,7 +238,14 @@ Write-host "Script started at $StartDateTime"
     Start-Sleep 5
     Clear-DnsClientCache
 
+    #Configure CSV Cache
+    if ($RealHW){
+        (Get-Cluster $ClusterName).BlockCacheSize = 10240
+    }else{
+        (Get-Cluster $ClusterName).BlockCacheSize = 0
+    }
 #endregion
+
 
 #region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx
 #just some examples for Rack/Chassis fault domains.
@@ -374,9 +381,6 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
     #configure other cluster settings
-        #set CSV Cache 
-            #(Get-Cluster $ClusterName).BlockCacheSize = 10240 
-
         #rename networks
             (Get-ClusterNetwork -Cluster $clustername | where Address -eq $StorNet"0").Name="SMB"
             (Get-ClusterNetwork -Cluster $clustername | where Address -eq "10.0.0.0").Name="Management"
