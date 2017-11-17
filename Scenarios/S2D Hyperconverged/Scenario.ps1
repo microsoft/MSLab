@@ -52,7 +52,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #install features for management
-    $WindowsInstallationType=(Get-ComputerInfo).WindowsInstallationType
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt
     }elseif ($WindowsInstallationType -eq "Server Core"){
