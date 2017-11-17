@@ -27,6 +27,7 @@ If (!( $isAdmin )) {
     function WriteErrorAndExit($message){
         Write-Host $message -ForegroundColor Red
         Write-Host "Press enter to continue ..."
+        Stop-Transcript
         $exit=Read-Host
         Exit
     }
@@ -627,6 +628,8 @@ If (!( $isAdmin )) {
     #Grab TimeZone
     $TimeZone=(Get-TimeZone).id
 
+    #Grab Installation type
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
 #endregion
 
 #region Some Additional checks and prereqs configuration
@@ -725,7 +728,14 @@ If (!( $isAdmin )) {
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
         }
 
-
+    #check if running on Core Server and check proper values in LabConfig
+        If ($WindowsInstallationType -eq "Server Core"){
+            If (!$LabConfig.CreateClientParent -and !$LabConfig.ServerISOFolder){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
+            }elseif($LabConfig.CreateClientParent -and (!$LabConfig.ServerISOFolder -or !$LabConfig.ClientISOFolder){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
+            }
+        }
     #Create Switches
 
         WriteInfoHighlighted "Creating Switch"

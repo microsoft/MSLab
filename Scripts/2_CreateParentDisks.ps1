@@ -29,6 +29,7 @@ If (!( $isAdmin )) {
     function WriteErrorAndExit($message){
         Write-Host $message -ForegroundColor Red
         Write-Host "Press enter to continue ..."
+        Stop-Transcript
         $exit=Read-Host
         Exit
     }
