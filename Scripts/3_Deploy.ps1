@@ -732,7 +732,7 @@ If (!( $isAdmin )) {
         If ($WindowsInstallationType -eq "Server Core"){
             If (!$LabConfig.CreateClientParent -and !$LabConfig.ServerISOFolder){
                 WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
-            }elseif($LabConfig.CreateClientParent -and (!$LabConfig.ServerISOFolder -or !$LabConfig.ClientISOFolder){
+            }elseif($LabConfig.CreateClientParent -and (!$LabConfig.ServerISOFolder -or !$LabConfig.ClientISOFolder)){
                 WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
             }
         }
