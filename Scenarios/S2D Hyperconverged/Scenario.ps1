@@ -51,7 +51,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#install features for management
+#region install features for management
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt
@@ -92,8 +92,9 @@ Write-host "Script started at $StartDateTime"
                 }
             }
     }
+#endregion
 
-#Region configure servers
+#region configure servers
     #Tune HW timeout to 10 minutes (6minutes is default) for Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
@@ -240,8 +241,10 @@ Write-host "Script started at $StartDateTime"
 
     #Configure CSV Cache
     if ($RealHW){
+        #10GB might be a good starting point. Needs tuning depending on workload
         (Get-Cluster $ClusterName).BlockCacheSize = 10240
     }else{
+        #Starting 1709 is block cache 512. For virtual environments it does ont make sense
         (Get-Cluster $ClusterName).BlockCacheSize = 0
     }
 #endregion
