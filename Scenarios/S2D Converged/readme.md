@@ -9,8 +9,7 @@
 * Simulates SET Switch with 1 Management vNIC and 2 SMB vNICs
 * Deploy script finishes in ~7 minutes. Scenario script finishes in ~33 minutes = Your clusters are up an running in 45 minutes.
 * With small modification you can have up to 64 nodes in compute cluster and 16 nodes in storage cluster (beefy machine required)
-* [Compute Cluster Validation Report](/Scenarios/S2D%20Converged/Screenshots/ValidationReportComputeCluster.htm)
-* [Storage Cluster Validation Report](/Scenarios/S2D%20Converged/Screenshots/ValidationReportStorageCluster.htm)
+* [Compute Cluster and Storage Cluster Validation Reports](/Scenarios/S2D%20Converged/Screenshots/ValidationReports.zip)
 
 # Scenario requirements
 
