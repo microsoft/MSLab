@@ -47,7 +47,7 @@ Videos are bit outdated as subtle changes are in scripts.
 
 ![](/Screenshots/LabConfigAdvanced.png)
 
-##Step 4 Right-click and run with PowerShell 1_Prereq.ps1
+## Step 4 Right-click and run with PowerShell 1_Prereq.ps1
  * 1_Prereq.ps1 will create folder structure and downloads some additional necessary files from internet
  * If you don't have an internet connection on your server, run this on internet connected machine, copy created files over and run 1_prereq.ps1 again
 
@@ -56,26 +56,25 @@ Videos are bit outdated as subtle changes are in scripts.
 **Result**
 
 ![](/Screenshots/1_PrereqResult1.png)
+
+**Result: Tools folder created**
+
 ![](/Screenshots/1_PrereqResult2.png)
 
-**CreateParentDisk tool**
+**CreateParentDisk tool, DSC modules and ToolsVHD folder**
 
 ![](/Screenshots/ToolsCreateParentDisk.png)
 
 ## Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder
  * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the Tools\SCVMM folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
 
-You can also copy your favorite tools you would like to have in ToolsVHD, thats always mounted to DC, or optionally to any machine in lab.
+ * You can also copy your favorite tools you would like to have in ToolsVHD, thats always mounted to DC, or optionally to any machine in lab.
 
-**ToolsVHD folder**
+**SCVMM Folders in ToolsVHD folder**
 
-![](/Screenshots/ToolsVHDFolder.png)
+![](/Screenshots/ToolsVHDFolderSCVMM1.png)
 
-**ToolsVHD SCVMM Folders**
-
-![](/Screenshots/ToolsVHDSCVMM1.png)
-
-![](/Screenshots/ToolsVHDSCVMM2.png)
+![](/Screenshots/ToolsVHDFolderSCVMM2.png)
 
 ## Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1
  * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, nd the it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
@@ -107,7 +106,7 @@ You can also copy your favorite tools you would like to have in ToolsVHD, thats 
 
 ![](/Screenshots/2_CreateParentDisksResultParentDisks.png)
 
-**Result: DC, thats imported during deploy is Created**
+**Result: DC, thats imported during deploy, is Created**
 
 ![](/Screenshots/2_CreateParentDisksResultDC.png)
 
@@ -126,6 +125,8 @@ You can also copy your favorite tools you would like to have in ToolsVHD, thats 
 * Note: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
 
 ## Step 9 Cleanup lab with Cleanup.ps1
+* VMs and switch is identified using prefix defined in LabConfig.
+* All VMs\Switches with prefix are listed
 
 ![](/Screenshots/Cleanup.png)
 
