@@ -7,7 +7,7 @@
 * Simulates RDMA networks (just looks like RDMA is used, but performance is not there)
 * Simulates VLANs (VLAN 0 for Management, VLAN 1 for SMB)
 * Simulates SET Switch with 1 Management vNIC and 2 SMB vNICs
-* Deploy script finishes in ~7 minutes. Scenario script finishes in ~33 minutes = Your clusters are up an running in 45 minutes.
+* Deploy script finishes in ~7 minutes. Scenario script finishes in ~33 minutes = Your clusters are up and running in 45 minutes.
 * With small modification you can have up to 64 nodes in compute cluster and 16 nodes in storage cluster (beefy machine required)
 * [Compute Cluster and Storage Cluster Validation Reports](/Scenarios/S2D%20Converged/Screenshots/ValidationReports.zip)
 
@@ -19,49 +19,49 @@
 
 ## Compute Cluster
 
-Cluster Overview
+**Cluster Overview**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/ComputeClusterOverview.png)
 
-Compute Cluster Roles
+**Compute Cluster Roles**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/ComputeClusterRoles.png)
 
-Compute Cluster Nodes
+**Compute Cluster Nodes**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/ComputeClusterNodes.png)
 
-Compute Cluster Networks
+**Compute Cluster Networks**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/ComputeClusterNetworks.png)
 
-VM properties (notice SOFS in the path)
+**VM properties (notice SOFS in the path)**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/VMSettings.png)
 
 ## Storage Cluster
 
-Storage Cluster Roles
+**Storage Cluster Roles**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/StorageClusterRoles.png)
 
-Storage Cluster Nodes
+**Storage Cluster Nodes**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/StorageClusterNodes.png)
 
-Storage Cluster Networks
+**Storage Cluster Networks**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/StorageClusterNetworks.png)
 
-Storage Cluster Disks
+**Storage Cluster Disks**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/StorageClusterDisks.png)
 
-Storage Cluster Pool
+**Storage Cluster Pool**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/StorageClusterPool.png)
 
-SOFS
+**SOFS**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/SOFS.png)
 
@@ -70,22 +70,22 @@ SOFS
 
 ## Other
 
-LAB VMs
+**LAB VMs**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/VMs_PowerShell.png)
 
-Server Manager
+**Server Manager**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/ServerManager.png)
 
-Deploy.ps1 result
+**Deploy.ps1 result**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/Deploy.ps1_result.png)
 
-Scenario.ps1 result
+**Scenario.ps1 result**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/Scenario.ps1_result.png)
 
-Memory consumed by VMs
+**Memory consumed by VMs**
 
 ![](/Scenarios/S2D%20Converged/Screenshots/MemoryConsumed.png)
