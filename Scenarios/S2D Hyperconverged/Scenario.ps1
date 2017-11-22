@@ -21,7 +21,6 @@ Write-host "Script started at $StartDateTime"
 
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
-        $Networking=$True
         $StorNet="172.16.1."
         $StorVLAN=1
         $SRIOV=$false #Deploy SR-IOV enabled switch
@@ -51,8 +50,8 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#install features for management
-    $WindowsInstallationType=(Get-ComputerInfo).WindowsInstallationType
+#region install features for management (Client needs RSAT, Server/Server Core have different features)
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt
     }elseif ($WindowsInstallationType -eq "Server Core"){
@@ -92,8 +91,9 @@ Write-host "Script started at $StartDateTime"
                 }
             }
     }
+#endregion
 
-#Region configure servers
+#region Configure basic settings on servers
     #Tune HW timeout to 10 minutes (6minutes is default) for Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
@@ -123,68 +123,65 @@ Write-host "Script started at $StartDateTime"
             Start-Sleep 10 #Failsafe
         }
 
-    ###Configure networking###
-        if ($Networking){
+#endregion
 
-            if ($SRIOV){
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
-            }else{
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
-            }
+#region configure Networking
+    #Create Virtual Switches and Virtual Adapters
+        if ($SRIOV){
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        }else{
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        }
 
-            $Servers | ForEach-Object {
-                    #Configure vNICs
-                    Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
-                    Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
-                    Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
+        $Servers | ForEach-Object {
+                #Configure vNICs
+                Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
+                Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
+                Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
 
-                    #configure weights
-                    if (-not $SRIOV){
+                #configure weights
+                if (-not $SRIOV){
                         Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
                         Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
                     }
 
-                    #configure IP Addresses
-                    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
-                    $IP++
-                    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
-                    $IP++
-            }
+                #configure IP Addresses
+                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
+                $IP++
+                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
+                $IP++
+        }
 
-            Start-Sleep 5
-            Clear-DnsClientCache
+        Start-Sleep 5
+        Clear-DnsClientCache
 
-            #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+        #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
             Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_1 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
             Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_2 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
 
-            #Restart each host vNIC adapter so that the Vlan is active.
+        #Restart each host vNIC adapter so that the Vlan is active.
             Restart-NetAdapter "vEthernet (SMB_1)" -CimSession $Servers 
             Restart-NetAdapter "vEthernet (SMB_2)" -CimSession $Servers
 
-            #Enable RDMA on the host vNIC adapters
+        #Enable RDMA on the host vNIC adapters
             Enable-NetAdapterRDMA "vEthernet (SMB_1)","vEthernet (SMB_2)" -CimSession $Servers
 
-            #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
-                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
-                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
-            }
-        }
+                    $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+                }
     
     #Verify Networking
-        if ($Networking){
-            #verify mapping
-                Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
-            #Verify that the VlanID is set
-                Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
-            #verify RDMA
-                Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
-            #verify ip config 
-                Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
-
-        }
+        #verify mapping
+            Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
+        #Verify that the VlanID is set
+            Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
+        #verify RDMA
+            Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+        #verify ip config 
+            Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
 
     #configure DCB if requested
         if ($DCB -eq $True){
@@ -228,7 +225,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#Region test and create new cluster, configure CSV Cache 
+#region Create HyperConverged cluster and configure basic settings
     Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
     if ($ClusterIP){
         New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
@@ -240,17 +237,55 @@ Write-host "Script started at $StartDateTime"
 
     #Configure CSV Cache
     if ($RealHW){
+        #10GB might be a good starting point. Needs tuning depending on workload
         (Get-Cluster $ClusterName).BlockCacheSize = 10240
     }else{
+        #Starting 1709 is block cache 512. For virtual environments it does ont make sense
         (Get-Cluster $ClusterName).BlockCacheSize = 0
+    }
+
+    #ConfigureWitness on DC
+        #Create new directory
+            $WitnessName=$Clustername+"Witness"
+            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+            $accounts=@()
+            $accounts+="corp\$ClusterName$"
+            $accounts+="corp\Domain Admins"
+            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+        #Set NTFS permissions 
+            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+        #Set Quorum
+            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+#endregion
+
+#region Configure Cluster Networks
+    #rename networks
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet"0").Name="SMB"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq "10.0.0.0").Name="Management"
+
+    #configure Live Migration 
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
+        Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+#endregion
+
+#region configure Cluster-Aware-Updating
+    if (!$NanoServer){
+        #Install required features on nodes.
+            $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+            foreach ($ClusterNode in $ClusterNodes){
+                Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+            }
+        #add role
+            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
     }
 #endregion
 
-
 #region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx
+
 #just some examples for Rack/Chassis fault domains.
-if ($numberofnodes -eq 4){
-$xml =  @"
+    if ($numberofnodes -eq 4){
+        $xml =  @"
 <Topology>
     <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
         <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
@@ -262,12 +297,12 @@ $xml =  @"
     </Site>
 </Topology>
 "@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
-}
-
-if ($numberofnodes -eq 8){
-$xml =  @"
+    
+        Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
+    }
+    
+    if ($numberofnodes -eq 8){
+        $xml =  @"
 <Topology>
     <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
         <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
@@ -289,14 +324,12 @@ $xml =  @"
     </Site>
 </Topology>
 "@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
     
-}
+        Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
+    }
 
-
-if ($numberofnodes -eq 16){
-$xml =  @"
+    if ($numberofnodes -eq 16){
+        $xml =  @"
 <Topology>
     <Site Name="SEA" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
         <Rack Name="Rack01" Location="Contoso HQ, Room 4010, Aisle A, Rack 01">
@@ -328,32 +361,104 @@ $xml =  @"
     </Site>
 </Topology>
 "@
-
-Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
-
-}
-
+        Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
+    }
+    
     #show fault domain configuration
         Get-ClusterFaultDomainxml -CimSession $ClusterName
+    
+    <#Alternate way
+    if ($numberofnodes -eq 4){
+        New-ClusterFaultDomain -Name "Rack01"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 01"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "SEA"       -FaultDomainType Site    -Location "Contoso HQ, 123 Example St, Room 4010, Seattle"    -CimSession $ClusterName
+    
+        1..4 | ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_"  -Parent "Rack01" -CimSession $ClusterName}
+        Set-ClusterFaultDomain -Name "Rack01" -Parent "SEA"    -CimSession $ClusterName
+    
+    }
+    
+    if ($numberofnodes -eq 8){
+        New-ClusterFaultDomain -Name "Rack01"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 01"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Rack02"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 02"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Rack03"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 03"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Rack04"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 04"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "SEA"       -FaultDomainType Site    -Location "Contoso HQ, 123 Example St, Room 4010, Seattle"    -CimSession $ClusterName
+    
+        1..2 |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Rack01"    -CimSession $ClusterName}
+        3..4 |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Rack02"    -CimSession $ClusterName}
+        5..6 |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Rack03"    -CimSession $ClusterName}
+        7..8 |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Rack04"    -CimSession $ClusterName}
+        1..4 |ForEach-Object {Set-ClusterFaultDomain -Name "Rack0$_" -Parent "SEA"    -CimSession $ClusterName}
+    }
+    
+    if ($numberofnodes -eq 16){
+        New-ClusterFaultDomain -Name "Chassis01" -FaultDomainType Chassis -Location "Rack Unit 1 (Upper)"                               -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Chassis02" -FaultDomainType Chassis -Location "Rack Unit 1 (Upper)"                               -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Chassis03" -FaultDomainType Chassis -Location "Rack Unit 1 (Lower)"                               -CimSession $ClusterName 
+        New-ClusterFaultDomain -Name "Chassis04" -FaultDomainType Chassis -Location "Rack Unit 1 (Lower)"                               -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "Rack01"    -FaultDomainType Rack    -Location "Contoso HQ, Room 4010, Aisle A, Rack 01"           -CimSession $ClusterName
+        New-ClusterFaultDomain -Name "SEA"       -FaultDomainType Site    -Location "Contoso HQ, 123 Example St, Room 4010, Seattle"    -CimSession $ClusterName
+    
+        1..4   |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Chassis01" -CimSession $ClusterName}
+        5..8   |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Chassis02" -CimSession $ClusterName}
+        9..12  |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Chassis03" -CimSession $ClusterName}
+        13..16 |ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_" -Parent "Chassis04" -CimSession $ClusterName}
+    
+        1..4   |ForEach-Object {Set-ClusterFaultDomain -Name "Chassis0$_" -Parent "Rack01"    -CimSession $ClusterName}
+        
+        1..1 |ForEach-Object {Set-ClusterFaultDomain -Name "Rack0$_" -Parent "SEA"    -CimSession $ClusterName}
+    
+    }
+    #>
 
 #endregion
 
-#region configure S2D and create vDisks
+#region Enable Cluster S2D and check Pool and Tiers
 
     #Enable-ClusterS2D
         Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
 
-    #Create vDisks
-        if ($numberofnodes -le 3){
-            1..$NumberOfDisks | ForEach-Object {
+    #display pool
+        Get-StoragePool "S2D on $ClusterName" -CimSession $ClusterName
+
+    #Display disks
+        Get-StoragePool "S2D on $ClusterName" -CimSession $ClusterName | Get-PhysicalDisk -CimSession $ClusterName
+
+    #Get Storage Tiers
+        Get-StorageTier -CimSession $ClusterName
+    
+    <#alternate way
+        #register storage provider 
+            Get-StorageProvider | Register-StorageSubsystem -ComputerName $ClusterName
+
+        #display pool
+            Get-StoragePool "S2D on $ClusterName"
+
+        #Display disks
+            Get-StoragePool "S2D on $ClusterName" | Get-PhysicalDisk
+
+        #display tiers
+            Get-StorageTier
+
+        #unregister StorageSubsystem
+            $ss=Get-StorageSubSystem -FriendlyName *$ClusterName
+            Unregister-StorageSubsystem -ProviderName "Windows Storage Management Provider" -StorageSubSystemUniqueId $ss.UniqueId
+    #>
+
+#endregion
+
+#region Create Volumes (it also depends what mix of devices you have. This example is valid for One or two tiers)
+ 
+    if ($numberofnodes -le 3){
+        1..$NumberOfDisks | ForEach-Object {
                 New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
             }
-        }else{
-            1..$NumberOfDisks | ForEach-Object {
+    }else{
+        1..$NumberOfDisks | ForEach-Object {
                 New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
                 New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_                  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance          -StorageTierSizes 2TB     -CimSession $ClusterName
             }
-        }
+    }
 
     start-sleep 10
 
@@ -366,94 +471,61 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 
 #endregion
 
-#region configure Witness and other cluster settings
-    #ConfigureWitness on DC
-        #Create new directory
-            $WitnessName=$Clustername+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
-            $accounts=@()
-            $accounts+="corp\$ClusterName$"
-            $accounts+="corp\Domain Admins"
-            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
-        # Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
-        #Set Quorum
-            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+#region move NICs out of CPU 0 (not tested)
+    if ($RealHW){
+        $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
-    #configure other cluster settings
-        #rename networks
-            (Get-ClusterNetwork -Cluster $clustername | where Address -eq $StorNet"0").Name="SMB"
-            (Get-ClusterNetwork -Cluster $clustername | where Address -eq "10.0.0.0").Name="Management"
+        foreach ($switch in $switches){
+            $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
+            if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
+                $HT=$True
+            }
+            $adapters=@()
+            $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
 
-        #configure Live Migration 
-            Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
-            Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+            foreach ($adapter in $adapters){
+                if($HT){
+                    $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+2
+                }else{
+                    $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+                }
+                $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName  
+                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber -MaxProcessors ($processor.NumberOfCores-1)
+                $adapter | Set-NetAdapterRss -Profile Closest
+            }
+        }
+    }
 #endregion
 
-#region create some VMs and optimize pNICs and activate High Perf Power Plan
+#region activate High Performance Power plan
+    if ($RealHW){
+        #show enabled power plan
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+        #Grab instances of power plans
+            $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
+        #activate plan
+            foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
+        #show enabled power plan
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+    }
+#endregion
 
-    #create some fake VMs
-        Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
-        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-        foreach ($CSV in $CSVs){
+#region Create some dummy VMs (3 per each CSV disk)
+    Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
+    $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+    foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
             $CSV=$CSV.TrimEnd(")")
             1..3 | ForEach-Object {
                 $VMName="TestVM$($CSV)_$_"
-                Invoke-Command -ComputerName (Get-ClusterNode -Cluster $ClusterName).name[0] -ArgumentList $CSV,$VMName -ScriptBlock {
+                Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
                     param($CSV,$VMName);
                     New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
                 }
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }
         }
-
-    #move NICs out of CPU 0 (not much tested)
-        if ($RealHW){
-            $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
-
-            foreach ($switch in $switches){
-                $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
-                if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
-                    $HT=$True
-                }
-                $adapters=@()
-                $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
-
-                foreach ($adapter in $adapters){
-                    if($HT){
-                        $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+2
-                    }else{
-                        $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
-                    }
-                    $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName  
-                    $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber -MaxProcessors ($processor.NumberOfCores-1)
-                    $adapter | Set-NetAdapterRss -Profile Closest
-                }
-            }
-        }
-
-    #activate High Performance Power plan
-        if ($RealHW){
-            #show enabled power plan
-                Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
-            #Grab instances of power plans
-                $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
-            #activate plan
-                foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
-            #show enabled power plan
-                Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
-        }
-
-    #configure Cluster-Aware-Updating
-        #Install required features on nodes.
-            $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
-            foreach ($ClusterNode in $ClusterNodes){
-                Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
-            }
-        #add role
-            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
-
 #endregion
+
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
