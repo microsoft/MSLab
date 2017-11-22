@@ -408,22 +408,21 @@ Write-host "Script started at $StartDateTime"
 
    
     <#alternate way
-    #register storage provider 
-    Get-StorageProvider | Register-StorageSubsystem -ComputerName $S2DClusterName
+        #register storage provider 
+            Get-StorageProvider | Register-StorageSubsystem -ComputerName $ClusterName
 
-    #display pool
-    $pool=Get-StoragePool "S2D on $S2DClusterName"
-    $pool
+        #display pool
+            Get-StoragePool "S2D on $ClusterName"
 
-    #Display disks
-    Get-StoragePool "S2D on $S2DClusterName" | Get-PhysicalDisk
+        #Display disks
+            Get-StoragePool "S2D on $ClusterName" | Get-PhysicalDisk
 
-    #display tiers
-    Get-StorageTier
+        #display tiers
+            Get-StorageTier
 
-    #unregister StorageSubsystem
-    $ss=Get-StorageSubSystem -FriendlyName *$S2DClusterName
-    Unregister-StorageSubsystem -ProviderName "Windows Storage Management Provider" -StorageSubSystemUniqueId $ss.UniqueId
+        #unregister StorageSubsystem
+            $ss=Get-StorageSubSystem -FriendlyName *$ClusterName
+            Unregister-StorageSubsystem -ProviderName "Windows Storage Management Provider" -StorageSubSystemUniqueId $ss.UniqueId
     #>
 #endregion
 
