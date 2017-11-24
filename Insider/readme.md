@@ -5,6 +5,8 @@ To create Insider lab, hydrate regular 2016 lab (to have dc), [download](https:/
 
 You can create Win10 VHD with script provided in tools folder (please download latest prereq from dev as I just modified it, that if you hit cancel when asked for MSU, it will continue)
 
+[YouTube Video](https://youtu.be/Rj_uhDN0tN4) on how to setup Windows Server Insider preview lab.
+
 ## LabConfig
 
 ````PowerShell
