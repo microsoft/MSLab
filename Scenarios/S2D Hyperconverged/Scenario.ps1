@@ -120,7 +120,7 @@ Write-host "Script started at $StartDateTime"
             foreach ($server in $servers) {Install-WindowsFeature -Name $features -ComputerName $server} 
             #restart and wait for computers
             Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
-            Start-Sleep 10 #Failsafe
+            Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
         }
 
 #endregion
