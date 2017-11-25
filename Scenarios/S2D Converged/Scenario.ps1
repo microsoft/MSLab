@@ -309,7 +309,11 @@ Write-host "Script started at $StartDateTime"
     #test compute nodes
         Test-Cluster -Node $ComputeNodes
     #create compute cluster
-        New-Cluster -Name $ComputeClusterName -Node $ComputeNodes
+        if ($ComputeClusterIP){
+            New-Cluster -Name $ComputeClusterName -Node $ComputeNodes -StaticAddress $ComputeClusterIP
+        }else{
+            New-Cluster -Name $ComputeClusterName -Node $ComputeNodes
+        }
 
     #clear dns client cache to resolve new CNOs
         Start-Sleep 5
