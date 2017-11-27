@@ -240,7 +240,7 @@ Write-host "Script started at $StartDateTime"
         #10GB might be a good starting point. Needs tuning depending on workload
         (Get-Cluster $ClusterName).BlockCacheSize = 10240
     }else{
-        #Starting 1709 is block cache 512. For virtual environments it does ont make sense
+        #Starting 1709 is block cache 512. For virtual environments it does not make sense
         (Get-Cluster $ClusterName).BlockCacheSize = 0
     }
 
