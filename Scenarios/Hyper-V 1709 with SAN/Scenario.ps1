@@ -152,7 +152,7 @@ Write-host "Script started at $StartDateTime"
             #configure IP Addresses
             New-NetIPAddress -IPAddress ($Net1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
             $IP++
-            New-NetIPAddress -IPAddress ($Net1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($Net1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
             $IP++
         }
         Start-Sleep 5
