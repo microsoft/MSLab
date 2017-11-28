@@ -21,6 +21,7 @@ Videos are bit outdated as subtle changes are in scripts.
 * [3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
 * [4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
 * [5 Windows Server Insider and Honolulu](https://youtu.be/Rj_uhDN0tN4)
+* [6 Virtual Machine Manager 1711 and Windows Server 1709](https://youtu.be/NTrncW2omSY)
 
 # HowTo
 
