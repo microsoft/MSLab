@@ -25,7 +25,7 @@ Write-host "Script started at $StartDateTime"
         $S2DClusterName="Storage-Clus"
         $ComputeClusterName="Compute-Clus"
 
-    #CAU Names
+    #Cluster-Aware Updating role Names
         $S2DClusterCAUName="Storage-CAU"
         $ComputeClusterCAUName="Compute-CAU"
 
@@ -309,7 +309,11 @@ Write-host "Script started at $StartDateTime"
     #test compute nodes
         Test-Cluster -Node $ComputeNodes
     #create compute cluster
-        New-Cluster -Name $ComputeClusterName -Node $ComputeNodes
+        if ($ComputeClusterIP){
+            New-Cluster -Name $ComputeClusterName -Node $ComputeNodes -StaticAddress $ComputeClusterIP
+        }else{
+            New-Cluster -Name $ComputeClusterName -Node $ComputeNodes
+        }
 
     #clear dns client cache to resolve new CNOs
         Start-Sleep 5
@@ -320,7 +324,7 @@ Write-host "Script started at $StartDateTime"
             #10GB might be a good starting point. Needs tuning depending on workload
             (Get-Cluster $S2DClusterName).BlockCacheSize = 10240
         }else{
-            #Starting 1709 is block cache 512. For virtual environments it does ont make sense
+            #Starting 1709 is block cache 512. For virtual environments it does not make sense
             (Get-Cluster $S2DClusterName).BlockCacheSize = 0
         }
 

@@ -761,7 +761,7 @@ If (!( $isAdmin )) {
                 $ExtSwitch=Get-VMSwitch -SwitchType External
                 if (!$ExtSwitch){
                     WriteInfoHighlighted "`t No External Switch detected. Will create one "
-                    $TempNetAdapters=get-netadapter | Where-Object status -eq up
+                    $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
                     if (!$TempNetAdapters){
                         WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
                     }
@@ -772,7 +772,7 @@ If (!( $isAdmin )) {
                     if ($TempNetAdapters.name.count -gt 1){
                         WriteInfo "`t More than 1 NIC detected"
                         WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
-                        $tempNetAdapter=get-netadapter | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
+                        $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
                         if (!$tempNetAdapter){
                             WriteErrorAndExit "You did not select any net adapter. Exitting."
                         }
