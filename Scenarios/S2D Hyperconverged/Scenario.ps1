@@ -130,7 +130,7 @@ Write-host "Script started at $StartDateTime"
         if ($SRIOV){
             Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         }else{
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         }
 
         $Servers | ForEach-Object {
@@ -138,12 +138,6 @@ Write-host "Script started at $StartDateTime"
                 Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
                 Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
                 Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
-
-                #configure weights
-                if (-not $SRIOV){
-                        Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
-                        Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
-                    }
 
                 #configure IP Addresses
                 New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24

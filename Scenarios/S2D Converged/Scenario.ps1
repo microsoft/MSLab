@@ -189,7 +189,7 @@ Write-host "Script started at $StartDateTime"
     if ($SRIOV){
         Invoke-Command -ComputerName $AllServers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }else{
-        Invoke-Command -ComputerName $AllServers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        Invoke-Command -ComputerName $AllServers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
 
 
@@ -198,12 +198,6 @@ Write-host "Script started at $StartDateTime"
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
-
-        #configure weights (not really needed for storage cluster, but you never know when you would like to make it Hyper-Converged)
-            if (-not $SRIOV){
-                Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
-                Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
-            }
 
         #configure IP Addresses
             If ($NumberOfStorageNets -eq 1){
@@ -601,7 +595,7 @@ Write-host "Script started at $StartDateTime"
     if ($SRIOV){
         Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }else{
-        Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
 
     $S2DNodesToScale | ForEach-Object {
@@ -609,12 +603,6 @@ Write-host "Script started at $StartDateTime"
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
-
-        #configure weights (not really needed for storage cluster, but you never know when you would like to make it Hyper-Converged)
-            if (-not $SRIOV){
-                Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
-                Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
-            }
 
         #configure IP Addresses
             If ($NumberOfStorageNets -eq 1){
@@ -681,7 +669,7 @@ Write-host "Script started at $StartDateTime"
     if ($SRIOV){
         Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }else{
-        Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
 
     $ComputeNodesToScale | ForEach-Object {
@@ -689,12 +677,6 @@ Write-host "Script started at $StartDateTime"
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
-
-        #configure weights (not really needed for storage cluster, but you never know when you would like to make it Hyper-Converged)
-            if (-not $SRIOV){
-                Set-VMNetworkAdapter -ManagementOS -Name Management -MinimumBandwidthWeight 5 -CimSession $_
-                Set-VMSwitch SETSwitch -DefaultFlowMinimumBandwidthWeight 3 -CimSession $_
-            }
 
         #configure IP Addresses
             If ($NumberOfStorageNets -eq 1){

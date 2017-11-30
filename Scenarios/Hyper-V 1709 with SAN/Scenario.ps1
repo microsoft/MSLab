@@ -115,9 +115,8 @@ Write-host "Script started at $StartDateTime"
 
 #region Configure Networking
 
-    Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
-
     if (!$RDMA){
+        Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -MinimumBandwidthMode Weight -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         #Configuring networking https://technet.microsoft.com/en-us/library/hh831829(v=ws.11).aspx
         Invoke-Command -ComputerName $servers -ScriptBlock {
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management
@@ -145,6 +144,7 @@ Write-host "Script started at $StartDateTime"
     }
 
     if ($RDMA){
+        Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         $Servers | ForEach-Object {
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
