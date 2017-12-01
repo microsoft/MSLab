@@ -182,7 +182,6 @@ Write-host "Script started at $StartDateTime"
         Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
     }
 
-  
     #Verify that the VlanID is set
     Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | ft ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
 
@@ -217,6 +216,13 @@ Write-host "Script started at $StartDateTime"
         #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
             Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
     }
+
+    #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
+        Invoke-Command -ComputerName $servers -scriptblock {
+            if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+                Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+            }
+        }
 
 #endregion
 

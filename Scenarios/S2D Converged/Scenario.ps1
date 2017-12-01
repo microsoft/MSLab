@@ -192,6 +192,13 @@ Write-host "Script started at $StartDateTime"
         Invoke-Command -ComputerName $AllServers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
 
+    #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
+        Invoke-Command -ComputerName $AllServers -scriptblock {
+            if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+                Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+            }
+        }
+
 
     $AllServers | ForEach-Object {
         #Configure vNICs
@@ -598,6 +605,14 @@ Write-host "Script started at $StartDateTime"
         Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
 
+    #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
+        Invoke-Command -ComputerName $S2DNodesToScale -scriptblock {
+            if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+                Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+            }
+        }
+
+
     $S2DNodesToScale | ForEach-Object {
         #Configure vNICs
             Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
@@ -671,6 +686,13 @@ Write-host "Script started at $StartDateTime"
     }else{
         Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
     }
+
+    #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
+        Invoke-Command -ComputerName $ComputeNodesToScale -scriptblock {
+            if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+                Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+            }
+        }
 
     $ComputeNodesToScale | ForEach-Object {
         #Configure vNICs
