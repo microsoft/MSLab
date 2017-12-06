@@ -413,7 +413,7 @@ If (!( $isAdmin )) {
     if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
         WriteInfo "`t Downloading Convert-WindowsImage"
         try{
-            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
         }catch{
         WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
         }
@@ -569,7 +569,7 @@ If (!( $isAdmin )) {
             # Download convert-windowsimage if its not in tools folder
             WriteInfo "`t Downloading Convert-WindowsImage"
             try{
-                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
             }catch{
                 WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
             }
@@ -774,7 +774,7 @@ $exit=Read-Host
     }else{ 
         WriteInfo "`t Downloading Convert-WindowsImage"
         try{
-            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/Virtualization-Documentation/master/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
         }catch{
             WriteError "`t Failed to download convert-windowsimage.ps1!"
         }
