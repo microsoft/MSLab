@@ -30,6 +30,8 @@ Once VM will finish deploying, you will be able to see it running on your dashbo
 
 ## Adding storage
 
+**Note:** Premium disk is not the best choice as it drains your credit quite fast. So either use it and destroy, or use temp storage instead. You can store ws2016lab on OS and just copy to temp disk to deploy it there.
+
 To add storage, click on add data disk under disks.
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/AddStorage01.png)
