@@ -246,7 +246,17 @@ Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePo
 To check job you can display it with following command
 
 ````PowerShell
-Get-StorageSubSystem -CimSession s2d-cluster1 -FriendlyName cl* | Get-StorageJob -CimSession s2d-cluster1
+$ClusterName="S2D-Cluster1"
+$jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
+if ($jobs){
+    do{
+        $count=($jobs | Measure-Object).count
+        $BytesTotal=($jobs | Measure-Object BytesTotal -Sum).Sum
+        $BytesProcessed=($jobs | Measure-Object BytesProcessed -Sum).Sum
+        [System.Console]::Write("$count Storage Job(s) Running. GBytes Processed: $($BytesProcessed/1GB) GBytes Total: $($BytesTotal/1GB)               `r")
+        Start-Sleep 5
+    }until($jobs -eq $null)
+}
 
 ````
 
