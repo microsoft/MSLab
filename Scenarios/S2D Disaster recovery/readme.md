@@ -54,7 +54,7 @@ Start-vm -VMName ws2016lab-s2d1
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/OS_replaced_s2d1_result.png)
 
-Run first 4 regions of s2d Hyper-Converged script again to configure basic setting and networking on S2D1NewOS machine. Just add lines between regions to let only new server configure $servers="S2D1NewOS"
+Run first 4 regions of s2d Hyper-Converged script again to configure basic settings and networking on S2D1NewOS machine. Just add line $servers="S2D1NewOS" between regions to let only new server configure
 
 **Regions to run to configure S2D1NewOS machine**
 
