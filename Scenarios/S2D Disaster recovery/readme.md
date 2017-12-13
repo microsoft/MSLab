@@ -233,7 +233,7 @@ Start-Sleep 20
 **Result**
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/cluster_disks_fixed.png)
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/VMs_Restored.png)
+![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/VMs_restored.png)
 
 The very last step would be to optimize volumes to regain resiliency (as we mixed all devices)
 
