@@ -34,7 +34,7 @@ Stop-VM -VMName ws2016lab-s2d1 -TurnOff
 
 **Result**
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/TurnOff_S2D1_result.png)
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/TurnOff_S2D1_result_cluadmin.png)
+![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/result_turnoff_s2d1_cluadmin.png)
 
 **you can also notice disks missing**
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/missing_disks_in_pool.png)
