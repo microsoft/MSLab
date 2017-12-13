@@ -2,8 +2,6 @@
 
 This scenario will simulate OS replacement in one node and then OS replacement in entire cluster. The only thing left will be disks. So entire environment will be rebuilt. 
 
-Detailed steps are explained in this [YouTube Video]()
-
 # LabConfig
 
 Following LabConfig will create standard 4 node configuration. It will also create VMs with new OS. So we will not be reinstalling, we will just reuse OS VHDs that will be created using this script.
@@ -108,6 +106,7 @@ Stop-VM -VMName ws2016lab-s2d* -TurnOff
 Now, because you lost everything, lets replace OS on each S2D node with new one.
 
 ````PowerShell
+#run from the host
 #Remove First OS disks from nodes S2D1-S2D4
 $VMNames=1..4 | % {"ws2016lab-S2D$_"}
 foreach ($VMName in $VMNames){
