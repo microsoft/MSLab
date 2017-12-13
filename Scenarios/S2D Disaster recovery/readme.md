@@ -236,14 +236,14 @@ Start-Sleep 20
 
 The very last step would be to optimize volumes to regain resiliency (as we mixed all devices)
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalance.png)
-
 ````PowerShell
 Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePool
 
 ````
 
-To check job you can display it with following command
+![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalance.png)
+
+To check job you can display it with following piece of script
 
 ````PowerShell
 $ClusterName="S2D-Cluster1"
