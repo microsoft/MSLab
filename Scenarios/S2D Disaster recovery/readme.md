@@ -250,11 +250,12 @@ $ClusterName="S2D-Cluster1"
 $jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
 if ($jobs){
     do{
+        $jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
         $count=($jobs | Measure-Object).count
         $BytesTotal=($jobs | Measure-Object BytesTotal -Sum).Sum
         $BytesProcessed=($jobs | Measure-Object BytesProcessed -Sum).Sum
         [System.Console]::Write("$count Storage Job(s) Running. GBytes Processed: $($BytesProcessed/1GB) GBytes Total: $($BytesTotal/1GB)               `r")
-        Start-Sleep 5
+        Start-Sleep 10
     }until($jobs -eq $null)
 }
 
