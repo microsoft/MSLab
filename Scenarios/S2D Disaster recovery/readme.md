@@ -20,7 +20,7 @@ $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentV
 
 # One node OS failure simulation
 
-Deploy [S2D Hyper Converged Scenario](/Scenarios/S2D%20Hyperconverged/) and turn off one node to simulate OS failure.
+Deploy [S2D Hyperconverged Scenario](/Scenarios/S2D%20Hyperconverged/) and turn off one node to simulate OS failure.
 
 After successful deployment turn off node S2D1
 
@@ -44,7 +44,7 @@ As we are simulating OS failure, we will "reinstall" OS by just replacing OS vhd
 ````PowerShell
 #run from the host
 Get-VMHardDiskDrive -VMName ws2016lab-s2d1 | where Path -like *S2D1.vhdx | Remove-VMHardDiskDrive
-$HardDisks=Get-VMHardDiskDrive -VMName ws2016lab-s2d1N
+$NewHardDisk=Get-VMHardDiskDrive -VMName ws2016lab-s2d1NewOS
 Add-VMHardDiskDrive -VMName ws2016lab-s2d1 -Path $NewHardDisk.Path
 Start-vm -VMName ws2016lab-s2d1
  
