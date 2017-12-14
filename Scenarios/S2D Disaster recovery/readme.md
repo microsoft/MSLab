@@ -20,7 +20,7 @@ $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentV
 
 # One node OS failure simulation
 
-Deploy [S2D Hyper Converged Scenario](/Scenarios/S2D%20Converged/) and turn off one node to simulate OS failure.
+Deploy [S2D Hyper Converged Scenario](/Scenarios/S2D%20Hyperconverged/) and turn off one node to simulate OS failure.
 
 After successful deployment turn off node S2D1
 
