@@ -2,6 +2,8 @@
 
 This scenario will simulate OS replacement in one node and then OS replacement in entire cluster. The only thing left will be disks. So entire environment will be rebuilt. 
 
+You can watch this scenario in detail on YouTube [here](https://youtu.be/AAzk0cECkA4)
+
 # LabConfig
 
 Following LabConfig will create standard 4 node configuration. It will also create VMs with new OS. So we will not be reinstalling, we will just reuse OS VHDs that will be created using this script.
