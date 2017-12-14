@@ -530,4 +530,3 @@ Write-host "Script started at $StartDateTime"
 
 #finishing
 Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
- 
