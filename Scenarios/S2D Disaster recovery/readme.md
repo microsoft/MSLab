@@ -11,8 +11,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
 
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB }
-1..4 | % {$VMNames="NewS2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes= 512MB }} 
-
+1..4 | % {$VMNames="NewS2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes= 512MB }}
+ 
 ````
 **Deploy.ps1 result**
 
@@ -47,7 +47,7 @@ Get-VMHardDiskDrive -VMName ws2016lab-s2d1 | where Path -like *S2D1.vhdx | Remov
 $HardDisks=Get-VMHardDiskDrive -VMName ws2016lab-s2d1N
 Add-VMHardDiskDrive -VMName ws2016lab-s2d1 -Path $NewHardDisk.Path
 Start-vm -VMName ws2016lab-s2d1
-
+ 
 ````
 
 **Result**
@@ -65,7 +65,7 @@ After node is configured, you can add it to cluster and remove the old one by ru
 ````PowerShell
 Add-ClusterNode    -Cluster s2d-cluster -Name S2D1NewOS
 Remove-ClusterNode -Cluster s2d-cluster -Name S2D1 -Force
-
+ 
 ````
 
 **Result: Notice all disks are now healthy**
@@ -87,8 +87,9 @@ $xml =  @"
         </Site>
 </Topology>
 "@
-    
+
 Set-ClusterFaultDomainXML -XML $xml -CimSession s2d-cluster
+ 
 ````
 
 **Result**
@@ -101,6 +102,7 @@ This will simulate all OS lost (like all OS disks lost due to some catastrophic 
 ````PowerShell
 #run from hyper-v host
 Stop-VM -VMName ws2016lab-s2d* -TurnOff
+ 
 ````
 
 Now, because you lost everything, lets replace OS on each S2D node with new one.
@@ -120,7 +122,7 @@ foreach ($VMName in $VMNames){
     Add-VMHardDiskDrive -VMName $VMName -Path $NewVHDs[$i].Path
     $i++
 }
-
+ 
 ````
 
 **Result**
@@ -147,7 +149,7 @@ $VMNames=1..4 | % {"ws2016lab-S2D$_"}
 
 #turn on the VMs now
 Start-VM -VMName $VMNames
-
+ 
 ````
 
 **Mixed disks result**
@@ -160,6 +162,7 @@ Modify following values in LabConfig to create brand new cluster out of brand ne
 $ServersNamePrefix="NewS2D"
 $ClusterName="S2D-Cluster1"
 $CAURoleName="S2D-Clus1-CAU"
+ 
 ````
 
 **Modified LabConfig region in Scenario script**
@@ -176,7 +179,7 @@ Now, after cluster is created, all is configured, you can enable-clusters2d. It 
 
 ````PowerShell
 Enable-ClusterS2D -CimSession S2D-Cluster1 -confirm:0 -Verbose
-
+ 
 ````
 
 **Result**
@@ -226,7 +229,7 @@ Start-Sleep 20
     foreach ($VMName in $VMnames){
         Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
     }
-
+ 
 ````
 
 **Result**
@@ -238,7 +241,7 @@ The very last step would be to optimize volumes to regain resiliency (as we mixe
 
 ````PowerShell
 Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePool
-
+ 
 ````
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalance.png)
@@ -258,7 +261,7 @@ if ($jobs){
         Start-Sleep 10
     }until($jobs -eq $null)
 }
-
+ 
 ````
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalancejob.png)
