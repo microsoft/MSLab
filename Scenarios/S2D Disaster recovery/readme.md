@@ -116,7 +116,7 @@ foreach ($VMName in $VMNames){
 }
 
 #add new hard disks
-$NewVHDs=Get-VMHardDiskDrive -VMName ws2016lab-news2d*
+$NewVHDs=Get-VMHardDiskDrive -VMName ws2016lab-news2d* | Sort-Object
 $i=0
 foreach ($VMName in $VMNames){
     Add-VMHardDiskDrive -VMName $VMName -Path $NewVHDs[$i].Path
