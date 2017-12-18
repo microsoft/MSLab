@@ -14,7 +14,7 @@
 
 # Videos
 
-Videos are bit outdated as subtle changes are in scripts.
+Note: Some videos may be a bit outdated as there is continous inovation going on in the scripts.
 
 * [1 Prereq and Create Parent disks](https://youtu.be/705A-mCvzUc)
 * [2 Basic S2D Scenario Walkthrough](https://youtu.be/cAOCcTjlkm4)
