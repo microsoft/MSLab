@@ -222,14 +222,14 @@ Start-Sleep 20
 #import all VMs
     Invoke-Command -ComputerName $ClusterNodes[0] -ScriptBlock{
         get-childitem C:\ClusterStorage -Recurse | where {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
-               Import-VM -Path $_.FullName
+               Import-VM -Path $_.FullName -ErrorAction SilentlyContinue
         }
     }
 
 #Add VMs as Highly available
     $VMnames=(Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name).Name
     foreach ($VMName in $VMnames){
-        Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+        Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName -ErrorAction SilentlyContinue
     }
  
 ````
