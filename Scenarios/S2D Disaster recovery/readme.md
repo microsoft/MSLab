@@ -2,7 +2,7 @@
 
 This scenario will simulate OS replacement in one node and then OS replacement in entire cluster. The only thing left will be disks. So entire environment will be rebuilt. 
 
-You can watch this scenario in detail on YouTube [here](https://youtu.be/AAzk0cECkA4)
+You can watch this scenario in detail on YouTube [here](https://youtu.be/Gd9_rzePrhI) and [here](https://youtu.be/uTzXEFVd16o)
 
 # LabConfig
 

@@ -21,7 +21,8 @@ Videos are bit outdated as subtle changes are in scripts.
 * [3 LabConfig.ps1 deep dive](https://youtu.be/qX42Yj6_dSA)
 * [4 Windows Server Insider and Honolulu](https://youtu.be/Rj_uhDN0tN4)
 * [5 Virtual Machine Manager 1711 and Windows Server 1709](https://youtu.be/NTrncW2omSY)
-* [6 Windows Server 2016 S2D Disaster recovery](https://youtu.be/AAzk0cECkA4)
+* [6 S2D Disaster recovery - one node OS lost](https://youtu.be/Gd9_rzePrhI)
+* [7 S2D Disaster recovery - all nodes OS lost](https://youtu.be/uTzXEFVd16o)
 
 # HowTo
 
