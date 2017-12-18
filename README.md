@@ -16,12 +16,13 @@
 
 Videos are bit outdated as subtle changes are in scripts.
 
-* [1 Lab Hydration](https://youtu.be/xDrMYdSCIpM)
-* [2 Lab Deployment](https://youtu.be/SzewA7C9lzI)
-* [3 S2D Scenario](https://youtu.be/CX3ny0ON9X0)
-* [4 Bonus-S2D to S2D Storage Replica Scenario](https://youtu.be/JRzBIOMEUO8)
-* [5 Windows Server Insider and Honolulu](https://youtu.be/Rj_uhDN0tN4)
-* [6 Virtual Machine Manager 1711 and Windows Server 1709](https://youtu.be/NTrncW2omSY)
+* [1 Prereq and Create Parent disks](https://youtu.be/705A-mCvzUc)
+* [2 Basic S2D Scenario Walkthrough](https://youtu.be/cAOCcTjlkm4)
+* [3 LabConfig.ps1 deep dive](https://youtu.be/qX42Yj6_dSA)
+* [4 Windows Server Insider and Honolulu](https://youtu.be/Rj_uhDN0tN4)
+* [5 Virtual Machine Manager 1711 and Windows Server 1709](https://youtu.be/NTrncW2omSY)
+* [6 S2D Disaster recovery - one node OS lost](https://youtu.be/Gd9_rzePrhI)
+* [7 S2D Disaster recovery - all nodes OS lost](https://youtu.be/uTzXEFVd16o)
 
 # HowTo
 
