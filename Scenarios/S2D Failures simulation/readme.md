@@ -106,7 +106,7 @@ Notice disk is not present on node3
 
 ````
 
-##Result
+**Result**
 
 Virtual Disks will be healthy again
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/VirtualDisksHealthy.png)
@@ -115,3 +115,30 @@ Virtual Disks will be healthy again
 Storage subsystem is healthy again (after ~5 minutes)
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/SSHealthy.png)
+
+## Pull disk again and replace with different
+
+````PowerShell
+#run from the host to pull drive
+    $DiskToPull=Get-VM -Name ws2016lab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
+    $DiskToPull
+    $PulledDiskPath=$DiskToPull.Path
+    $DiskToPull | Remove-VMHardDiskDrive
+#add new drive
+    $NewDiskPath="$(($PulledDiskPath).Substring(0,$PulledDiskPath.Length-5))_NEW.vhdx"
+    New-VHD -Path $NewDiskPath -SizeBytes 4TB
+    Add-VMHardDiskDrive -VMName $disktopull.VMName -Path $NewDiskPath
+ 
+````
+
+**result**
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/DiskReplaced.png)
+
+**health in cluster**
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/HealthDiskReplaced.png)
+
+**repair in progress**
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/HealthDiskReplacedRepairJob.png)
