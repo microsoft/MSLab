@@ -116,7 +116,7 @@ Storage subsystem is healthy again (after ~5 minutes)
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/SSHealthy.png)
 
-## Pull disk again and replace with different
+# Pulling disk again and replacing with different
 
 ````PowerShell
 #run from the host to pull drive
