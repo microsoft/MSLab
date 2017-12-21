@@ -147,6 +147,6 @@ After some time Disk will be retired. You will see following job and actions.
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetired.png)
 
-![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskJob.png)
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetiredJob.png)
 
-![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskAction.png)
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetiredAction.png)
