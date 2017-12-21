@@ -142,3 +142,11 @@ Storage subsystem is healthy again (after ~5 minutes)
 **repair in progress**
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/HealthDiskReplacedRepairJob.png)
+
+After some time Disk will be retired. You will see following job and actions.
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetired.png)
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskJob.png)
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskAction.png)
