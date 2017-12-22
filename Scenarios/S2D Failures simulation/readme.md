@@ -27,6 +27,19 @@ You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvi
     Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
  
 ````
+#display storage subsystem
+    $storagesubsystem
+
+#debug storage subsystem
+    $storagesubsystem | Debug-StorageSubSystem -CimSession s2d-cluster
+
+#display action
+    $storagesubsystem | Get-StorageHealthAction -CimSession s2d-cluster
+
+#display virtual disks
+    Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
+ 
+````
 **Result**
 
 Notice everything is healthy
@@ -164,3 +177,4 @@ Remove-PhysicalDisk -StoragePool $pool -PhysicalDisks $FailedDisk
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDisk.png)
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult.png)
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult1.png)
