@@ -150,3 +150,17 @@ After some time Disk will be retired. You will see following job and actions.
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetiredJob.png)
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetiredAction.png)
+
+# Remove retired disk
+
+```PowerShell
+$FailedDisk=Get-PhysicalDisk -CimSession s2d-cluster -Usage retired
+$FailedDisk
+$Pool=$FailedDisk | Get-StoragePool -CimSession s2d-cluster | where FriendlyName -like S2D*
+$Pool
+Remove-PhysicalDisk -StoragePool $pool -PhysicalDisks $FailedDisk
+ 
+````
+
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDisk.png)
+![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult.png)
