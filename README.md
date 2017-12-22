@@ -36,7 +36,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 ![](/Screenshots/ScriptsExtracted.png)
 
 ## Step3 (Optional) Check the LabConfig.p1 
-* Edit it to specify the lab setup that you require (such as different domain name, Domain Admin name..) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.)
+* Edit it to specify the lab setup that you require (such as different domain name, Domain Admin name...) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.)
 
 **Default Labconfig**
 
@@ -69,7 +69,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 ![](/Screenshots/ToolsCreateParentDisk.png)
 
 ## Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder
- * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the Tools\SCVMM folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
+ * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the `Tools\SCVMM` folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
 
  * You can also copy your favorite tools you would like to have in ToolsVHD, thats always mounted to DC, or optionally to any machine in lab.
 
@@ -80,7 +80,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 ![](/Screenshots/ToolsVHDFolderSCVMM2.png)
 
 ## Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, nd the it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, and it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
  * Domain controller is provisioned using DSC. Takes some time, but after that you do not need to run this step anymore as DC is saved, used for deploy and then returned to previous state before deploy step.
 
 ![](/Screenshots/2_CreateParentDisks.png)
