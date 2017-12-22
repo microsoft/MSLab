@@ -754,6 +754,20 @@ If (!( $isAdmin )) {
                     MembersToInclude = "VMM_SA",$Node.DomainAdminName
                 }
 
+                xADGroup SchemaAdmins
+                {
+                    GroupName = "Schema Admins"
+                    DependsOn = "[xADUser]VMM_SA"
+                    MembersToInclude = $Node.DomainAdminName
+                }
+
+                xADGroup EntaAdmins
+                {
+                    GroupName = "Enterprise Admins"
+                    DependsOn = "[xADUser]VMM_SA"
+                    MembersToInclude = $Node.DomainAdminName
+                }
+
                 xADUser AdministratorNeverExpires
                 {
                     DomainName = $Node.DomainName
