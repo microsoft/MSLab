@@ -29,7 +29,6 @@ You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvi
 ````
 
 **Result**
-
 Notice everything is healthy
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/S2D_Healthy.png)
 
@@ -50,7 +49,6 @@ Notice everything is healthy
 ````
 
 **Result**
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult.png)
 
 Virtual disks will go immediately into warning state
@@ -66,12 +64,10 @@ Virtual disks will go immediately into warning state
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-VirtualDisks.png)
 
 After some time, Health service will register the failure
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-HealthService.png)
 
 
 You can notice one disk is in lost communication state
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-DiskLostCommunication.png)
 
 ````PowerShell
@@ -98,7 +94,6 @@ $disks | select * | Out-GridView
 ````
 
 Notice disk is not present on node3
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-DiskNotConnected1.png)
 
 ## Return disk
@@ -112,13 +107,11 @@ Notice disk is not present on node3
 ````
 
 **Result**
-
 Virtual Disks will be healthy again
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/VirtualDisksHealthy.png)
 
 
 Storage subsystem is healthy again (after ~5 minutes)
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/SSHealthy.png)
 
 # Pulling disk again and replacing with different
@@ -137,19 +130,15 @@ Storage subsystem is healthy again (after ~5 minutes)
 ````
 
 **result**
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/DiskReplaced.png)
 
 **health in cluster**
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/HealthDiskReplaced.png)
 
 **repair in progress**
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/HealthDiskReplacedRepairJob.png)
 
 After some time Disk will be retired. You will see following job and actions.
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetired.png)
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/PhysicalDiskRetiredJob.png)
@@ -176,5 +165,4 @@ Everything is healthy again
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult.png)
 
 Notice that there is no output of debug-storagesubsystem anymore.
-
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult1.png)
