@@ -27,19 +27,7 @@ You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvi
     Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
  
 ````
-#display storage subsystem
-    $storagesubsystem
 
-#debug storage subsystem
-    $storagesubsystem | Debug-StorageSubSystem -CimSession s2d-cluster
-
-#display action
-    $storagesubsystem | Get-StorageHealthAction -CimSession s2d-cluster
-
-#display virtual disks
-    Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
- 
-````
 **Result**
 
 Notice everything is healthy
@@ -68,6 +56,8 @@ Notice everything is healthy
 Virtual disks will go immediately into warning state
 
 ````PowerShell
+#Run from DC or Management machine
+
 #display virtual disks
     Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
  
@@ -85,7 +75,9 @@ You can notice one disk is in lost communication state
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-DiskLostCommunication.png)
 
 ````PowerShell
+#Run from DC or Management machine
 
+#list all disks from all nodes
 $clusterName="S2D-Cluster"
 
 $nodes=Get-StorageSubSystem -CimSession $clusterName -FriendlyName Clus* | Get-StorageNode
@@ -167,14 +159,22 @@ After some time Disk will be retired. You will see following job and actions.
 # Remove retired disk
 
 ```PowerShell
-$FailedDisk=Get-PhysicalDisk -CimSession s2d-cluster -Usage retired
-$FailedDisk
-$Pool=$FailedDisk | Get-StoragePool -CimSession s2d-cluster | where FriendlyName -like S2D*
-$Pool
-Remove-PhysicalDisk -StoragePool $pool -PhysicalDisks $FailedDisk
+#Run from DC or Management machine
+
+#remove failed disk (where usage is retired)
+    $FailedDisk=Get-PhysicalDisk -CimSession s2d-cluster -Usage retired
+    $FailedDisk
+    $Pool=$FailedDisk | Get-StoragePool -CimSession s2d-cluster | where FriendlyName -like S2D*
+    $Pool
+    Remove-PhysicalDisk -StoragePool $pool -PhysicalDisks $FailedDisk
  
 ````
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDisk.png)
+
+Everything is healthy again
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult.png)
+
+Notice that there is no output of debug-storagesubsystem anymore.
+
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDiskResult1.png)
