@@ -21,8 +21,8 @@ $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 $ServersToPushAgent="Server1","Server2","Server3"
 
 md c:\temp
-Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/7.5.3.0/AdmPwd.E.CSE.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.CSE.Setup.x64.zip"
-Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/7.5.3.0/AdmPwd.E.Tools.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.Tools.Setup.x64.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/AdmPwd.E.CSE.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.CSE.Setup.x64.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/AdmPwd.E.Tools.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.Tools.Setup.x64.zip"
 
 $files=Get-ChildItem -Path c:\temp
 
@@ -42,10 +42,9 @@ Invoke-Command -Session $session -ScriptBlock {
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX /q"
 
 #create empty GPO
-new-gpo -name ADMPWDE | new-gplink -target $OUPath
-gpmc.msc
+new-gpo -name ADMPWD.E | new-gplink -target $OUPath
 
-#extend schema
+#extend AD schema
 Update-AdmPwdADSchema
 
 #create groups
@@ -53,10 +52,23 @@ New-ADGroup -Name ADMPWD.E_Readers -GroupScope Global
 New-ADGroup -Name ADMPWD.E_Resetters -GroupScope Global
 
 #Set delegation model
+
+#SELF perms
 Set-AdmPwdComputerSelfPermission -Identity $OUPath
+
+#PDS perms
 Set-AdmPwdPdsPermission -Identity $OUPath -AllowedPrincipals $ADMPWDServerName$
 
 dsacls "CN=Deleted Objects,DC=Corp,DC=Contoso,DC=com" /takeownership
 Set-AdmPwdPdsDeletedObjectsPermission -AllowedPrincipals $ADMPWDServerName$
 
+#User perms
+Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Readers
+Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Resetters
+
+#generate first decryption key
+New-AdmPwdKeyPair -KeySize 2048
+
+#ready to go!
+#configure GPO ADMPWD.E (remember turning on policy "Enable password management") and distribute CSE to clients
 ````
