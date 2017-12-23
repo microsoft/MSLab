@@ -1,3 +1,9 @@
+# Scenario Description
+
+In this scenario will be ADMPWD.E deployed. Its just LAPS on steroids, extended with Password Decryption Service. So all secrets are encrypted in Active Directory and all password requests are logged.
+
+The complete documentation and operation guide is available here: http://admpwd.com/documentation/
+
 # LabConfig Windows Server 1709
 
 **Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
@@ -45,7 +51,7 @@ Start Management and ADMPWD-E VMs. Then log into Management VM. (default credent
 
 ````PowerShell
 #Run from Host
-"*ADMPWD-E","*Management" | Foreach-Object {Start-VM -VMName $_}
+"*ADMPWD-E","*Management","*server*" | Foreach-Object {Start-VM -VMName $_}
  
 ````
 
@@ -78,7 +84,7 @@ foreach ($file in $files){
  
 ````
 
-Next step would be to install PDS service to ADMPWD-E server and also installe management tools into Management machine.
+Next step would be to install Password Decryption Server (PDS) service to ADMPWD-E server and also install management tools into Management machine.
 
 ````PowerShell
 $ADMPWDServerName="ADMPWD-E"
@@ -95,8 +101,11 @@ Invoke-Command -Session $session -ScriptBlock {
 #check if ADMPWD service was installed sucessfullly
 Invoke-Command -ComputerName $ADMPWDServerName -ScriptBlock {Get-Service -Name AdmPwd.E.PDS}
 
-#install PowerShell management tools and ADMX templates to policy store
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX /q"
+#check if srv record was added
+nslookup -type=srv _admpwd._tcp
+
+#install PowerShell management tools, Management UI and copy ADMX template to policy store
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
 
 ````
 
@@ -113,42 +122,106 @@ New-ADGroup -Name ADMPWD.E_Resetters -GroupScope Global -Path $OUPath
 ````
 
 The next step is to update schema and set delegation model. Also empty GPO that will specify ADMPWD settings will be created and linked.
-**Note:** you might need to add your account to schema admins.
+**Note:** you might need to add your account to schema and enterprise admins. ws2016lab was recently updated to add LabAdmin to these groups during 2_createparentdisks.ps1
 
 ````PowerShell
 #OU path to servers/clients to apply delegation model
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
-
 #admpwd server
 $ADMPWDServerName="ADMPWD-E"
 
 #create empty GPO
 New-Gpo -Name ADMPWDE | New-GPLink -Target $OUPath
 
-#extend AD schema
+#extend AD schema (Schema Admins membership needed)
 Update-AdmPwdADSchema
 
 #note: if you are not schema admin, add your account to group Schema Admins. Logoff/login is needed to update security token.
 #Add-ADGroupMember -Identity "Schema Admins" -Members LabAdmin
+#Add-ADGroupMember -Identity "Enterprise Admins" -Members LabAdmin
 
 #Set delegation model
 
-#SELF perms
+#Add machine rights
 Set-AdmPwdComputerSelfPermission -Identity $OUPath
 Set-AdmPwdPdsPermission -Identity $OUPath -AllowedPrincipals "$ADMPWDServerName$"
 
-#Take ownership ower deleted objects
+#Take ownership over deleted objects
 dsacls "CN=Deleted Objects,DC=Corp,DC=Contoso,DC=com" /takeownership
 Set-AdmPwdPdsDeletedObjectsPermission -AllowedPrincipals "$ADMPWDServerName$"
- 
+
 #User perms
 Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Readers
 Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Resetters
 
-#generate first decryption key
-invoke-Command -ComputerName $ADMPWDServerName -ScriptBlock {
-    New-AdmPwdKeyPair -KeySize 2048
+#generate first decryption key (Enterprise Admin membership needed)
+New-AdmPwdKeyPair -KeySize 2048
+ 
+````
+
+Now it is needed to install GPO extension into managed machines. There are several ways - like distribute it using GPO. In this case, we will push it using PowerShell.
+
+````PowerShell
+$Servers="Server1","Server2","Server3"
+$Sessions=New-PSSession -ComputerName $servers
+
+Invoke-Command -Session $sessions -ScriptBlock {new-item -ItemType Directory -Path c:\ -Name Temp}
+foreach ($session in $sessions){
+    Copy-Item -Path C:\temp\AdmPwd.E.CSE.Setup.x64.msi -ToSession $session -Destination c:\temp
 }
 
+Invoke-Command -Session $sessions -ScriptBlock {
+    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.CSE.Setup.x64.msi /q"
+}
+ 
+````
+
+The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
+
+**gpmc.msc**
+![](/Scenarios/ADMPWD.E/Screenshots/GPO.png)
+
+**Note**
+You need to fill in Encryption Key to encrypt passwords in AD
+![](/Scenarios/ADMPWD.E/Screenshots/EncryptionKeyInGPO.png)
+
+````PowerShell
+#to grab encryption key ID 1 using PowerShell
+(Get-AdmPwdPublicKey -KeyId 1).Key | clip
+ 
+````
+
+Once GPO is in place, extension is installed, you can refresh GPO on servers 
+
+````PowerShell
+$Servers="Server1","Server2","Server3"
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    gpupdate /force
+}
+ 
+````
+
+To check ADMPWD logs on configured servers
+
+````PowerShell
+$Servers="Server1","Server2","Server3"
+Invoke-Command -ComputerName $Servers -ScriptBlock { Get-WinEvent -LogName Application } | where ProviderName -eq AdmPwd | Sort-Object PSComputerName | Format-Table -AutoSize
+ 
+````
+
+To be able to query local passwords, you need to be in group password readers. To add LabAdmin into the correct group, run following PowerShell code.
+**Note:** you need to logoff and login to get new security token.
+
+````PowerShell
+Add-ADGroupMember -Identity ADMPWD.E_Readers -Members LabAdmin
+Add-ADGroupMember -Identity ADMPWD.E_Resetters -Members LabAdmin
+ 
+````
+
+Run ADMPWD.E UI to query password or run following PowerShell command
+
+````PowerShell
+$servers="Server1","Server2","server3"
+foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
  
 ````
