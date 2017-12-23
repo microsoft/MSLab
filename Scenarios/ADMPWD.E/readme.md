@@ -125,13 +125,15 @@ $ADMPWDServerName="ADMPWD-E"
 #create empty GPO
 New-Gpo -Name ADMPWDE | New-GPLink -Target $OUPath
 
-#extend schema
+#extend AD schema
 Update-AdmPwdADSchema
 
 #note: if you are not schema admin, add your account to group Schema Admins. Logoff/login is needed to update security token.
 #Add-ADGroupMember -Identity "Schema Admins" -Members LabAdmin
 
 #Set delegation model
+
+#SELF perms
 Set-AdmPwdComputerSelfPermission -Identity $OUPath
 Set-AdmPwdPdsPermission -Identity $OUPath -AllowedPrincipals "$ADMPWDServerName$"
 
@@ -150,5 +152,3 @@ invoke-Command -ComputerName $ADMPWDServerName -ScriptBlock {
 
  
 ````
-
-
