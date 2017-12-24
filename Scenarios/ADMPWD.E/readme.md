@@ -105,9 +105,19 @@ Invoke-Command -ComputerName $ADMPWDServerName -ScriptBlock {Get-Service -Name A
 #check if srv record was added
 nslookup -type=srv _admpwd._tcp
 
+#check if CNG is set in config (in older releases it's CryptoAPI)
+Invoke-Command -ComputerName $ADMPWDServerName -scriptblock {
+    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config'
+    if ($xml.configuration.KeyStore.cryptoForNewKeys -ne "CNG"){
+        $xml.configuration.KeyStore.cryptoForNewKeys="CNG"
+        $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config')
+        Restart-Service -Name AdmPwd.E.PDS
+    }
+}
+
 #install PowerShell management tools, Management UI and copy ADMX template to policy store
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
-
+ 
 ````
 
 Next step is to create ADMPW.E groups for Readers and Password Resetters.
