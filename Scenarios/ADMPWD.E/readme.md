@@ -57,8 +57,9 @@ Start Management and ADMPWD-E VMs. Then log into Management VM. (default credent
 
 ## Setup ADMPWD.E infrastructure from Windows 10 management Machine.
 
-First check if RSAT is installed (it's necessary to work with Active Directory)
+**Note:** All actions are performed from Management VM (Windows 10)
 
+First check if RSAT is installed (it's necessary to work with Active Directory)
 ````PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
@@ -68,7 +69,7 @@ if ((Get-HotFix).hotfixid -contains "KB2693643"){
  
 ````
 
-Next step is to download ADMPWD-E install files. We will download it into c:\temp. If you did not connect Lab to internet, download it manually from here http://admpwd.com/downloads/ and copy to c:\temp. Then you can unzip it with PowerShell or manually
+Next step is to download ADMPWD-E install files. Following script will download it into c:\temp. If you did not connect Lab to internet, download it manually from here http://admpwd.com/downloads/ and copy to c:\temp. Then you can unzip it with PowerShell or manually
 
 ````PowerShell
 #Download files

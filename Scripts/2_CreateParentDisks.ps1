@@ -757,13 +757,15 @@ If (!( $isAdmin )) {
                 xADGroup SchemaAdmins
                 {
                     GroupName = "Schema Admins"
+                    GroupScope = "Universal"
                     DependsOn = "[xADUser]VMM_SA"
                     MembersToInclude = $Node.DomainAdminName
                 }
 
-                xADGroup EntaAdmins
+                xADGroup EntAdmins
                 {
                     GroupName = "Enterprise Admins"
+                    GroupScope = "Universal"
                     DependsOn = "[xADUser]VMM_SA"
                     MembersToInclude = $Node.DomainAdminName
                 }
@@ -789,7 +791,7 @@ If (!( $isAdmin )) {
                     Name = "DHCP"
                     DependsOn = "[xADDomain]FirstDS"
                 }
-                
+
                 WindowsFeature DHCPServerManagement
                 {
                     Ensure = "Present"
