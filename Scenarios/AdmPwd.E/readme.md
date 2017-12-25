@@ -59,7 +59,7 @@ Start Management and ADMPWD-E VMs. Then log into Management VM. (default credent
 
 **Note:** All actions are performed from Management VM (Windows 10)
 
-First check if RSAT is installed (it's necessary to work with Active Directory)
+First check if RSAT is installed (it's necessary to work with Active Directory). If you did not provide RSAT msu during lab hydration, download it from http://aka.ms/RSAT and install manually.
 ````PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
