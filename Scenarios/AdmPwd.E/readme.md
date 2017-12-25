@@ -11,7 +11,7 @@ The complete documentation and operation guide is available here: http://admpwd.
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-$LabConfig.VMs += @{ VMName = 'ADMPWD-E' ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 1GB }
+$LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 1GB }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
 
 $LABConfig.ServerVHDs += @{
@@ -31,7 +31,7 @@ $LABConfig.ServerVHDs += @{
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-$LabConfig.VMs += @{ VMName = 'ADMPWD-E' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 1GB }
+$LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 1GB }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
  
 ````
@@ -68,6 +68,7 @@ if ((Get-HotFix).hotfixid -contains "KB2693643"){
 }
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/RSATCheckResult.png)
 
 Next step is to download ADMPWD-E install files. Following script will download it into c:\temp. If you did not connect Lab to internet, download it manually from here http://admpwd.com/downloads/ and copy to c:\temp. Then you can unzip it with PowerShell or manually
 
@@ -119,6 +120,7 @@ Invoke-Command -ComputerName $ADMPWDServerName -scriptblock {
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/PDSInstallResult.png)
 
 Next step is to create ADMPW.E groups for Readers and Password Resetters.
 
@@ -169,6 +171,8 @@ Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_
 New-AdmPwdKeyPair -KeySize 2048
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/DelegationResult1.png)
+![](/Scenarios/AdmPwd.E/Screenshots/DelegationResult2.png)
 
 Now it is needed to install GPO extension into managed machines. There are several ways - like distribute it using GPO. In this case, we will push it using PowerShell.
 
@@ -184,12 +188,9 @@ foreach ($session in $sessions){
 Invoke-Command -Session $sessions -ScriptBlock {
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.CSE.Setup.x64.msi /q"
 }
-
-````PowerShell
-Invoke-Command -ComputerName ADMPWD-E -ScriptBlock { Get-WinEvent -LogName GreyCorbel-AdmPwd.E-PDS/Operational } | Out-GridView
-
+ 
 ````
-````
+![](/Scenarios/AdmPwd.E/Screenshots/GPOExtensionInstallResult.png)
 
 The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
 
@@ -220,9 +221,10 @@ To check ADMPWD logs on configured servers
 
 ````PowerShell
 $Servers="Server1","Server2","Server3"
-Invoke-Command -ComputerName $Servers -ScriptBlock { Get-WinEvent -LogName Application } | where ProviderName -eq AdmPwd | Sort-Object PSComputerName | Format-Table -AutoSize
+Invoke-Command -ComputerName $Servers -ScriptBlock { Get-WinEvent -LogName Application } | Where-Object ProviderName -eq AdmPwd | Sort-Object PSComputerName | Format-Table -AutoSize
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/ServerLogs.png)
 
 To be able to query local passwords, you need to be in group password readers. To add LabAdmin into the correct group, run following PowerShell code.
 **Note:** you need to logoff and login to get new security token.
@@ -240,6 +242,7 @@ $servers="Server1","Server2","server3"
 foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/ServerPasswords.png)
 
 Lastly you can view who (and when) was viewing passwords.
 
@@ -257,12 +260,13 @@ $PasswordLog=Invoke-Command -ComputerName $ADMPWDServer -ScriptBlock {
             "Computer" = $eventxml.Event.EventData.data[1].'#text'
             "IsDeleted" = $eventxml.Event.EventData.data[2].'#text'
             "User" = $eventxml.Event.EventData.data[3].'#text'
-            "TimeCreated" = $event.TimeCreated
+            "TimeRequested" = $event.TimeCreated
         }
     }
     return $PasswordLog
 }
 
-$PasswordLog | ft User,Computer,TimeCreated
+$PasswordLog | ft User,Computer,TimeRequested
  
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/PasswordLog.png)
