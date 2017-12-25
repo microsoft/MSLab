@@ -184,7 +184,11 @@ foreach ($session in $sessions){
 Invoke-Command -Session $sessions -ScriptBlock {
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.CSE.Setup.x64.msi /q"
 }
- 
+
+````PowerShell
+Invoke-Command -ComputerName ADMPWD-E -ScriptBlock { Get-WinEvent -LogName GreyCorbel-AdmPwd.e-PDS/Operational } | Out-GridView
+
+````
 ````
 
 The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
@@ -234,5 +238,31 @@ Run ADMPWD.E UI to query password or run following PowerShell command
 ````PowerShell
 $servers="Server1","Server2","server3"
 foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
+ 
+````
+
+Lastly you can view who (and when) was viewing passwords.
+
+````PowerShell
+$ADMPWDServer = "ADMPWD-E"
+$PasswordLog=Invoke-Command -ComputerName $ADMPWDServer -ScriptBlock {
+    $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.e-PDS";Id=1001}
+    $PasswordLog=@()
+    ForEach ($Event in $Events) {
+        # Convert the event to XML
+        $eventXML = [xml]$Event.ToXml()
+        # create custom object for all values
+        $PasswordLog += [PSCustomObject]@{
+            "Forest" = $eventxml.Event.EventData.data[0].'#text'
+            "Computer" = $eventxml.Event.EventData.data[1].'#text'
+            "IsDeleted" = $eventxml.Event.EventData.data[2].'#text'
+            "User" = $eventxml.Event.EventData.data[3].'#text'
+            "TimeCreated" = $event.TimeCreated
+        }
+    }
+    return $PasswordLog
+}
+
+$PasswordLog | ft User,Computer,TimeCreated
  
 ````
