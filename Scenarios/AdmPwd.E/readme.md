@@ -1,6 +1,6 @@
 # Scenario Description
 
-In this scenario will be AdmPwd.E deployed. Its just LAPS on steroids, extended with Password Decryption Service. So all secrets are encrypted in Active Directory and all password requests are logged.
+In this scenario will be AdmPwd.E deployed. Its just LAPS on steroids, with many additional features, and architecture extended with Password Decryption Service (PDS). So all passwords can be stored encrypted in Active Directory and all password requests are logged.
 
 The complete documentation and operation guide is available here: http://admpwd.com/documentation/
 
@@ -75,8 +75,8 @@ Next step is to download ADMPWD-E install files. Following script will download 
 ````PowerShell
 #Download files
 New-Item -Path c:\ -Name temp -ItemType Directory
-Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/7.5.3.0/AdmPwd.E.CSE.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.CSE.Setup.x64.zip"
-Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/7.5.3.0/AdmPwd.E.Tools.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.Tools.Setup.x64.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/AdmPwd.E.CSE.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.CSE.Setup.x64.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/AdmPwd.E.Tools.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.Tools.Setup.x64.zip"
 
 #Unzip downloaded files
 $files=Get-ChildItem -Path c:\temp
@@ -91,7 +91,7 @@ Next step would be to install Password Decryption Server (PDS) service to ADMPWD
 ````PowerShell
 $ADMPWDServerName="ADMPWD-E"
 
-#install ADMPWD service and PowerShell tools to server.
+#install PDS and PowerShell management tools to server.
 $session=New-PSSession -ComputerName $ADMPWDServerName
 Invoke-Command -Session $session -ScriptBlock {new-item -ItemType Directory -Path c:\ -Name Temp}
 Copy-Item -Path C:\temp\AdmPwd.E.Tools.Setup.x64.msi -ToSession $session -Destination c:\temp
@@ -100,13 +100,13 @@ Invoke-Command -Session $session -ScriptBlock {
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,PDS /q"
 }
 
-#check if ADMPWD service was installed sucessfullly
+#check if PDS service was installed sucessfullly
 Invoke-Command -ComputerName $ADMPWDServerName -ScriptBlock {Get-Service -Name AdmPwd.E.PDS}
 
-#check if srv record was added
+#check if DNS SRV record was added - this indicates that PDS service started successfully and work as expected
 nslookup -type=srv _admpwd._tcp
 
-#check if CNG is set in config (in older releases it's CryptoAPI)
+#check if CNG is set in config (in older releases it was CryptoAPI) for newly created key pairs
 Invoke-Command -ComputerName $ADMPWDServerName -scriptblock {
     [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config'
     if ($xml.configuration.KeyStore.cryptoForNewKeys -ne "CNG"){
@@ -116,13 +116,13 @@ Invoke-Command -ComputerName $ADMPWDServerName -scriptblock {
     }
 }
 
-#install PowerShell management tools, Management UI and copy ADMX template to policy store
+#install PowerShell management tools, Management UI and copy ADMX template to policy store on management machine
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
  
 ````
 ![](/Scenarios/AdmPwd.E/Screenshots/PDSInstallResult.png)
 
-Next step is to create ADMPW.E groups for Readers and Password Resetters.
+Next step is to create ADMPWD.E groups for Password Readers and Resetters.
 
 ````PowerShell
 #OU path where Groups will be created
@@ -134,7 +134,7 @@ New-ADGroup -Name AdmPwd.E_Resetters -GroupScope Global -Path $OUPath
  
 ````
 
-The next step is to update schema and set delegation model. Also empty GPO that will specify ADMPWD settings will be created and linked.
+The next step is to update schema and set delegation model. Also empty GPO that you will use to define ADMPWD.E settings will be created and linked.
 **Note:** you might need to add your account to schema and enterprise admins. ws2016lab was recently updated to add LabAdmin to these groups during 2_createparentdisks.ps1
 
 ````PowerShell
@@ -144,30 +144,31 @@ $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 $ADMPWDServerName="ADMPWD-E"
 
 #create empty GPO
-New-Gpo -Name ADMPWDE | New-GPLink -Target $OUPath
+New-Gpo -Name 'ADMPWD.E' | New-GPLink -Target $OUPath
 
-#extend AD schema (Schema Admins membership needed)
+#extend AD schema (Schema Admins and Enterprise Admins membership needed)
 Update-AdmPwdADSchema
 
-#note: if you are not schema admin, add your account to group Schema Admins. Logoff/login is needed to update security token.
+#note: if you are not member of required groups, add your account as member. Logoff/login is needed to update security token.
 #Add-ADGroupMember -Identity "Schema Admins" -Members LabAdmin
 #Add-ADGroupMember -Identity "Enterprise Admins" -Members LabAdmin
 
 #Set delegation model
 
-#Add machine rights
+#Add machine rights to report passwords to AD
 Set-AdmPwdComputerSelfPermission -Identity $OUPath
-Set-AdmPwdPdsPermission -Identity $OUPath -AllowedPrincipals "$ADMPWDServerName$"
 
-#Take ownership over deleted objects
+#Add permissions to PDS to interact with AD
+Set-AdmPwdPdsPermission -Identity $OUPath -AllowedPrincipals "$ADMPWDServerName$"
+#Take ownership over deleted objects - you need to do it before  granting PDS permission to look into Deleted Objects container
 dsacls "CN=Deleted Objects,DC=Corp,DC=Contoso,DC=com" /takeownership
 Set-AdmPwdPdsDeletedObjectsPermission -AllowedPrincipals "$ADMPWDServerName$"
 
-#User perms
+#User perms to read and reset passwords
 Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_Readers
 Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_Resetters
 
-#generate first decryption key (Enterprise Admin membership needed)
+#generate first decryption key (Enterprise Admin membership needed by default; role can be changed in PDS config)
 New-AdmPwdKeyPair -KeySize 2048
  
 ````
