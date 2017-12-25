@@ -64,7 +64,7 @@ First check if RSAT is installed (it's necessary to work with Active Directory).
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
 }else{
-    Write-Host "RSAT is not installed. Please download latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
+    Write-Host "RSAT is not installed. Please download and install latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
 }
  
 ````
