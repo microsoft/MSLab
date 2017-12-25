@@ -1,6 +1,6 @@
 # Scenario Description
 
-In this scenario will be ADMPWD.E deployed. Its just LAPS on steroids, extended with Password Decryption Service. So all secrets are encrypted in Active Directory and all password requests are logged.
+In this scenario will be AdmPwd.E deployed. Its just LAPS on steroids, extended with Password Decryption Service. So all secrets are encrypted in Active Directory and all password requests are logged.
 
 The complete documentation and operation guide is available here: http://admpwd.com/documentation/
 
@@ -41,8 +41,8 @@ $LabConfig.VMs += @{ VMName = 'ADMPWD-E' ; Configuration = 'Simple' ; ParentVHD 
 As you can notice, in this scenario is lab connected to internet. It's not mandatory, but in script is PowerShell command to download installation files. All admin tasks will be done from Windows 10 machine, just to demonstrate security best practices. You may also notice that all servers are without grapical interface.
 
 **Deploy.ps1 result**
-![](/Scenarios/ADMPWD.E/Screenshots/DeployResultWS2016.png)
-![](/Scenarios/ADMPWD.E/Screenshots/DeployResultWS1709.png)
+![](/Scenarios/AdmPwd.E/Screenshots/DeployResultWS2016.png)
+![](/Scenarios/AdmPwd.E/Screenshots/DeployResultWS1709.png)
 
 # Scenario
 
@@ -55,7 +55,7 @@ Start Management and ADMPWD-E VMs. Then log into Management VM. (default credent
  
 ````
 
-## Setup ADMPWD.E infrastructure from Windows 10 management Machine.
+## Setup AdmPwd.E infrastructure from Windows 10 management Machine.
 
 **Note:** All actions are performed from Management VM (Windows 10)
 
@@ -127,8 +127,8 @@ Next step is to create ADMPW.E groups for Readers and Password Resetters.
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 
 #create groups
-New-ADGroup -Name ADMPWD.E_Readers -GroupScope Global -Path $OUPath
-New-ADGroup -Name ADMPWD.E_Resetters -GroupScope Global -Path $OUPath
+New-ADGroup -Name AdmPwd.E_Readers -GroupScope Global -Path $OUPath
+New-ADGroup -Name AdmPwd.E_Resetters -GroupScope Global -Path $OUPath
  
 ````
 
@@ -162,8 +162,8 @@ dsacls "CN=Deleted Objects,DC=Corp,DC=Contoso,DC=com" /takeownership
 Set-AdmPwdPdsDeletedObjectsPermission -AllowedPrincipals "$ADMPWDServerName$"
 
 #User perms
-Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Readers
-Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals ADMPWD.E_Resetters
+Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_Readers
+Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_Resetters
 
 #generate first decryption key (Enterprise Admin membership needed)
 New-AdmPwdKeyPair -KeySize 2048
@@ -186,7 +186,7 @@ Invoke-Command -Session $sessions -ScriptBlock {
 }
 
 ````PowerShell
-Invoke-Command -ComputerName ADMPWD-E -ScriptBlock { Get-WinEvent -LogName GreyCorbel-AdmPwd.e-PDS/Operational } | Out-GridView
+Invoke-Command -ComputerName ADMPWD-E -ScriptBlock { Get-WinEvent -LogName GreyCorbel-AdmPwd.E-PDS/Operational } | Out-GridView
 
 ````
 ````
@@ -194,11 +194,11 @@ Invoke-Command -ComputerName ADMPWD-E -ScriptBlock { Get-WinEvent -LogName GreyC
 The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
 
 **gpmc.msc**
-![](/Scenarios/ADMPWD.E/Screenshots/GPO.png)
+![](/Scenarios/AdmPwd.E/Screenshots/GPO.png)
 
 **Note**
 You need to fill in Encryption Key to encrypt passwords in AD
-![](/Scenarios/ADMPWD.E/Screenshots/EncryptionKeyInGPO.png)
+![](/Scenarios/AdmPwd.E/Screenshots/EncryptionKeyInGPO.png)
 
 ````PowerShell
 #to grab encryption key ID 1 using PowerShell
@@ -228,12 +228,12 @@ To be able to query local passwords, you need to be in group password readers. T
 **Note:** you need to logoff and login to get new security token.
 
 ````PowerShell
-Add-ADGroupMember -Identity ADMPWD.E_Readers -Members LabAdmin
-Add-ADGroupMember -Identity ADMPWD.E_Resetters -Members LabAdmin
+Add-ADGroupMember -Identity AdmPwd.E_Readers -Members LabAdmin
+Add-ADGroupMember -Identity AdmPwd.E_Resetters -Members LabAdmin
  
 ````
 
-Run ADMPWD.E UI to query password or run following PowerShell command
+Run AdmPwd.E UI to query password or run following PowerShell command
 
 ````PowerShell
 $servers="Server1","Server2","server3"
@@ -246,7 +246,7 @@ Lastly you can view who (and when) was viewing passwords.
 ````PowerShell
 $ADMPWDServer = "ADMPWD-E"
 $PasswordLog=Invoke-Command -ComputerName $ADMPWDServer -ScriptBlock {
-    $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.e-PDS";Id=1001}
+    $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.E-PDS";Id=1001}
     $PasswordLog=@()
     ForEach ($Event in $Events) {
         # Convert the event to XML
