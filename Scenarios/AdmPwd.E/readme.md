@@ -345,3 +345,21 @@ Expand-Archive -Path c:\temp\RunAsAdmin.zip -DestinationPath c:\temp
 & "c:\temp\RunAsAdmin.exe" /user:corp\MyManagedAccount /noLocalProfile /path:Powershell.exe
 ````
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountRunAsAdmin.png)
+
+Or you can use RDP client
+
+````PowerShell
+#DownloadRunAsAdmin
+Invoke-WebRequest -UseBasicParsing -Uri https://github.com/jformacek/admpwd-e/releases/download/v8.0/RDPClient.zip -OutFile "c:\temp\RDPClient.zip"
+
+#Unzip downloaded files
+Expand-Archive -Path c:\temp\RDPClient.zip -DestinationPath c:\temp\RDPClient
+
+#enable RDP on Server1
+Enable-NetFirewallRule -CimSession Server1 -Name RemoteDesktop*
+Invoke-Command –Computername Server1 –ScriptBlock {Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" –Value 0}
+
+#connect to Server1
+& "c:\temp\RDPClient\RDPClient.exe" /Server:Server1 /user:corp\MyManagedAccount
+````
+![](/Scenarios/AdmPwd.E/Screenshots/RDP.png)
