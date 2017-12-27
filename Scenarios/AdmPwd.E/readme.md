@@ -286,9 +286,10 @@ Set-AdmPwdPdsManagedAccountsPermission -Identity "Managed Domain Accounts" -Allo
 Set-AdmPwdReadPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Readers"
 Set-AdmPwdResetPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Resetters"
 
-#Create some accounts
-"Test1","Test2" | Foreach-Object {
-New-ADUser -Name $_ -UserPrincipalName $_ -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)}
+#Create Account and add to domain admins
+$AccountName="MyManagedAccount"
+New-ADUser -Name $AccountName -UserPrincipalName $AccountName -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)
+Add-ADGroupMember -Identity "Domain admins" -Members MyManagedAccount
 
 #Configure managed account OU on ADMPWD server
 Invoke-Command -ComputerName $ADMPWDServer -Scriptblock {
@@ -325,14 +326,22 @@ $Log | Format-Table Accounts,Time
 ````
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountsLog.png)
 
-To retrieve password, there are multiple options. Either PowerShell
+To retrieve password, there are multiple options. Either PowerShell **Note:** since this is freeware version, you can only have one account in OU. If multiple account are present, you will get an error message when getting managed password
 
 ````PowerShell
-Get-AdmPwdManagedAccountPassword -AccountName Test1
+Get-AdmPwdManagedAccountPassword -AccountName MyManagedAccount
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountPassword.png)
 
 Or you can run PowerShell instance with using that account directly using RunAsAdmin tool from here https://github.com/jformacek/admpwd-e/releases/tag/v8.0
 
 ````PowerShell
-& ".\RunAsAdmin.exe" /user:test1@corp.contoso.com /noLocalProfile /path:Powershell.exe 
+#DownloadRunAsAdmin
+Invoke-WebRequest -UseBasicParsing -Uri https://github.com/jformacek/admpwd-e/releases/download/v8.0/RunAsAdmin.zip -OutFile "c:\temp\RunAsAdmin.zip"
+
+#Unzip downloaded files
+Expand-Archive -Path c:\temp\RunAsAdmin.zip -DestinationPath c:\temp
+
+& "c:\temp\RunAsAdmin.exe" /user:corp\MyManagedAccount /noLocalProfile /path:Powershell.exe
 ````
+![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountRunAsAdmin.png)
