@@ -271,3 +271,68 @@ $PasswordLog | ft User,Computer,TimeRequested
  
 ````
 ![](/Scenarios/AdmPwd.E/Screenshots/PasswordLog.png)
+
+
+# Managed accounts
+
+````PowerShell
+$ADMPWDServer = "ADMPWD-E"
+#Create OU for Managed accounts
+New-ADOrganizationalUnit -Name "Managed Domain Accounts"
+
+#grant PDS proper perms to manage password
+Set-AdmPwdPdsManagedAccountsPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "$ADMPWDServer$"
+#Grant users Read+Reset Password Permission
+Set-AdmPwdReadPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Readers"
+Set-AdmPwdResetPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Resetters"
+
+#Create some accounts
+"Test1","Test2" | Foreach-Object {
+New-ADUser -Name $_ -UserPrincipalName $_ -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)}
+
+#Configure managed account OU on ADMPWD server
+Invoke-Command -ComputerName $ADMPWDServer -Scriptblock {
+    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config'
+    $xml.configuration.ManagedAccounts.containers.add.distinguishedName="OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com"
+    $xml.configuration.ManagedAccounts.containers.add.passwordAge="14400" #10 days
+    $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config')
+    Restart-Service -Name AdmPwd.E.PDS
+}
+ 
+````
+
+Then check logs on AdmPwd server
+
+````PowerShell
+$ADMPWDServer = "ADMPWD-E"
+$Log=Invoke-Command -ComputerName $ADMPWDServer -ScriptBlock {
+    $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.E-PDS";Id=3000}
+    $Log=@()
+    ForEach ($Event in $Events) {
+        # Convert the event to XML
+        $eventXML = [xml]$Event.ToXml()
+        # create custom object for all values
+        $Log += [PSCustomObject]@{
+            "Accounts" = $eventxml.Event.EventData.data.'#text'
+            "Time" = $event.TimeCreated
+        }
+    }
+    return $Log
+}
+
+#Changed Accounts where password was changed
+$Log | Format-Table Accounts,Time
+````
+![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountsLog.png)
+
+To retrieve password, there are multiple options. Either PowerShell
+
+````PowerShell
+Get-AdmPwdManagedAccountPassword -AccountName Test1
+````
+
+Or you can run PowerShell instance with using that account directly using RunAsAdmin tool from here https://github.com/jformacek/admpwd-e/releases/tag/v8.0
+
+````PowerShell
+& ".\RunAsAdmin.exe" /user:test1@corp.contoso.com /noLocalProfile /path:Powershell.exe 
+````
