@@ -362,4 +362,4 @@ Invoke-Command –Computername Server1 –ScriptBlock {Set-ItemProperty -Path "H
 #connect to Server1
 & "c:\temp\RDPClient\RDPClient.exe" /Server:Server1 /user:corp\MyManagedAccount
 ````
-![](/Scenarios/AdmPwd.E/Screenshots/RDP.png)
+![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountRDP.png)
