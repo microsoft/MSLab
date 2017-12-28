@@ -1,3 +1,24 @@
+<!-- TOC -->
+
+- [Project Description](#project-description)
+- [Videos](#videos)
+- [HowTo](#howto)
+    - [Step 1 Download required files (prerequisities):](#step-1-download-required-files-prerequisities)
+    - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
+    - [Step 3 (Optional) Check the LabConfig.p1](#step-3-optional-check-the-labconfigp1)
+    - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
+    - [Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder](#step-5-optional-copy-scvmm-files-or-your-tools-to-toolsvhd-folder)
+    - [Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1](#step-6-right-click-and-run-with-powershell-2_createparentdisksps1)
+    - [Step 7 Right-click and run with PowerShell Deploy.ps1](#step-7-right-click-and-run-with-powershell-deployps1)
+    - [Step 8 Continue with S2D Hyperconverged Scenario](#step-8-continue-with-s2d-hyperconverged-scenario)
+    - [Step 9 Cleanup lab with Cleanup.ps1](#step-9-cleanup-lab-with-cleanupps1)
+    - [Step 10 Try different scenarios](#step-10-try-different-scenarios)
+- [Tips and tricks](#tips-and-tricks)
+- [Known issues](#known-issues)
+- [So what is it good for?](#so-what-is-it-good-for)
+
+<!-- /TOC -->
+
 # Project Description
  * Deployment Automation of Windows Server 2016 labs on WS2016/Windows10 Hyper-V
  * Simply deploy your lab just with these scripts and ISO file.
@@ -14,7 +35,7 @@
 
 # Videos
 
-Videos are bit outdated as subtle changes are in scripts.
+Note: Some videos may be a bit outdated as there is continous inovation going on in the scripts.
 
 * [1 Prereq and Create Parent disks](https://youtu.be/705A-mCvzUc)
 * [2 Basic S2D Scenario Walkthrough](https://youtu.be/cAOCcTjlkm4)
@@ -35,7 +56,7 @@ Videos are bit outdated as subtle changes are in scripts.
 
 ![](/Screenshots/ScriptsExtracted.png)
 
-## Step3 (Optional) Check the LabConfig.p1 
+## Step 3 (Optional) Check the LabConfig.p1 
 * Edit it to specify the lab setup that you require (such as different domain name, Domain Admin name...) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.)
 
 **Default Labconfig**
@@ -97,11 +118,11 @@ Videos are bit outdated as subtle changes are in scripts.
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup3.png)
 
-**Result: Script cleanup unneccessary folders - before**
+**Result: Script cleanup unnecessary folders - before**
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup2.png)
 
-**Result: Script cleanup unneccessary folders - after**
+**Result: Script cleanup unnecessary folders - after**
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup4.png)
 
@@ -122,8 +143,9 @@ Videos are bit outdated as subtle changes are in scripts.
 
 ![](/Screenshots/DeployResultOverview.png)
  
-## Step 8 Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) 
+## Step 8 Continue with S2D Hyperconverged Scenario
 
+* [S2D Hyperconverged Scenario page](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) 
 * will guide you to deploy 4 Node Storage Spaces Direct cluster.
 * Note: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
 
@@ -137,8 +159,9 @@ Videos are bit outdated as subtle changes are in scripts.
 
 ![](/Screenshots/Cleanup2.png)
 
-## Step 10 Try different [scenarios](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/)
+## Step 10 Try different scenarios
 
+* [scenarios page](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/)
 * Just replace LabConfig and Deploy again (takes 5-10 minutes to spin up new VMs)
 
 # Tips and tricks

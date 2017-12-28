@@ -754,6 +754,22 @@ If (!( $isAdmin )) {
                     MembersToInclude = "VMM_SA",$Node.DomainAdminName
                 }
 
+                xADGroup SchemaAdmins
+                {
+                    GroupName = "Schema Admins"
+                    GroupScope = "Universal"
+                    DependsOn = "[xADUser]VMM_SA"
+                    MembersToInclude = $Node.DomainAdminName
+                }
+
+                xADGroup EntAdmins
+                {
+                    GroupName = "Enterprise Admins"
+                    GroupScope = "Universal"
+                    DependsOn = "[xADUser]VMM_SA"
+                    MembersToInclude = $Node.DomainAdminName
+                }
+
                 xADUser AdministratorNeverExpires
                 {
                     DomainName = $Node.DomainName
@@ -775,7 +791,7 @@ If (!( $isAdmin )) {
                     Name = "DHCP"
                     DependsOn = "[xADDomain]FirstDS"
                 }
-                
+
                 WindowsFeature DHCPServerManagement
                 {
                     Ensure = "Present"
