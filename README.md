@@ -118,11 +118,11 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup3.png)
 
-**Result: Script cleanup unneccessary folders - before**
+**Result: Script cleanup unnecessary folders - before**
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup2.png)
 
-**Result: Script cleanup unneccessary folders - after**
+**Result: Script cleanup unnecessary folders - after**
 
 ![](/Screenshots/2_CreateParentDisksResultCleanup4.png)
 
