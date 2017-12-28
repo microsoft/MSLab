@@ -187,4 +187,5 @@ foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
 ![](/Scenarios/LAPS/Screenshots/PasswordQueryPowerShell.png)
 
 Or you can use LAPS UI Tool
+
 ![](/Scenarios/LAPS/Screenshots/LAPS_UI.png)
