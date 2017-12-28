@@ -5,7 +5,7 @@
 - [HowTo](#howto)
     - [Step 1 Download required files (prerequisities):](#step-1-download-required-files-prerequisities)
     - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
-    - [Step3 (Optional) Check the LabConfig.p1](#step3-optional-check-the-labconfigp1)
+    - [Step 3 (Optional) Check the LabConfig.p1](#step-3-optional-check-the-labconfigp1)
     - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
     - [Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder](#step-5-optional-copy-scvmm-files-or-your-tools-to-toolsvhd-folder)
     - [Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1](#step-6-right-click-and-run-with-powershell-2_createparentdisksps1)
@@ -56,7 +56,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 
 ![](/Screenshots/ScriptsExtracted.png)
 
-## Step3 (Optional) Check the LabConfig.p1 
+## Step 3 (Optional) Check the LabConfig.p1 
 * Edit it to specify the lab setup that you require (such as different domain name, Domain Admin name...) This script file documents the detailed configuration options that are available. (The default script will generate a lab with a Windows Server 2016 DataCenter Domain Controller and 4 Windows Server 2016 Core servers ready to be set up with Storage Spaces Direct.)
 
 **Default Labconfig**
