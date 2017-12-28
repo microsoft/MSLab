@@ -1,3 +1,24 @@
+<!-- TOC -->
+
+- [Project Description](#project-description)
+- [Videos](#videos)
+- [HowTo](#howto)
+    - [Step 1 Download required files (prerequisities):](#step-1-download-required-files-prerequisities)
+    - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
+    - [Step3 (Optional) Check the LabConfig.p1](#step3-optional-check-the-labconfigp1)
+    - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
+    - [Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder](#step-5-optional-copy-scvmm-files-or-your-tools-to-toolsvhd-folder)
+    - [Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1](#step-6-right-click-and-run-with-powershell-2_createparentdisksps1)
+    - [Step 7 Right-click and run with PowerShell Deploy.ps1](#step-7-right-click-and-run-with-powershell-deployps1)
+    - [Step 8 Continue with [S2D Hyperconverged Scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D Hyperconverged)](#step-8-continue-with-s2d-hyperconverged-scenariohttpsgithubcommicrosoftws2016labtreemasterscenarioss2dhyperconverged)
+    - [Step 9 Cleanup lab with Cleanup.ps1](#step-9-cleanup-lab-with-cleanupps1)
+    - [Step 10 Try different [scenarios](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/)](#step-10-try-different-scenarioshttpsgithubcommicrosoftws2016labtreemasterscenarios)
+- [Tips and tricks](#tips-and-tricks)
+- [Known issues](#known-issues)
+- [So what is it good for?](#so-what-is-it-good-for)
+
+<!-- /TOC -->
+
 # Project Description
  * Deployment Automation of Windows Server 2016 labs on WS2016/Windows10 Hyper-V
  * Simply deploy your lab just with these scripts and ISO file.
