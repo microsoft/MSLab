@@ -6,13 +6,13 @@
     - [The lab](#the-lab)
 - [Scenario](#scenario)
     - [AdmPwd.E infrastructure setup from Windows 10 management Machine.](#admpwde-infrastructure-setup-from-windows-10-management-machine)
-    - [Managed accounts](#managed-accounts)
+    - [Managed Domain Accounts](#managed-domain-accounts)
 
 <!-- /TOC -->
 
 # Scenario Introduction
 
-In this scenario will be AdmPwd.E deployed. Its just LAPS on steroids, with many additional features, and architecture extended with Password Decryption Service (PDS). So all passwords can be stored encrypted in Active Directory and all password requests are logged. Additionally you can manage password for domain accounts and using RunAsAdmin tool run process with the credential without typing password. 
+In this scenario will be AdmPwd.E deployed. Its just [LAPS](/Scenarios/LAPS/) on steroids, with many additional features, and architecture extended with Password Decryption Service (PDS). So all passwords can be stored encrypted in Active Directory and all password requests are logged. Additionally you can manage password for domain accounts and using RunAsAdmin tool run process with the credential without typing password. 
 
 The complete documentation and operation guide is available here: http://AdmPwd.com/documentation/
 This scenario works with AdmPwd.E version 7.5.4.0 and newer
@@ -59,7 +59,7 @@ As you can notice, in this scenario is lab connected to internet. It's not manda
 
 # Scenario
 
-Start Management and AdmPwd-E VMs. Then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
+Start Lab VMs. Then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
 **Note:** To kick in enhanced session mode login, logoff and login again.
 
 ````PowerShell
