@@ -6,15 +6,16 @@
     - [The lab](#the-lab)
 - [Scenario](#scenario)
     - [AdmPwd.E infrastructure setup from Windows 10 management Machine.](#admpwde-infrastructure-setup-from-windows-10-management-machine)
-    - [Managed accounts](#managed-accounts)
+    - [Managed Domain Accounts](#managed-domain-accounts)
 
 <!-- /TOC -->
 
 # Scenario Introduction
 
-In this scenario will be AdmPwd.E deployed. Its just LAPS on steroids, with many additional features, and architecture extended with Password Decryption Service (PDS). So all passwords can be stored encrypted in Active Directory and all password requests are logged. Additionally you can manage password for domain accounts and using RunAsAdmin tool run process with the credential without typing password. 
+In this scenario will be AdmPwd.E deployed. Its just [LAPS](/Scenarios/LAPS/) on steroids, with many additional features, and architecture extended with Password Decryption Service (PDS). So all passwords can be stored encrypted in Active Directory and all password requests are logged. Additionally you can manage password for domain accounts and using RunAsAdmin tool run process with the credential without typing password. 
 
 The complete documentation and operation guide is available here: http://AdmPwd.com/documentation/
+This scenario works with AdmPwd.E version 7.5.4.0 and newer
 
 ## LabConfig Windows Server 1709
 
@@ -58,7 +59,7 @@ As you can notice, in this scenario is lab connected to internet. It's not manda
 
 # Scenario
 
-Start Management and AdmPwd-E VMs. Then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
+Start Lab VMs. Then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
 **Note:** To kick in enhanced session mode login, logoff and login again.
 
 ````PowerShell
@@ -119,10 +120,10 @@ nslookup -type=srv _AdmPwd._tcp
 
 #check if CNG is set in config (in older releases it was CryptoAPI) for newly created key pairs
 Invoke-Command -ComputerName $AdmPwdServerName -scriptblock {
-    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config'
+    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.PDS.exe.config'
     if ($xml.configuration.KeyStore.cryptoForNewKeys -ne "CNG"){
         $xml.configuration.KeyStore.cryptoForNewKeys="CNG"
-        $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config')
+        $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.PDS.exe.config')
         Restart-Service -Name AdmPwd.E.PDS
     }
 }
@@ -280,33 +281,35 @@ $PasswordLog | ft User,Computer,TimeRequested
 ![](/Scenarios/AdmPwd.E/Screenshots/PasswordLog.png)
 
 
-## Managed accounts
+## Managed Domain Accounts
 
+Managed Domain Accounts is feature of AdmPwd.E that automatically manages password of chosen domain user accounts, ensures for password randomness and regular change, and allows their simple retrieval by eligible users. Also, toolset that comes with AdmPwd.E makes use of automatic password retrieval, allowing users to use those accounts to run processes or connect to RDP without the need to even know and type the password.
 In following example will be one managed account created and then demonstrated, how to use it different ways.
 
-First create OU, managed account, modify PDS config and restart service to apply changes.
+First create OU, Managed Domain Accounts, modify PDS config file to have accounts in that OU managed by PDS and restart service to apply changes.
 ````PowerShell
 $AdmPwdServer = "AdmPwd-E"
 #Create OU for Managed accounts
 New-ADOrganizationalUnit -Name "Managed Domain Accounts"
 
-#grant PDS proper perms to manage password
+#grant PDS proper perms to manage password on managed accounts
 Set-AdmPwdPdsManagedAccountsPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "$AdmPwdServer$"
 #Grant users Read+Reset Password Permission
 Set-AdmPwdReadPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Readers"
 Set-AdmPwdResetPasswordPermission -Identity "Managed Domain Accounts" -AllowedPrincipals "AdmPwd.E_Resetters"
 
-#Create Account and add to domain admins
+#Create an account and add to domain admins
 $AccountName="MyManagedAccount"
 New-ADUser -Name $AccountName -UserPrincipalName $AccountName -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)
 Add-ADGroupMember -Identity "Domain admins" -Members MyManagedAccount
+#Note: be aware of AdminSDHolder feature that rewrites ACL on privileged accounts!
 
-#Configure managed account OU on AdmPwd server
+#Configure managed account OU on PDS server - allow password management on user accounts in this OU
 Invoke-Command -ComputerName $AdmPwdServer -Scriptblock {
-    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config'
+    [xml]$xml=Get-Content -Path 'C:\Program Files\AdmPwd\PDS\AdmPwd.PDS.exe.config'
     $xml.configuration.ManagedAccounts.containers.add.distinguishedName="OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com"
     $xml.configuration.ManagedAccounts.containers.add.passwordAge="14400" #10 days
-    $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.Service.exe.config')
+    $xml.save('C:\Program Files\AdmPwd\PDS\AdmPwd.PDS.exe.config')
     Restart-Service -Name AdmPwd.E.PDS
 }
  
@@ -342,10 +345,11 @@ Get-AdmPwdManagedAccountPassword -AccountName MyManagedAccount
 ````
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountPassword.png)
 
-Or you can run PowerShell instance with using that account directly using RunAsAdmin tool from here https://github.com/jformacek/AdmPwd-e/releases/tag/v8.0
+Or you can run PowerShell instance with using that account directly using RunAsAdmin tool from here https://github.com/jformacek/AdmPwd-e/releases/tag/v8.0 (latest binaries also available at https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RunAsAdmin.zip)
+
 ````PowerShell
-#DownloadRunAsAdmin
-Invoke-WebRequest -UseBasicParsing -Uri https://github.com/jformacek/AdmPwd-e/releases/download/v8.0/RunAsAdmin.zip -OutFile "c:\temp\RunAsAdmin.zip"
+#Download RunAsAdmin
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RunAsAdmin.zip -OutFile "c:\temp\RunAsAdmin.zip"
 
 #Unzip downloaded files
 Expand-Archive -Path c:\temp\RunAsAdmin.zip -DestinationPath c:\temp
@@ -356,8 +360,8 @@ Expand-Archive -Path c:\temp\RunAsAdmin.zip -DestinationPath c:\temp
 
 Or you can use RDP client
 ````PowerShell
-#DownloadRunAsAdmin
-Invoke-WebRequest -UseBasicParsing -Uri https://github.com/jformacek/AdmPwd-e/releases/download/v8.0/RDPClient.zip -OutFile "c:\temp\RDPClient.zip"
+#Download RDPCLient
+Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RDPClient.zip -OutFile "c:\temp\RDPClient.zip"
 
 #Unzip downloaded files
 Expand-Archive -Path c:\temp\RDPClient.zip -DestinationPath c:\temp\RDPClient
