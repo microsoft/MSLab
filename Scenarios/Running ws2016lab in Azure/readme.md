@@ -3,6 +3,7 @@
 - [Running ws2016lab in Azure](#running-ws2016lab-in-azure)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Create VM with JSON](#create-vm-with-json)
+- [Post creation actions](#post-creation-actions)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding storage](#adding-storage)
 - [Overall experience](#overall-experience)
@@ -42,6 +43,16 @@ New-AzureRmVm `
     -Verbose
 
 ````
+# Create VM with JSON
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json" target="_blank">
+    <img src="http://azuredeploy.net/deploybutton.png"/>
+</a>
+<a href="http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json" target="_blank">
+    <img src="http://armviz.io/visualizebutton.png"/>
+</a>
+
+# Post creation actions
 
 After successful creation, you can connect to it using public IP, that was assigned.
 
@@ -51,15 +62,6 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016lab).IpAddress)
 
 ````
 
-# Create VM with JSON
-
-
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2F<JSON Path raw...>" target="_blank">
-    <img src="http://azuredeploy.net/deploybutton.png"/>
-</a>
-<a href="http://armviz.io/#/?load=https%3A%2F%2F<JSON Path raw...>" target="_blank">
-    <img src="http://armviz.io/visualizebutton.png"/>
-</a>
 
 # Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
