@@ -1,9 +1,67 @@
+<!-- TOC -->
+
+- [Running ws2016lab in Azure](#running-ws2016lab-in-azure)
+- [Creating VM with PowerShell](#creating-vm-with-powershell)
+- [Create VM with JSON](#create-vm-with-json)
+- [Creating VM Manually](#creating-vm-manually)
+    - [Adding storage](#adding-storage)
+- [Overall experience](#overall-experience)
+
+<!-- /TOC -->
+
 # Running ws2016lab in Azure
 
-I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~120eur credit/month
+I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~130eur credit/month
 
-## Creating VM
+# Creating VM with PowerShell
 
+To create VM with PowerShell, run following command.
+
+````PowerShell
+#download Azure module if not installed
+if (!(get-module -Name AzureRM*)){
+    Install-Module -Name AzureRM
+}
+
+#login to your azure account
+Login-AzureRmAccount
+
+#Create VM
+New-AzureRmVm `
+    -ResourceGroupName "ws2016labRG" `
+    -Name "ws2016lab" `
+    -Location "West Europe" `
+    -VirtualNetworkName "ws2016labVirtualNetwork" `
+    -SubnetName "ws2016lab" `
+    -SecurityGroupName "ws2016labSG" `
+    -PublicIpAddressName "ws2016labPubIP" `
+    -OpenPorts 80,3389 `
+    -ImageName Win2016Datacenter `
+    -Size Standard_D16s_v3 `
+    -Credential (Get-Credential) `
+    -Verbose
+
+````
+
+After successful creation, you can connect to it using public IP, that was assigned.
+
+````PowerShell
+#connect to VM using RDP
+mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016lab).IpAddress)
+
+````
+
+# Create VM with JSON
+
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2F<JSON Path raw...>" target="_blank">
+    <img src="http://azuredeploy.net/deploybutton.png"/>
+</a>
+<a href="http://armviz.io/#/?load=https%3A%2F%2F<JSON Path raw...>" target="_blank">
+    <img src="http://armviz.io/visualizebutton.png"/>
+</a>
+
+# Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CreateVM01.png)
@@ -48,7 +106,7 @@ After disk is configured, you can configure host caching to Read/Write (since yo
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/AddStorage04.png)
 
-## Overall experience
+# Overall experience
 
 In machine overview you are able to connect (after click it will download rdp file with server IP in it), or you can just copy IP to clip and run remote desktop client from your pc. To cut down cots, you can stop VM from here
 
