@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [Running ws2016lab in Azure](#running-ws2016lab-in-azure)
+- [Overview](#overview)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Create VM with JSON in UI](#create-vm-with-json-in-ui)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
@@ -10,9 +10,11 @@
 
 <!-- /TOC -->
 
-# Running ws2016lab in Azure
+# Overview
 
 I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~130eur credit/month
+
+I present here several options how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
 
 # Creating VM with PowerShell
 
@@ -114,7 +116,10 @@ After disk is configured, you can configure host caching to Read/Write (since yo
 
 I recommend using temp drive D: as its fast enough. After parent disk hydration, you can copy lab to c:\
 
+**Data disappeared after shutting down a VM**
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/TempDrive.png)
+
+**I prefer to keep ws2016lab on c:\ and copy it to temp drive on machine resume**
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CopyToTempDrive.png)
 
 In machine overview you are able to connect (after click it will download rdp file with server IP in it), or you can just copy IP to clip and run remote desktop client from your pc. To cut down cots, you can stop VM from here
