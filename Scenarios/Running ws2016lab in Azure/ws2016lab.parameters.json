@@ -18,7 +18,7 @@
           "value": "ws2016labRG-vnet"
       },
       "networkInterfaceName": {
-          "value": "ws2016lab584"
+          "value": "ws2016labNIC1"
       },
       "networkSecurityGroupName": {
           "value": "ws2016lab-nsg"
@@ -27,13 +27,13 @@
           "value": null
       },
       "diagnosticsStorageAccountName": {
-          "value": "ws2016labRGdiag433"
+          "value": "ws2016labRGdiagStorage"
       },
       "diagnosticsStorageAccountType": {
           "value": "Standard_LRS"
       },
       "diagnosticsStorageAccountId": {
-          "value": "Microsoft.Storage/storageAccounts/ws2016labRGdiag433"
+          "value": "Microsoft.Storage/storageAccounts/ws2016labRGdiagStorage"
       },
       "addressPrefix": {
           "value": "10.0.0.0/24"
