@@ -75,7 +75,7 @@
           "name": "[parameters('virtualMachineName')]",
           "type": "Microsoft.Compute/virtualMachines",
           "apiVersion": "2016-04-30-preview",
-          "location": "[parameters('location')]",
+          "location": "https://raw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.parameters.json",
           "dependsOn": [
               "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]",
               "[concat('Microsoft.Storage/storageAccounts/', parameters('diagnosticsStorageAccountName'))]"
