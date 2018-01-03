@@ -27,13 +27,13 @@
           "value": null
       },
       "diagnosticsStorageAccountName": {
-          "value": "ws2016labRGdiagStorage"
+          "value": "ws2016labdiagstor"
       },
       "diagnosticsStorageAccountType": {
           "value": "Standard_LRS"
       },
       "diagnosticsStorageAccountId": {
-          "value": "Microsoft.Storage/storageAccounts/ws2016labRGdiagStorage"
+          "value": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
       },
       "addressPrefix": {
           "value": "10.0.0.0/24"

@@ -2,8 +2,8 @@
 
 - [Running ws2016lab in Azure](#running-ws2016lab-in-azure)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
-- [Create VM with JSON](#create-vm-with-json)
-- [Post creation actions](#post-creation-actions)
+- [Create VM with JSON in UI](#create-vm-with-json-in-ui)
+- [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding storage](#adding-storage)
 - [Overall experience](#overall-experience)
@@ -42,28 +42,28 @@ New-AzureRmVm `
     -Credential (Get-Credential) `
     -Verbose
 
-````
-# Create VM with JSON
-
-[![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
-
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json" target="_blank">
-    <img src="http://azuredeploy.net/deploybutton.png"/>
-</a>
-<a href="http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json" target="_blank">
-    <img src="http://armviz.io/visualizebutton.png"/>
-</a>
-
-# Post creation actions
-
-After successful creation, you can connect to it using public IP, that was assigned.
-
-````PowerShell
 #connect to VM using RDP
 mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016lab).IpAddress)
 
 ````
+# Create VM with JSON in UI
 
+**Note:** just provide parameters from [here](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.parameters.json)
+
+[![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
+[![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json)
+
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate1.png)
+
+**After you paste content of parameters [JSON](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.parameters.json)**
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate2.png)
+
+# Cleanup the VM and resources
+````PowerShell
+Get-AzurermVM -Name ws2016lab -ResourceGroupName ws2016labRG | Remove-AzureRmVM -Force -verbose
+Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -Force -verbose
+Get-AzureRmResourceGroup | where name -eq ws2016labRG | Remove-AzureRmResourceGroup
+````
 
 # Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
