@@ -5,7 +5,7 @@
 - [Create VM with JSON in UI](#create-vm-with-json-in-ui)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
 - [Creating VM Manually](#creating-vm-manually)
-    - [Adding storage](#adding-storage)
+    - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
 
 <!-- /TOC -->
@@ -43,7 +43,7 @@ New-AzureRmVm `
     -Verbose
 
 #connect to VM using RDP
-mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016lab).IpAddress)
+mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 
 ````
 # Create VM with JSON in UI
@@ -90,7 +90,7 @@ Once VM will finish deploying, you will be able to see it running on your dashbo
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CreateVM06.png)
 
-## Adding storage
+## Adding premium disk (bit pricey)
 
 **Note:** Premium disk is not the best choice as it drains your credit quite fast. So either use it and destroy, or use temp storage instead. You can store ws2016lab on OS and just copy to temp disk to deploy it there.
 
@@ -111,6 +111,11 @@ After disk is configured, you can configure host caching to Read/Write (since yo
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/AddStorage04.png)
 
 # Overall experience
+
+I recommend using temp drive D: as its fast enough. After parent disk hydration, you can copy lab to c:\
+
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/TempDrive.png)
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CopyToTempDrive.png)
 
 In machine overview you are able to connect (after click it will download rdp file with server IP in it), or you can just copy IP to clip and run remote desktop client from your pc. To cut down cots, you can stop VM from here
 
