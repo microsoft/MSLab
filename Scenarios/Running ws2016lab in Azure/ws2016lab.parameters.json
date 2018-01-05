@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "location": {
+          "value": "westeurope"
+      },
+      "virtualMachineName": {
+          "value": "ws2016lab"
+      },
+      "virtualMachineSize": {
+          "value": "Standard_D16s_v3"
+      },
+      "adminUsername": {
+          "value": "LabAdmin"
+      },
+      "virtualNetworkName": {
+          "value": "ws2016labRG-vnet"
+      },
+      "networkInterfaceName": {
+          "value": "ws2016labNIC1"
+      },
+      "networkSecurityGroupName": {
+          "value": "ws2016lab-nsg"
+      },
+      "adminPassword": {
+          "value": null
+      },
+      "diagnosticsStorageAccountName": {
+          "value": "ws2016labdiagstor"
+      },
+      "diagnosticsStorageAccountType": {
+          "value": "Standard_LRS"
+      },
+      "diagnosticsStorageAccountId": {
+          "value": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
+      },
+      "addressPrefix": {
+          "value": "10.0.0.0/24"
+      },
+      "subnetName": {
+          "value": "default"
+      },
+      "subnetPrefix": {
+          "value": "10.0.0.0/24"
+      },
+      "publicIpAddressName": {
+          "value": "ws2016lab-ip"
+      },
+      "publicIpAddressType": {
+          "value": "Dynamic"
+      },
+      "publicIpAddressSku": {
+          "value": "Basic"
+      },
+      "autoShutdownStatus": {
+          "value": "Enabled"
+      },
+      "autoShutdownTime": {
+          "value": "19:00"
+      },
+      "autoShutdownTimeZone": {
+          "value": "UTC"
+      },
+      "autoShutdownNotificationStatus": {
+          "value": "Disabled"
+      }
+  }
+}
