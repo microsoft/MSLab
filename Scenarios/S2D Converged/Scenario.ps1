@@ -93,8 +93,12 @@ Write-host "Script started at $StartDateTime"
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
         $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
 
-    #Enable Meltdown/Spectre mitigations? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
-        $CPUMitigationsEnable=$True
+    #Enable Meltdown mitigation? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
+    #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
+        $MeltdownMitigationEnable=$false
+
+    #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
+        $ConfigurePCIDMinVersion=$true
 
     #S2D Node Name To Scale
         $S2DNodesToScale="Storage5"
@@ -162,14 +166,20 @@ Write-host "Script started at $StartDateTime"
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
         }
 
-    #enable meltdown/spectre mitigations
-    if ($CPUMitigationsEnable){
-        Invoke-Command -ComputerName $AllServers -ScriptBlock {
-            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
-            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
-            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
+    #enable meltdown mitigation
+        if ($MeltdownMitigationEnable){
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+            }
         }
-    }
+
+    #Configure MinVmVersionForCpuBasedMitigations
+        if ($ConfigurePCIDMinVersion){
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {
+                Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
+            }
+        }
 
     #install roles and features
         if (!$NanoServer){
@@ -589,14 +599,21 @@ Write-host "Script started at $StartDateTime"
         Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
     }
 
-#enable meltdown/spectre mitigations
-    if ($CPUMitigationsEnable){
+#enable meltdown mitigation
+    if ($MeltdownMitigationEnable){
         Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+        }
+    }
+
+#Configure MinVmVersionForCpuBasedMitigations
+    if ($ConfigurePCIDMinVersion){
+        Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
         }
     }
+
 
 #install roles and features
     if (!$NanoServer){
@@ -688,14 +705,21 @@ Write-host "Script started at $StartDateTime"
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
         }
 
-    #enable meltdown/spectre mitigations
-    if ($CPUMitigationsEnable){
+    #enable meltdown mitigation
+    if ($MeltdownMitigationEnable){
         Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+        }
+    }
+
+    #Configure MinVmVersionForCpuBasedMitigations
+    if ($ConfigurePCIDMinVersion){
+        Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
         }
     }
+
 
     #install roles and features
         if (!$NanoServer){
