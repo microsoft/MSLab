@@ -48,8 +48,11 @@ Write-host "Script started at $StartDateTime"
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
         $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
 
-    #Enable Meltdown/Spectre mitigations? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
-        $CPUMitigationsEnable=$True
+    #Enable Meltdown mitigation? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
+        $MeltdownMitigationEnable=$false
+
+    #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
+        $ConfigurePCIDMinVersion=$true
 
 #endregion
 
@@ -108,11 +111,17 @@ Write-host "Script started at $StartDateTime"
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
         }
 
-    #enable meltdown/spectre mitigations
-        if ($CPUMitigationsEnable){
+    #enable meltdown mitigation
+        if ($MeltdownMitigationEnable){
             Invoke-Command -ComputerName $servers -ScriptBlock {
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+            }
+        }
+
+    #Configure MinVmVersionForCpuBasedMitigations
+        if ($ConfigurePCIDMinVersion){
+            Invoke-Command -ComputerName $servers -ScriptBlock {
                 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
             }
         }
