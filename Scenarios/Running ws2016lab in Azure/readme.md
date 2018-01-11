@@ -2,7 +2,8 @@
 
 - [Overview](#overview)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
-- [Create VM with JSON in UI](#create-vm-with-json-in-ui)
+- [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
+- [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
@@ -14,7 +15,9 @@
 
 I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~130eur credit/month
 
-I present here several options how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
+You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
+
+**Note:** its just a VM without any roles or files. You need to login, enable Hyper-V role and hydrate basic lab. In future I'll add script to enable Hyper-V into JSON + maybe I'll add the lab on blob storage and let it download (as soon as I'll learn it :)
 
 # Creating VM with PowerShell
 
@@ -48,18 +51,40 @@ New-AzureRmVm `
 mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 
 ````
-# Create VM with JSON in UI
+# Creating VM with JSON in UI
+
+Or you can just click button and deploy it into your portal
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json)
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate.png)
 
-# Cleanup the VM and resources
+# Creating VM with JSON and PowerShell
+
+Or you can create your VM using PowerShell
+
 ````PowerShell
-Get-AzurermVM -Name ws2016lab -ResourceGroupName ws2016labRG | Remove-AzureRmVM -Force -verbose
-Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -Force -verbose
-Get-AzureRmResourceGroup | where name -eq ws2016labRG | Remove-AzureRmResourceGroup
+#Deploy VM to Azure using Template
+    New-AzureRmResourceGroup -Name "ws2016labRG" -Location "West Europe"
+    $TemplateUri="https://raw.githubusercontent.com/Microsoft/ws2016lab/master/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json"
+    New-AzureRmResourceGroupDeployment -Name ws2016lab -ResourceGroupName ws2016labRG -TemplateUri $TemplateUri -Verbose
+#connect to VM using RDP
+    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
+ 
+````
+
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/TemplatePowerShellDeployment.png)
+
+# Cleanup the VM and resources
+
+To cleanup your resources, you can run following command.
+
+````PowerShell
+Get-AzurermVM -Name ws2016lab -ResourceGroupName ws2016labRG | Remove-AzureRmVM -verbose #-Force
+Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -verbose #-Force 
+Get-AzureRmResourceGroup | where resourcegroupname -eq ws2016labRG | Remove-AzureRmResourceGroup -Verbose #-Force
+ 
 ````
 
 # Creating VM Manually
