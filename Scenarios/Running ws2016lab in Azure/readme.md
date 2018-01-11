@@ -15,7 +15,9 @@
 
 I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~130eur credit/month
 
-I present here several options how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
+You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
+
+**Note:** its just a VM without any roles or files. You need to login, enable Hyper-V role and hydrate basic lab. In future I'll add script to enable Hyper-V into JSON + maybe I'll add the lab on blob storage and let it download (as soon as I'll learn it :)
 
 # Creating VM with PowerShell
 
