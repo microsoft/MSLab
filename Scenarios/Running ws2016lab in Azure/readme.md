@@ -66,7 +66,9 @@ Or you can create your VM using PowerShell
 #Deploy VM to Azure using Template
     New-AzureRmResourceGroup -Name "ws2016labRG" -Location "West Europe"
     $TemplateUri="https://raw.githubusercontent.com/Microsoft/ws2016lab/master/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json"
-    New-AzureRmResourceGroupDeployment -Name ws2016lab -ResourceGroupName ws2016labRG -Mode Incremental -TemplateUri $TemplateUri -Verbose
+    New-AzureRmResourceGroupDeployment -Name ws2016lab -ResourceGroupName ws2016labRG -TemplateUri $TemplateUri -Verbose
+#connect to VM using RDP
+    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
  
 ````
 
