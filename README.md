@@ -22,6 +22,7 @@
 # Project Description
  * Deployment Automation of Windows Server 2016 labs on WS2016/Windows10 Hyper-V
  * Simply deploy your lab just with these scripts and ISO file.
+ * Lab can run LAB on Windows 10, Windows Server 2016 (both Core and GUI) or even in [Azure VM](/Scenarios/Running%20ws2016lab%20in%20Azure)
  * Major differentiator is that once hydrated (first 2 scripts), deploy takes ~5 minutes. Cleanup is ~10s.
  * Options for setting up a Windows Server 2016-based lab are simpler than with some of the other available lab automation systems as the project is based on well-crafted Powershell scripts and, rather than XML or DSC configuration files.
  * Scripts are not intentionally doing everything. You can spend nice time studying scenarios.

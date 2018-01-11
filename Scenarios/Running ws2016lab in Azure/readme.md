@@ -2,8 +2,8 @@
 
 - [Overview](#overview)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
-- [Create VM with JSON in UI](#create-vm-with-json-in-ui)
-- [Create VM with JSON and PowerShell](#create-vm-with-json-and-powershell)
+- [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
+- [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
@@ -49,7 +49,7 @@ New-AzureRmVm `
 mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 
 ````
-# Create VM with JSON in UI
+# Creating VM with JSON in UI
 
 Or you can just click button and deploy it into your portal
 
@@ -58,7 +58,7 @@ Or you can just click button and deploy it into your portal
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate.png)
 
-# Create VM with JSON and PowerShell
+# Creating VM with JSON and PowerShell
 
 Or you can create your VM using PowerShell
 
