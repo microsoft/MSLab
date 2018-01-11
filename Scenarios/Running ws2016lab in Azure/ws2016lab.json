@@ -2,69 +2,147 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-      "location": {
-          "type": "string"
-      },
-      "virtualMachineName": {
-          "type": "string"
-      },
-      "virtualMachineSize": {
-          "type": "string"
-      },
-      "adminUsername": {
-          "type": "string"
-      },
-      "virtualNetworkName": {
-          "type": "string"
-      },
-      "networkInterfaceName": {
-          "type": "string"
-      },
-      "networkSecurityGroupName": {
-          "type": "string"
-      },
-      "adminPassword": {
-          "type": "securestring"
-      },
-      "diagnosticsStorageAccountName": {
-          "type": "string"
-      },
-      "diagnosticsStorageAccountId": {
-          "type": "string"
-      },
-      "diagnosticsStorageAccountType": {
-          "type": "string"
-      },
-      "addressPrefix": {
-          "type": "string"
-      },
-      "subnetName": {
-          "type": "string"
-      },
-      "subnetPrefix": {
-          "type": "string"
-      },
-      "publicIpAddressName": {
-          "type": "string"
-      },
-      "publicIpAddressType": {
-          "type": "string"
-      },
-      "publicIpAddressSku": {
-          "type": "string"
-      },
-      "autoShutdownStatus": {
-          "type": "string"
-      },
-      "autoShutdownTime": {
-          "type": "string"
-      },
-      "autoShutdownTimeZone": {
-          "type": "string"
-      },
-      "autoShutdownNotificationStatus": {
-          "type": "string"
-      }
+    "location": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "allowedValues": [
+        "australiaeast",
+        "australiasoutheast",
+        "brazilsouth",
+        "canadacentral",
+        "canadaeast",
+        "centralindia",
+        "centralus",
+        "eastasia",
+        "eastus",
+        "eastus2",
+        "japaneast",
+        "japanwest",
+        "koreacentral",
+        "koreasouth",
+        "northcentralus",
+        "northeurope",
+        "southcentralus",
+        "southeastasia",
+        "southindia",
+        "uksouth",
+        "ukwest",
+        "westcentralus",
+        "westeurope",
+        "westindia",
+        "westus",
+        "westus2"
+      ]
+    },
+    "virtualMachineName": {
+      "type": "string",
+      "defaultValue": "ws2016lab"
+    },
+    "virtualMachineSize": {
+      "type": "string",
+      "defaultValue": "Standard_D16s_v3",
+      "allowedValues": [
+        "Standard_D2_v3",
+        "Standard_D4_v3",
+        "Standard_D8_v3",
+        "Standard_D16_v3",
+        "Standard_D32_v3",
+        "Standard_D64_v3",
+        "Standard_D2s_v3",
+        "Standard_D4s_v3",
+        "Standard_D8s_v3",
+        "Standard_D16s_v3",
+        "Standard_D32s_v3",
+        "Standard_D64s_v3",
+        "Standard_E2_v3",
+        "Standard_E4_v3",
+        "Standard_E8_v3",
+        "Standard_E16_v3",
+        "Standard_E32_v3",
+        "Standard_E64_v3",
+        "Standard_E2s_v3",
+        "Standard_E4s_v3",
+        "Standard_E8s_v3",
+        "Standard_E16s_v3",
+        "Standard_E32-8s_v3",
+        "Standard_E32-16s_v3",
+        "Standard_E32s_v3",
+        "Standard_E64-16s_v3",
+        "Standard_E64-32s_v3",
+        "Standard_E64s_v3"
+      ]
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "LabAdmin"
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "ws2016labRG-vnet"
+    },
+    "networkInterfaceName": {
+      "type": "string",
+      "defaultValue": "ws2016labNIC1"
+    },
+    "networkSecurityGroupName": {
+      "type": "string",
+      "defaultValue": "ws2016labNIC1"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "diagnosticsStorageAccountName": {
+      "type": "string",
+      "defaultValue": "ws2016labdiagstor"
+    },
+    "diagnosticsStorageAccountId": {
+      "type": "string",
+      "defaultValue": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
+    },
+    "diagnosticsStorageAccountType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS"
+    },
+    "addressPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24"
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "default"
+    },
+    "subnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24"
+    },
+    "publicIpAddressName": {
+      "type": "string",
+      "defaultValue": "ws2016lab-ip"
+    },
+    "publicIpAddressType": {
+      "type": "string",
+      "defaultValue": "Dynamic"
+    },
+    "publicIpAddressSku": {
+      "type": "string",
+      "defaultValue": "Basic"
+    },
+    "autoShutdownStatus": {
+      "type": "string",
+      "defaultValue": "Enabled"
+    },
+    "autoShutdownTime": {
+      "type": "string",
+      "defaultValue": "19:00"
+    },
+    "autoShutdownTimeZone": {
+      "type": "string",
+      "defaultValue": "UTC"
+    },
+    "autoShutdownNotificationStatus": {
+      "type": "string",
+      "defaultValue": "Disabled"
+    }
   },
   "variables": {
       "vnetId": "[resourceId('ws2016labRG','Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
