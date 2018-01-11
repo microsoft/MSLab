@@ -50,15 +50,10 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 ````
 # Create VM with JSON in UI
 
-**Note:** just provide parameters from [here](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.parameters.json)
-
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json)
 
-![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate1.png)
-
-**After you paste content of parameters [JSON](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.parameters.json)**
-![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate2.png)
+![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate.png)
 
 # Cleanup the VM and resources
 ````PowerShell
