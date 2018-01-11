@@ -26,6 +26,7 @@
  * Options for setting up a Windows Server 2016-based lab are simpler than with some of the other available lab automation systems as the project is based on well-crafted Powershell scripts and, rather than XML or DSC configuration files.
  * Scripts are not intentionally doing everything. You can spend nice time studying scenarios.
  * This solution is used in Microsoft Premier Workshop for Software Defined Storage, Hyper-V and System Center VMM. If you have Premier Contract, contact your TAM and our trainers can deliver this workshop for you.
+ * Follow [#ws2016lab](https://twitter.com/search?f=tweets&vertical=default&q=%23ws2016lab) hash tag to get latest news.
 
  * Check [this](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
 
