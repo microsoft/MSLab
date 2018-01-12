@@ -3,16 +3,22 @@ Configuration Config {
     {
         WindowsFeature HyperV
         {
-            Name = "Hyper-V"
+            Name = "Microsoft-Hyper-V"
             Ensure = "Present"
-            IncludeAllSubFeature =  $true
+        }
+
+        WindowsFeature HyperVRSAT
+        {
+            Name = "RSAT-Hyper-V-Tools"
+            Ensure = "Present"
+            DependsOn = "[WindowsFeature]HyperV"
         }
         Script CreateFolder
         {
             SetScript = {New-Item -Type Directory -Name ws2016lab -Path d:}
             TestScript = {Test-Path -Path d:\ws2016lab}
             GetScript = {   @{Ensure = if (Test-Path -Path d:\ws2016lab) {'Present'} else {'Absent'}}   }
-            DependsOn = "[WindowsFeature]HyperV"
+            DependsOn = "[WindowsFeature]HyperVRSAT"
         }
         Script DownloadScripts
         {
@@ -27,7 +33,6 @@ Configuration Config {
             GetScript = {   @{Ensure = if (!("1_Prereq.ps1","2_CreateParentDisks.ps1","3_Deploy.ps1","Cleanup.ps1","LabConfig.ps1" | ForEach-Object {Test-Path -Path d:\ws2016lab\$_}).contains($false)) {'Present'} else {'Absent'}} }
             DependsOn = "[Script]DownloadScripts"
         }
-        
         LocalConfigurationManager 
         {
             RebootNodeIfNeeded = $true
