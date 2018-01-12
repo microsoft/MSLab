@@ -3,8 +3,14 @@
 - [Overview](#overview)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
+    - [Windows Server 2016](#windows-server-2016)
+    - [Windows 10 1709](#windows-10-1709)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
+    - [Windows Server 2016](#windows-server-2016-1)
+    - [Windows 10 1709](#windows-10-1709-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
+    - [Windows Server 2016](#windows-server-2016-2)
+    - [Windows 10 1709](#windows-10-1709-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
@@ -18,6 +24,8 @@ I was always wondering how fast will be Azure VM to host ws2016lab since we [ann
 You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too. It will configure Hyper-V roles and download and extract scripts to d:\ drive.
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json) as you can learn how to configure VMs in Azure.
+
+I also added Windows 10 1709 machine, as nested 1709 and insider builds does not work well on Windows Server 2016
 
 # Creating VM with PowerShell
 
@@ -57,9 +65,14 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 
 Or you can just click button and deploy it into your portal
 
-
+## Windows Server 2016
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json)
+
+
+## Windows 10 1709
+[![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016labwin10.json)
+[![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016labwin10.json)
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CustomizedTemplate.png)
 
@@ -67,6 +80,7 @@ Or you can just click button and deploy it into your portal
 
 Or you can create your VM using PowerShell
 
+## Windows Server 2016
 ````PowerShell
 #Deploy VM to Azure using Template
     New-AzureRmResourceGroup -Name "ws2016labRG" -Location "West Europe"
@@ -77,12 +91,24 @@ Or you can create your VM using PowerShell
  
 ````
 
+## Windows 10 1709
+````PowerShell
+#Deploy VM to Azure using Template
+    New-AzureRmResourceGroup -Name "ws2016labwin10RG" -Location "West Europe"
+    $TemplateUri="https://raw.githubusercontent.com/Microsoft/ws2016lab/master/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016labwin10.json"
+    New-AzureRmResourceGroupDeployment -Name ws2016labwin10 -ResourceGroupName ws2016labwin10RG -TemplateUri $TemplateUri -Verbose
+#connect to VM using RDP
+    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labwin10RG).IpAddress)
+ 
+````
+
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/TemplatePowerShellDeployment.png)
 
 # Cleanup the VM and resources
 
 To cleanup your resources, you can run following command.
 
+## Windows Server 2016
 ````PowerShell
 Get-AzurermVM -Name ws2016lab -ResourceGroupName ws2016labRG | Remove-AzureRmVM -verbose #-Force
 Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -verbose #-Force 
@@ -90,8 +116,17 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq ws2016labRG | Remove-Azur
  
 ````
 
+## Windows 10 1709
+````PowerShell
+Get-AzurermVM -Name ws2016labwin10 -ResourceGroupName ws2016labwin10RG | Remove-AzureRmVM -verbose #-Force
+Get-AzureRmResource | where name -like ws2016labwin10* | Remove-AzureRmResource -verbose #-Force 
+Get-AzureRmResourceGroup | where resourcegroupname -eq ws2016labwin10RG | Remove-AzureRmResourceGroup -Verbose #-Force
+ 
+````
 # Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
+
+**Note:** this applies to Windows Server 2016 only. Win10 machine with GUI is not available in this size.
 
 ![](/Scenarios/Running%20ws2016lab%20in%20Azure/Screenshots/CreateVM01.png)
 
