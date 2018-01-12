@@ -333,6 +333,27 @@
           }
       },
       {
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "name": "ws2016labwin10/EnablingWinRM",
+        "apiVersion": "2015-06-15",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "EnablingWinRM for Windows VM"
+        },
+        "dependsOn": [
+            "Microsoft.Compute/virtualMachines/ws2016labwin10"
+        ],
+        "properties": {
+            "publisher": "Microsoft.Compute",
+            "type": "CustomScriptExtension",
+            "typeHandlerVersion": "1.4",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+                "commandToExecute": "winrm quickconfig -force"
+            }
+        }
+      },
+      {
           "type": "Microsoft.Compute/virtualMachines/extensions",
           "name": "ws2016labwin10/config",
           "apiVersion": "2015-06-15",
@@ -341,7 +362,7 @@
               "displayName": "ws2016labwin10/config"
           },
           "dependsOn": [
-              "Microsoft.Compute/virtualMachines/ws2016labwin10"
+              "Microsoft.Compute/virtualMachines/extensions/ws2016labwin10/EnablingWinRM"
           ],
           "properties": {
               "publisher": "Microsoft.Powershell",
