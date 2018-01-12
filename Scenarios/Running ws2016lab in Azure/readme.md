@@ -15,13 +15,15 @@
 
 I was always wondering how fast will be Azure VM to host ws2016lab since we [announced](https://azure.microsoft.com/en-us/blog/nested-virtualization-in-azure/) availability of nested virtualization in Azure. Thanks to @DaveKawula tweet I decided to give it a try as i have MSDN subscription with ~130eur credit/month
 
-You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too.
+You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too. It will configure Hyper-V roles and download and extract scripts to d:\ drive.
 
-**Note:** its just a VM without any roles or files. You need to login, enable Hyper-V role and hydrate basic lab. In future I'll add script to enable Hyper-V into JSON + maybe I'll add the lab on blob storage and let it download (as soon as I'll learn it :)
+**Note:** I recommend reverse engineering [JSON](Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json) as you can learn how to configure VMs in Azure.
 
 # Creating VM with PowerShell
 
 To create VM with PowerShell, run following command.
+
+**Note:** PowerShell DSC in this case does not run, therefore you need to install Hyper-V and download scripts manually.
 
 ````PowerShell
 #download Azure module if not installed
@@ -54,6 +56,7 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
 # Creating VM with JSON in UI
 
 Or you can just click button and deploy it into your portal
+
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016lab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json)
