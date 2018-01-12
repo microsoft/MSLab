@@ -362,7 +362,7 @@
                 "displayName": "ws2016labwin10/config"
             },
             "dependsOn": [
-                "Microsoft.Compute/virtualMachines/extensions/EnablingWinRM"
+                "Microsoft.Compute/virtualMachines/ws2016labwin10"
             ],
             "properties": {
                 "publisher": "Microsoft.Powershell",
