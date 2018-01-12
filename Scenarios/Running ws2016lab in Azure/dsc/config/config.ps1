@@ -1,24 +1,24 @@
 Configuration Config {
     Node localhost
     {
-        WindowsOptionalFeature HyperV
+        WindowsFeature HyperV
         {
-            Name = "Microsoft-Hyper-V"
+            Name = "Hyper-V"
             Ensure = "Present"
         }
 
-        WindowsOptionalFeature HyperVRSAT
+        WindowsFeature HyperVRSAT
         {
             Name = "RSAT-Hyper-V-Tools"
             Ensure = "Present"
-            DependsOn = "[WindowsOptionalFeature]HyperV"
+            DependsOn = "[WindowsFeature]HyperV"
         }
         Script CreateFolder
         {
             SetScript = {New-Item -Type Directory -Name ws2016lab -Path d:}
             TestScript = {Test-Path -Path d:\ws2016lab}
             GetScript = {   @{Ensure = if (Test-Path -Path d:\ws2016lab) {'Present'} else {'Absent'}}   }
-            DependsOn = "[WindowsOptionalFeature]HyperVRSAT"
+            DependsOn = "[WindowsFeature]HyperVRSAT"
         }
         Script DownloadScripts
         {
