@@ -9,7 +9,7 @@ Configuration Config {
     {
         WindowsOptionalFeature HyperV
         {
-            Name = Microsoft-Hyper-V-All
+            Name = Hyper-V
             Ensure = "Enable"
         }
 
