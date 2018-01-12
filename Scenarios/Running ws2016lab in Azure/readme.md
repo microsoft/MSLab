@@ -17,7 +17,7 @@ I was always wondering how fast will be Azure VM to host ws2016lab since we [ann
 
 You can find here several options on how to create a VM in Azure that is capable to run ws2016lab. I learned something new, I hope you will too. It will configure Hyper-V roles and download and extract scripts to d:\ drive.
 
-**Note:** I recommend reverse engineering [JSON](Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json) as you can learn how to configure VMs in Azure.
+**Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json) as you can learn how to configure VMs in Azure.
 
 # Creating VM with PowerShell
 
