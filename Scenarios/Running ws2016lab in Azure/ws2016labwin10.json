@@ -334,11 +334,11 @@
         },
         {
             "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "ws2016labwin10/EnablingWinRM",
+            "name": "ws2016labwin10/ScriptForWinRM",
             "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
             "tags": {
-                "displayName": "EnablingWinRM for Windows VM"
+                "displayName": "ScriptForWinRM"
             },
             "dependsOn": [
                 "Microsoft.Compute/virtualMachines/ws2016labwin10"
@@ -362,7 +362,7 @@
                 "displayName": "ws2016labwin10/config"
             },
             "dependsOn": [
-                "Microsoft.Compute/virtualMachines/ws2016labwin10"
+                "Microsoft.Compute/virtualMachines/ws2016labwin10/extensions/ScriptForWinRM"
             ],
             "properties": {
                 "publisher": "Microsoft.Powershell",
