@@ -25,6 +25,7 @@ Configuration Config {
             SetScript = {Invoke-WebRequest -UseBasicParsing -Uri https://github.com/Microsoft/ws2016lab/blob/master/scripts.zip?raw=true -OutFile d:\scripts.zip}
             TestScript = {Test-Path -Path d:\scripts.zip}
             GetScript = { @{Ensure = if (Test-Path -Path d:\scripts.zip) {'Present'} else {'Absent'}} }
+            DependsOn = "[Script]CreateFolder"
         }
         Script UnzipScripts
         {
