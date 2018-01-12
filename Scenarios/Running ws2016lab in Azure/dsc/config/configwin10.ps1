@@ -9,8 +9,8 @@ Configuration Config {
     {
         WindowsOptionalFeature HyperV
         {
-            Name = "Microsoft-Hyper-V-All"
-            Ensure = "Present"
+            Name = Microsoft-Hyper-V-All
+            Ensure = "Enable"
         }
 
         Script CreateFolder
