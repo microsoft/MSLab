@@ -1,5 +1,11 @@
 Configuration Config {
-    Node localhost
+    param 
+    ( 
+        [Parameter(Mandatory)] 
+        [string]$NodeName
+    )
+    
+    Node $NodeName
     {
         WindowsFeature HyperV
         {
