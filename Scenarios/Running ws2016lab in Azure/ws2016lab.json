@@ -351,7 +351,7 @@
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/config.zip')]",
                   "sasToken": "[parameters('_artifactsLocationSasToken')]",
-                  "configurationFunction": "CONFIGURATION_FUNCTION",
+                  "configurationFunction": "config.ps1\\Config",
                   "properties": {
                       "nodeName": "ws2016lab"
                   }
