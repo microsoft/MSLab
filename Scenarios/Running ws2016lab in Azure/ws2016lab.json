@@ -142,6 +142,20 @@
     "autoShutdownNotificationStatus": {
       "type": "string",
       "defaultValue": "Disabled"
+    },
+    "_artifactsLocation": {
+        "type": "string",
+        "metadata": {
+            "description": "Location of resources that the script is dependent on such as linked templates and DSC modules"
+        },
+        "defaultValue": "https://raw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure"
+    },
+    "_artifactsLocationSasToken": {
+        "type": "securestring",
+        "metadata": {
+            "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+        },
+        "defaultValue": ""
     }
   },
   "variables": {
@@ -316,6 +330,33 @@
                       }
                   }
               ]
+          }
+      },
+      {
+          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "name": "ws2016lab/config",
+          "apiVersion": "2015-06-15",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "ws2016lab/config"
+          },
+          "dependsOn": [
+              "Microsoft.Compute/virtualMachines/ws2016lab"
+          ],
+          "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.9",
+              "autoUpgradeMinorVersion": true,
+              "settings": {
+                  "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/${config.zip}')]",
+                  "sasToken": "[parameters('_artifactsLocationSasToken')]",
+                  "configurationFunction": "CONFIGURATION_FUNCTION",
+                  "properties": {
+                      "nodeName": "ws2016lab"
+                  }
+              },
+              "protectedSettings": {}
           }
       }
   ],
