@@ -350,7 +350,7 @@
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "fileUris": [
-                        "[concat(parameters('_artifactsLocation'), '/Scripts/PSRemoting.ps1', parameters('_artifactsLocationSasToken'))]"
+                        "[concat(parameters('_artifactsLocation'), '/scripts/PSRemoting.ps1', parameters('_artifactsLocationSasToken'))]"
                     ],
                     "commandToExecute": "powershell -ExecutionPolicy Bypass -file PSRemoting.ps1"
                 }
