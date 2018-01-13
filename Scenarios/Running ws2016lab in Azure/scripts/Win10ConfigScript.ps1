@@ -6,5 +6,9 @@ Expand-Archive d:\scripts.zip -DestinationPath d:\ws2016lab -Force
 #enable Hyper-V
 Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-All -Online
 
+#disable WCF in start menu
+New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\CloudContent" -ErrorAction SilentlyContinue
+Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\CloudContent" -Name DisableWindowsConsumerFeatures -value 1 
+
 #restart computer
-Restart-Computer
+#Restart-Computer
