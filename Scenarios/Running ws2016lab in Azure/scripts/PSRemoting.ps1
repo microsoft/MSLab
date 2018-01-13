@@ -1,1 +1,1 @@
-Enable-PSRemoting -Force
+winrm quickconfig -force
