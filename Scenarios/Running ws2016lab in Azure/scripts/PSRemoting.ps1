@@ -1,1 +1,1 @@
-Enable-PSRemoting -Confirm:0
+Enable-PSRemoting -Force
