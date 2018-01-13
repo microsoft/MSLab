@@ -11,4 +11,4 @@ New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\CloudContent" -Force
 Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\CloudContent" -Name DisableWindowsConsumerFeatures -value 1 
 
 #restart computer
-#Restart-Computer
+Restart-Computer
