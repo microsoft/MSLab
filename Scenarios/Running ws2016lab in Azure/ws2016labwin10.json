@@ -334,11 +334,11 @@
         },
         {
             "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "ws2016labwin10/ScriptForWinRM",
+            "name": "ws2016labwin10/Win10ConfigScript",
             "apiVersion": "2015-06-15",
             "location": "[resourceGroup().location]",
             "tags": {
-                "displayName": "ScriptForWinRM"
+                "displayName": "Win10ConfigScript"
             },
             "dependsOn": [
                 "Microsoft.Compute/virtualMachines/ws2016labwin10"
@@ -350,37 +350,10 @@
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "fileUris": [
-                        "[concat(parameters('_artifactsLocation'), '/scripts/PSRemoting.ps1', parameters('_artifactsLocationSasToken'))]"
+                        "[concat(parameters('_artifactsLocation'), '/scripts/Win10ConfigScript.ps1', parameters('_artifactsLocationSasToken'))]"
                     ],
-                    "commandToExecute": "powershell -ExecutionPolicy Bypass -file PSRemoting.ps1"
+                    "commandToExecute": "powershell -ExecutionPolicy Bypass -file Win10ConfigScript.ps1"
                 }
-            }
-        },
-        {
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "ws2016labwin10/config",
-            "apiVersion": "2015-06-15",
-            "location": "[resourceGroup().location]",
-            "tags": {
-                "displayName": "ws2016labwin10/config"
-            },
-            "dependsOn": [
-                "Microsoft.Compute/virtualMachines/ws2016labwin10/extensions/ScriptForWinRM"
-            ],
-            "properties": {
-                "publisher": "Microsoft.Powershell",
-                "type": "DSC",
-                "typeHandlerVersion": "2.9",
-                "autoUpgradeMinorVersion": true,
-                "settings": {
-                    "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/configwin10.zip')]",
-                    "sasToken": "[parameters('_artifactsLocationSasToken')]",
-                    "configurationFunction": "configwin10.ps1\\Config",
-                    "properties": {
-                        "nodeName": "ws2016labwin10"
-                    }
-                },
-                "protectedSettings": {}
             }
         }
     ],
