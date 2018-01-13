@@ -25,7 +25,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 1709 machine, as nested 1709 and insider builds does not work well on Windows Server 2016
+I also added Windows 10 1709 machine, as nested 1709 and insider builds does not work well on Windows Server 2016. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
