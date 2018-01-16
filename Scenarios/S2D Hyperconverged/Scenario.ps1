@@ -120,9 +120,12 @@ Write-host "Script started at $StartDateTime"
             }
         }
 
-    #Configure MinVmVersionForCpuBasedMitigations
+    #Configure MinVmVersionForCpuBasedMitigations (only needed if you are running VM versions prior 8.0)
         if ($ConfigurePCIDMinVersion){
             Invoke-Command -ComputerName $servers -ScriptBlock {
+                if (-not (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization")){
+                    New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name Virtualization -Force
+                }
                 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
             }
         }
