@@ -9,7 +9,7 @@ You can create Win10 VHD with script provided in tools folder (please download l
 
 ## Notes
 * in version 17074 is performance history missing (internal performance volume is not created). It is expected. It will be added back in next few releases.
-* hydration from scratch using insider ISO will fail (because of invalid DHCP module)
+* hydration from scratch using insider ISO will fail (because of DHCP service does not start automatically during configuration using DSC)
 
 ## LabConfig
 
