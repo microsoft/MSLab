@@ -1,4 +1,4 @@
-# Server Insider lab 17046
+# Server Insider lab 17074
 
 ## Howto
 To create Insider lab, hydrate regular 2016 lab (to have dc), [download](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver) insider VHD and add it to parent disks. Following labconfig will hydrate 4 s2d nodes with VHD from insider and also machine, where you will paste script (as you need to have RS4 RSAT that was not provided this time).
@@ -8,15 +8,15 @@ You can create Win10 VHD with script provided in tools folder (please download l
 [YouTube Video](https://youtu.be/Rj_uhDN0tN4) on how to setup Windows Server Insider preview lab.
 
 ## Notes
-* in version 17046 is performance history missing (internal performance volume is not created). It is expected. It will be added back in next few releases.
-* hydration from scratch using insider ISO might fail (i did not test the latest insider, but 17035 did not work because of invalid DHCP module)
+* in version 17074 is performance history missing (internal performance volume is not created). It is expected. It will be added back in next few releases.
+* hydration from scratch using insider ISO will fail (because of invalid DHCP module)
 
 ## LabConfig
 
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Windows_InsiderPreview_Server_VHDX_17046.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }}
-$LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; ParentVHD = 'Windows_InsiderPreview_Server_VHDX_17046.vhdx'; MemoryStartupBytes= 1GB ;MemoryMinimumBytes=1GB }
+1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Windows_InsiderPreview_Server_VHDX_17074.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }}
+$LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; ParentVHD = 'Windows_InsiderPreview_Server_VHDX_17074.vhdx'; MemoryStartupBytes= 1GB ;MemoryMinimumBytes=1GB }
 $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ````

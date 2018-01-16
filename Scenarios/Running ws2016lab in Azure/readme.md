@@ -71,6 +71,9 @@ Or you can just click button and deploy it into your portal
 
 
 ## Windows 10 1709
+
+**Note:** for some reason deployment fails, but everything is configured OK. Bug created [here](https://social.msdn.microsoft.com/Forums/en-US/1d5061fa-5135-4ec1-a8dc-32d63f6d261d/dsc-adding-hyperv-role-failing-on-windows-10?forum=WAVirtualMachinesforWindows)
+
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2Fws2016lab%2Fdev%2FScenarios%2FRunning%2520ws2016lab%2520in%2520Azure%2Fws2016labwin10.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016labwin10.json)
 
