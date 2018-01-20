@@ -792,6 +792,13 @@ If (!( $isAdmin )) {
                     DependsOn = "[xADDomain]FirstDS"
                 }
 
+                Service DHCPServer #since insider 17035 dhcpserver was not starting for some reason
+                {
+                    Name = "DHCPServer"
+                    State = "Running"
+                    DependsOn =  "[WindowsFeature]DHCPServer"
+                }
+
                 WindowsFeature DHCPServerManagement
                 {
                     Ensure = "Present"
@@ -809,7 +816,7 @@ If (!( $isAdmin )) {
                     LeaseDuration = '00:08:00'
                     State = 'Active'
                     AddressFamily = 'IPv4'
-                    DependsOn = "[WindowsFeature]DHCPServerManagement"
+                    DependsOn = "[Service]DHCPServer"
                 }
 
                 xDhcpServerOption Option
@@ -820,7 +827,7 @@ If (!( $isAdmin )) {
                     DnsServerIPAddress = '10.0.0.1'
                     AddressFamily = 'IPv4'
                     Router = '10.0.0.1'
-                    DependsOn = "[xDHCPServerScope]ManagementScope"
+                    DependsOn = "[Service]DHCPServer"
                 }
                 
                 xDhcpServerAuthorization LocalServerActivation
