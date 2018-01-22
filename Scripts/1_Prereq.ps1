@@ -75,7 +75,7 @@ function  Get-WindowsBuildNumber {
     }
 
 # Checking Folder Structure
-    "Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup","Tools\ToolsVHD\VMFleet" | ForEach-Object {
+    "ParentDisks","Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup","Tools\ToolsVHD\VMFleet" | ForEach-Object {
         if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 
     "Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL2016_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
