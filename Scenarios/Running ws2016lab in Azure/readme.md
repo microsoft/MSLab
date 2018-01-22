@@ -85,10 +85,19 @@ Or you can create your VM using PowerShell
 
 ## Windows Server 2016
 ````PowerShell
+#download Azure module if not installed
+if (!(get-module -Name AzureRM*)){
+    Install-Module -Name AzureRM
+}
+
+#login to your azure account
+Login-AzureRmAccount
+
 #Deploy VM to Azure using Template
     New-AzureRmResourceGroup -Name "ws2016labRG" -Location "West Europe"
     $TemplateUri="https://raw.githubusercontent.com/Microsoft/ws2016lab/master/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016lab.json"
     New-AzureRmResourceGroupDeployment -Name ws2016lab -ResourceGroupName ws2016labRG -TemplateUri $TemplateUri -Verbose
+
 #connect to VM using RDP
     mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName ws2016labRG).IpAddress)
  
@@ -96,6 +105,14 @@ Or you can create your VM using PowerShell
 
 ## Windows 10 1709
 ````PowerShell
+#download Azure module if not installed
+if (!(get-module -Name AzureRM*)){
+    Install-Module -Name AzureRM
+}
+
+#login to your azure account
+Login-AzureRmAccount
+
 #Deploy VM to Azure using Template
     New-AzureRmResourceGroup -Name "ws2016labwin10RG" -Location "West Europe"
     $TemplateUri="https://raw.githubusercontent.com/Microsoft/ws2016lab/master/Scenarios/Running%20ws2016lab%20in%20Azure/ws2016labwin10.json"
