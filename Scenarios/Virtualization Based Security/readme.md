@@ -69,12 +69,14 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
         }
 
     <#Alternatively you can use built in policies that are available in 1709
-        $PolicyPath="C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml"
-        Copy-Item -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml -Destination .\MyCustomPolicy.xml
-        Set-RuleOption -FilePath .\MyCustomPolicy.xml -Option 3 -Delete
-        ConvertFrom-CIPolicy .\MyCustomPolicy.xml .\MyCustomPolicy.bin
-        Copy-Item .\MyCustomPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
-        ".\MyCustomPolicy.xml",".\MyCustomPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $PolicyPath="C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml"
+            Copy-Item -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml -Destination .\MyCustomPolicy.xml
+            Set-RuleOption -FilePath .\MyCustomPolicy.xml -Option 3 -Delete
+            ConvertFrom-CIPolicy .\MyCustomPolicy.xml .\MyCustomPolicy.bin
+            Copy-Item .\MyCustomPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
+            ".\MyCustomPolicy.xml",".\MyCustomPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
+        }
     #>
         #copy CI to other servers 
             $sessions=New-PSSession ($Servers | Select-Object -SkipLast 1)
