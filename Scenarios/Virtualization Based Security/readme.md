@@ -62,30 +62,18 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
         $session=New-PSSession -ComputerName ($servers | Select-Object -last 1)
         Invoke-Command -Session $session -ScriptBlock {
             $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-            If ($WindowsInstallationType -eq "Server"){
-                New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml 
-            }elseif($WindowsInstallationType -eq "Server Core"{
-                New-CIPolicy -Level FilePublisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml 
-            }elseif($WindowsInstallationType -eq "Client"){
+            If (($WindowsInstallationType -eq "Server")-or($WindowsInstallationType -eq "Client")){
+                #usually more applications are present on GUI servers (as it serves as application server, therefore -Level Publisher)
                 New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml
+            }elseif($WindowsInstallationType -eq "Server Core"{
+                New-CIPolicy -Level FilePublisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml
             }
-
             Set-RuleOption -FilePath .\CIPolicy.xml -Option 3 -Delete 
             ConvertFrom-CIPolicy .\CIPolicy.xml .\CIPolicy.bin
             Copy-Item .\CIPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
             ".\CIPolicy.xml",".\CIPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
         }
 
-    <#Alternatively you can use built in policies that are available in 1709
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            $PolicyPath="C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml"
-            Copy-Item -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml -Destination .\MyCustomPolicy.xml
-            Set-RuleOption -FilePath .\MyCustomPolicy.xml -Option 3 -Delete
-            ConvertFrom-CIPolicy .\MyCustomPolicy.xml .\MyCustomPolicy.bin
-            Copy-Item .\MyCustomPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
-            ".\MyCustomPolicy.xml",".\MyCustomPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
-        }
-    #>
         #copy CI to other servers 
             $sessions=New-PSSession ($Servers | Select-Object -SkipLast 1)
             Copy-Item -FromSession $session -Path C:\Windows\System32\CodeIntegrity\SiPolicy.p7b -Destination .\
@@ -96,6 +84,18 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
 
         #close sessions
             $session,$session | Remove-PSSession
+    
+    #Alternatively you can use built in policies that are available in 1709
+        <#
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $PolicyPath="C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml"
+            Copy-Item -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml -Destination .\MyCustomPolicy.xml
+            Set-RuleOption -FilePath .\MyCustomPolicy.xml -Option 3 -Delete
+            ConvertFrom-CIPolicy .\MyCustomPolicy.xml .\MyCustomPolicy.bin
+            Copy-Item .\MyCustomPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
+            ".\MyCustomPolicy.xml",".\MyCustomPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
+        }
+        #>
     
     #reboot
         Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
