@@ -61,7 +61,15 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
     #Configure UMCI policy (User Mode Code Integrity)
         $session=New-PSSession -ComputerName ($servers | Select-Object -last 1)
         Invoke-Command -Session $session -ScriptBlock {
-            New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml 
+            $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+            If ($WindowsInstallationType -eq "Server"){
+                New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml 
+            }elseif($WindowsInstallationType -eq "Server Core"{
+                New-CIPolicy -Level FilePublisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml 
+            }elseif($WindowsInstallationType -eq "Client"){
+                New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml
+            }
+
             Set-RuleOption -FilePath .\CIPolicy.xml -Option 3 -Delete 
             ConvertFrom-CIPolicy .\CIPolicy.xml .\CIPolicy.bin
             Copy-Item .\CIPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
