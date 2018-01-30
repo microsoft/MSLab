@@ -83,7 +83,7 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
             Remove-Item .\SiPolicy.p7b
 
         #close sessions
-            $session,$session | Remove-PSSession
+            $session,$sessions | Remove-PSSession
     
     #Alternatively you can use built in policies that are available in 1709
         <#
