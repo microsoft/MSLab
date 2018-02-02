@@ -24,7 +24,7 @@
 * In this scenario will be 2 s2d clusters created
 * it is "complex" as it will create 4 volumes (2x Data and 2x Log volumes in each cluster), create VMs on each site and replicate VMs from first to second site and second to first.
 * Nanoservers are used as its just smaller and faster
-* Labscript takes ~32 minutes to finish.
+* Labscript takes 30-50 minutes to finish.
 
 ## Scenario requirements
 
@@ -88,8 +88,8 @@ Suspend-VM -Name *site1*
 #Variables
     $Cluster1Name="Site1-SR-Clus"
     $Cluster2Name="Site2-SR-Clus"
-    $SourceRGName="S1-to-S2_RG02"
-    $DestinationRGName="S1-to-S2_RG01"
+    $SourceRGName="Data1-Site2"
+    $DestinationRGName="Data1-Site1"
 
 #Flip replication
     Set-SRPartnership -NewSourceComputerName $Cluster2Name -SourceRGName $SourceRGName -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName -confirm:$false
@@ -148,8 +148,8 @@ All changes in primary datacenter will be discarted
 #Variables
     $Cluster1Name="Site1-SR-Clus"
     $Cluster2Name="Site2-SR-Clus"
-    $SourceRGName="S1-to-S2_RG02"
-    $DestinationRGName="S1-to-S2_RG01"
+    $SourceRGName="Data1-Site2"
+    $DestinationRGName="Data1-Site1"
 
 #Flip replication
     Set-SRPartnership -NewSourceComputerName $Cluster2Name -SourceRGName $SourceRGName -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName -confirm:$false
@@ -170,8 +170,8 @@ Since VMs lost its storage, all actions will timeout.
 #Variables
     $Cluster1Name="Site1-SR-Clus"
     $Cluster2Name="Site2-SR-Clus"
-    $SourceRGName="S1-to-S2_RG01"
-    $DestinationRGName="S1-to-S2_RG02"
+    $SourceRGName="Data1-Site1"
+    $DestinationRGName="Data1-Site2"
 
 #cleanup VMs
     #Shut down VMs on Data1 volume
@@ -188,7 +188,7 @@ Since VMs lost its storage, all actions will timeout.
             param($VM);
             Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
             Get-VM -Id $VM.id | Remove-VM -force
-            Copy-Item -Path "$($VM.Path)\Virtual Machines Bak" -Destination "$($VM.Path)\Virtual Machines" -recurse
+            Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse
             Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
         }
     }
@@ -197,35 +197,54 @@ Since VMs lost its storage, all actions will timeout.
 
 ````
 
-Meanwhile all VMs disappeared, but cluster resources are still on Cluster1
-
-![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/failedresourcesafterfliptoDC1.png)
+Meanwhile VMs disappeared (or semi-disappered) but (some) cluster resources are still on Cluster1
 
 ````PowerShell
 $Cluster1Name="Site1-SR-Clus"
 
-#see that all VMs are gone
+#see that some VMs are gone
 Get-VM -Cimsession (Get-ClusterNode -Cluster $Cluster1Name).Name
 
 #see that there are some dead resources
 Get-ClusterGroup -Cluster $Cluster1Name | where state -eq failed
  
 ````
+![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/failedresourcesafterfliptoDC1.png)
 
 ## Set the things right 3 - cleanup failed resources and import machines
 
 ````PowerShell
 $Cluster1Name="Site1-SR-Clus"
-#remove failed resources
-Get-ClusterGroup -Cluster $Cluster1Name | where state -eq failed | Remove-ClusterGroup -RemoveResources -Force
-
 #Import all VMs on Site1
+    Invoke-Command -ComputerName (get-clusternode -cluster $Cluster1Name).Name[0] -ScriptBlock{
+        get-childitem C:\ClusterStorage\Data1 -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
+            Import-VM -Path $_.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+#perform proper cleanup of VMs located on Data1 volume
+    $VMs=Get-VM -Cimsession (Get-ClusterNode -Cluster $Cluster1Name).Name | where Path -like *Data1*
+    #Find VMs resources
+    foreach ($VM in $VMs){
+        Get-ClusterGroup -Cluster $Cluster1Name | where Name -eq $VM.Name | Remove-ClusterGroup -RemoveResources -Force
+    }
+    #Backup VMs config and remove VMs from Hyper-V hosts.
+    Foreach ($VM in $VMs){
+        invoke-command -computername $VM.ComputerName -ArgumentList $VM -scriptblock {
+            param($VM);
+            Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
+            $vms | Stop-VM -Force -ErrorAction SilentlyContinue #stop VM if its in paused critical state
+            Get-VM -Id $VM.id | Remove-VM -force
+            Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse -ErrorAction SilentlyContinue
+            Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
+        }
+    }
+#Import VMs again
     Invoke-Command -ComputerName (get-clusternode -cluster $Cluster1Name).Name[0] -ScriptBlock{
         get-childitem C:\ClusterStorage\Data1 -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
             Import-VM -Path $_.FullName
         }
     }
-
 #Add VMs as Highly available and Start
     $VMnames=(Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name | where path -like *Data1*).Name
     $VMNames | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $Cluster1Name}
@@ -233,4 +252,6 @@ Get-ClusterGroup -Cluster $Cluster1Name | where state -eq failed | Remove-Cluste
  
 ````
 
+**Result: All good again**
 
+![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/result-allgoodagain.png)
