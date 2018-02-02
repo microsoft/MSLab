@@ -28,12 +28,12 @@ Write-host "Script started at $StartDateTime"
         $Cluster2FirstNode=$Clusters[1].Servers[0]
 
     #Site1->Site2 Replication Group
-    $SourceRGName1="S1-to-S2_RG01"
-    $DestinationRGName1="S1-to-S2_RG02"
+    $SourceRGName1="Data1-Site1"
+    $DestinationRGName1="Data1-Site2"
 
     #Site2->Site1 Replication Group
-    $SourceRGName2="S2-to-S1_RG01"
-    $DestinationRGName2="S2-to-S1_RG02"
+    $SourceRGName2="Data2-Site2"
+    $DestinationRGName2="Data2_Site1"
 
     #Networks
         $StorNet="172.16.1."
@@ -492,43 +492,3 @@ if (!$NanoServer){
 #finishing
 Write-Host "Script finished at $(Get-date) and was running $(((get-date) - $StartDateTime))"
  
-#region play with SR (commented) 
-<# Simulate failure in site 1, need to modify with bit following script.
-
-#Flip replication
-Set-SRPartnership -NewSourceComputerName $Cluster2Name -SourceRGName $SourceRGName -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName -confirm:$false
-
-#Import all VMs on Site2
-Invoke-Command -ComputerName $Cluster2Servers[0] -ScriptBlock{
-    get-childitem C:\ClusterStorage -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
-        Import-VM -Path $_.FullName
-    }
-}
-
-#Add VMs as Highly available and Start
-$VMnames=(Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name).Name
-$VMNames | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $Cluster2Name}
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name | Start-VM
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name
-
-##Flip Replication back
-#turnOff VMs on destination with the same name on source as on destination
-Stop-VM -TurnOff -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name -Name (Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name).Name
-#Flip Replication
-Set-SRPartnership -NewSourceComputerName $Cluster1Name -SourceRGName $SourceRGName -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName -confirm:$false
-#Start VMs
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name | Start-VM
-#and again if it was in saved state and error occured
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name | Start-VM
-
-#And Again :)
-#turnOff VMs on destination with the same name on source as on destination
-Stop-VM -TurnOff -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name -Name (Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name).Name
-#Flip Replication
-Set-SRPartnership -NewSourceComputerName $Cluster2Name -SourceRGName $DestinationRGName -DestinationComputerName $Cluster1Name -DestinationRGName $SourceRGName -confirm:$false
-#Start VMs
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster2Name).Name | Start-VM
-#and again if it was in saved state and error occured
-Get-VM -CimSession (Get-ClusterNode -Cluster $Cluster1Name).Name | Start-VM 
-#>
-#endregion
