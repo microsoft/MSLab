@@ -54,7 +54,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 
 The lab begins with setting up two s2d clusters. It's not following all best practices (for all best practices see [S2D Hyperconverged Scenario page](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) )
 
-Continue with scenario.ps1 script while reading comments.
+Continue with [Scenarip.ps1](/Scenarios/StorageReplica/S2D_to_S2D_Complex/scenario.ps1) script while reading comments.
 
 **Cluster disks**
 
@@ -224,7 +224,7 @@ $Cluster1Name="Site1-SR-Clus"
 
 #perform proper cleanup of VMs located on Data1 volume
     $VMs=Get-VM -Cimsession (Get-ClusterNode -Cluster $Cluster1Name).Name | where Path -like *Data1*
-    #Find VMs resources
+    #Find VMs resources and remove
     foreach ($VM in $VMs){
         Get-ClusterGroup -Cluster $Cluster1Name | where Name -eq $VM.Name | Remove-ClusterGroup -RemoveResources -Force
     }
