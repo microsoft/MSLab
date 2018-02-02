@@ -10,7 +10,6 @@
     - [Flip replication and import VMs on second cluster](#flip-replication-and-import-vms-on-second-cluster)
 - [The Bad](#the-bad)
     - [Simulate some "nice" Admin who will plug cable back in first datacenter without any isolation](#simulate-some-nice-admin-who-will-plug-cable-back-in-first-datacenter-without-any-isolation)
-    - [Result: Active-Active DC](#result-active-active-dc)
     - [Possible mitigation - no autostart for VMs](#possible-mitigation---no-autostart-for-vms)
 - [The Ugly](#the-ugly)
     - [Set the things right 1 - set replication to rewrite first DC that failed](#set-the-things-right-1---set-replication-to-rewrite-first-dc-that-failed)
@@ -58,12 +57,15 @@ The lab begins with setting up two s2d clusters. It's not following all best pra
 Continue with scenario.ps1 script while reading comments.
 
 **Cluster disks**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/clusterdisks.png)
 
 **Cluster networks**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/clusternetworks.png)
 
 **Cluster resources**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/VMs.png)
 
 # The Good
@@ -77,6 +79,7 @@ Suspend-VM -Name *site1*
 ````
 
 **Result**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/pausedVMs.png)
 
 ## Flip replication and import VMs on second cluster
@@ -105,9 +108,11 @@ Suspend-VM -Name *site1*
  
 ````
 **Note:** the set-srpartnership will return warning as cluster1 is offline and cannot be notified about replication flip.
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/flipWarning.png)
 
 **Result**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/flipresultVMs.png)
 
 # The Bad
@@ -120,7 +125,8 @@ Resume-VM -VMName *site1*
  
 ````
 
-## Result: Active-Active DC
+**Result: Active-Active DC**
+
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/firstDConwithoutisolation.png)
 
 ## Possible mitigation - no autostart for VMs
