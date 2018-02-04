@@ -35,6 +35,10 @@ Write-host "Script started at $StartDateTime"
     $SourceRGName2="Data2-Site2"
     $DestinationRGName2="Data2_Site1"
 
+    #Replication mode
+    $ReplicationMode="Synchronous" #Synchronous or Asynchronous
+    $AsyncRPO=30  #Recovery point objective in seconds. Default is 5M, minimum is 30s
+
     #Networks
         $StorNet="172.16.1."
         $StorVLAN=1
@@ -437,7 +441,12 @@ if (!$NanoServer){
         Grant-SRAccess -ComputerName $Cluster2FirstNode -Cluster $Cluster1Name
 
     #set SR For Site1-Site2 replication
-    New-SRPartnership -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName1 -SourceVolumeName c:\ClusterStorage\Data1 -SourceLogVolumeName e: -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName1 -DestinationVolumeName c:\ClusterStorage\Data1 -DestinationLogVolumeName e:
+    If ($ReplicationMode -eq "Asynchronous"){
+        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName1 -SourceVolumeName c:\ClusterStorage\Data1 -SourceLogVolumeName e: -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName1 -DestinationVolumeName c:\ClusterStorage\Data1 -DestinationLogVolumeName e:
+    }else{
+        New-SRPartnership -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName1 -SourceVolumeName c:\ClusterStorage\Data1 -SourceLogVolumeName e: -DestinationComputerName $Cluster2Name -DestinationRGName $DestinationRGName1 -DestinationVolumeName c:\ClusterStorage\Data1 -DestinationLogVolumeName e:
+    }
+
     do{
         $r=(Get-SRGroup -CimSession $Cluster2Name -Name $DestinationRGName1).replicas
         [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
@@ -446,7 +455,12 @@ if (!$NanoServer){
     Write-Output "Replica Status: "$r.replicationstatus
 
     #set SR For Site2-Site1 replication
-    New-SRPartnership -SourceComputerName $Cluster2Name -SourceRGName $SourceRGName2 -SourceVolumeName c:\ClusterStorage\Data2 -SourceLogVolumeName g: -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName2 -DestinationVolumeName c:\ClusterStorage\Data2 -DestinationLogVolumeName g:
+    If ($ReplicationMode -eq "Asynchronous"){
+        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Cluster2Name -SourceRGName $SourceRGName2 -SourceVolumeName c:\ClusterStorage\Data2 -SourceLogVolumeName g: -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName2 -DestinationVolumeName c:\ClusterStorage\Data2 -DestinationLogVolumeName g:
+    }else{
+        New-SRPartnership -SourceComputerName $Cluster2Name -SourceRGName $SourceRGName2 -SourceVolumeName c:\ClusterStorage\Data2 -SourceLogVolumeName g: -DestinationComputerName $Cluster1Name -DestinationRGName $DestinationRGName2 -DestinationVolumeName c:\ClusterStorage\Data2 -DestinationLogVolumeName g:
+    }
+
     do{
         $r=(Get-SRGroup -CimSession $Cluster1Name -Name $DestinationRGName2).replicas
         [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
