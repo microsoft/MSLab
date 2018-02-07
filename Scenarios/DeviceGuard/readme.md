@@ -130,7 +130,7 @@ As you can see from above example, there are default policies Windows 1709
 
 ![](/Scenarios/DeviceGuard/Screenshots/DefaultPolicies.png)
 
-To check if policies are applied, you can again following PowerShell code. Notice CondeIntegrityEnvorcementStatus parameter.
+To check if policies are applied, you can again following PowerShell code. Notice CondeIntegrityEnvorcementStatus and UsermodeCodeIntegrityPolicyEnforcementStatus parameters.
 
 ````PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
