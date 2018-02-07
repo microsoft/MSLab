@@ -39,7 +39,7 @@ First step would be to configure VBS on 3 servers specified in variable $servers
 
 Registry keys used in following PowerShell match following settings in Group Policy.
 
-![](/Scenarios/Virtualization%20Based%20Security/Screenshots/VBS_GPO.png)
+![](/Scenarios/DeviceGuard/Screenshots/VBS_GPO.png)
 
 ````PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
@@ -124,7 +124,7 @@ Following example is just the simplest way to enable WDAC (also known as UMCI - 
 
 As you can see from above example, there are default policies Windows 1709
 
-![](/Scenarios/Virtualization%20Based%20Security/Screenshots/DefaultPolicies.png)
+![](/Scenarios/DeviceGuard/Screenshots/DefaultPolicies.png)
 
 To check if policies are applied, you can again following PowerShell code. Notice CondeIntegrityEnvorcementStatus parameter.
 
@@ -134,4 +134,4 @@ Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windo
  
 ````
 
-![](/Scenarios/Virtualization%20Based%20Security/Screenshots/DG_Status2.png)
+![](/Scenarios/DeviceGuard/Screenshots/DG_Status2.png)
