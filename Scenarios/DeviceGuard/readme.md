@@ -1,3 +1,13 @@
+<!-- TOC -->
+
+- [Scenario Introduction](#scenario-introduction)
+    - [LabConfig Windows Server 1709](#labconfig-windows-server-1709)
+    - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
+- [Configuring VBS](#configuring-vbs)
+- [Configuring Windows Defender Application Control](#configuring-windows-defender-application-control)
+
+<!-- /TOC -->
+
 # Scenario Introduction
 
 In this scenario will be Device Guard deployed to remote servers. It is just a demonstration on how to lockdown remote servers from Management machine. You don't have to spin Win10 machine (you can use DC), but since I want to demonstrate security best practices, all is done from there.
