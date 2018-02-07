@@ -73,6 +73,10 @@ $Servers=1..3 | Foreach-Object {"Server$_"}
 Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windows\DeviceGuard -CimSession $servers
  
 ````
+
+![](/Scenarios/DeviceGuard/Screenshots/DG_Status1.png)
+
+
 # Configuring Windows Defender Application Control
 
 Following example is just the simplest way to enable WDAC (also known as UMCI - User Mode Code Integrity). Best practice would be to generate policy, combine with best practices at https://docs.microsoft.com/en-us/windows/device-security/device-guard/steps-to-deploy-windows-defender-application-control
