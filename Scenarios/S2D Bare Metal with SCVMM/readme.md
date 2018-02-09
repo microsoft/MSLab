@@ -12,6 +12,7 @@
     - [region Configure Physical Computer Profile](#region-configure-physical-computer-profile)
     - [region Configure WDS](#region-configure-wds)
     - [region Run from Hyper-V Host to create new VMs](#region-run-from-hyper-v-host-to-create-new-vms)
+    - [region Deploy hosts (run again from DC or management machine)](#region-deploy-hosts-run-again-from-dc-or-management-machine)
 
 <!-- /TOC -->
 
@@ -113,5 +114,8 @@ This region can be easily modified to use it with real hardware. In virtual envi
 
 To initiate deployment, just reboot S2D VMs on host after script will create deployment jobs
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentJobs.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress.png)
 
 
