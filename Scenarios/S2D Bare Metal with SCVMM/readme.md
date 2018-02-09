@@ -63,7 +63,7 @@ This region just checks if VMM console is installed and also if RSAT components 
 
 Here are all variables, that you can change - like domain name, networks, vSwitch name... 
 
-Script will ask you for credentials. Just provide your LabAdmin creds (it's for run as admin creds.,typically corp\LabAdmin LS1setup!). In real environment you would have dedicated user.
+Script will ask you for credentials. Just provide your LabAdmin creds (it's for run as admin creds.,typically corp\LabAdmin LS1setup!). In real environment you would have dedicated account.
 
 Script will also ask you for VHD. Just provide Core server VHD from your ParentDisks (copy it to tools disk before hydration as instructed in Tip 2)
 
@@ -73,7 +73,7 @@ Script will also ask you for VHD. Just provide Core server VHD from your ParentD
 
 ## region basic SCVMM Configuration
 
-For some reason VMM does not start, so its forced to start. Also some basic settings are configured like HostGroup, RunAsAccounts...
+For some reason VMM service does not start, so its started if not running. Also some basic settings are configured like HostGroup, RunAsAccounts...
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/AutoCreationLogicalNetworks.png)
 
@@ -104,3 +104,14 @@ For some reason VMM does not start, so its forced to start. Also some basic sett
 ## region Run from Hyper-V Host to create new VMs
 
 This piece needs to run from Hyper-V host. And also you need to mofify VMPath variable to reflect your lab (in my case E:drive)
+
+VMs will start and attempt to boot. This is crucial as we will be able to grab info about VMs from log.
+
+## region Deploy hosts (run again from DC or management machine)
+
+This region can be easily modified to use it with real hardware. In virtual environment, it will build hash table with MAC addresses, IPs and names from SCVMM log.
+
+To initiate deployment, just reboot S2D VMs on host after script will create deployment jobs
+
+
+

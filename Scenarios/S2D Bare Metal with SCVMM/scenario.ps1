@@ -421,9 +421,9 @@
 
 #endregion
 
-##########################
-#    Continue on DC      #
-##########################
+###################################
+# Continue on DC or Management VM #
+###################################
 
 #region deploy hosts
     <#Example of manual host definition if you do real deployments
@@ -465,7 +465,7 @@
         IPAddress                      10.0.0.103
         MACAddress                     00:15:5D:89:E9:75
         #>
-
+        Enable-NetFirewallRule -CimSession $VMMServerName -Name RemoteEventLogSvc*
         $messages=(Get-WinEvent -ComputerName $VMMServerName -LogName Microsoft-VirtualMachineManager-Server/Admin | Where-Object message -Like "*will not deploy*" | Sort-Object timecreated).message | Select-Object -Unique
         $HVHosts = @()
         $GUIDS=@()
@@ -481,7 +481,9 @@
 
     #Create DHCP reservations for Hyper-V hosts
         #install RSAT for DHCP
+        if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType) -ne "Client"){
             Install-WindowsFeature -Name RSAT-DHCP 
+        }
 
         #Add DHCP Reservations
         foreach ($HVHost in $HVHosts){
