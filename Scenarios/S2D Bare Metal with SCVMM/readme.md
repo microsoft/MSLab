@@ -11,6 +11,7 @@
     - [region Configure Virtual Switch](#region-configure-virtual-switch)
     - [region Configure Physical Computer Profile](#region-configure-physical-computer-profile)
     - [region Configure WDS](#region-configure-wds)
+    - [region Run from Hyper-V Host to create new VMs](#region-run-from-hyper-v-host-to-create-new-vms)
 
 <!-- /TOC -->
 
@@ -50,9 +51,13 @@ $LabConfig.VMs += @{ VMName = 'WDS' ; Configuration = 'Simple' ; ParentVHD = 'Wi
 
 Since script is bit long, all regions are described below without code snippets. All code is in scenario.ps1
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/RegionsInISE.png)
+
 ## region check prerequisites
 
 This region just checks if VMM console is installed and also if RSAT components are present. It is valid for Server/ServerCore/Client. If VMM console is not installed, it will ask for setup.exe and install it for you. 
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMMConsoleResult.png)
 
 ## region Variables
 
@@ -62,17 +67,39 @@ Script will ask you for credentials. Just provide your LabAdmin creds (it's for 
 
 Script will also ask you for VHD. Just provide Core server VHD from your ParentDisks (copy it to tools disk before hydration as instructed in Tip 2)
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/CredRequest.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VHDRequest.png)
+
 ## region basic SCVMM Configuration
 
 For some reason VMM does not start, so its forced to start. Also some basic settings are configured like HostGroup, RunAsAccounts...
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/AutoCreationLogicalNetworks.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/RunAsAccounts.png)
+
 ## region Configure networks
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalNetworks.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMNetworks.png)
 
 ## region Configure Virtual Switch
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchvPorts.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchUplinks.png)
+
 ## region Configure Physical Computer Profile
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfile.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfileDetails.png)
+
 ## region Configure WDS
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/WDS.png)
 
 ## region Run from Hyper-V Host to create new VMs
 
