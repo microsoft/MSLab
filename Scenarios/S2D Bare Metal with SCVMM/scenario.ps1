@@ -132,7 +132,7 @@
 
     #vSwitch vNICs classifications
         $Classifications=@()
-        $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management" ; Description=""                                  ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                  ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
         $Classifications+=@{PortClassificationName="vRDMA"                     ; NativePortProfileName="vRDMA"                  ; Description="Classification for vRDMA adapters" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
         $Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                  ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
         $Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                  ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
@@ -542,207 +542,207 @@
 ##########################
 
 #region Apply vSwitch
-#Note: this takes forever, so be patient
+    #Note: this takes forever, so be patient
 
-foreach ($HVHost in $HVHosts){
-    $vmHost = Get-SCVMHost | Where-Object computername -eq $HVHost.ComputerName
-    #Make management adapter only the one defined in $HVHosts
-    $ManagementAdapter=(Get-SCVMHostNetworkAdapter -VMHost $VMHost.Name) | Where-Object {$_.IPAddresses.IPAddressToString -eq $HVHost.IPAddress}
-    $VMHost | Get-SCVMHostNetworkAdapter | Where-Object Name -ne $ManagementAdapter.Name | Set-SCVMHostNetworkAdapter -UsedForManagement $false
-    $networkAdapter = @()
-    # Set uplink port profile to all adapters
-    $vmhost | Get-SCVMHostNetworkAdapter | ForEach-Object {
-        Set-SCVMHostNetworkAdapter -VMHostNetworkAdapter $_ -UplinkPortProfileSet (Get-SCUplinkPortProfileSet -Name "UplinkPP")
-        $networkAdapter += $_
+    foreach ($HVHost in $HVHosts){
+        $vmHost = Get-SCVMHost | Where-Object computername -eq $HVHost.ComputerName
+        #Make management adapter only the one defined in $HVHosts
+        $ManagementAdapter=(Get-SCVMHostNetworkAdapter -VMHost $VMHost.Name) | Where-Object {$_.IPAddresses.IPAddressToString -eq $HVHost.IPAddress}
+        $VMHost | Get-SCVMHostNetworkAdapter | Where-Object Name -ne $ManagementAdapter.Name | Set-SCVMHostNetworkAdapter -UsedForManagement $false
+        $networkAdapter = @()
+        # Set uplink port profile to all adapters
+        $vmhost | Get-SCVMHostNetworkAdapter | ForEach-Object {
+            Set-SCVMHostNetworkAdapter -VMHostNetworkAdapter $_ -UplinkPortProfileSet (Get-SCUplinkPortProfileSet -Name "UplinkPP")
+            $networkAdapter += $_
+        }
+        $logicalSwitch = Get-SCLogicalSwitch -Name $vSwitchName
+        New-SCVirtualNetwork -VMHost $vmHost -VMHostNetworkAdapters $networkAdapter -LogicalSwitch $logicalSwitch -DeployVirtualNetworkAdapters
+        Set-SCVMHost -VMHost $vmHost -RunAsynchronously
     }
-    $logicalSwitch = Get-SCLogicalSwitch -Name $vSwitchName
-    New-SCVirtualNetwork -VMHost $vmHost -VMHostNetworkAdapters $networkAdapter -LogicalSwitch $logicalSwitch -DeployVirtualNetworkAdapters
-    Set-SCVMHost -VMHost $vmHost -RunAsynchronously
-}
 
-$servers=$HVHosts.ComputerName
+    $servers=$HVHosts.ComputerName
 
-#Verify that the VlanID is set
-    Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | Format-Table ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
-#verify RDMA
-    Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
-#verify ip config 
-    Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | Format-Table pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+    #Verify that the VlanID is set
+        Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | Format-Table ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
+    #verify RDMA
+        Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+    #verify ip config 
+        Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | Format-Table pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
 
 #endregion
 
 
 #region set static IP Does not work ?? BUG ??   
-<#    foreach ($HVHost in $HVHosts){
-        $vmHost = Get-SCVMHost | where computername -eq $HVHost.ComputerName
-        $vNic = $VMHost | Get-SCVirtualNetworkAdapter | where IsUsedForHostManagement -eq $True
-        $vmNetwork = Get-SCVMNetwork -Name $vNIC.VMNetwork
-        $vmSubnet = Get-SCVMSubnet -Name $vNIC.VMSubnet
-        $vNICPortClassification = Get-SCPortClassification -Name $vNIC.PortClassification
-        $vNicLogicalSwitch = Get-SCLogicalSwitch -Name $vNic.LogicalSwitch
-        $ipV4Pool =  Get-SCStaticIPAddressPool | where Subnet -eq $Vnic.IPv4Subnets
-        $ipv4List=$vnic.IPv4Addresses
-        Set-SCVirtualNetworkAdapter -VirtualNetworkAdapter $vNic -VMNetwork $vmNetwork -VMSubnet $vmSubnet -PortClassification $vNICPortClassification -IPv4AddressType "Static" -IPv4AddressPools $ipV4Pool -IPv4Addresses $ipv4List -IPv6AddressType "Dynamic"
-        Set-SCVMHost -VMHost $vmHost -RunAsynchronously
-    }
-#>
+    <#    foreach ($HVHost in $HVHosts){
+            $vmHost = Get-SCVMHost | where computername -eq $HVHost.ComputerName
+            $vNic = $VMHost | Get-SCVirtualNetworkAdapter | where IsUsedForHostManagement -eq $True
+            $vmNetwork = Get-SCVMNetwork -Name $vNIC.VMNetwork
+            $vmSubnet = Get-SCVMSubnet -Name $vNIC.VMSubnet
+            $vNICPortClassification = Get-SCPortClassification -Name $vNIC.PortClassification
+            $vNicLogicalSwitch = Get-SCLogicalSwitch -Name $vNic.LogicalSwitch
+            $ipV4Pool =  Get-SCStaticIPAddressPool | where Subnet -eq $Vnic.IPv4Subnets
+            $ipv4List=$vnic.IPv4Addresses
+            Set-SCVirtualNetworkAdapter -VirtualNetworkAdapter $vNic -VMNetwork $vmNetwork -VMSubnet $vmSubnet -PortClassification $vNICPortClassification -IPv4AddressType "Static" -IPv4AddressPools $ipV4Pool -IPv4Addresses $ipv4List -IPv6AddressType "Dynamic"
+            Set-SCVMHost -VMHost $vmHost -RunAsynchronously
+        }
+    #>
 #endregion
 
 #region Configure Networking (classic approach)
-#set static IP address (need to test more, not sure if this is OK)    
-        Foreach ($Server in $servers){
-            Invoke-Command -ComputerName $server -ArgumentList $vSwitchName -ScriptBlock {
-                param ($vSwitchname);
-                $IPConf=Get-NetIPConfiguration | Where-Object InterfaceAlias -like "*$vSwitchName*"
-                $IPAddress=Get-NetIPAddress -AddressFamily IPv4 | Where-Object InterfaceAlias -like "*$vSwitchName*"
-                $IP=$IPAddress.IPAddress
-                $Index=$IPAddress.InterfaceIndex
-                $GW=$IPConf.IPv4DefaultGateway.NextHop
-                $Prefix=$IPAddress.PrefixLength
-                $DNSServers=@()
-                $ipconf.dnsserver | ForEach-Object {if ($_.addressfamily -eq 2){$DNSServers+=$_.ServerAddresses}}
-                Set-NetIPInterface -InterfaceIndex $Index -Dhcp Disabled
-                New-NetIPAddress -InterfaceIndex $Index -AddressFamily IPv4 -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $GW -ErrorAction SilentlyContinue
-                Set-DnsClientServerAddress -InterfaceIndex $index -ServerAddresses $DNSServers
+    #set static IP address (need to test more, not sure if this is OK)    
+            Foreach ($Server in $servers){
+                Invoke-Command -ComputerName $server -ArgumentList $vSwitchName -ScriptBlock {
+                    param ($vSwitchname);
+                    $IPConf=Get-NetIPConfiguration | Where-Object InterfaceAlias -like "*$vSwitchName*"
+                    $IPAddress=Get-NetIPAddress -AddressFamily IPv4 | Where-Object InterfaceAlias -like "*$vSwitchName*"
+                    $IP=$IPAddress.IPAddress
+                    $Index=$IPAddress.InterfaceIndex
+                    $GW=$IPConf.IPv4DefaultGateway.NextHop
+                    $Prefix=$IPAddress.PrefixLength
+                    $DNSServers=@()
+                    $ipconf.dnsserver | ForEach-Object {if ($_.addressfamily -eq 2){$DNSServers+=$_.ServerAddresses}}
+                    Set-NetIPInterface -InterfaceIndex $Index -Dhcp Disabled
+                    New-NetIPAddress -InterfaceIndex $Index -AddressFamily IPv4 -IPAddress $IP -PrefixLength $Prefix -DefaultGateway $GW -ErrorAction SilentlyContinue
+                    Set-DnsClientServerAddress -InterfaceIndex $index -ServerAddresses $DNSServers
+                }
+            }
+    #Refresh VM Hosts
+        Get-SCVMHost | Read-SCVMHost
+
+    #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+        #install features
+            foreach ($server in $servers) {Install-WindowsFeature -Name "Hyper-V-PowerShell" -ComputerName $server} 
+
+        #Associate vNICs
+        Invoke-Command -ComputerName $servers -ArgumentList $vSwitchName -ScriptBlock {
+            param($vSwitchName);
+            $physicaladapters=(get-vmswitch $vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
+            1..$physicaladapters.Count | ForEach-Object {
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_$_" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters | Select-Object -Index ($_-1)).name
             }
         }
-#Refresh VM Hosts
-    Get-SCVMHost | Read-SCVMHost
 
-#Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
-    #install features
-        foreach ($server in $servers) {Install-WindowsFeature -Name "Hyper-V-PowerShell" -ComputerName $server} 
 
-    #Associate vNICs
-    Invoke-Command -ComputerName $servers -ArgumentList $vSwitchName -ScriptBlock {
-        param($vSwitchName);
-        $physicaladapters=(get-vmswitch $vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
-        1..$physicaladapters.Count | ForEach-Object {
-            Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_$_" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters | Select-Object -Index ($_-1)).name
-        }
+        #verify mapping
+            Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter 
+        
+
+    if ($DCB -eq $True){
+
+        #install features
+        foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+
+        ##Configure QoS
+            New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+
+        #Turn on Flow Control for SMB
+            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+
+        #Disable flow control for other traffic
+            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+
+        #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+
+        #validate flow control setting
+            Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerNa
+
+        #Validate DCBX setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
+
+        #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
+            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+
+        #validate policy
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+
+        #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
     }
 
-
-    #verify mapping
-        Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter 
-    
-
-if ($DCB -eq $True){
-
-    #install features
-    foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
-
-    ##Configure QoS
-        New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
-
-    #Turn on Flow Control for SMB
-        Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
-
-    #Disable flow control for other traffic
-        Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
-
-    #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
-        Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
-
-    #validate flow control setting
-        Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerNa
-
-    #Validate DCBX setting
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
-
-    #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
-        Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
-
-    #validate policy
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
-
-    #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum.  The name of the class will be "SMB"
-        Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
-}
-
-#enable iWARP firewall rule
-if ($iWARP -eq $True){
-    Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $servers
-}
+    #enable iWARP firewall rule
+    if ($iWARP -eq $True){
+        Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $servers
+    }
 
 #endregion 
 
 #region Configure Cluster and S2D (classic approach)
-<#Create Cluster with SCVMM - Validate cluster takes forever... skipping
-    #get hosts
-        $VMHosts = @()
-        foreach ($server in $servers){
-            $VMHosts += Get-SCVMHost | where computername -eq $server
+    <#Create Cluster with SCVMM - Validate cluster takes forever... skipping
+        #get hosts
+            $VMHosts = @()
+            foreach ($server in $servers){
+                $VMHosts += Get-SCVMHost | where computername -eq $server
+            }
+        #Grab run as account
+            $credential = Get-SCRunAsAccount -Name $RunAsAccountName
+        #create cluster
+            Install-SCVMHostCluster -ClusterName $ClusterName -EnableS2D -Credential $credential -VMHost $VMHosts -ClusterIPAddress $ClusterIP -SkipValidation
+    #>
+
+    #Classic approach to enable cluster and S2D
+        #install features
+            foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering" -ComputerName $server} 
+        #create cluster
+            Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
+            New-Cluster -Name $ClusterName -node $servers -StaticAddress $ClusterIP
+            Start-Sleep 5
+            Clear-DnsClientCache
+
+        #Enable-ClusterS2D
+            Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+
+    #rename networks
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorageNetwork).Name="SMB"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ManagementNetwork).Name="Management"
+
+    #Configure LM to use RDMA
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
+        #Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+        foreach ($Server in $servers){
+        Get-VMHost -ComputerName $Server | Set-VMHost -MigrationPerformanceOption UseSmbTransport
         }
-    #Grab run as account
-        $credential = Get-SCRunAsAccount -Name $RunAsAccountName
-    #create cluster
-        Install-SCVMHostCluster -ClusterName $ClusterName -EnableS2D -Credential $credential -VMHost $VMHosts -ClusterIPAddress $ClusterIP -SkipValidation
-#>
 
-#Classic approach to enable cluster and S2D
-    #install features
-        foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering" -ComputerName $server} 
-    #create cluster
-        Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
-        New-Cluster -Name $ClusterName -node $servers -StaticAddress $ClusterIP
-        Start-Sleep 5
-        Clear-DnsClientCache
+    #set CSV Cache
+        #(Get-Cluster $ClusterName).BlockCacheSize = 10240 
 
-    #Enable-ClusterS2D
-        Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
-
-#rename networks
-    (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorageNetwork).Name="SMB"
-    (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ManagementNetwork).Name="Management"
-
-#Configure LM to use RDMA
-    Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
-    #Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
-    foreach ($Server in $servers){
-       Get-VMHost -ComputerName $Server | Set-VMHost -MigrationPerformanceOption UseSmbTransport
-    }
-
-#set CSV Cache
-    #(Get-Cluster $ClusterName).BlockCacheSize = 10240 
-
-#configure witness
-    #Create new directory
-    $WitnessName=$Clustername+"Witness"
-    Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
-    $accounts=@()
-    $accounts+="corp\$ClusterName$"
-    $accounts+="corp\Domain Admins"
-    New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
-    # Set NTFS permissions 
-    Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
-    #Set Quorum
-    Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+    #configure witness
+        #Create new directory
+        $WitnessName=$Clustername+"Witness"
+        Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+        $accounts=@()
+        $accounts+="corp\$ClusterName$"
+        $accounts+="corp\Domain Admins"
+        New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+        # Set NTFS permissions 
+        Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+        #Set Quorum
+        Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
 #endregion
 
 
 #region Create some Volumes (classic approach)
-#Create volumes
-    1..(get-clusternode -Cluster $clustername).count | ForEach-Object {
-        New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName   
-        New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
-    }
-#Fix volume names
-    Get-ClusterSharedVolume -Cluster $ClusterName | ForEach-Object {
-        $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-        $newname=$_.name.Substring(22,$_.name.Length-23)
-        Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
-    } 
+    #Create volumes
+        1..(get-clusternode -Cluster $clustername).count | ForEach-Object {
+            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName   
+            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
+        }
+    #Fix volume names
+        Get-ClusterSharedVolume -Cluster $ClusterName | ForEach-Object {
+            $volumepath=$_.sharedvolumeinfo.friendlyvolumename
+            $newname=$_.name.Substring(22,$_.name.Length-23)
+            Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+        } 
 
 #endregion
 
 #region Configure WSUS on DC using WID (source https://smsagent.wordpress.com/2014/02/07/installing-and-configuring-wsus-with-powershell/ )
-#install feature
-    Install-WindowsFeature UpdateServices -IncludeManagementTools
-#configure WSUS
-    #create wsus dir
-    New-Item -Path d:\ -Type Directory -Name WSUS
-    #configure wsus itself (does not work... bug?)
-    & 'C:\Program Files\Update Services\Tools\wsusutil.exe' postinstall CONTENT_DIR=d:\wsus
+    #install feature
+        Install-WindowsFeature UpdateServices -IncludeManagementTools
+    #configure WSUS
+        #create wsus dir
+        New-Item -Path d:\ -Type Directory -Name WSUS
+        #configure wsus itself (does not work... bug?)
+        & 'C:\Program Files\Update Services\Tools\wsusutil.exe' postinstall CONTENT_DIR=d:\wsus
 #endregion
