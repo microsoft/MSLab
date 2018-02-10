@@ -15,6 +15,7 @@
     - [region Deploy hosts (run again from DC or management machine)](#region-deploy-hosts-run-again-from-dc-or-management-machine)
     - [region Apply vSwitch](#region-apply-vswitch)
     - [region Configure Networking (classic approach)](#region-configure-networking-classic-approach)
+    - [region add storage provider to VMM](#region-add-storage-provider-to-vmm)
 
 <!-- /TOC -->
 
@@ -139,5 +140,8 @@ In this part will script configure best practices (pNIC to vNIC mapping, static 
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICStatic.png)
 
+## region add storage provider to VMM
 
+In this part we will just add pool and volume management to VMM
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/ClassificationsAndPools.png)

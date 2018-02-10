@@ -689,7 +689,7 @@
             Start-Sleep 5
             Clear-DnsClientCache
 
-        #Enable-ClusterS2D with invoke command, as RSAT1709 is not compatible with 1607, so it might fail
+        #Enable-ClusterS2D with invoke command, as RSAT1709 is not compatible with 1607, so it might fail without invoke-command
             Invoke-Command -ComputerName $clustername -ScriptBlock {Enable-ClusterS2D -confirm:0 -Verbose}
 
     #rename networks
@@ -726,7 +726,7 @@
     #Create volumes
         1..(get-clusternode -Cluster $clustername).count | ForEach-Object {
             New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName   
-            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MultiResiliencyDisk$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
+            New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
         }
     #Fix volume names
         Get-ClusterSharedVolume -Cluster $ClusterName | ForEach-Object {
@@ -737,12 +737,14 @@
 
 #endregion
 
-#region Configure WSUS on DC using WID (source https://smsagent.wordpress.com/2014/02/07/installing-and-configuring-wsus-with-powershell/ )
-    #install feature
-        Install-WindowsFeature UpdateServices -IncludeManagementTools
-    #configure WSUS
-        #create wsus dir
-        New-Item -Path d:\ -Type Directory -Name WSUS
-        #configure wsus itself (does not work... bug?)
-        & 'C:\Program Files\Update Services\Tools\wsusutil.exe' postinstall CONTENT_DIR=d:\wsus
+#region add storage provider to VMM
+    New-SCStorageClassification -Name "S2D" -Description "" -RunAsynchronously
+    $runAsAccount = Get-SCRunAsAccount -Name $RunAsAccountName
+    Add-SCStorageProvider -ComputerName $ClusterName -AddWindowsNativeWmiProvider -Name $Clustername -RunAsAccount $runAsAccount -RunAsynchronously
+    $provider = Get-SCStorageProvider -Name "s2d-cluster" 
+    Set-SCStorageProvider -StorageProvider $provider -RunAsynchronously
+    $pool = Get-SCStoragePool -Name "S2D on $Clustername"
+    $classification = Get-SCStorageClassification -Name "S2D"
+    $Pool | Set-SCStoragePool -StorageClassification $classification
+
 #endregion
