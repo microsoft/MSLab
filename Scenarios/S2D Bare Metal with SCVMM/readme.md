@@ -13,6 +13,8 @@
     - [region Configure WDS](#region-configure-wds)
     - [region Run from Hyper-V Host to create new VMs](#region-run-from-hyper-v-host-to-create-new-vms)
     - [region Deploy hosts (run again from DC or management machine)](#region-deploy-hosts-run-again-from-dc-or-management-machine)
+    - [region Apply vSwitch](#region-apply-vswitch)
+    - [region Configure Networking (classic approach)](#region-configure-networking-classic-approach)
 
 <!-- /TOC -->
 
@@ -30,6 +32,8 @@
 
 * Please hydrate your main lab with SCVMM as demonstrated in this [video](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) 
 * you can download SCVMM 1801 from [eval center](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
+
+* not all best practices are in here. All best practices are in [S2D Hyperconverged Scenario ](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) 
 
 # LabConfig
 
@@ -117,5 +121,23 @@ To initiate deployment, just reboot S2D VMs on host after script will create dep
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentJobs.png)
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentFinished.png)
+
+## region Apply vSwitch
+
+can take forever. Just wait. And validate all was deployed OK as on following screenshot. It sometimes does not apply vSwitch on first node.
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VirtualSwitches.png)
+
+
+## region Configure Networking (classic approach)
+
+In this part will script configure best practices (pNIC to vNIC mapping, static IP addresses, DCB ...). All steps are done with native (nonVMM) commandlets.
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICDynamic.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICStatic.png)
+
 
 

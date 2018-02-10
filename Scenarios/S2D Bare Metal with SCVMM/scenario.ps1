@@ -682,15 +682,15 @@
 
     #Classic approach to enable cluster and S2D
         #install features
-            foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering" -ComputerName $server} 
+            foreach ($server in $servers) {Install-WindowsFeature -Name "Failover-Clustering","RSAT-Clustering","RSAT-Clustering-PowerShell" -ComputerName $server} 
         #create cluster
             Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
             New-Cluster -Name $ClusterName -node $servers -StaticAddress $ClusterIP
             Start-Sleep 5
             Clear-DnsClientCache
 
-        #Enable-ClusterS2D
-            Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+        #Enable-ClusterS2D with invoke command, as RSAT1709 is not compatible with 1607, so it might fail
+            Invoke-Command -ComputerName $clustername -ScriptBlock {Enable-ClusterS2D -confirm:0 -Verbose}
 
     #rename networks
         (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorageNetwork).Name="SMB"
