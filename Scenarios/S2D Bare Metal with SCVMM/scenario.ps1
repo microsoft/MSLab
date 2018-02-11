@@ -91,7 +91,7 @@
 #region Variables
 
     $VMMServerName="DC"
-    $WDSServerName="WDS"
+    $WDSServerName="WDS" #can be also DC if you paste all scripts into DC
     $HostGroupName="SeattleDC"
     $PhysicalComputerProfileName="HVHost"
 
