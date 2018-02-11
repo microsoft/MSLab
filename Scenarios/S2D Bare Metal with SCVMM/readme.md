@@ -15,6 +15,8 @@
     - [region Deploy hosts (run again from DC or management machine)](#region-deploy-hosts-run-again-from-dc-or-management-machine)
     - [region Apply vSwitch](#region-apply-vswitch)
     - [region Configure Networking (classic approach)](#region-configure-networking-classic-approach)
+    - [region Configure Cluster and S2D (classic approach)](#region-configure-cluster-and-s2d-classic-approach)
+    - [region Create some Volumes (classic approach)](#region-create-some-volumes-classic-approach)
     - [region add storage provider to VMM](#region-add-storage-provider-to-vmm)
 
 <!-- /TOC -->
@@ -123,6 +125,8 @@ To initiate deployment, just reboot S2D VMs on host after script will create dep
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress.png)
 
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress1.png)
+
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentFinished.png)
 
 ## region Apply vSwitch
@@ -139,6 +143,21 @@ In this part will script configure best practices (pNIC to vNIC mapping, static 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICDynamic.png)
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICStatic.png)
+
+## region Configure Cluster and S2D (classic approach)
+
+In this region will be Cluster configured (cluster creation, cluster networks config) and will be S2D enabled. All usin native commandlets.
+
+For all best practices review [S2D Hyperconverged scenario](/Scenarios/S2D%20Hyperconverged) .
+
+## region Create some Volumes (classic approach)
+
+Here will be some volumes created using native PowerShell commands, and then renamed.
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesPowerShell.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesList.png)
+
 
 ## region add storage provider to VMM
 
