@@ -404,8 +404,8 @@
             }
             #Add Adapter
             Add-VMNetworkAdapter -VMName $VMName -SwitchName $vSwitchName
-            #configure Nested Virt
-            Set-VMProcessor -ExposeVirtualizationExtensions $true -VMName $VMName
+            #configure Nested Virt and 2 cores
+            Set-VMProcessor -ExposeVirtualizationExtensions $true -VMName $VMName -Count 2
             #configure Memory
             Set-VM -VMName $VMName -MemoryStartupBytes $MemoryStartupBytes -MemoryMinimumBytes $MemoryMinimumBytes
             #configure network adapters
@@ -537,13 +537,15 @@
 #########################
 #Restart the S2D machines on Host manualy to initiate deployment
 
-##########################
-#    Continue on DC      #
-##########################
+###################################
+# Continue on DC or Management VM #
+###################################
 
 #region Apply vSwitch
-    #Note: this takes forever, so be patient
+    #refresh hosts
+        Get-SCVMHost | Read-SCVMHost
 
+    #apply vSwitch Note: this takes forever, so be patient
     foreach ($HVHost in $HVHosts){
         $vmHost = Get-SCVMHost | Where-Object computername -eq $HVHost.ComputerName
         #Make management adapter only the one defined in $HVHosts
@@ -746,5 +748,7 @@
     $pool = Get-SCStoragePool -Name "S2D on $Clustername"
     $classification = Get-SCStorageClassification -Name "S2D"
     $Pool | Set-SCStoragePool -StorageClassification $classification
+    #refresh provider
+    Read-SCStorageProvider $provider
 
 #endregion
