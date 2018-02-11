@@ -43,7 +43,7 @@
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016labSCVMM-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='Yes'; CreateClientParent=$True ; ClientEdition='Enterprise' }
 
-#these 2 VMs are not needed, if you are pasting scripts to DC
+#these 2 VMs are not needed, if you are pasting scripts to DC and if WDS is on DC
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'WDS' ; Configuration = 'Simple' ; ParentVHD = 'Win2016_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB  }
 
