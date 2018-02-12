@@ -115,11 +115,33 @@
         $StorageNetwork="172.16.1.0"
 
     #Credentials
+        #Note: All account share the same credentials in this case. In real world deployments you want to use different accounts.
+        Function ValidateCred ($cred) {
+            $username = $cred.username
+            $password = $cred.GetNetworkCredential().password
+            # Get current domain using logged-on user's credentials
+            $CurrentDomain = "LDAP://" + ([ADSI]"").distinguishedName
+            $domain = New-Object System.DirectoryServices.DirectoryEntry($CurrentDomain,$UserName,$Password)
+            if ($domain.name -eq $null){
+                return $false 
+            }else{
+                return $true
+            }
+        }
+        
+        #grab and validate Run As Account
         $RunAsAccountName="VMM RAA"
-        $RunAsAccountCred=Get-Credential -Message "Please provide Run as Admin Cred"
+        do{
+            $RunAsAccountCred=Get-Credential -Message "Please provide Run as Admin Cred"
+        }until (ValidateCred $RunAsAccountCred)
 
+        #grab and validate Run Djoin Account
         $DomainJoinAccountName="VMM Djoin"
-        #$DomainJoinAccountCred=Get-Credential -Message "Please provide Domain Join Cred"
+        <#
+        do{
+            $DomainJoinAccountCred=Get-Credential -Message "Please provide Domain Join Cred"
+        }until (ValidateCred $DomainJoinAccountCred)
+        #>
         $DomainJoinAccountCred=$RunAsAccountCred
 
         #$LocalAdminCredentials=Get-Credential -Message "Please provide Local Admin Cred for physical computer profile"
