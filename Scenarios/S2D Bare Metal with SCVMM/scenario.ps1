@@ -535,7 +535,8 @@
 #########################
 # Action on Hyper-V Host#
 #########################
-#Restart the S2D machines on Host manualy to initiate deployment
+#Restart (turn off and start) the S2D machines on Host manualy to initiate deployment (othervise deployment progress will stick at 29% and fails)
+#This step mimics BMC, that will send reboot to hosts.
 
 ###################################
 # Continue on DC or Management VM #
