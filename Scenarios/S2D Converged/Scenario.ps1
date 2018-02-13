@@ -300,7 +300,7 @@ Write-host "Script started at $StartDateTime"
         #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
             Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
-        #Create a Traffic class and give SMB Direct 30Foreach-Object of the bandwidth minimum.  The name of the class will be "SMB"
+        #Create a Traffic class and give SMB Direct 30 Foreach-Object of the bandwidth minimum.  The name of the class will be "SMB"
             Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
     
         #validate flow control setting

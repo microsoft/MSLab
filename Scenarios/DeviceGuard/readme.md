@@ -47,7 +47,7 @@ The lab is same as for LAPS. therefore we will be configuring 3 servers...
 
 First step would be to configure VBS on 3 servers specified in variable $servers. It will enable Isolated User Mode(enabling Hyper-V to be able to run VTL0 and VTL1), KMCI secure MOR and Credential Guard.
 
-Registry keys used in following PowerShell match following settings in Group Policy.
+Registry keys used in following PowerShell match following settings in Group Policy. **Note:** locks are commented as to unlock settings is physical presence needed. Therefore if you may want to configure it after environment is running well for some time)
 
 ![](/Scenarios/DeviceGuard/Screenshots/VBS_GPO.png)
 
@@ -57,7 +57,7 @@ $Servers=1..3 | Foreach-Object {"Server$_"}
 #configure VBS & Cred Guard
     Invoke-Command -ComputerName $servers -ScriptBlock {
         #Device Guard
-        REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "Locked" /t REG_DWORD /d 1 /f 
+        #REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "Locked" /t REG_DWORD /d 1 /f 
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 1 /f
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 3 /f
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequireMicrosoftSignedBootChain" /t REG_DWORD /d 1 /f
@@ -67,7 +67,7 @@ $Servers=1..3 | Foreach-Object {"Server$_"}
 
         #HVCI
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Enabled" /t REG_DWORD /d 1 /f
-        REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Locked" /t REG_DWORD /d 1 /f
+        #REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Locked" /t REG_DWORD /d 1 /f
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "HVCIMATRequired" /t REG_DWORD /d 1 /f
     }
 #restart servers to apply changes
