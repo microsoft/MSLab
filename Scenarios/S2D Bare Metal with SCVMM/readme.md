@@ -107,6 +107,10 @@ For some reason VMM service does not start, so its started if not running. Also 
 
 ## region Configure WDS
 
+Note: following warnings are expected
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/WDSWarning.png)
+
+
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/WDS.png)
 
 ## region Run from Hyper-V Host to create new VMs

@@ -487,8 +487,7 @@
         IPAddress                      10.0.0.103
         MACAddress                     00:15:5D:89:E9:75
         #>
-        Enable-NetFirewallRule -CimSession $VMMServerName -Name RemoteEventLogSvc*
-        $messages=(Get-WinEvent -ComputerName $VMMServerName -LogName Microsoft-VirtualMachineManager-Server/Admin | Where-Object message -Like "*will not deploy*" | Sort-Object timecreated).message | Select-Object -Unique
+        $messages=Invoke-Command -ComputerName $VMMServerName -ScriptBlock {(Get-WinEvent -LogName Microsoft-VirtualMachineManager-Server/Admin | Where-Object message -Like "*will not deploy*" | Sort-Object timecreated).message | Select-Object -Unique}
         $HVHosts = @()
         $GUIDS=@()
         $i=1
