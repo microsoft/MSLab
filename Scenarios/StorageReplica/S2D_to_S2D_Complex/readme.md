@@ -69,6 +69,8 @@ Continue with [Scenarip.ps1](/Scenarios/StorageReplica/S2D_to_S2D_Complex/scenar
 
 To flip data1 to Site1, following script will shut down VMs on volume data1 and flip replication to second datacenter. The prerequisite is to have virtual  machine config in folder "Virtual Machines" and to be able to successfully import, you will need to have disks in "Virtual Hard Disks" folder and the same name of virtual switch. Notice that the very same script is used all the time (just with small modifications)
 
+**Warning:** If you use SCVMM, remove-vm deletes also VHD! Therefore make sure you are using Hyper-V module.
+
 ````PowerShell
 #Variables
     $NewSourceClusterName="Site2-SR-Clus" #name of cluster, that will become source cluster
