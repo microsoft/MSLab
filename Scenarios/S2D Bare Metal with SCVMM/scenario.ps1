@@ -415,11 +415,10 @@
     $NumberOfHDDs=12
     $SizeOfHDD=4TB
     $MemoryStartupBytes=2GB
-    $MemoryMinimumBytes=2GB
     #create some blank VMs
     foreach ($VMName in $VMNames){
             $VMName="$LabPrefix$VMName"
-            New-VM -Name $VMName -NewVHDPath "$VMsPath\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 128GB -SwitchName $vSwitchName -Generation 2 -Path "$VMsPath"
+            New-VM -Name $VMName -NewVHDPath "$VMsPath\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 128GB -SwitchName $vSwitchName -Generation 2 -Path "$VMsPath" -MemoryStartupBytes $MemoryStartupBytes
             1..$NumberOfHDDs | ForEach-Object {
                 $VHD=New-VHD -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx" -SizeBytes $SizeOfHDD
                 Add-VMHardDiskDrive -VMName $VMName -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx"
@@ -429,7 +428,7 @@
             #configure Nested Virt and 2 cores
             Set-VMProcessor -ExposeVirtualizationExtensions $true -VMName $VMName -Count 2
             #configure Memory
-            Set-VM -VMName $VMName -MemoryStartupBytes $MemoryStartupBytes -MemoryMinimumBytes $MemoryMinimumBytes
+            Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
             #configure network adapters
             Set-VMNetworkAdapter -VMName $VMName -AllowTeaming On -MacAddressSpoofing On
             Set-VMNetworkAdapterVlan -VMName $VMName -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
