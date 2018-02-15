@@ -46,7 +46,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
 #these 2 VMs are not needed, if you are pasting scripts to DC and if WDS is on DC
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'WDS' ; Configuration = 'Simple' ; ParentVHD = 'Win2016_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB  }
-
+ 
 ````
 
 # The LAB
