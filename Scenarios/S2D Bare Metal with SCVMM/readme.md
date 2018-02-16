@@ -17,6 +17,7 @@
     - [region Configure Networking (classic approach)](#region-configure-networking-classic-approach)
     - [region Configure Cluster and S2D (classic approach)](#region-configure-cluster-and-s2d-classic-approach)
     - [region Create some Volumes (classic approach)](#region-create-some-volumes-classic-approach)
+    - [region Create some dummy VMs (3 per each CSV disk)](#region-create-some-dummy-vms-3-per-each-csv-disk)
     - [region add storage provider to VMM](#region-add-storage-provider-to-vmm)
 
 <!-- /TOC -->
@@ -46,7 +47,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
 #these 2 VMs are not needed, if you are pasting scripts to DC and if WDS is on DC
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'WDS' ; Configuration = 'Simple' ; ParentVHD = 'Win2016_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB  }
-
+ 
 ````
 
 # The LAB
@@ -162,9 +163,14 @@ Here will be some volumes created using native PowerShell commands, and then ren
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesList.png)
 
+## region Create some dummy VMs (3 per each CSV disk)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMs.png)
 
 ## region add storage provider to VMM
 
 In this part we will just add pool and volume management to VMM
 
 ![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/ClassificationsAndPools.png)
+
+![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/StorageClassification.png)
