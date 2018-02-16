@@ -241,6 +241,7 @@ Write-host "Script started at $StartDateTime"
 
             #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
+            #If connected directly (in 2 node configuration) skip this step.
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
         }
 
@@ -550,7 +551,7 @@ Write-host "Script started at $StartDateTime"
                 }
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }
-        }
+    }
 #endregion
 
 #finishing
