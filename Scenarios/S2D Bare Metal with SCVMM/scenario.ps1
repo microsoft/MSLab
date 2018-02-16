@@ -760,15 +760,36 @@
 
 #endregion
 
+#region Create some dummy VMs (3 per each CSV disk)
+    Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
+    $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+    foreach ($CSV in $CSVs){
+            $CSV=$CSV.Substring(22)
+            $CSV=$CSV.TrimEnd(")")
+            1..3 | ForEach-Object {
+                $VMName="TestVM$($CSV)_$_"
+                Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                    param($CSV,$VMName);
+                    New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
+                }
+                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+            }
+        }
+#endregion
+
 #region add storage provider to VMM
-    New-SCStorageClassification -Name "S2D" -Description "" -RunAsynchronously
+    $ClassS2D=New-SCStorageClassification -Name "S2D" -Description "" -RunAsynchronously
+    $ClassMirror=New-SCStorageClassification -Name "Mirror" -Description "" -RunAsynchronously
+    $ClassMAP=New-SCStorageClassification -Name "MirrorAcceleratedParity" -Description "" -RunAsynchronously
     $runAsAccount = Get-SCRunAsAccount -Name $RunAsAccountName
     Add-SCStorageProvider -ComputerName $ClusterName -AddWindowsNativeWmiProvider -Name $Clustername -RunAsAccount $runAsAccount -RunAsynchronously
     $provider = Get-SCStorageProvider -Name "s2d-cluster" 
     Set-SCStorageProvider -StorageProvider $provider -RunAsynchronously
     $pool = Get-SCStoragePool -Name "S2D on $Clustername"
-    $classification = Get-SCStorageClassification -Name "S2D"
-    $Pool | Set-SCStoragePool -StorageClassification $classification
+    $ClassS2D = Get-SCStorageClassification -Name "S2D"
+    $Pool | Set-SCStoragePool -StorageClassification $ClassS2D
+    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorDisk* | Set-SCStorageDisk -StorageClassification $ClassMirror
+    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorAcceleratedParity* | Set-SCStorageDisk -StorageClassification $ClassMAP
     #refresh provider
     Read-SCStorageProvider $provider
 
