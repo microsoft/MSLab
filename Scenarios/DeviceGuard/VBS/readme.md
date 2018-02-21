@@ -10,7 +10,7 @@
 
 # Scenario Introduction
 
-In this scenario will be Device Guard deployed to remote servers. It is just a demonstration on how to lockdown remote servers from Management machine. You don't have to spin Win10 machine (you can use DC), but since I want to demonstrate security best practices, all is done from there.
+In this scenario will be Device Guard Virtualization-based security deployed to remote servers. It is just a demonstration on how to lockdown remote servers from Management machine. You don't have to spin Win10 machine (you can use DC), but since I want to demonstrate security best practices, all is done from there.
 
 Windows Defender Device Guard is composed of two technologies. Virtualization-based security and Windows Defender Application Control. You will find more information [in our docs](https://docs.microsoft.com/en-us/windows/device-security/device-guard/introduction-to-device-guard-virtualization-based-security-and-windows-defender-application-control) and [in channel9 videos](channel9.msdn.com/tags/kernel)
 
@@ -49,7 +49,7 @@ First step would be to configure VBS on 3 servers specified in variable $servers
 
 Registry keys used in following PowerShell match following settings in Group Policy. **Note:** locks are commented as to unlock settings is physical presence needed. Therefore if you may want to configure it after environment is running well for some time)
 
-![](/Scenarios/DeviceGuard/Screenshots/VBS_GPO.png)
+![](/Scenarios/DeviceGuard/VBS/Screenshots/VBS_GPO.png)
 
 ````PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
@@ -84,68 +84,5 @@ Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windo
  
 ````
 
-![](/Scenarios/DeviceGuard/Screenshots/DG_Status1.png)
+![](/Scenarios/DeviceGuard//VBS/Screenshots/DG_Status1.png)
 
-
-# Configuring Windows Defender Application Control
-
-Following example is just the simplest way to enable WDAC (also known as UMCI - User Mode Code Integrity). Best practice would be to generate policy, combine with best practices at https://docs.microsoft.com/en-us/windows/device-security/device-guard/steps-to-deploy-windows-defender-application-control
- using Merge-CIPolicy , remove option 6 (unsigned system integrity policy) and sign the policy.
-
-````PowerShell
-    #Configure UMCI policy (User Mode Code Integrity)
-        $session=New-PSSession -ComputerName ($servers | Select-Object -last 1)
-        Invoke-Command -Session $session -ScriptBlock {
-            $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-            If (($WindowsInstallationType -eq "Server")-or($WindowsInstallationType -eq "Client")){
-                #usually more applications are present on GUI servers (as it serves as application server, therefore -Level Publisher)
-                New-CIPolicy -Level Publisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml
-            }elseif($WindowsInstallationType -eq "Server Core"){
-                New-CIPolicy -Level FilePublisher -Fallback Hash -UserPEs -FilePath .\CIPolicy.xml
-            }
-            Set-RuleOption -FilePath .\CIPolicy.xml -Option 3 -Delete 
-            ConvertFrom-CIPolicy .\CIPolicy.xml .\CIPolicy.bin
-            Copy-Item .\CIPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
-            #".\CIPolicy.xml",".\CIPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
-        }
-
-        #copy CI to other servers 
-            $sessions=New-PSSession ($Servers | Select-Object -SkipLast 1)
-            Copy-Item -FromSession $session -Path C:\Windows\System32\CodeIntegrity\SiPolicy.p7b -Destination .\
-            $sessions | ForEach-Object {
-                Copy-Item .\SiPolicy.p7b -ToSession $_ -Destination C:\Windows\System32\CodeIntegrity\
-            }
-            Remove-Item .\SiPolicy.p7b
-
-        #close sessions
-            $session,$sessions | Remove-PSSession
-    
-    #Alternatively you can use built in policies that are available in 1709
-        <#
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            $PolicyPath="C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml"
-            Copy-Item -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml -Destination .\MyCustomPolicy.xml
-            Set-RuleOption -FilePath .\MyCustomPolicy.xml -Option 3 -Delete
-            ConvertFrom-CIPolicy .\MyCustomPolicy.xml .\MyCustomPolicy.bin
-            Copy-Item .\MyCustomPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\SiPolicy.p7b
-            ".\MyCustomPolicy.xml",".\MyCustomPolicy.bin" | ForEach-Object {Remove-Item -Path $_}
-        }
-        #>
-    
-    #reboot
-        Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
-````
-
-As you can see from above example, there are default policies Windows 1709
-
-![](/Scenarios/DeviceGuard/Screenshots/DefaultPolicies.png)
-
-To check if policies are applied, you can again following PowerShell code. Notice CondeIntegrityEnvorcementStatus and UsermodeCodeIntegrityPolicyEnforcementStatus parameters.
-
-````PowerShell
-$Servers=1..3 | Foreach-Object {"Server$_"}
-Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windows\DeviceGuard -CimSession $servers
- 
-````
-
-![](/Scenarios/DeviceGuard/Screenshots/DG_Status2.png)
