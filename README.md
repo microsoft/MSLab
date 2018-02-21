@@ -46,6 +46,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 * [5 Virtual Machine Manager 1711 and Windows Server 1709](https://youtu.be/NTrncW2omSY)
 * [6 S2D Disaster recovery - one node OS lost](https://youtu.be/Gd9_rzePrhI)
 * [7 S2D Disaster recovery - all nodes OS lost](https://youtu.be/uTzXEFVd16o)
+* [8 S2D Bare metal deployment with SCVMM](https://youtu.be/K81qLv7lLuE)
 
 # HowTo
 
