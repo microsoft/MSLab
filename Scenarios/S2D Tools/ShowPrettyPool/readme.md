@@ -1,3 +1,7 @@
+Little bit enhanced version of https://blogs.technet.microsoft.com/filecab/2016/11/21/deep-dive-pool-in-spaces-direct/
+
+Can query multiple clusters. Script will prompt for available clusters and you can multiselect.
+
 ````PowerShell
 # Written by Cosmos Darwin, PM
 # Copyright (C) 2016 Microsoft Corporation

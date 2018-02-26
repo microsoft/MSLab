@@ -1,3 +1,7 @@
+Little bit enhanced version of https://blogs.technet.microsoft.com/filecab/2016/08/29/deep-dive-volumes-in-spaces-direct/
+
+Can query multiple clusters. Script will prompt for available clusters and you can multiselect.
+
 ````PowerShell
 # Written by Cosmos Darwin, PM
 # Copyright (C) 2016 Microsoft Corporation
