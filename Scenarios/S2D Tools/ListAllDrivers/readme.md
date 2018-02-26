@@ -13,10 +13,10 @@ $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
 
 #Create custom object and add properties
     $devices | foreach-object -begin {$I=0;$Output=@()} -process {
-        $properties=$device | Get-PnpDeviceProperty
+        $properties=$_ | Get-PnpDeviceProperty
         $Output += [PSCustomObject]@{
-            "Name"          = $Device.Name
-            "ComputerName"  = $Device.PSComputerName
+            "Name"          = $_.Name
+            "ComputerName"  = $_.PSComputerName
             "DriverVersion" = ($properties | Where-Object keyname -eq DEVPKEY_Device_DriverVersion).Data
             "InstallDate"   = ($properties | Where-Object keyname -eq DEVPKEY_Device_InstallDate).Data
             "DriverDate"    = ($properties | Where-Object keyname -eq DEVPKEY_Device_DriverDate).Data
