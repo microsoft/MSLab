@@ -10,10 +10,12 @@ $S2DClusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
 $vdisks=Get-VirtualDisk -CimSession $S2DClusters | Select-Object FriendlyName,@{Name="Size (GB)"; Expression = {$_.Size/1GB}},PSComputerName,UniqueID| Out-GridView -PassThru -Title "Please select disk(s) you want to resize"
 
 #ask for New Capacity Tier Size
-[int64]$NewCapacityTierSize=Read-Host -Prompt "Provide New Capacity Tier Size, for example 10TB"
+[int64]$NewCapacityTierSize=Read-Host -Prompt "Provide New Capacity Tier Size (GB)"
+$NewCapacityTierSize=$NewCapacityTierSize*1GB
 
 #ask for New Performance Tier Size
-[int64]$NewPerformanceTierSize=Read-Host -Prompt "Provide New Performance Tier Size, for example 2TB"
+[int64]$NewPerformanceTierSize=Read-Host -Prompt "Provide New Performance Tier Size (GB)"
+$NewPerformanceTierSize=$NewPerformanceTierSize*1GB
 
 foreach ($vdisk in $vdisks){
     $ClusterName=$vdisk.PSComputerName
