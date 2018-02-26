@@ -1,8 +1,4 @@
-#Install AD PowerShell if not available
-if (-not (Get-WindowsFeature RSAT-AD-PowerShell)){
-    Install-WindowsFeature RSAT-AD-PowerShell
-}
-$ClusterName=((Get-ADComputer -Filter 'serviceprincipalname -like "MSServercluster/*"').Name | ForEach-Object {get-cluster -Name $_ | Where-Object S2DEnabled -eq 1} | Out-GridView -OutputMode Single -Title "Please select your S2D Cluster(s)").Name
+$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -OutputMode Single -Title "Please select your S2D Cluster").Name
 
 if (-not $ClusterName){
     Write-Output "No cluster was selected. Exitting"
