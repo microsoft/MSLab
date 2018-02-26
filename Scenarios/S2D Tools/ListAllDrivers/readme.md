@@ -8,7 +8,7 @@ $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
 #to get unique device per node, it will run node by node
     $Devices=@()
     foreach ($ClusterNode in $ClusterNodes){
-        $devices+=get-pnpdevice -CimSession $ClusterNode | Where-Objectmanufacturer -ne Microsoft | Where-ObjectFriendlyName -NotLike Microsoft* | select -Unique
+        $devices+=get-pnpdevice -CimSession $ClusterNode | Where-Object manufacturer -ne Microsoft | Where-Object FriendlyName -NotLike Microsoft* | select -Unique
     }
 
 #Create custom object and add properties
@@ -17,13 +17,13 @@ $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
         $Output += [PSCustomObject]@{
             "Name"          = $Device.Name
             "ComputerName"  = $Device.PSComputerName
-            "DriverVersion" = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverVersion).Data
-            "InstallDate"   = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_InstallDate).Data
-            "DriverDate"    = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverDate).Data
-            "IsPresent"     = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_IsPresent).Data
-            "DriverInfPath" = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverInfPath).Data
-            "Manufacturer"  = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_Manufacturer).Data
-            "HasProblem"    = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_HasProblem).Data
+            "DriverVersion" = ($properties | Where-Object keyname -eq DEVPKEY_Device_DriverVersion).Data
+            "InstallDate"   = ($properties | Where-Object keyname -eq DEVPKEY_Device_InstallDate).Data
+            "DriverDate"    = ($properties | Where-Object keyname -eq DEVPKEY_Device_DriverDate).Data
+            "IsPresent"     = ($properties | Where-Object keyname -eq DEVPKEY_Device_IsPresent).Data
+            "DriverInfPath" = ($properties | Where-Object keyname -eq DEVPKEY_Device_DriverInfPath).Data
+            "Manufacturer"  = ($properties | Where-Object keyname -eq DEVPKEY_Device_Manufacturer).Data
+            "HasProblem"    = ($properties | Where-Object keyname -eq DEVPKEY_Device_HasProblem).Data
         };
         $i++;
         Write-Progress -Activity "GettingPNPDeviceProperty on node $($Device.PSComputerName)" -Status "Progress:" -PercentComplete ($I/$devices.count*100)}
