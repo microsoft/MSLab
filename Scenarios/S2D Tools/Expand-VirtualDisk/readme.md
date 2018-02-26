@@ -1,6 +1,6 @@
 Expanding virtual disk as described in this guide https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/resize-volumes
 
-The only difference is, that it connects to disk owner (I personally preffer it, altrought it's not really needed). This example is only for disks created with default tiers. It also resizes all volumes on all clusters selected.
+The only difference is, that it connects to disk owner (I personally preffer it, altrough it's not really needed). This example is only for disks created with default tiers. It also resizes all volumes on all clusters selected.
 
 ````PowerShell
 #Ask for cluster(s)
