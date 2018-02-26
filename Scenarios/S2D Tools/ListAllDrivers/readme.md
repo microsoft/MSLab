@@ -12,25 +12,6 @@ $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
     }
 
 #Create custom object and add properties
-    $Output=@()
-    $DevicesCount=$devices.count
-    $i=1
-    foreach ($Device in $devices){
-        Write-Progress -Activity "Processing Devices property" -Completed $i
-        $properties=$device | Get-PnpDeviceProperty
-        $Output += [PSCustomObject]@{
-            "Name"          = $Device.Name
-            "ComputerName"  = $Device.PSComputerName
-            "DriverVersion" = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverVersion).Data
-            "InstallDate"   = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_InstallDate).Data
-            "DriverDate"    = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverDate).Data
-            "IsPresent"     = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_IsPresent).Data
-            "DriverInfPath" = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_DriverInfPath).Data
-            "Manufacturer"  = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_Manufacturer).Data
-            "HasProblem"    = ($properties | Where-Objectkeyname -eq DEVPKEY_Device_HasProblem).Data
-        }
-    }
-
     $devices | foreach-object -begin {$I=0;$Output=@()} -process {
         $properties=$device | Get-PnpDeviceProperty
         $Output += [PSCustomObject]@{
