@@ -129,7 +129,7 @@ Notice CodeIntegrityPolicyEnforcementStatus and UsermodeCodeIntegrityPolicyEnfor
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/UpdatePolicyResult.png)
 
-MSInfo32 status - notice UMCI is running even KMCI/VBS is not. It's probably the biggest confusion as per this blog: 
+MSInfo32 status - notice UMCI is running even KMCI/VBS is not. It's probably the biggest confusion as per [this](https://cloudblogs.microsoft.com/microsoftsecure/2017/10/23/introducing-windows-defender-application-control/) blog 
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/MSInfo32.png)
 
