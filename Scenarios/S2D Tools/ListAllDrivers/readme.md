@@ -26,7 +26,7 @@ $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 
             "HasProblem"    = ($properties | Where-Object keyname -eq DEVPKEY_Device_HasProblem).Data
         };
         $i++;
-        Write-Progress -Activity "GettingPNPDeviceProperty on node $($Device.PSComputerName)" -Status "Progress:" -PercentComplete ($I/$devices.count*100)}
+        Write-Progress -Activity "GettingPNPDeviceProperty on node $($_.PSComputerName)" -Status "Progress:" -PercentComplete ($I/$devices.count*100)}
 
 $Output | select * | ogv
 
