@@ -37,8 +37,8 @@ Write-host "Script started at $StartDateTime"
     #iWARP?
         $iWARP=$False
 
-    #DisableNetbios?
-        $DisableNetbios=$True
+    #DisableNetBIOS on all vNICs? It's optional. Works well with both settings default/disabled
+        $DisableNetBIOS=$True
 
     #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
         $NumberOfDisks=$numberofnodes
@@ -214,12 +214,12 @@ Write-host "Script started at $StartDateTime"
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
 
-        #Disable NetBios on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
-            if ($DisableNetbios){
+        #Disable NetBIOS on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
+            if ($DisableNetBIOS){
                 $vNICs = Get-NetAdapter -CimSession $Servers | Where-Object Name -like vEthernet*
                 foreach ($vNIC in $vNICs){
-                    Write-Host "Disabling NetBios on $($vNIC.Name) on computer $($vNIC.PSComputerName)"
-                    $output=Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $vNIC.PSComputerName | Where-Object Description -eq $vNIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipnetbios -ArgumentList 2
+                    Write-Host "Disabling NetBIOS on $($vNIC.Name) on computer $($vNIC.PSComputerName)"
+                    $output=Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $vNIC.PSComputerName | Where-Object Description -eq $vNIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipNetBIOS -ArgumentList 2
                     if ($output.Returnvalue -eq 0){
                         Write-Host "`t Success" -ForegroundColor Green
                     }else{
