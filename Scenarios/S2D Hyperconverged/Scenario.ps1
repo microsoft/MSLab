@@ -37,6 +37,9 @@ Write-host "Script started at $StartDateTime"
     #iWARP?
         $iWARP=$False
 
+    #DisableNetbios?
+        $DisableNetbios=$True
+
     #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
         $NumberOfDisks=$numberofnodes
 
@@ -110,7 +113,7 @@ Write-host "Script started at $StartDateTime"
         }
     
     #configure memory dump
-        if ($MemoryDump -eq "kernel"){
+        if ($MemoryDump -eq "Kernel"){
         #Configure Kernel memory dump
             Invoke-Command -ComputerName $servers -ScriptBlock {
                 Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
@@ -210,7 +213,21 @@ Write-host "Script started at $StartDateTime"
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
-    
+
+        #Disable NetBios on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
+            if ($DisableNetbios){
+                $vNICs = Get-NetAdapter -CimSession $Servers | Where-Object Name -like vEthernet*
+                foreach ($vNIC in $vNICs){
+                    Write-Host "Disabling NetBios on $($vNIC.Name) on computer $($vNIC.PSComputerName)"
+                    $output=Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $vNIC.PSComputerName | Where-Object Description -eq $vNIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipnetbios -ArgumentList 2
+                    if ($output.Returnvalue -eq 0){
+                        Write-Host "`t Success" -ForegroundColor Green
+                    }else{
+                        Write-Host "`t Failure"
+                    }
+                }
+            }
+
     #Verify Networking
         #verify mapping
             Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
