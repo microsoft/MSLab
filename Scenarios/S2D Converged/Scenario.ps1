@@ -101,7 +101,7 @@ Write-host "Script started at $StartDateTime"
         $ConfigurePCIDMinVersion=$true
 
     #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
-        $MemoryDump="Kernel"
+        $MemoryDump="Active"
 
     #S2D Node Name To Scale
         $S2DNodesToScale="Storage5"
@@ -164,13 +164,13 @@ Write-host "Script started at $StartDateTime"
         }
 
     #configure memory dump
-        if ($MemoryDump="kernel"){
+        if ($MemoryDump -eq "kernel"){
             #Configure Kernel memory dump
             Invoke-Command -ComputerName $AllServers -ScriptBlock {
                 Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
             }
         }
-        if ($MemoryDump="Active"){
+        if ($MemoryDump -eq "Active"){
             #Configure Active memory dump
             Invoke-Command -ComputerName $AllServers -ScriptBlock {
                 Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1

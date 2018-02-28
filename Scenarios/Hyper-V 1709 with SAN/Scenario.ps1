@@ -43,7 +43,7 @@ Write-host "Script started at $StartDateTime"
         $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
 
     #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
-        $MemoryDump="Kernel"
+        $MemoryDump="Active"
 
 #endregion
 
@@ -92,13 +92,13 @@ Write-host "Script started at $StartDateTime"
 
 #region Configure basic settings on servers
     #configure memory dump
-    if ($MemoryDump="kernel"){
+    if ($MemoryDump -eq "kernel"){
         #Configure Kernel memory dump
         Invoke-Command -ComputerName $servers -ScriptBlock {
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
         }
     }
-    if ($MemoryDump="Active"){
+    if ($MemoryDump -eq "Active"){
         #Configure Active memory dump
         Invoke-Command -ComputerName $servers -ScriptBlock {
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
