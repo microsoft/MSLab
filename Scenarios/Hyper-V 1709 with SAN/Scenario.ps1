@@ -92,7 +92,7 @@ Write-host "Script started at $StartDateTime"
 
 #region Configure basic settings on servers
     #configure memory dump
-    if ($MemoryDump -eq "kernel"){
+    if ($MemoryDump -eq "Kernel"){
         #Configure Kernel memory dump
         Invoke-Command -ComputerName $servers -ScriptBlock {
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
