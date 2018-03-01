@@ -172,7 +172,7 @@ Copy-Item -Path "$env:TEMP\MyPolicy.bin" -Destination "\\dc\c$\Windows\SYSVOL\do
 
 Edit GPO with gpmc.msc and set following settings 
 
-Set Code integrity policy binary to this location :\\corp.contoso.com\SYSVOL\Corp.contoso.com\Policies\SmartLocker\MyPolicy.bin
+Set Code integrity policy binary to this location : "\\corp.contoso.com\SYSVOL\Corp.contoso.com\Policies\SmartLocker\MyPolicy.bin"
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DeviceGuardCI.png)
 
