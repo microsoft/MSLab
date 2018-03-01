@@ -65,6 +65,7 @@ You can check whats configured with following PowerShell script (too lazy to ope
 ````PowerShell
 #load file into variable as XML
 [xml]$Policy=get-content -Path "$env:TEMP\MyPolicy.xml"
+
 #list rules
 $Policy.sipolicy.Rules | Select-Object -ExpandProperty rule
  
@@ -96,12 +97,15 @@ Microsoft recommends that you block the following Microsoft-signed applications 
 ````PowerShell
 #grab recommended xml blocklist from GitHub
 $content=Invoke-WebRequest -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/device-guard/steps-to-deploy-windows-defender-application-control.md
+
 #find start and end
 $XMLStart=$content.Content.IndexOf("<?xml version=")
 $XMLEnd=$content.Content.IndexOf("</SiPolicy>")+11 # 11 is lenght of string
+
 #create xml
 [xml]$XML=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart)
 $XML.Save("$env:TEMP\blocklist.xml")
+
 #add to MyPolicy.xml
 $mergedPolicyRules = Merge-CIPolicy -PolicyPaths "$env:TEMP\blocklist.xml","$env:TEMP\MyPolicy.xml" -OutputFilePath "$env:TEMP\MyPolicy.xml"
 Write-Host ('Merged policy contains {0} rules' -f $mergedPolicyRules.Count)
