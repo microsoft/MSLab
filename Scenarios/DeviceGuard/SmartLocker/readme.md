@@ -55,11 +55,8 @@ Get-ChildItem -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\
 So what we can do is we can copy DefaultWindows_Enforced or Audit, so we can manipulate it and apply.
 
 ````PowerShell
-#create temp directory for policy
-New-Item -Type Directory -Name Temp -Path C:\
-
 #copy DefaultWindows_Enforced.xml to Temp\MyPolicy.xml
-Copy-Item C:\Windows\schemas\CodeIntegrity\ExamplePolicies\DefaultWindows_Enforced.xml c:\Temp\MyPolicy.xml
+Copy-Item "C:\Windows\schemas\CodeIntegrity\ExamplePolicies\DefaultWindows_Enforced.xml" "$env:TEMP\MyPolicy.xml"
  
 ````
 
@@ -67,7 +64,7 @@ You can check whats configured with following PowerShell script (too lazy to ope
 
 ````PowerShell
 #load file into variable as XML
-[xml]$Policy=get-content -Path C:\temp\MyPolicy.xml
+[xml]$Policy=get-content -Path "$env:TEMP\MyPolicy.xml"
 #list rules
 $Policy.sipolicy.Rules | Select-Object -ExpandProperty rule
  
@@ -80,7 +77,7 @@ The next step would be to modify policy [options 13-16](https://docs.microsoft.c
 
 ````PowerShell
 13..16 | Foreach-Object{
-    Set-RuleOption -o $_ -f c:\temp\MyPolicy.xml
+    Set-RuleOption -o $_ -f "$env:TEMP\MyPolicy.xml"
 }
  
 ````
@@ -89,33 +86,31 @@ Result
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DefaultWindowsPolicyRulesModified.png)
 
-If this is a gold machine, you can also scan all driver files (I placed result from the VM into [DefaultPolicies folder]![](/Scenarios/DeviceGuard/SmartLocker/DefaultPolicies)), to add it into policy
+Microsoft recommends that you block the following Microsoft-signed applications and PowerShell files that are provided in xml. To be able to parse it from web, its easier to go directly to GitHub.
 
 ````PowerShell
-#scan for drivers (takes some time)
-$rules = @()
-$fileInfo = Get-SystemDriver -ScanPath $env:SystemDrive -UserPEs -OmitPaths "$env:windir\WinSxS"
-$rules = New-CIPolicyRule -DriverFiles $fileInfo -Level FilePublisher -Fallback Hash
-New-CIPolicy -FilePath c:\temp\GoldMachineDrivers.xml -Rules $rules -UserPEs
-
+#grab recommended xml blocklist from GitHub
+$content=Invoke-WebRequest -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/device-guard/steps-to-deploy-windows-defender-application-control.md
+#find start and end
+$XMLStart=$content.Content.IndexOf("<?xml version=")
+$XMLEnd=$content.Content.IndexOf("</SiPolicy>")+11 # 11 is lenght of string
+#create xml
+[xml]$XML=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart)
+$XML.Save("$env:TEMP\blocklist.xml")
 #add to MyPolicy.xml
-$mergedPolicyRules = Merge-CIPolicy -PolicyPaths "c:\temp\GoldMachineDrivers.xml","c:\Temp\MyPolicy.xml" -OutputFilePath "c:\Temp\MyPolicy.xml"
+$mergedPolicyRules = Merge-CIPolicy -PolicyPaths "$env:TEMP\blocklist.xml","$env:TEMP\MyPolicy.xml" -OutputFilePath "$env:TEMP\MyPolicy.xml"
 Write-Host ('Merged policy contains {0} rules' -f $mergedPolicyRules.Count)
  
 ````
-
-![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/PolicyScanInProgress.png)
-
-![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/PolicyMergeResult.png)
 
 To create binary policy run following script. You can copy it into C:\Windows\System32\CodeIntegrity\SiPolicy.p7b and then just refresh using update method on UpdateAndCompareCIPolicy Class , or copy it to your policy and apply
 
 ````PowerShell
 #create binary policy file
-ConvertFrom-CIPolicy c:\Temp\MyPolicy.xml c:\Temp\MyPolicy.bin
+ConvertFrom-CIPolicy "$env:TEMP\MyPolicy.xml" "$env:TEMP\MyPolicy.bin"
 
 #copy to Code Integrity folder
-Copy-Item c:\Temp\MyPolicy.bin -Destination C:\Windows\System32\CodeIntegrity\
+Copy-Item "$env:TEMP\MyPolicy.bin" -Destination "C:\Windows\System32\CodeIntegrity\"
 
 #update policy
 Invoke-CimMethod -Namespace root\Microsoft\Windows\CI -ClassName PS_UpdateAndCompareCIPolicy -MethodName Update -Arguments @{FilePath = "C:\Windows\System32\CodeIntegrity\MyPolicy.bin" }
@@ -170,8 +165,8 @@ $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 New-Gpo -Name 'SmartLocker' | New-GPLink -Target $OUPath
  
 #copy policy to DC
-New-Item -Type Directory -Name SmartLocker -Path \\dc\c$\Windows\SYSVOL\domain\Policies\
-Copy-Item -Path c:\Temp\MyPolicy.bin -Destination \\dc\c$\Windows\SYSVOL\domain\Policies\SmartLocker\
+New-Item -Type Directory -Name SmartLocker -Path "\\dc\c$\Windows\SYSVOL\domain\Policies\"
+Copy-Item -Path "$env:TEMP\MyPolicy.bin" -Destination "\\dc\c$\Windows\SYSVOL\domain\Policies\SmartLocker\"
  
 ````
 
