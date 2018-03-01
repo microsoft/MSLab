@@ -76,10 +76,16 @@ $Policy.sipolicy.Rules | Select-Object -ExpandProperty rule
 The next step would be to modify policy [options 13-16](https://docs.microsoft.com/en-us/windows/security/threat-protection/device-guard/deploy-windows-defender-application-control-policy-rules-and-file-rules#windows-defender-application-control-policy-rules) 13 to enable [Managed Installer](https://docs.microsoft.com/en-us/sccm/core/get-started/capabilities-in-technical-preview-1606), 14 for Intelligent Security Graph Authorization (to enable just good apps), 15 for Invalidate EAs on Reboot (To periodically re-validate the reputation for files that were authorized by the ISG) and 16 for WDAC policy updates to apply without requiring a system reboot.
 
 ````PowerShell
+#add new options
 13..16 | Foreach-Object{
     Set-RuleOption -o $_ -f "$env:TEMP\MyPolicy.xml"
 }
+
+#check rules again
+[xml]$Policy=get-content -Path "$env:TEMP\MyPolicy.xml"
+$Policy.sipolicy.Rules | Select-Object -ExpandProperty rule
  
+
 ````
 
 Result
@@ -172,7 +178,7 @@ Copy-Item -Path "$env:TEMP\MyPolicy.bin" -Destination "\\dc\c$\Windows\SYSVOL\do
 
 Edit GPO with gpmc.msc and set following settings 
 
-Set Code integrity policy binary to this location :\\corp.contoso.com\SYSVOL\Corp.contoso.com\Policies\SmartLocker\MyPolicy.bin
+Set Code integrity policy binary to this location : "\\corp.contoso.com\SYSVOL\Corp.contoso.com\Policies\SmartLocker\MyPolicy.bin"
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DeviceGuardCI.png)
 
