@@ -85,7 +85,6 @@ The next step would be to modify policy [options 13-16](https://docs.microsoft.c
 [xml]$Policy=get-content -Path "$env:TEMP\MyPolicy.xml"
 $Policy.sipolicy.Rules | Select-Object -ExpandProperty rule
  
-
 ````
 
 Result
