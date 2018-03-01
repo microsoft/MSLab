@@ -138,7 +138,7 @@ MSInfo32 status - notice UMCI is running even KMCI/VBS is not. It's probably the
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/MSInfo32.png)
 
 ````PowerShell
-#start services
+#start services. Alternatively you can run "appidtel start"
 Get-Service -Name applockerfltr,appidsvc,appid | Start-Service
 #make it autostart
 Get-Service -Name applockerfltr,appid | Set-Service -StartupType Automatic
