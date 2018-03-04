@@ -78,7 +78,7 @@
         },
         "virtualNetworkName": {
             "type": "string",
-            "defaultValue": "ws2016labwin10RG-vnet"
+            "defaultValue": "ws2016labwin10-vnet"
         },
         "networkInterfaceName": {
             "type": "string",

@@ -19,6 +19,9 @@ Write-host "Script started at $StartDateTime"
     #Cluster-Aware-Updating role name
         $CAURoleName="S2D-Clus-CAU"
 
+    #Disable CSV Balancer 
+        $DisableCSVBalancer=$True
+
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
         $StorNet="172.16.1."
@@ -312,6 +315,11 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+    #Disable CSV Balancer
+        if ($DisableCSVBalancer){
+            (Get-Cluster $ClusterName).CsvBalancer = 0
+        }
 
 #endregion
 
