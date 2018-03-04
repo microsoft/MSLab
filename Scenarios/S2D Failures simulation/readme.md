@@ -1,3 +1,15 @@
+<!-- TOC -->
+
+- [Scenario Description](#scenario-description)
+- [Cluster status when healthy](#cluster-status-when-healthy)
+- [Pulling and returning random drive](#pulling-and-returning-random-drive)
+    - [Pull random drive](#pull-random-drive)
+    - [Return disk](#return-disk)
+- [Pulling disk again and replacing with different](#pulling-disk-again-and-replacing-with-different)
+- [Remove retired disk](#remove-retired-disk)
+
+<!-- /TOC -->
+
 # Scenario Description
 
 This scenario will simulate disk failure and disk replacement in random node.
