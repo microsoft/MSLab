@@ -2,10 +2,6 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "ResourceGroupName": {
-        "type": "string",
-        "defaultValue": "ws2016labRG"
-    },
     "location": {
       "type": "string",
       "defaultValue": "westeurope",
@@ -163,7 +159,7 @@
     }
   },
   "variables": {
-      "vnetId": "[resourceId(parameters('ResourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+      "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
       "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
   },
   "resources": [
@@ -214,7 +210,7 @@
               "diagnosticsProfile": {
                   "bootDiagnostics": {
                       "enabled": true,
-                      "storageUri": "[reference(resourceId(parameters('ResourceGroupName'), 'Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName')), '2015-06-15').primaryEndpoints['blob']]"
+                      "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName')), '2015-06-15').primaryEndpoints['blob']]"
                   }
               }
           }
@@ -291,13 +287,13 @@
                           },
                           "privateIPAllocationMethod": "Dynamic",
                           "publicIpAddress": {
-                              "id": "[resourceId(parameters('ResourceGroupName'),'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                              "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
                           }
                       }
                   }
               ],
               "networkSecurityGroup": {
-                  "id": "[resourceId(parameters('ResourceGroupName'), 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
               }
           }
       },
