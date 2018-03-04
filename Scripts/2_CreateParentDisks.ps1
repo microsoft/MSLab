@@ -154,6 +154,11 @@ If (!( $isAdmin )) {
         if (!$LabConfig.ServerVHDs){
             $LabConfig.ServerVHDs=@()
             $LabConfig.ServerVHDs += @{
+                Edition="DataCenter" 
+                VHDName=$FullServerVHDName
+                Size=60GB
+            }
+            $LabConfig.ServerVHDs += @{
                 Edition="DataCenterCore" 
                 VHDName=$CoreServerVHDName
                 Size=30GB
