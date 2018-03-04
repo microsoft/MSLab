@@ -346,7 +346,7 @@
           "properties": {
               "publisher": "Microsoft.Powershell",
               "type": "DSC",
-              "typeHandlerVersion": "2.9",
+              "typeHandlerVersion": "2.20",
               "autoUpgradeMinorVersion": true,
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/config.zip')]",
