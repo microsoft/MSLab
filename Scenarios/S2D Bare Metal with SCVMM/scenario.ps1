@@ -788,9 +788,9 @@
     $pool = Get-SCStoragePool -Name "S2D on $Clustername"
     $ClassS2D = Get-SCStorageClassification -Name "S2D"
     $Pool | Set-SCStoragePool -StorageClassification $ClassS2D
-    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorDisk* | Set-SCStorageDisk -StorageClassification $ClassMirror
-    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorAcceleratedParity* | Set-SCStorageDisk -StorageClassification $ClassMAP
     #refresh provider
     Read-SCStorageProvider $provider
+    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorDisk* | Set-SCStorageDisk -StorageClassification $ClassMirror
+    Get-SCStorageDisk | Where-Object StorageLogicalUnit -like MirrorAcceleratedParity* | Set-SCStorageDisk -StorageClassification $ClassMAP
 
 #endregion

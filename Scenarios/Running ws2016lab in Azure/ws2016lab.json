@@ -78,7 +78,7 @@
     },
     "virtualNetworkName": {
       "type": "string",
-      "defaultValue": "ws2016labRG-vnet"
+      "defaultValue": "ws2016lab-vnet"
     },
     "networkInterfaceName": {
       "type": "string",
@@ -90,18 +90,6 @@
     },
     "adminPassword": {
       "type": "securestring"
-    },
-    "diagnosticsStorageAccountName": {
-      "type": "string",
-      "defaultValue": "ws2016labdiagstor"
-    },
-    "diagnosticsStorageAccountId": {
-      "type": "string",
-      "defaultValue": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
-    },
-    "diagnosticsStorageAccountType": {
-      "type": "string",
-      "defaultValue": "Standard_LRS"
     },
     "addressPrefix": {
       "type": "string",
@@ -159,7 +147,7 @@
     }
   },
   "variables": {
-      "vnetId": "[resourceId('ws2016labRG','Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+      "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
       "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
   },
   "resources": [
@@ -169,8 +157,7 @@
           "apiVersion": "2016-04-30-preview",
           "location": "[parameters('location')]",
           "dependsOn": [
-              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]",
-              "[concat('Microsoft.Storage/storageAccounts/', parameters('diagnosticsStorageAccountName'))]"
+              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
           ],
           "properties": {
               "osProfile": {
@@ -206,13 +193,7 @@
                       }
                   ]
               },
-              "licenseType": "Windows_Server",
-              "diagnosticsProfile": {
-                  "bootDiagnostics": {
-                      "enabled": true,
-                      "storageUri": "[reference(resourceId('ws2016labRG', 'Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName')), '2015-06-15').primaryEndpoints['blob']]"
-                  }
-              }
+              "licenseType": "Windows_Server"
           }
       },
       {
@@ -236,15 +217,6 @@
           "dependsOn": [
               "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
           ]
-      },
-      {
-          "name": "[parameters('diagnosticsStorageAccountName')]",
-          "type": "Microsoft.Storage/storageAccounts",
-          "apiVersion": "2015-06-15",
-          "location": "[parameters('location')]",
-          "properties": {
-              "accountType": "[parameters('diagnosticsStorageAccountType')]"
-          }
       },
       {
           "name": "[parameters('virtualNetworkName')]",
@@ -287,13 +259,13 @@
                           },
                           "privateIPAllocationMethod": "Dynamic",
                           "publicIpAddress": {
-                              "id": "[resourceId('ws2016labRG','Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                              "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
                           }
                       }
                   }
               ],
               "networkSecurityGroup": {
-                  "id": "[resourceId('ws2016labRG', 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
               }
           }
       },
@@ -346,7 +318,7 @@
           "properties": {
               "publisher": "Microsoft.Powershell",
               "type": "DSC",
-              "typeHandlerVersion": "2.9",
+              "typeHandlerVersion": "2.20",
               "autoUpgradeMinorVersion": true,
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/config.zip')]",

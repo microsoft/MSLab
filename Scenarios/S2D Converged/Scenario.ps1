@@ -100,6 +100,9 @@ Write-host "Script started at $StartDateTime"
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
 
+    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
+        $MemoryDump="Active"
+
     #S2D Node Name To Scale
         $S2DNodesToScale="Storage5"
 
@@ -160,10 +163,19 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName $S2DNodes -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
 
-    #Configure Active memory dump
-        Invoke-Command -ComputerName $AllServers -ScriptBlock {
-            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
-            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
+    #configure memory dump
+        if ($MemoryDump -eq "Kernel"){
+            #Configure Kernel memory dump
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
+            }
+        }
+        if ($MemoryDump -eq "Active"){
+            #Configure Active memory dump
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
+            }
         }
 
     #enable meltdown mitigation
