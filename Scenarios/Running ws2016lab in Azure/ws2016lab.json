@@ -91,18 +91,6 @@
     "adminPassword": {
       "type": "securestring"
     },
-    "diagnosticsStorageAccountName": {
-      "type": "string",
-      "defaultValue": "ws2016labdiagstor"
-    },
-    "diagnosticsStorageAccountId": {
-      "type": "string",
-      "defaultValue": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
-    },
-    "diagnosticsStorageAccountType": {
-      "type": "string",
-      "defaultValue": "Standard_LRS"
-    },
     "addressPrefix": {
       "type": "string",
       "defaultValue": "10.0.0.0/24"
@@ -169,8 +157,7 @@
           "apiVersion": "2016-04-30-preview",
           "location": "[parameters('location')]",
           "dependsOn": [
-              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]",
-              "[concat('Microsoft.Storage/storageAccounts/', parameters('diagnosticsStorageAccountName'))]"
+              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
           ],
           "properties": {
               "osProfile": {
@@ -206,13 +193,7 @@
                       }
                   ]
               },
-              "licenseType": "Windows_Server",
-              "diagnosticsProfile": {
-                  "bootDiagnostics": {
-                      "enabled": true,
-                      "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName')), '2015-06-15').primaryEndpoints['blob']]"
-                  }
-              }
+              "licenseType": "Windows_Server"
           }
       },
       {
@@ -236,15 +217,6 @@
           "dependsOn": [
               "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
           ]
-      },
-      {
-          "name": "[parameters('diagnosticsStorageAccountName')]",
-          "type": "Microsoft.Storage/storageAccounts",
-          "apiVersion": "2015-06-15",
-          "location": "[parameters('location')]",
-          "properties": {
-              "accountType": "[parameters('diagnosticsStorageAccountType')]"
-          }
       },
       {
           "name": "[parameters('virtualNetworkName')]",
