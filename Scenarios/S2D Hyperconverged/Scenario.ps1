@@ -19,6 +19,9 @@ Write-host "Script started at $StartDateTime"
     #Cluster-Aware-Updating role name
         $CAURoleName="S2D-Clus-CAU"
 
+    #Disable CSV Balancer 
+        $DisableCSVBalancer=$True
+
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
         $StorNet="172.16.1."
@@ -37,6 +40,9 @@ Write-host "Script started at $StartDateTime"
     #iWARP?
         $iWARP=$False
 
+    #DisableNetBIOS on all vNICs? $True/$False It's optional. Works well with both settings default/disabled
+        $DisableNetBIOS=$False
+
     #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
         $NumberOfDisks=$numberofnodes
 
@@ -54,6 +60,9 @@ Write-host "Script started at $StartDateTime"
 
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
+
+    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
+        $MemoryDump="Active"
 
 #endregion
 
@@ -106,10 +115,19 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
     
-    #Configure Active memory dump
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
-            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
+    #configure memory dump
+        if ($MemoryDump -eq "Kernel"){
+        #Configure Kernel memory dump
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
+            }
+        }
+        if ($MemoryDump -eq "Active"){
+            #Configure Active memory dump
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
+                Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
+            }
         }
 
     #enable meltdown mitigation
@@ -198,7 +216,21 @@ Write-host "Script started at $StartDateTime"
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
-    
+
+        #Disable NetBIOS on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
+            if ($DisableNetBIOS){
+                $vNICs = Get-NetAdapter -CimSession $Servers | Where-Object Name -like vEthernet*
+                foreach ($vNIC in $vNICs){
+                    Write-Host "Disabling NetBIOS on $($vNIC.Name) on computer $($vNIC.PSComputerName)"
+                    $output=Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $vNIC.PSComputerName | Where-Object Description -eq $vNIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipNetBIOS -ArgumentList 2
+                    if ($output.Returnvalue -eq 0){
+                        Write-Host "`t Success" -ForegroundColor Green
+                    }else{
+                        Write-Host "`t Failure"
+                    }
+                }
+            }
+
     #Verify Networking
         #verify mapping
             Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
@@ -283,6 +315,11 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+    #Disable CSV Balancer
+        if ($DisableCSVBalancer){
+            (Get-Cluster $ClusterName).CsvBalancer = 0
+        }
 
 #endregion
 

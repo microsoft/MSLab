@@ -42,6 +42,9 @@ Write-host "Script started at $StartDateTime"
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
         $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
 
+    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
+        $MemoryDump="Active"
+
 #endregion
 
 #region Install features for management (Client needs RSAT, Server/Server Core have different features)
@@ -88,11 +91,20 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Configure basic settings on servers
-    #Configure Active memory dump
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
+    #configure memory dump
+    if ($MemoryDump -eq "Kernel"){
+        #Configure Kernel memory dump
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 2
+        }
+    }
+    if ($MemoryDump -eq "Active"){
+        #Configure Active memory dump
+        Invoke-Command -ComputerName $servers -ScriptBlock {
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
             Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
         }
+    }
 
     #install roles and features
         #install Hyper-V using DISM (if nested virtualization is not enabled install-windowsfeature would fail)

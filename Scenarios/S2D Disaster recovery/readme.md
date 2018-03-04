@@ -1,3 +1,12 @@
+<!-- TOC -->
+
+- [Scenario Description](#scenario-description)
+- [LabConfig](#labconfig)
+- [One node OS failure simulation](#one-node-os-failure-simulation)
+- [All nodes OS failure simulation](#all-nodes-os-failure-simulation)
+
+<!-- /TOC -->
+
 # Scenario Description
 
 This scenario will simulate OS replacement in one node and then OS replacement in entire cluster. The only thing left will be disks. So entire environment will be rebuilt. 
