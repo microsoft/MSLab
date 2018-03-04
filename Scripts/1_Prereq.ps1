@@ -61,6 +61,9 @@ function  Get-WindowsBuildNumber {
         $LabConfig.DomainName="Corp.contoso.com"
     }
 
+#set TLS 1.2 for github downloads
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 #endregion
 
 #region OS checks and folder build
