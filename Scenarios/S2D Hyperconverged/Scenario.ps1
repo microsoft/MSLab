@@ -32,7 +32,10 @@ Write-host "Script started at $StartDateTime"
 
     #Real hardware?
         $RealHW=$False #will configure VMQ not to use CPU 0 if $True, configures power plan
-        $DellHW=$False #include Dell recommendations
+        $DellHW=$False #include Dell recommendation to increase HW timeout to 10s
+
+    #IncreaseHW Timeout for virtual environments to 30s? https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm
+        $VirtualEnvironment=$true
 
     #PFC?
         $DCB=$False #$true for ROCE, $false for iWARP
@@ -110,11 +113,16 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Configure basic settings on servers
-    #Tune HW timeout to 10 minutes (6minutes is default) for Dell servers
+    #Tune HW timeout to 10 seconds (6 seconds is default) for Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
-    
+
+    #IncreaseHW Timeout for virtual environments to 30s
+        if ($VirtualEnvironment){
+            Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530}
+        }
+
     #configure memory dump
         if ($MemoryDump -eq "Kernel"){
         #Configure Kernel memory dump

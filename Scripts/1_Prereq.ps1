@@ -432,8 +432,8 @@ If (!( $isAdmin )) {
     $Edition=(Get-WindowsImage -ImagePath "$ServerMediaPath\sources\install.wim" | Out-GridView -OutputMode Single).ImageName
 
     #ask for imagename
-    $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win2016_G2.vhdx is used")
-    if(!$vhdname){$vhdname="Win2016_G2.vhdx"}
+    $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win10_G2.vhdx is used")
+    if(!$vhdname){$vhdname="Win10_G2.vhdx"}
 
     #ask for size
     [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
