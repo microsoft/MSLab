@@ -777,7 +777,7 @@ If (!( $isAdmin )) {
                             WriteErrorAndExit "You did not select any net adapter. Exitting."
                         }
                         $ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
-                    }    
+                    }
                 }
                 if ($ExtSwitch.count -eq 1){
                     WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
@@ -878,13 +878,7 @@ If (!( $isAdmin )) {
                 }
                 $global:IP++
             }
-        #connect to internet
-            if ($labconfig.internet){
-                WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
-                $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
-                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -SwitchName $ExternalSwitch.Name
-            }
-        
+
         #add tools disk
             WriteInfo "`t Adding Tools disk to DC machine"
             $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\ToolsDiskDC.vhdx"
@@ -908,6 +902,16 @@ If (!( $isAdmin )) {
         WriteInfo "DC was not started. Starting now..."
         $DC | Start-VM
     }
+
+    #connect to internet
+    if ($labconfig.internet){
+        if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
+            WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
+            $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
+            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+        }
+    }
+
 #endregion
 
 #region Test DC to come up
@@ -945,51 +949,55 @@ If (!( $isAdmin )) {
                     Get-DhcpServerInDC | Remove-DHCPServerInDC
                     Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
                 }
-            
-            #configure NAT
-                If ($labconfig.internet){
-                    WriteInfoHighlighted "`t Configuring NAT"
-                    WriteInfo "`t `t Installing Routing and RSAT-RemoteAccess features"
-                    $cmd=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                        Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
-                    }
-                    if ($cmd.restartneeded -eq "Yes"){
-                        WriteInfo "`t `t Restart of DC is requested"
-                        WriteInfo "`t `t Restarting DC"
-                        $DC | Restart-VM -Force
-                        Start-Sleep 10
-                        WriteInfoHighlighted "`t `t Waiting for Active Directory on $($DC.name) to be Started."
-                        do{
-                            $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
-                                param($labconfig);
-                                Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue
-                            }
-                            Start-Sleep 5
-                        }until ($test -ne $Null)
-                        WriteSuccess "`t `t Active Directory on $($DC.name) is up."
-                    }
-                    WriteInfoHighlighted "`t Requesting DNS settings from Host"
-                    $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
-                    $DNSServers=@()
-                    $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
-                    $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
-                    WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
-                    Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
-                        param($DNSServers);
-                        Set-Service -Name RemoteAccess -StartupType Automatic
-                        Start-Service -Name RemoteAccess
-                        netsh.exe routing ip nat install
-                        netsh.exe routing ip nat add interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name
-                        netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
-                        netsh.exe ras set conf confstate = enabled
-                        netsh.exe routing ip dnsproxy install
-                        Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
-                        foreach ($DNSServer in $DNSServers){
-                            Add-DnsServerForwarder $DNSServer
+        }
+
+    #configure NAT on DC
+        If ($labconfig.internet){
+            $cmd=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {Get-WindowsFeature -Name Routing}
+            if ($cmd.installed -eq $False){
+                WriteInfoHighlighted "`t Configuring NAT"
+                WriteInfo "`t `t Installing Routing and RSAT-RemoteAccess features"
+                $cmd=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
+                }
+                if ($cmd.restartneeded -eq "Yes"){
+                    WriteInfo "`t `t Restart of DC is requested"
+                    WriteInfo "`t `t Restarting DC"
+                    $DC | Restart-VM -Force
+                    Start-Sleep 10
+                    WriteInfoHighlighted "`t `t Waiting for Active Directory on $($DC.name) to be Started."
+                    do{
+                        $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $Labconfig -ErrorAction SilentlyContinue -ScriptBlock {
+                            param($labconfig);
+                            Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue
                         }
+                        Start-Sleep 5
+                    }until ($test -ne $Null)
+                    WriteSuccess "`t `t Active Directory on $($DC.name) is up."
+                }
+                WriteInfoHighlighted "`t Requesting DNS settings from Host"
+                $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
+                $DNSServers=@()
+                $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+                $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
+                WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
+                    param($DNSServers);
+                    Set-Service -Name RemoteAccess -StartupType Automatic
+                    Start-Service -Name RemoteAccess
+                    netsh.exe routing ip nat install
+                    netsh.exe routing ip nat add interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name
+                    netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
+                    netsh.exe ras set conf confstate = enabled
+                    netsh.exe routing ip dnsproxy install
+                    Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
+                    foreach ($DNSServer in $DNSServers){
+                        Add-DnsServerForwarder $DNSServer
                     }
                 }
+            }
         }
+
 
 #endregion
 
