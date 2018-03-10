@@ -309,6 +309,9 @@ Write-host "Script started at $StartDateTime"
         #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
             Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
+        #Configure IeeePriorityTag
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+
         #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
             Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
@@ -562,6 +565,7 @@ Write-host "Script started at $StartDateTime"
 
 #region activate High Performance Power plan
     if ($RealHW){
+        <#Cim method
         #show enabled power plan
             Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession $AllServers | where isactive -eq $true | ft PSComputerName,ElementName
         #Grab instances of power plans
@@ -570,6 +574,11 @@ Write-host "Script started at $StartDateTime"
             foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
         #show enabled power plan
             Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession $AllServers | where isactive -eq $true | ft PSComputerName,ElementName
+        #>
+        #set high performance
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {powercfg /SetActive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c}
+        #check settings
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {powercfg /list}
     }
 
 #endregion
