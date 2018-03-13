@@ -668,7 +668,8 @@
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
         #Configure IeeePriorityTag
-            Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+            #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+            #Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
 
         #validate flow control setting
             Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerNa
