@@ -265,7 +265,7 @@ The next step would be to cleanup machines on first site. This is necesarry, bec
 
 #Flip replication
     Set-SRPartnership -NewSourceComputerName $NewSourceClusterName -SourceRGName $SourceRGName -DestinationComputerName $NewDestinationClusterName -DestinationRGName $DestinationRGName -confirm:$false
-
+ 
 ````
 
 You can notice now, that Site1 is now destination for all volumes
