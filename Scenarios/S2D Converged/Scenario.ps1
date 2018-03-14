@@ -310,7 +310,8 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
         #Configure IeeePriorityTag
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+            #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+            #Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
 
         #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
             Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
