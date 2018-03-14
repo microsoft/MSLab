@@ -4,26 +4,11 @@
     - [Description and requirements](#description-and-requirements)
 - [LabConfig](#labconfig)
 - [The LAB](#the-lab)
-    - [region check prerequisites](#region-check-prerequisites)
-    - [region Variables](#region-variables)
-    - [region basic SCVMM Configuration](#region-basic-scvmm-configuration)
-    - [region Configure networks](#region-configure-networks)
-    - [region Configure Virtual Switch](#region-configure-virtual-switch)
-    - [region Configure Physical Computer Profile](#region-configure-physical-computer-profile)
-    - [region Configure WDS](#region-configure-wds)
-    - [region Run from Hyper-V Host to create new VMs](#region-run-from-hyper-v-host-to-create-new-vms)
-    - [region Deploy hosts (run again from DC or management machine)](#region-deploy-hosts-run-again-from-dc-or-management-machine)
-    - [region Apply vSwitch](#region-apply-vswitch)
-    - [region Configure Networking (classic approach)](#region-configure-networking-classic-approach)
-    - [region Configure Cluster and S2D (classic approach)](#region-configure-cluster-and-s2d-classic-approach)
-    - [region Create some Volumes (classic approach)](#region-create-some-volumes-classic-approach)
-    - [region Create some dummy VMs (3 per each CSV disk)](#region-create-some-dummy-vms-3-per-each-csv-disk)
-    - [region add storage provider to VMM](#region-add-storage-provider-to-vmm)
 
 <!-- /TOC -->
 
 # About Scenario 
-Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) 
+Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) / [Twitter](http://twitter.com/Andreas_Sobczyk) / 
 
 ## Description and requirements
 * In this scenario VMM SDN Express can be created and deployed from scratch using SCVMM nested in one Hyper-V host
