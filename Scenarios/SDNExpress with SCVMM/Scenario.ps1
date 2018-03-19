@@ -56,7 +56,7 @@ $confopenFile.Filter = "PSD1 files (*.psd1)|*.psd1"
 If ($confopenFile.ShowDialog() -eq "OK") {
     Write-Host  "File $($confopenFile.FileName) selected" -ForegroundColor Cyan
 } 
-if (!$openFile.FileName) {
+if (!$confopenFile.FileName) {
     Write-error -Message  "no files found"
 }
 $confFilePath = $confopenFile.FileName
