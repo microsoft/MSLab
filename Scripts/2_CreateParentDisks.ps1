@@ -621,28 +621,28 @@ If (!( $isAdmin )) {
 
             )
 
-            Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.16.0.0"
+            Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.17.0.0"
             #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
-            Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.1.0.0"
+            Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.5.0.0"
             Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
-            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "7.0.0.0"
+            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.0.0.0"
             Import-DscResource -ModuleName PSDesiredStateConfiguration
 
             Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
-                
+
             {
                 WindowsFeature ADDSInstall 
                 { 
                     Ensure = "Present" 
                     Name = "AD-Domain-Services"
                 }
-                
+
                 WindowsFeature FeatureGPMC
                 {
                     Ensure = "Present"
                     Name = "GPMC"
                     DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
+                }
 
                 WindowsFeature FeatureADPowerShell
                 {
@@ -941,18 +941,23 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted "`t Configuring DC using DSC takes a while."
         WriteInfo "`t `t Initial configuration in progress. Sleeping $VMStartupTime seconds"
         Start-Sleep $VMStartupTime
-
+        $i=1
         do{
             $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
             if ($test -eq $null) {
                 WriteInfo "`t `t Configuration in Progress. Sleeping 10 seconds"
                 Start-Sleep 10
-            }elseif ($test.status -ne "Success" ) {
-                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+            }elseif ($test.status -ne "Success" -and $i -eq 1) {
+                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
                 WriteInfoHighlighted "`t `t Invoking DSC Configuration again" 
                 Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
+                $i++
+            }elseif ($test.status -ne "Success" -and $i -gt 1) {
+                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
+                WriteInfoHighlighted "`t `t Restarting DC"
+                Invoke-Command -VMGuid $DC.id -ScriptBlock {Restart-Computer} -Credential $cred
             }elseif ($test.status -eq "Success" ) {
-                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count). Sleeping 10 seconds" 
+                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
                 WriteInfoHighlighted "`t `t DSC Configured DC Successfully" 
             }
         }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
