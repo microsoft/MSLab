@@ -10,7 +10,6 @@ You can create Win10 VHD with script provided in tools folder. You can then give
 ## Note
 
 If hydrating from scratch, make sure you use latest scripts as DSC needed some adjustments.
-
 known bug: **S2D fails to enable in 17623 inside VMs**
 
 ![](/Insider/enableS2Dfail.png)
@@ -74,3 +73,4 @@ $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD 
 ## Result
 
 ![](/Insider/cluadmin.png)
+ 
