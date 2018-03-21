@@ -70,3 +70,7 @@ $LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; Pa
 $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ````
+
+## Result
+
+![](/Insider/cluadmin.png)
