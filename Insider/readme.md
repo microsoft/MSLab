@@ -12,7 +12,7 @@ You can create Win10 VHD with script provided in tools folder. You can then give
 If hydrating from scratch, make sure you use latest scripts as DSC needed some adjustments.
 known bug: **S2D fails to enable in 17623 inside VMs**
 
-![](/Insider/enableS2Dfail.png)
+![](/Insider/Screenshots/enableS2Dfail.png)
 
 **Workaround - EnableClusterS2D using following script** However if you have Rack fault domain/Chassis fault domain, it would be more complex.
 
@@ -72,5 +72,5 @@ $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD 
 
 ## Result
 
-![](/Insider/cluadmin.png)
+![](/Insider//Screenshots/cluadmin.png)
  
