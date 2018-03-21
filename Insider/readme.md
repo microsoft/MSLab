@@ -12,6 +12,32 @@ You can create Win10 VHD with script provided in tools folder. You can then give
 If hydrating from scratch, make sure you use latest scripts as DSC needed some adjustments.
 known bug: **S2D fails to enable in 17623 inside VMs**
 
+![](/Insider/enableS2Dfail.png)
+
+**Workaround - EnableClusterS2D using following script** However if you have Rack fault domain/Chassis fault domain, it would be more complex.
+
+````PowerShell
+Enable-ClusterS2D -CimSession $ClusterName -AutoConfig:0 -Confirm:$false -Verbose -SkipEligibilityChecks
+
+Invoke-Command -ComputerName $ClusterName  -ScriptBlock {
+    #Create Pool
+        $phydisks = Get-StorageSubSystem -FriendlyName "*$using:ClusterName" | Get-PhysicalDisk -CanPool $true
+        $pool=New-StoragePool -FriendlyName  "S2D on $using:ClusterName" -PhysicalDisks $phydisks -StorageSubSystemFriendlyName "*$using:ClusterName"
+    #Set mediatype to HDD
+        $pool | get-physicaldisk | Set-PhysicalDisk -MediaType HDD
+    #Create tiers
+        if (($using:Servers).count -eq 2){
+            New-StorageTier -FriendlyName Capacity    -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName "S2D on $using:ClusterName" -PhysicalDiskRedundancy 1
+        }elseif(($using:Servers).count -eq 3){
+            New-StorageTier -FriendlyName Capacity    -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName "S2D on $using:ClusterName" -PhysicalDiskRedundancy 2
+        }elseif(($using:servers).count -gt 3){
+            New-StorageTier -FriendlyName Capacity    -MediaType HDD -ResiliencySettingName Parity -StoragePoolFriendlyName "S2D on $using:ClusterName" -PhysicalDiskRedundancy 2
+            New-StorageTier -FriendlyName Performance -MediaType HDD -ResiliencySettingName Mirror -StoragePoolFriendlyName "S2D on $using:ClusterName" -PhysicalDiskRedundancy 2
+        }
+}
+ 
+````
+
 ## LabConfig for vNext LTSC preview
 
 ````PowerShell
@@ -43,3 +69,8 @@ $LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; Pa
 $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ````
+
+## Result
+
+![](/Insider/cluadmin.png)
+ 
