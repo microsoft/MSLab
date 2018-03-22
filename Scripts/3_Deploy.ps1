@@ -425,7 +425,6 @@ If (!( $isAdmin )) {
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         WriteInfo "`t Creating VM"
         $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
-        $VMTemp | Set-VMProcessor -Count 2
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
@@ -476,7 +475,7 @@ If (!( $isAdmin )) {
         if ($VMConfig.NestedVirt -eq $True){
             WriteInfo "`t Enabling NestedVirt"
             $VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
-        }        
+        }
 
         #configure vTPM
         if ($VMConfig.vTPM -eq $True){
@@ -491,12 +490,28 @@ If (!( $isAdmin )) {
             WriteInfo "`t Configuring MemoryMinimumBytes to $($VMConfig.MemoryMinimumBytes/1MB)MB"
             Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
         }
-            
+
         #Set static Memory
         if ($VMConfig.StaticMemory -eq $true){
             WriteInfo "`t Configuring StaticMemory"
             $VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
-        }        
+        }
+
+        #configure number of processors
+        if ($VMConfig.VMProcessorCount){
+            WriteInfo "`t Configuring VM Processor Count to $($VMConfig.VMProcessorCount)"
+            if ($VMConfig.VMProcessorCount -le $NumberOfLogicalProcessors){
+                $VMTemp | Set-VMProcessor -Count $VMConfig.VMProcessorCount
+            }else{
+                WriteError "`t `t Number of processors specified in VMProcessorCount is greater than Logical Processors available in Host!"
+                WriteInfo  "`t `t Number of logical Processors in Host $NumberOfLogicalProcessors"
+                WriteInfo  "`t `t Number of Processors provided in labconfig $($VMConfig.VMProcessorCount)"
+                WriteInfo  "`t `t Will configure 2 vCPUs."
+                $VMTemp | Set-VMProcessor -Count 2
+            }
+        }else{
+            $VMTemp | Set-VMProcessor -Count 2
+        }
 
         $Name=$VMConfig.VMName
             
@@ -630,6 +645,10 @@ If (!( $isAdmin )) {
 
     #Grab Installation type
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+
+    #Grab number of processors
+    $NumberOfLogicalProcessors=(get-wmiobject win32_processor).NumberOfLogicalProcessors
+
 #endregion
 
 #region Some Additional checks and prereqs configuration
@@ -652,7 +671,7 @@ If (!( $isAdmin )) {
         if ($LABConfig.VMs.NestedVirt -contains $True){
             $BuildNumber=Get-WindowsBuildNumber
             if ($BuildNumber -ge 14393){
-                WriteSuccess "`t Windows is build greated than 14393. NestedVirt will work"
+                WriteSuccess "`t Windows is build greater than 14393. NestedVirt will work"
             }else{
                 WriteErrorAndExit "`t Windows build older than 14393 detected. NestedVirt will not work. Exiting"
             }
@@ -662,7 +681,7 @@ If (!( $isAdmin )) {
         if ($LABConfig.VMs.vTPM -contains $true){
             $BuildNumber=Get-WindowsBuildNumber
             if ($BuildNumber -ge 14393){
-                WriteSuccess "`t Windows is build greated than 14393. vTPM will work"
+                WriteSuccess "`t Windows is build greater than 14393. vTPM will work"
             }else{
                 WriteErrorAndExit "`t Windows build older than 14393 detected. vTPM will not work Exiting"
             }
@@ -884,6 +903,18 @@ If (!( $isAdmin )) {
             $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\ToolsDiskDC.vhdx"
             WriteInfo "`t `t Adding Virtual Hard Disk $($VHD.Path)"
             $DC | Add-VMHardDiskDrive -Path $vhd.Path
+
+        #modify number of CPUs
+            if ($Labconfig.DCVMProcessorCount){
+                WriteInfo "`t Configuring VM Processor Count for DC VM to $($labconfig.DCVMProcessorCount)"
+                If ($labconfig.DCVMProcessorCount -le $NumberOfLogicalProcessors){
+                    $DC | Set-VMProcessor -Count $Labconfig.DCVMProcessorCount
+                }else{
+                    WriteError "`t `t Number of processors specified in DCVMProcessorCount is greater than Logical Processors available in Host!"
+                    WriteInfo "`t `t Number of logical Processors in Host $NumberOfLogicalProcessors"
+                    WriteInfo "`t `t Number of Processors provided in labconfig $($labconfig.DCVMProcessorCount)"
+                }
+            }
 
         #start DC
             WriteInfo  "`t Starting Virtual Machine $($DC.name)"
@@ -1193,6 +1224,21 @@ If (!( $isAdmin )) {
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
         Set-VMProcessor -EnableHostResourceProtection $true -VMName "$($labconfig.Prefix)*" -ErrorAction SilentlyContinue
+
+    #Enable Guest services on all VMs if integration component if configured
+    if ($labconfig.EnableGuestServiceInterface){
+        WriteInfo "`t Enabling Guest Service Interface"
+        Get-VM -VMName -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} | Enable-VMIntegrationService -Name "Guest Service Interface"
+        $TempVMs=Get-VM -VMName -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -ne "Running" -and $_.state -ne "Off"}
+        if ($TempVMs){
+            WriteInfoHighlighted "`t `t Following VMs cannot be configured, as the state is not running or off"
+            $TempVMs.Name
+        }
+    }
+
+    #Enable VMNics device naming
+        WriteInfo "`t Enabling VMNics device naming"
+        Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming On
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
