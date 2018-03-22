@@ -30,6 +30,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
         ClientMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into client OS
         ServerISOFolder=""                     # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
         ServerMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into server OS
+        EnableGuestServiceInterface=$false     # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
+        DCVMProcessorCount=2                   # (Optional) 2 is default. If specified more/less, processorcount will be modified.
         AdditionalNetworksConfig=@();          # Just empty array for config below
         VMs=@();                               # Just empty array for config below
         ServerVHDs=@()                         # Just empty array for config below
@@ -47,6 +49,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
             HDDNumber = 12;                            # Number of "HDDs"
             HDDSize= 4TB ;                             # Size of "HDDs"
             MemoryStartupBytes= 512MB                  # Startup memory size
+            VMProcessorCount = 2                       # (Optional) Number of Processors in VM.
         }
     }
 
