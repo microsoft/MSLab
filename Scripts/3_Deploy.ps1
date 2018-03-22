@@ -647,7 +647,7 @@ If (!( $isAdmin )) {
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
 
     #Grab number of processors
-    (get-wmiobject win32_processor).NumberOfLogicalProcessors  | ForEach-Object { $NumberOfLogicalProcessors += $_}
+    (get-wmiobject win32_processor).NumberOfLogicalProcessors  | ForEach-Object { $global:NumberOfLogicalProcessors += $_}
 
 #endregion
 
