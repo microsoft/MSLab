@@ -72,6 +72,13 @@ To flip data1 to Site1, following script will shut down VMs on volume data1 and 
 **Warning:** If you use SCVMM, remove-vm deletes also VHD! Therefore make sure you are using Hyper-V module.
 
 ````PowerShell
+#Initial test
+    if ((Get-Command Remove-VM).commandtype -eq "Alias"){
+        Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
+        $exit=Read-Host "Press enter to Exit"
+        exit
+    }
+
 #Variables
     $NewSourceClusterName="Site2-SR-Clus" #name of cluster, that will become source cluster
     $NewDestinationClusterName="Site1-SR-Clus" #name of cluster, that will become destination cluster
@@ -120,6 +127,13 @@ To flip data1 to Site1, following script will shut down VMs on volume data1 and 
 To flip it back, we will use the very same script as above, but with different variables.
 
 ````PowerShell
+#Initial test
+    if ((Get-Command Remove-VM).commandtype -eq "Alias"){
+        Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
+        $exit=Read-Host "Press enter to Exit"
+        exit
+    }
+
 #Variables
     $NewSourceClusterName="Site1-SR-Clus" #name of cluster, that will become source cluster
     $NewDestinationClusterName="Site2-SR-Clus" #name of cluster, that will become destination cluster
@@ -183,6 +197,13 @@ Now we will let Site2 know, that it is source, and we will import and start all 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/flipWarning.png)
 
 ````PowerShell
+#Initial test
+    if ((Get-Command Remove-VM).commandtype -eq "Alias"){
+        Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
+        $exit=Read-Host "Press enter to Exit"
+        exit
+    }
+
 #Variables
     $NewSourceClusterName="Site2-SR-Clus" #name of cluster, that will become source cluster
     $NewDestinationClusterName="Site1-SR-Clus" #name of cluster, that will become destination cluster
@@ -236,6 +257,13 @@ Notice, that now you have Active-Active datacenters. Again, make sure if your pr
 The next step would be to cleanup machines on first site. This is necesarry, because without this step, you would have "zombie" VMs after making this cluster destination. The VMs objects may/may not disappear, while VMs still present in registry. What you could see after import is duplicate VM object. Note: keeping Config is not necesarry as these changes will be rewritten when replication will be enforced.
 
 ````PowerShell
+#Initial test
+    if ((Get-Command Remove-VM).commandtype -eq "Alias"){
+        Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
+        $exit=Read-Host "Press enter to Exit"
+        exit
+    }
+
 #Variables
     $NewSourceClusterName="Site2-SR-Clus" #name of cluster, that will become source cluster
     $NewDestinationClusterName="Site1-SR-Clus" #name of cluster, that will become destination cluster
@@ -275,6 +303,13 @@ You can notice now, that Site1 is now destination for all volumes
 To flip replication, you can use script for planned failover (following example is the same as script from planned failover)
 
 ````PowerShell
+#Initial test
+    if ((Get-Command Remove-VM).commandtype -eq "Alias"){
+        Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
+        $exit=Read-Host "Press enter to Exit"
+        exit
+    }
+
 #Variables
     $NewSourceClusterName="Site1-SR-Clus" #name of cluster, that will become source cluster
     $NewDestinationClusterName="Site2-SR-Clus" #name of cluster, that will become destination cluster
