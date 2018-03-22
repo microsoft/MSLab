@@ -506,8 +506,8 @@ If (!( $isAdmin )) {
                 WriteError "`t `t Number of processors specified in VMProcessorCount is greater than Logical Processors available in Host!"
                 WriteInfo  "`t `t Number of logical Processors in Host $NumberOfLogicalProcessors"
                 WriteInfo  "`t `t Number of Processors provided in labconfig $($VMConfig.VMProcessorCount)"
-                WriteInfo  "`t `t Will configure 2 vCPUs."
-                $VMTemp | Set-VMProcessor -Count 2
+                WriteInfo  "`t `t Will configure maximum processors possible instead ($NumberOfLogicalProcessors)"
+                $VMTemp | Set-VMProcessor -Count $NumberOfLogicalProcessors
             }
         }else{
             $VMTemp | Set-VMProcessor -Count 2
@@ -913,6 +913,8 @@ If (!( $isAdmin )) {
                     WriteError "`t `t Number of processors specified in DCVMProcessorCount is greater than Logical Processors available in Host!"
                     WriteInfo "`t `t Number of logical Processors in Host $NumberOfLogicalProcessors"
                     WriteInfo "`t `t Number of Processors provided in labconfig $($labconfig.DCVMProcessorCount)"
+                    WriteInfo "`t `t Will configure maximum processors possible instead ($NumberOfLogicalProcessors)"
+                    $DC | Set-VMProcessor -Count $NumberOfLogicalProcessors
                 }
             }
 
