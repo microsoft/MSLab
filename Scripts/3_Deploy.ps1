@@ -898,6 +898,10 @@ If (!( $isAdmin )) {
                 $global:IP++
             }
 
+        #Enable VMNics device naming
+            WriteInfo "`t Enabling DC VMNics device naming"
+            $DC | Set-VMNetworkAdapter -DeviceNaming On
+
         #add tools disk
             WriteInfo "`t Adding Tools disk to DC machine"
             $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LABFolder\VMs\ToolsDiskDC.vhdx"
@@ -923,8 +927,8 @@ If (!( $isAdmin )) {
             $DC | Start-VM
 
         #rename DC VM
-                WriteInfo "`t Renaming $($DC.name) to $($labconfig.Prefix+$DC.name)"
-                $DC | Rename-VM -NewName ($labconfig.Prefix+$DC.name)
+            WriteInfo "`t Renaming $($DC.name) to $($labconfig.Prefix+$DC.name)"
+            $DC | Rename-VM -NewName ($labconfig.Prefix+$DC.name)
     }else{
         #if DC was present, just grab it
             $DC=get-vm -Name ($labconfig.prefix+"DC")
@@ -1230,8 +1234,8 @@ If (!( $isAdmin )) {
     #Enable Guest services on all VMs if integration component if configured
     if ($labconfig.EnableGuestServiceInterface){
         WriteInfo "`t Enabling Guest Service Interface"
-        Get-VM -VMName -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} | Enable-VMIntegrationService -Name "Guest Service Interface"
-        $TempVMs=Get-VM -VMName -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -ne "Running" -and $_.state -ne "Off"}
+        Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} | Enable-VMIntegrationService -Name "Guest Service Interface"
+        $TempVMs=Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -ne "Running" -and $_.state -ne "Off"}
         if ($TempVMs){
             WriteInfoHighlighted "`t `t Following VMs cannot be configured, as the state is not running or off"
             $TempVMs.Name
