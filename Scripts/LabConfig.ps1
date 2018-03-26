@@ -1,7 +1,7 @@
 ﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 ### HELP ###
 
@@ -188,6 +188,16 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
         Example: ServerMSUsFolder="d:\Updates\Server2016"
         If ServerISOFolder/ClientISOFolder is specified, then updates are being grabbed from ServerMSUsFolder/ClientMSUsFolder.
         If ServerMSUsFolder/ClientMSUsFolder is not specified, or empty, you are not asked for providing MSU files and no MSUs are applied.
+
+    DCVMProcessorCount (optional)
+        Example: DCVMProcessorCount=4
+        Number of CPUs in DC.
+        If not specified, 2 vCPUs will be set. If specified more/less, processorcount will be modified. If more vCPUs specified than available in host, the maximum possible number will be configured.
+
+    EnableGuestServiceInterface (optional)
+        Example: EnableGuestServiceInterface=$true
+        If True, then Guest Services integration component will be enabled on all VMs. This allows simple file copy from host to guests.
+
     #>
 #endregion
 
@@ -266,6 +276,11 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
         Example AdditionalLocalAdmin='Ned'
         Works only with SkipDjoin as you usually don't need additional local account
         When you skipDjoin on Windows10 and local administrator is disabled. Then AdditionalLocalAdmin is useful
+
+    VMProcessorCount (Optional)
+        Example VMProcessorCount=8
+        Number of Processors in VM. If specified more than available in host, maximum possible number will be used.
+
     #>
 #endregion
 
