@@ -15,20 +15,14 @@ If (!( $isAdmin )) {
 }
 
 $ErrorActionPreference = "stop"
-    
-#Start-Transcript -Path "$PSScriptRoot\Deploy.log"
 
 ##Load LabConfig....
 . ".\LabConfig.ps1"
 
-$AllowVlans = "1-410"
-$NativeVlanId = 200
-    
+#VM Credentials
 $secpasswd = ConvertTo-SecureString $LabConfig.AdminPassword -AsPlainText -Force
 $VMCreds = New-Object System.Management.Automation.PSCredential ("corp\$($LabConfig.DomainAdminName)", $secpasswd)
 
-#Define DC
-$DCvm = Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*DC"}
 #Define VMM
 $VMMvm = Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*DC"}
 
@@ -56,7 +50,7 @@ $confopenFile.Filter = "PSD1 files (*.psd1)|*.psd1"
 If ($confopenFile.ShowDialog() -eq "OK") {
     Write-Host  "File $($confopenFile.FileName) selected" -ForegroundColor Cyan
 } 
-if (!$confopenFile.FileName) {
+if (!$openFile.FileName) {
     Write-error -Message  "no files found"
 }
 $confFilePath = $confopenFile.FileName
@@ -68,45 +62,10 @@ Unblock-File -Path .\SDN-Master.zip
 
 #endregion
 
-#region configure VMs 
-Write-host "Configure VMs" -foregroundcolor Green
-$DCvm | Stop-vm
-$HostVMs = Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*$VMNames*" } 
-$HostVMs | Set-VMMemory -DynamicMemoryEnabled $false -StartupBytes $LabConfig.VMs[2].MemoryStartupBytes
-$HostVMs | Set-VMProcessor -ExposeVirtualizationExtensions $true -Count 6
-$HostVMs | Set-VMFirmware -EnableSecureBoot Off
-Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*"} | Get-VMNetworkAdapter | Where-Object {$_.Name -ne "internet"} | Set-VMNetworkAdapterVlan -Trunk -AllowedVlanIdList $AllowVlans -NativeVlanId $NativeVlanId
-Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*"} | Set-VMNetworkAdapter -DeviceNaming On
+#region Start VMs 
+Write-host "Starting VMs" -foregroundcolor Green
 Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*"} | Start-VM
-Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*"} | Get-VMIntegrationService | Enable-VMIntegrationService
-
-Write-host "Wait for boot" -foregroundcolor Green
-start-sleep 120
-
-Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*"} | Foreach-Object { 
-    $_.Name
-    Invoke-Command -VMId $_.Id -ScriptBlock { Get-NetFirewallRule -Name *FPS* | Enable-NetFirewallRule ; Enable-PSRemoting -Force -Confirm:$false } -Credential $VMCreds 
-    Invoke-Command -VMId $_.Id -ScriptBlock { Get-NetFirewallRule -Name *rpc* | Enable-NetFirewallRule } -Credential $VMCreds 
-    Invoke-Command -VMId $_.Id -ScriptBlock { Get-NetFirewallRule -Name *wmi* | Enable-NetFirewallRule } -Credential $VMCreds 
-    #Invoke-Command -VMId $_.Id -ScriptBlock { ipconfig /registerdns } -Credential $VMCreds
-    Invoke-Command -VMId $_.Id -ScriptBlock { set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1  } -Credential $VMCreds 
-}
-
-# Add local data disk to Hosts
-Write-host "Format host data disk" -foregroundcolor Green
-$HostVMs | Foreach-Object {
-    $_| Foreach-Object {  Invoke-Command -VMId $_.Id -ScriptBlock {   
-            Get-Disk | Where-Object {$_.Size -eq 150GB } |
-                Where partitionstyle -eq 'raw' |
-                Initialize-Disk -PartitionStyle MBR -PassThru |
-                New-Partition -DriveLetter D -UseMaximumSize |
-                Format-Volume -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
-        } -Credential $VMCreds
-    } 
-}
-#endregion configure VMs 
+#endregion Start VMs 
 
 #region Add library disk and copy files
 Write-host "Add library disk and copy files" -foregroundcolor Green
@@ -132,25 +91,13 @@ $VMMvm | Copy-VMFile -SourcePath $confFilePath -DestinationPath "e:\Library\Fabr
 $VMMvm | Copy-VMFile -SourcePath .\SDN-Master.zip -DestinationPath "e:\SDN-Master.zip" -CreateFullPath -FileSource Host -Force
 #endregion Add library disk and copy files
 
-#region configure router nics
-Write-host "Adding BGP nics" -foregroundcolor Green
-#add nics for Router
-$DCvm | Get-VMNetworkAdapter -Name "Management1" | Rename-VMNetworkAdapter -NewName Mgmt
-$DCvm | Add-VMNetworkAdapter -Name HNV -SwitchName "$($LabConfig.Prefix)LabSwitch" -DeviceNaming On
-$DCvm | Get-VMNetworkAdapter -Name HNV | Set-VMNetworkAdapterVlan -VlanId 201 -Access
-$DCvm | Add-VMNetworkAdapter -Name Transit -SwitchName "$($LabConfig.Prefix)LabSwitch" -DeviceNaming On
-$DCvm | Get-VMNetworkAdapter -Name Transit | Set-VMNetworkAdapterVlan -VlanId 300 -Access
-#endregion configure router nics
-
 Write-Host "#------------ Done configuring VMs, Continue on DC ------------#" -foregroundcolor Yellow
 Write-Host "#--------------------------------------------------------------#" -foregroundcolor Yellow
 throw
 
-
 #######################################
 # ENDING Run from Hyper-V Host ENDING #
 #endregion######################################
-
 
 
 
@@ -237,16 +184,13 @@ $RouterCIM = New-CimSession $RouterName
 $DCCIM = New-CimSession $DCName
 #endregion Initialization
 
-#region Configure BGP NICs
+#region Rename BGP NICs
 Write-host "Configure Router NICs" -ForegroundColor Green
 foreach ($NetAdapter in (Get-NetAdapter -CimSession $RouterCIM)) {
     $NicName = $NetAdapter | Get-NetAdapterAdvancedProperty –DisplayName “Hyper-V Network Adapter Name” -CimSession $RouterCIM
     $NetAdapter | Rename-NetAdapter -NewName $NicName.DisplayValue -CimSession $RouterCIM
 }
-
-Get-NetAdapter -Name HNV -CimSession $RouterCIM | New-NetIPAddress -IPAddress ($config.LogicalNetworks | Where-Object {$_.Name -eq "HNVPA"}).subnets.Gateways -PrefixLength ($config.LogicalNetworks | Where-Object {$_.Name -eq "HNVPA"}).subnets.AddressPrefix.split("/")[1] -AddressFamily IPv4 -CimSession $RouterCIM
-Get-NetAdapter -Name Transit -CimSession $RouterCIM | New-NetIPAddress -IPAddress ($config.LogicalNetworks | Where-Object {$_.Name -eq "Transit"}).subnets.Gateways -PrefixLength ($config.LogicalNetworks | Where-Object {$_.Name -eq "Transit"}).subnets.AddressPrefix.split("/")[1] -AddressFamily IPv4 -CimSession $RouterCIM
-#endregion configure router nics
+#endregion Rename router nics
 
 #region exclude VMM IPs from dhcp
 Write-host "Exclude ip range from DHCP" -ForegroundColor Green
@@ -482,6 +426,21 @@ elseif ($WindowsInstallationType -eq "Client") {
 
 #region Configure basic settings on servers 
 Write-host "Configure Basic settings on Hosts" -ForegroundColor Green
+
+#Enable FW Rules and PSRemoting
+Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *FPS* | Enable-NetFirewallRule ; Enable-PSRemoting -Force -Confirm:$false }
+Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *rpc* | Enable-NetFirewallRule }
+Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *wmi* | Enable-NetFirewallRule }
+
+#Configure DataDisk
+Invoke-Command -ComputerName $servers -ScriptBlock {   
+                Get-Disk | Where-Object {$_.Size -eq 150GB } |
+                Where partitionstyle -eq 'raw' |
+                Initialize-Disk -PartitionStyle MBR -PassThru |
+                New-Partition -DriveLetter D -UseMaximumSize |
+                Format-Volume -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
+        }
+
 #Configure Active memory dump
 Invoke-Command -ComputerName $servers -ScriptBlock {
     Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
@@ -515,6 +474,8 @@ start-sleep 60
 Get-SCVMHost |Set-SCVMHost -VMPaths "D:\" 
 #endregion Add hosts
 
+Start-Sleep 120
+
 $Servers | Foreach-Object {
     # Get Host
     $JobGuid = New-Guid
@@ -533,7 +494,7 @@ $Servers | Foreach-Object {
 }
 
 #verify status of deployment jobs.
-$jobs = Get-SCJob | Where-Object Name -like "Change properties of virtual machine host*" | Sort-Object Name
+$jobs = Get-SCJob | Where-Object {($_.Name -like "Change properties of virtual machine host*") -and ($_.StartTime -le (get-date).AddMinutes(10))}| Sort-Object Name
 
 foreach ($Job in $jobs) {
     If ($job.status -eq "Running") {
@@ -547,9 +508,11 @@ foreach ($Job in $jobs) {
         Write-Output "Job $($job.Name.Substring(41,($job.Name.Length-41))) Finished"
     }
     if ($job.status -eq "failed") {
-        Write-Output "Job $($job.Name.Substring(41,($job.Name.Length-41))) Failed"
+        Write-Error "Job $($job.Name.Substring(41,($job.Name.Length-41))) Failed"
     }
 }
+
+start-sleep 15
 Get-SCVMHost | Read-SCVMHost
 #endregion Prepare Hosts
 #endregion
@@ -574,25 +537,32 @@ try {
 catch {
     Write-Host "$($_.Exception.Message) `nAt Line number: $($_.InvocationInfo.PositionMessage)" -ForegroundColor Red
     $Undo = "N"
-    $Undo = Read-Host -Prompt "UndoWhere-Object Press Y"
+    $Undo = Read-Host -Prompt "Undo Press Y"
     if ($Undo -eq "Y") {
         #Manually clean on failure
         #EDGEGW
-        (Get-SCFabricRole -Type Gateway -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)).ConnectedResources |  Remove-SCFabricRoleResource
-        (Get-SCFabricRole -Type Gateway -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)) | Set-SCFabricRole -GatewayConfiguration $null
+        if(Get-SCNetworkService -ServiceType NetworkManager){
+            (Get-SCFabricRole -Type Gateway -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)).ConnectedResources |  Remove-SCFabricRoleResource
+            start-sleep 15
+            (Get-SCFabricRole -Type Gateway -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)) | Set-SCFabricRole -GatewayConfiguration $null
+        }
         Get-SCService | Where-Object {$_.Name -eq "Gateway Manager"} | Remove-SCService
         Get-SCServiceConfiguration | Where-Object {$_.Name -eq "Gateway Manager"} | Remove-SCServiceConfiguration 
         Get-SCServiceTemplate | Where-Object {$_.name -eq "Gateway Deployment service Template"} | Remove-SCServiceTemplate
         
         #Manually clean on failure
         #SLBMUX
-        (Get-SCFabricRole -Type LoadBalancer -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)).ConnectedResources |  Remove-SCFabricRoleResource
+        if(Get-SCNetworkService -ServiceType NetworkManager){
+            (Get-SCFabricRole -Type LoadBalancer -NetworkService(Get-SCNetworkService -ServiceType NetworkManager)).ConnectedResources | Remove-SCFabricRoleResource
+        }
         Get-SCService -Name "Software Load Balancer" | Remove-SCService
         Get-SCServiceConfiguration -Name "Software Load Balancer" | Remove-SCServiceConfiguration 
         Get-SCServiceTemplate -name "SLB Deployment service Template" | Remove-SCServiceTemplate
 
         #Clean up NC
-        Get-SCNetworkService -ServiceType NetworkManager | Set-SCNetworkService -RemoveLogicalNetworkVIP (Get-SCLogicalNetwork | Where-Object {$_.Name -notlike "*management*"}) -RemoveLogicalNetworkDedicatedIP (Get-SCLogicalNetwork | Where-Object {$_.Name -notlike "*management*"})
+        if(Get-SCNetworkService -ServiceType NetworkManager){
+            Get-SCNetworkService -ServiceType NetworkManager | Set-SCNetworkService -RemoveLogicalNetworkVIP (Get-SCLogicalNetwork | Where-Object {$_.Name -notlike "*management*"}) -RemoveLogicalNetworkDedicatedIP (Get-SCLogicalNetwork | Where-Object {$_.Name -notlike "*management*"})
+        }
         Get-SCVMNetwork | Where-Object {$_.Name -ne "management"} | Remove-SCVMNetwork
         Get-SCStaticIPAddressPool | Where-Object {$_.Name -notlike "*management*"} | Foreach-Object {Get-SCIPAddress -StaticIPAddressPool $_ | Revoke-SCIPAddress }
         Get-SCStaticIPAddressPool | Where-Object {$_.Name -notlike "*management*"} | Remove-SCStaticIPAddressPool -Force
@@ -658,8 +628,6 @@ Set-SCNetworkService -NetworkService $networkService -AddLogicalNetworkDedicated
 write-host "Configure BGPPeering" -ForegroundColor Cyan
 $RouterCIM = New-CimSession -ComputerName $RouterName
 $BGPRouterIP = ($config.LogicalNetworks | Where-Object {$_.Name -eq "Transit"}).subnets.Gateways
-
-Get-BgpRouter | Remove-BgpRouter -Force -Confirm:$false
 
 $RouterASN = 65000
 Add-BgpRouter -BgpIdentifier $BGPRouterIP -LocalASN $RouterASN -CimSession $RouterCIM
