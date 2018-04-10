@@ -77,7 +77,7 @@ $VMMvm |  Add-VMHardDiskDrive -Path "$($VMMvm.Path)\Virtual Hard Disks\Library.v
 $VMMvm| Foreach-Object {  Invoke-Command -VMId $_.Id -ScriptBlock {   
         Get-Disk | Where-Object {$_.Size -eq 150GB} |
             Where partitionstyle -eq 'raw' |
-            Initialize-Disk -PartitionStyle MBR -PassThru |
+            Initialize-Disk -PartitionStyle GPT -PassThru |
             New-Partition -DriveLetter E -UseMaximumSize |
             Format-Volume -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
 
@@ -86,9 +86,18 @@ $VMMvm| Foreach-Object {  Invoke-Command -VMId $_.Id -ScriptBlock {
 
     } -Credential $VMCreds }
 
+
 $VMMvm | Copy-VMFile -SourcePath $VHDPath -FileSource Host -DestinationPath "e:\Library\WS2016_Master.vhdx" -Force
 $VMMvm | Copy-VMFile -SourcePath $confFilePath -DestinationPath "e:\Library\Fabricconfig.psd1" -CreateFullPath -FileSource Host -Force
 $VMMvm | Copy-VMFile -SourcePath .\SDN-Master.zip -DestinationPath "e:\SDN-Master.zip" -CreateFullPath -FileSource Host -Force
+<#
+Alternatively you can use PSSession to copy files
+$VMMSession=New-PSSession -VMId $VMMvm.ID -Credential $VMCreds
+Copy-Item -Path $VHDPath -Destination "e:\Library\WS2016_Master.vhdx" -ToSession $VMMSession
+Copy-Item -Path $confFilePath -Destination "e:\Library\Fabricconfig.psd1" -ToSession $VMMSession
+Copy-Item -Path .\SDN-Master.zip -Destination "e:\SDN-Master.zip" -ToSession $VMMSession
+#>
+
 #endregion Add library disk and copy files
 
 Write-Host "#------------ Done configuring VMs, Continue on DC ------------#" -foregroundcolor Yellow
@@ -428,15 +437,13 @@ elseif ($WindowsInstallationType -eq "Client") {
 Write-host "Configure Basic settings on Hosts" -ForegroundColor Green
 
 #Enable FW Rules and PSRemoting
-Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *FPS* | Enable-NetFirewallRule ; Enable-PSRemoting -Force -Confirm:$false }
-Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *rpc* | Enable-NetFirewallRule }
-Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetFirewallRule -Name *wmi* | Enable-NetFirewallRule }
+Enable-NetFirewallRule -CimSession $servers -Name "*nps*","*rpc*","*wmi*"
 
 #Configure DataDisk
 Invoke-Command -ComputerName $servers -ScriptBlock {   
                 Get-Disk | Where-Object {$_.Size -eq 150GB } |
                 Where partitionstyle -eq 'raw' |
-                Initialize-Disk -PartitionStyle MBR -PassThru |
+                Initialize-Disk -PartitionStyle GPT -PassThru |
                 New-Partition -DriveLetter D -UseMaximumSize |
                 Format-Volume -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
         }
