@@ -79,7 +79,7 @@ The next step would be to modify policy [options 13-16](https://docs.microsoft.c
 ````PowerShell
 #add new options
 13..16 | Foreach-Object{
-    Set-RuleOption -o $_ -f "$env:TEMP\MyPolicy.xml"
+    Set-RuleOption -Option $_ -FilePath "$env:TEMP\MyPolicy.xml"
 }
 
 #check rules again
@@ -96,7 +96,7 @@ Microsoft recommends that you block the following Microsoft-signed applications 
 
 ````PowerShell
 #grab recommended xml blocklist from GitHub
-$content=Invoke-WebRequest -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/device-guard/steps-to-deploy-windows-defender-application-control.md
+$content=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/device-guard/steps-to-deploy-windows-defender-application-control.md 
 
 #find start and end
 $XMLStart=$content.Content.IndexOf("<?xml version=")
@@ -109,6 +109,9 @@ $XML.Save("$env:TEMP\blocklist.xml")
 #add to MyPolicy.xml
 $mergedPolicyRules = Merge-CIPolicy -PolicyPaths "$env:TEMP\blocklist.xml","$env:TEMP\MyPolicy.xml" -OutputFilePath "$env:TEMP\MyPolicy.xml"
 Write-Host ('Merged policy contains {0} rules' -f $mergedPolicyRules.Count)
+
+#remove audit mode option
+Set-RuleOption -Option 3 -FilePath "$env:TEMP\MyPolicy.xml" -Delete 
  
 ````
 
@@ -159,7 +162,7 @@ You can see blocked programs in following log
 
 ````PowerShell
 Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-CodeIntegrity";Id=3077} | Out-GridView
-.
+ 
 ````
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/ErrorMessages.png)
