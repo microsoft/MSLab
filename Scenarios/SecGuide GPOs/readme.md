@@ -1,9 +1,11 @@
-# About the lab
+# Security Guidance GPOs lab
+
+## About the lab
 
 This lab is just a quick way how to deploy secguide policies on Win10. It will just download and import policies from https://blogs.technet.microsoft.com/secguide/ , extract and import.
 
 
-# LabConfig
+## LabConfig
 
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; DCVMProcessorCount=4 ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$true; CreateClientParent=$true}
@@ -11,6 +13,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
 $LabConfig.VMs += @{ VMName = 'Win10' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 
 ````
+
+## The lab
 
 ````PowerShell
 #easiest is to run the script in DC. You can download GPOs on another machine and just file copy into dc c:\temp\
