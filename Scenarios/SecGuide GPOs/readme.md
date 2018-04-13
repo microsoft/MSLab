@@ -27,12 +27,11 @@ Expand-Archive -Path C:\temp\DRAFT-Windows-10-v1803-RS4.zip -DestinationPath c:\
 #create GPOs
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 $names=(Get-ChildItem "c:\Temp\DRAFT-Windows-10-v1803-RS4\GP Reports").BaseName
-foreach ($name in $names) {New-GPO -Name $name  | New-GPLink -Target $OUPath}
-
 foreach ($name in $names) {
-    import-gpo -BackupGpoName $name -TargetName $name -path "c:\Temp\DRAFT-Windows-10-v1803-RS4\GPOs"
-} 
-
+    New-GPO -Name $name  | New-GPLink -Target $OUPath
+    Import-GPO -BackupGpoName $name -TargetName $name -path "c:\Temp\DRAFT-Windows-10-v1803-RS4\GPOs"
+}
+ 
 ````
 
 Result:
