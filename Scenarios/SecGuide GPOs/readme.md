@@ -2,7 +2,7 @@
 
 ## About the lab
 
-This lab is just a quick way how to deploy secguide policies on Win10. It will just download and import policies from https://blogs.technet.microsoft.com/secguide/ , extract and import.
+This lab is just a quick way how to deploy secguide policies on Win10. It will just download, extract and import policies from https://blogs.technet.microsoft.com/secguide/ 
 
 
 ## LabConfig
