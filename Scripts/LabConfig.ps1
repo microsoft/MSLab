@@ -1,6 +1,6 @@
 ﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 ### HELP ###
@@ -15,7 +15,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'w
         Prefix = 'ws2016lab-';                 # All VMs and vSwitch are created with this prefix, so you can identify the lab
         SwitchName = 'LabSwitch';              # Name of vSwitch
         SecureBoot=$true;                      # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
-        DCEdition='DataCenter';                # DataCenter or DataCenterCore (or if you prefer standard)
+        DCEdition='4';                         # 4 for DataCenter or 3 for DataCenterCore (or if you prefer standard or if you use SAC, use 1 or 2 image index numbers)
         CreateClientParent=$false;             # (Optional) If True, client OS will be hydrated
         ClientEdition='Enterprise';            # (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
         InstallSCVMM='No';                     # (Optional) Yes/Prereqs/SQL/ADK/No
