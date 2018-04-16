@@ -1027,6 +1027,7 @@ If (!( $isAdmin )) {
                     netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
                     netsh.exe ras set conf confstate = enabled
                     netsh.exe routing ip dnsproxy install
+                    Write-Host "Restarting service RemoteAccess..."
                     Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
                     foreach ($DNSServer in $DNSServers){
                         Add-DnsServerForwarder $DNSServer
