@@ -43,13 +43,14 @@ $LabConfig.VMs = @(
 ````
 **Deploy.ps1 result**
 
-![](/Scenarios/StorageMigrationService/Screenshots/lab.png)
+![](/Scenarios/StorageMigrationService/screenshots/lab.png)
 
 # The lab
 
 The lab begins with setting up the servers you defined in the Labconfig.ps1 script and running the Deploy.ps1 script.
 
 After this copy in the files Scenario.ps1, installchrome.ps1 and iisstart.htm to c:\scripts on ws2019Migration-DC
+Copy also in the latest Windows Admin Center file to c:\scripts on the domain controller
 
 Then run from computer
 
@@ -65,4 +66,4 @@ Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) sc
 
 **Scenario script finished in ~10 minutes**
 
-![](/Scenarios/StorageMigrationService/Screenshots/scenarioscriptfinished.png)
+![](/Scenarios/StorageMigrationService/screenshots/scenarioscriptfinished.png)
