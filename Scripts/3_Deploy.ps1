@@ -420,11 +420,21 @@ If (!( $isAdmin )) {
         }
                     
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
-        $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        if($serverparent.fullname -like "*.vhd"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }
+        else{
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        }
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         WriteInfo "`t Creating VM"
-        $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+        if($serverparent.fullname -like "*.vhd"){
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
+        }
+        else{
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+        }
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
@@ -1027,7 +1037,6 @@ If (!( $isAdmin )) {
                     netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
                     netsh.exe ras set conf confstate = enabled
                     netsh.exe routing ip dnsproxy install
-                    Write-Host "Restarting service RemoteAccess..."
                     Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
                     foreach ($DNSServer in $DNSServers){
                         Add-DnsServerForwarder $DNSServer
@@ -1244,8 +1253,15 @@ If (!( $isAdmin )) {
     }
 
     #Enable VMNics device naming
+        $GetVM = Get-VM -Name *2008*
         WriteInfo "`t Enabling VMNics device naming"
-        Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming On
+        if($GetVM){
+            Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming Off
+        }
+        else{
+            Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming On
+        }
+
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
