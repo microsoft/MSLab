@@ -63,4 +63,6 @@ Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) sc
 *  Install Chrome on Domain Controller
 *  Copy in a Hello World HTM file to the webserver you defined.
 
+**Scenario script finished in ~10 minutes**
 
+![](/Scenarios/StorageMigrationService/Screenshots/scenarioscriptfinished.png)
