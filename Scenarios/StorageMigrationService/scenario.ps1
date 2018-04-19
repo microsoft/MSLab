@@ -33,7 +33,7 @@ Invoke-Command -ComputerName $SMS_2008R2 -ScriptsBlock {
 
 #Wait for servers to come online before resuming
 
-
+Start-Sleep -Seconds 60
 
 ##Install Honolulu
 Invoke-Command -computername $WAC -ScriptsBlock {
