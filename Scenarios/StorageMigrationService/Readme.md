@@ -22,7 +22,19 @@
 * Windows 10 1511 with enabled Hyper-V or Windows 10 1607+ 
 * 8+ GB RAM is required for this scenario
 * SSD (with HDD it is really slow, barely usable)
+* Create OS images with the OS you need with the Convert-WindowsImage.ps1 file
 
+#To create Windows Images
+````PowerShell
+#Run command to enable functions the file is located under \Tools\ where the prereq.ps1 downloaded files
+. .\Convert-WindowsImage.ps1
+
+#Create Base VHD/VHDX files on the diffrent type of OS you need.
+Convert-WindowsImage -SourcePath C:\Hyperv\WS2008r2_standard_enterprise_datacenter_and_web_sp1_x64.iso -Edition Enterprise -DiskLayout BIOS -VHDFormat VHD -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2008R2.vhd -SizeBytes 60GB -Passthru
+Convert-WindowsImage -SourcePath "2012 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
+Convert-WindowsImage -SourcePath "2012R2 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012R2.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
+Convert-WindowsImage -SourcePath "2016 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2016.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
+````
 
 # LabConfig.ps1
 
@@ -53,9 +65,9 @@ After this copy in the files Scenario.ps1, installchrome.ps1 and iisstart.htm to
 Copy also in the latest Windows Admin Center file to c:\scripts on the domain controller
 
 Then run from computer
-
+````PowerShell
 Get-VM | Where-Object {$_.State –EQ 'Off'} | Start-VM
-
+````
 Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) script while reading comments.
 
 *  This will open up powershell 
