@@ -24,7 +24,7 @@
 * SSD (with HDD it is really slow, barely usable)
 * Create OS images with the OS you need with the Convert-WindowsImage.ps1 file
 
-#To create Windows Images
+##To create Windows Images
 ````PowerShell
 #Run command to enable functions the file is located under \Tools\ where the prereq.ps1 downloaded files
 . .\Convert-WindowsImage.ps1
@@ -70,7 +70,7 @@ Get-VM | Where-Object {$_.State –EQ 'Off'} | Start-VM
 ````
 Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) script while reading comments.
 
-*  This will open up powershell 
+*  This will upgrade .net and Powershell to 4.0 on 2008R2 server 
 *  This will install features to the server
 *  Install Windows Admin Center
 *  Install Chrome on Domain Controller
