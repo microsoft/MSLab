@@ -8,7 +8,9 @@
 
 <!-- /TOC -->
 
-# About the scenario
+## About the scenario
+
+FYI this is a work in progress
 
 ## Description
 * In this scenario you will create a Storage Migration Service lab
