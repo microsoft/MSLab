@@ -114,7 +114,7 @@ if ($WindowsInstallationType -eq "Server"){
         }
 
     #install Hyper-V
-        if (($scenario -eq "Hyper-V") -and ($NanoServer -eq $false)){
+        if ($NanoServer -eq $false){
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
             foreach ($server in $servers) {Install-WindowsFeature -Name "Hyper-V-PowerShell" -ComputerName $server} 
         }
