@@ -64,9 +64,8 @@ IF ($SMS_2008R2){
         }
 
         #Wait for servers to come online before resuming
-        restart-computer -computername $SMS_2008R2 -protocol wsman -wait
         Write-host "Waiting for SMS2008R2 to come online again"
-        Wait-Process -Timeout 120
+        restart-computer -computername $SMS_2008R2 -protocol wsman -wait
 
         #Install requierd Roles on 2008R2 Server
         Write-host "Installing IIS on 2008R2 Server"
@@ -76,9 +75,8 @@ IF ($SMS_2008R2){
             Add-WindowsFeature MicrosoftWindowsPowerShell -norestart 
         }
         #Wait for servers to come online before resuming
-        restart-computer -computername $SMS_2008R2 -protocol wsman -wait
         Write-host "Waiting for SMS2008R2 to come online again"
-        Wait-Process -Timeout 120
+        restart-computer -computername $SMS_2008R2 -protocol wsman -wait
 
         Copy-Item "D:\Scripts\iisstart.htm" -Destination "\\$SMS_2008R2\c$\inetpub\wwwroot"
         
@@ -87,11 +85,9 @@ IF($SMS_2019){
     ##Install required roles on SMS server
     Invoke-Command -ComputerName $SMS_2019 -ScriptsBlock {Install-WindowsFeature SMS,SMS-Proxy -IncludeAllSubFeature -IncludeManagementTools}
 
-    #Wait for servers to come online before resuming
-    restart-computer -computername $SMS_2019 -protocol wsman -wait
+    #Wait for SMS server to come online before resuming
     Write-host "Waiting for SMS Server to come online again"
-    Wait-Process -Timeout 60
-
+    restart-computer -computername $SMS_2019 -protocol wsman -wait
 }
     else{Write-host "No Roles installed on servers in Lab"}
 
