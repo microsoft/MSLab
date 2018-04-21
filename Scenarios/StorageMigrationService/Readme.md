@@ -63,16 +63,20 @@ $LabConfig.VMs = @(
 
 The lab begins with setting up the servers you defined in the Labconfig.ps1 script and running the Deploy.ps1 script.
 
-After this copy in the files Scenario.ps1, installchrome.ps1 and iisstart.htm to c:\scripts on ws2019Migration-DC
-Copy also in the latest Windows Admin Center file to c:\scripts on the domain controller
+After the deploy script has run it's course run the following powershell command to start the vm's
 
-Then run from computer
 ````PowerShell
 Get-VM | Where-Object {$_.State –EQ 'Off'} | Start-VM
 ````
+
+The Windows Server 2008R2 will need a few reboot's after startup for the WinRM to be fully installed. Once it's done login to the complete the WinRM setup.
+
+After this copy in the files Scenario.ps1, installchrome.ps1 and iisstart.htm to c:\scripts on ws2019Migration-DC
+Copy also in the latest Windows Admin Center file to c:\scripts on the domain controller
+
 Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) script while reading comments.
 
-*  This will upgrade .net and Powershell to 4.0 on 2008R2 server 
+*  This will upgrade .net 4.51 and Powershell to 4.0 on 2008R2 server 
 *  This will install features to the server
 *  Install Windows Admin Center
 *  Install Chrome on Domain Controller
