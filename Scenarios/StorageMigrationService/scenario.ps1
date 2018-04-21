@@ -45,9 +45,10 @@ $PSScriptRootFolder = "D:\Scripts"
 ##### LAB Config #####
 #Change the Servers here based on the servers you need to deploy
 
-$SMS_2019 = 'SMS_2019'
 $WAC = 'WAC'
 $SMS_2008R2 = 'SMS2008R2'
+$SMS_2012R2 = 'SMS_2012R2'
+$SMS_2019 = 'SMS_2019'
 
 $Servers = ($SMS_2019,$WAC,$SMS_2008R2)
 
