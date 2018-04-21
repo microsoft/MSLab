@@ -59,6 +59,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock { Get-NetFirewallRule -Name *
 
 #Upgrade Powershell on 2008R2 server
 IF ($SMS_2008R2){
+        <#
         #Download .net 4.51
         WriteInfoHighlighted "Testing .net 4.51 presence"
         If ( Test-Path -Path "$PSScriptRootFolder\NDP451-KB2858728-x86-x64-AllOS-ENU.ex" ) {
@@ -73,7 +74,7 @@ IF ($SMS_2008R2){
             }
 
         #Download Powershell 4.0
-        If (!(Test-Path "$PSScriptRootFolder\Windows6.1-KB2819745-x64-MultiPkg.msu")){
+        If (Test-Path -Path "$PSScriptRootFolder\Windows6.1-KB2819745-x64-MultiPkg.msu"){
             WriteSuccess "`t .net 4.51 is present, skipping download"
         }else{     
             WriteInfo "`t Downloading PowerShell 4.0"
@@ -89,8 +90,8 @@ IF ($SMS_2008R2){
         mkdir C:\Temp\
         }
     
-        Copy-Item "D:\Scripts\NDP451-KB2858728-x86-x64-AllOS-ENU.exe" -Destination "\\$SMS_2008R2\c$\Temp"
-        Copy-Item "D:\Scripts\Windows6.1-KB2819745-x64-MultiPkg.msu" -Destination "\\$SMS_2008R2\c$\Temp"
+        Copy-Item "$PSScriptRootFolder\NDP451-KB2858728-x86-x64-AllOS-ENU.exe" -Destination "\\$SMS_2008R2\c$\Temp"
+        Copy-Item "$PSScriptRootFolder\Windows6.1-KB2819745-x64-MultiPkg.msu" -Destination "\\$SMS_2008R2\c$\Temp"
     
         Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
         C:\Temp\NDP451-KB2858728-x86-x64-AllOS-ENU.exe /quiet /norestart
@@ -98,7 +99,8 @@ IF ($SMS_2008R2){
 
         #Wait for 2008 R2 server to come online before resuming
         Write-host "Waiting for SMS2008R2 to come online again"
-        restart-computer -computername $SMS_2008R2 -protocol wsman -wait -Force
+        Start-Sleep -Seconds 90
+        Restart-Computer -computername $SMS_2008R2 -protocol wsman -wait -Force
 
         #Installing Powershell 4.0
         Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
@@ -107,15 +109,16 @@ IF ($SMS_2008R2){
         
         #Wait for servers to come online before resuming
         Write-host "Waiting for SMS2008R2 to come online again"
-        restart-computer -computername $SMS_2008R2 -protocol wsman -wait -Force
-
+        Start-Sleep -Seconds 90
+        Restart-Computer -computername $SMS_2008R2 -protocol wsman -wait -Force
+        #>
         #Install requierd Roles on 2008R2 Server
         Write-host "Installing IIS on 2008R2 Server"
         Invoke-Command -ComputerName $SMS_2008R2 -ScriptBlock {
             Import-Module Servermanager
             Add-WindowsFeature Web-server -IncludeAllSubFeature -norestart 
-            Add-WindowsFeature MicrosoftWindowsPowerShell -norestart 
         }
+
         #Wait for servers to come online before resuming
         Write-host "Waiting for SMS2008R2 to come online again"
         restart-computer -computername $SMS_2008R2 -protocol wsman -wait -Force
