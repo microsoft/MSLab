@@ -2,6 +2,14 @@
 # Run from DC #
 ###############
 
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (!( $isAdmin )) {
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    exit
+}
+
 $StartDateTime = get-date
 Write-host "Scripts started at $StartDateTime"
 
@@ -111,6 +119,8 @@ IF ($SMS_2008R2){
         Write-host "Waiting for SMS2008R2 to come online again"
         restart-computer -computername $SMS_2008R2 -protocol wsman -wait -Force
 
+        ##Copy IIS files Hello World
+        Write-host "Copy IIS files to SMS2008R2"
         Copy-Item "D:\Scripts\iisstart.htm" -Destination "\\$SMS_2008R2\c$\inetpub\wwwroot"
         
     }
@@ -122,7 +132,7 @@ IF($SMS_2019){
     Write-host "Waiting for SMS Server to come online again"
     restart-computer -computername $SMS_2019 -protocol wsman -wait -Force
 }
-    else{Write-host "No Roles installed on servers in Lab"}
+
 
 ##Install Honolulu
 Invoke-Command -computername $WAC -ScriptBlock {
@@ -137,11 +147,6 @@ Invoke-Command -computername $WAC -ScriptBlock {
 Start-Process msiexec.exe -Wait -ArgumentList '/I C:\Scripts\WindowsAdminCenter1804.msi /qn /L*v log.txt SME_PORT=9999 SSL_CERTIFICATE_OPTION=generate'
 New-NetFirewallRule -Name honolulu -DisplayName honolulu -Enabled True -Profile any -Action Allow -Direction Inbound -Protocol tcp -LocalPort 9999
 }
-
-
-
-##Copy IIS files Hello World
-Copy-Item "D:\Scripts\iisstart.htm" -Destination "C:\inetpub\wwwroot"
 
 #Install Chrome on DC
 
