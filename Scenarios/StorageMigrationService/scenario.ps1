@@ -50,7 +50,7 @@ $SMS_2008R2 = 'SMS2008R2'
 $SMS_2012R2 = 'SMS_2012R2'
 $SMS_2019 = 'SMS_2019'
 
-$Servers = ($SMS_2019,$WAC,$SMS_2008R2)
+$Servers = ($WAC,$SMS_2008R2,$SMS_2012R2,$SMS_2019)
 
 #Enable firewall rules for servers
 Invoke-Command -ComputerName $Servers -ScriptBlock { Get-NetFirewallRule -Name *FPS* | Enable-NetFirewallRule ; Enable-PSRemoting -Force -Confirm:$false }
