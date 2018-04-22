@@ -5,6 +5,8 @@
 # Run from DC or management machine #
 #####################################
 
+$StartDateTime = get-date
+Write-host "Script started at $StartDateTime"
 
 #region LabConfig
 
@@ -12,6 +14,7 @@ $Site1Servers='Replica1','Replica2'
 $Site2Servers='Replica3','Replica4'
 
 $ClusterName='Stretch-Cluster'
+$ClusterIP="10.0.0.112"
 
 $ReplicaNetwork="172.16.1.0"
 
@@ -122,7 +125,11 @@ if ($WindowsInstallationType -eq "Server"){
 #region create and configure cluster
 
     #create cluster
-        New-Cluster -Name $ClusterName -Node $servers -NoStorage 
+        if ($ClusterIP){
+            New-Cluster -Name $ClusterName -Node $servers -NoStorage -StaticAddress $ClusterIP
+        }else{
+            New-Cluster -Name $ClusterName -Node $servers -NoStorage 
+        }
         Start-Sleep 5
         Clear-DnsClientCache
 
@@ -154,11 +161,9 @@ if ($WindowsInstallationType -eq "Server"){
             Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
-
-    #configure storage replica network
+    
+    #rename storage replica network
         (Get-ClusterNetwork -Cluster $ClusterName | where Address -eq $ReplicaNetwork).Name="ReplicaNetwork"
-        Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNetwork"    
-        Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName
 
 #endregion
 
@@ -241,6 +246,9 @@ if ($WindowsInstallationType -eq "Server"){
     #rename csv
     Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
     
+    #flush dns
+    Clear-DnsClientCache
+    
     #Create some VMs in Redmond
     foreach ($Site1VMName in $Site1VMNames){
         New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
@@ -286,10 +294,14 @@ if ($WindowsInstallationType -eq "Server"){
         New-SRPartnership -SourceComputerName $Site1Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site2Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }
 
+    #configure storage replica network
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork"    
+    Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName
+
     #Wait until synced
     do{
         $r=(Get-SRGroup -CimSession $Site2Servers[0] -Name $Destinationdata.RGName).replicas
-        [System.Console]::Write("Number of remaining bytes {0}`r", $r.NumOfBytesRemaining)
+        [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
         Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
@@ -310,12 +322,20 @@ if ($WindowsInstallationType -eq "Server"){
         New-SRPartnership -SourceComputerName $Site2Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site1Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }
 
+    #configure storage replica network
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork"    
+    Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName
+    
     #Wait until synced
     do{
         $r=(Get-SRGroup -CimSession $Site1Servers[0] -Name $Destinationdata.RGName).replicas
-        [System.Console]::Write("Number of remaining bytes {0}`r", $r.NumOfBytesRemaining)
+        [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
         Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
 
 #endregion
+
+#finishing
+Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+ 
