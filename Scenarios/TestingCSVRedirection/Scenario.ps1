@@ -195,7 +195,7 @@ $nano=$true
         do{
             $r=(Get-SRGroup -CimSession $SRServersSite2[0] -Name Site2RG).replicas
             if ($r.NumOfBytesRemaining -ne 0){ 
-                [System.Console]::Write("Number of remaining GB {0}`r", $r.NumOfBytesRemaining/1GB)
+                [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
                 Start-Sleep 5
             }
         }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
