@@ -5,6 +5,8 @@
 # Run from DC or management machine #
 #####################################
 
+$StartDateTime = get-date
+Write-host "Script started at $StartDateTime"
 
 #region LabConfig
 
@@ -12,6 +14,7 @@ $Site1Servers='Replica1','Replica2'
 $Site2Servers='Replica3','Replica4'
 
 $ClusterName='Stretch-Cluster'
+$ClusterIP="10.0.0.112"
 
 $ReplicaNetwork="172.16.1.0"
 
@@ -122,7 +125,11 @@ if ($WindowsInstallationType -eq "Server"){
 #region create and configure cluster
 
     #create cluster
-        New-Cluster -Name $ClusterName -Node $servers -NoStorage 
+        if ($ClusterIP){
+            New-Cluster -Name $ClusterName -Node $servers -NoStorage -StaticAddress $ClusterIP
+        }else{
+            New-Cluster -Name $ClusterName -Node $servers -NoStorage 
+        }
         Start-Sleep 5
         Clear-DnsClientCache
 
@@ -289,7 +296,7 @@ if ($WindowsInstallationType -eq "Server"){
     #Wait until synced
     do{
         $r=(Get-SRGroup -CimSession $Site2Servers[0] -Name $Destinationdata.RGName).replicas
-        [System.Console]::Write("Number of remaining bytes {0}`r", $r.NumOfBytesRemaining)
+        [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
         Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
@@ -313,9 +320,13 @@ if ($WindowsInstallationType -eq "Server"){
     #Wait until synced
     do{
         $r=(Get-SRGroup -CimSession $Site1Servers[0] -Name $Destinationdata.RGName).replicas
-        [System.Console]::Write("Number of remaining bytes {0}`r", $r.NumOfBytesRemaining)
+        [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
         Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
 
 #endregion
+
+#finishing
+Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+ 
