@@ -130,6 +130,7 @@ IF ($SMS_2008R2){
     }
 IF($SMS_2019){
     ##Install required roles on SMS server
+    Write-host "Installing SMS services on SMS_2019"
     Invoke-Command -ComputerName $SMS_2019 -ScriptBlock {Install-WindowsFeature SMS,SMS-Proxy -IncludeAllSubFeature -IncludeManagementTools}
 
     #Wait for SMS server to come online before resuming
@@ -138,7 +139,8 @@ IF($SMS_2019){
 }
 
 
-##Install Honolulu
+##Install Windows Admin Center
+Write-host "Installing Windows Admin Center ont WAC"
 Invoke-Command -computername $WAC -ScriptBlock {
 
 mkdir C:\Scripts\
@@ -153,5 +155,5 @@ New-NetFirewallRule -Name honolulu -DisplayName honolulu -Enabled True -Profile 
 }
 
 #Install Chrome on DC
-
+Write-host "Install Chrome on DC"
 D:\Scripts\installchrome.ps1
