@@ -28,23 +28,16 @@ $Servers=$Site1Servers+$Site2Servers
 #Nano server?
 $NanoServer=$False
 
-    #exit if nano  and Fileserver
-    if (($NanoServer -eq $True) -and ($Scenario -eq "FileServer")){
-        Write-Host "Nano does not support HA FS"
-        Start-sleep 10
-        Exit
-    }
-
 #Diskconfig
 $diskconfig=@()
-$diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="REFS" ; AccessPath="d:" ; Site="Seattle"   ; PrimarySite="Seattle"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Source"      }
-$diskconfig+=@{DiskNumber=2 ; FriendlyName="Log2"  ; FileSystem="REFS" ; AccessPath="e:" ; Site="Seattle"   ; PrimarySite="Bellevue"  ; Role="Log"  ; GroupID=2 ; RGName="Data2Destination" }
-$diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="REFS" ; AccessPath="d:" ; Site="Bellevue"  ; PrimarySite="Seattle"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Destination" }
-$diskconfig+=@{DiskNumber=2 ; FriendlyName="Log2"  ; FileSystem="REFS" ; AccessPath="e:" ; Site="Bellevue"  ; PrimarySite="Bellevue"  ; Role="Log"  ; GroupID=2 ; RGName="Data2Source"      }
-$diskconfig+=@{DiskNumber=3 ; FriendlyName="Data1" ; FileSystem="REFS" ; AccessPath="f:" ; Site="Seattle"   ; PrimarySite="Seattle"   ; Role="Data" ; GroupID=1 ; RGName="Data1Source"      ; CSVFolderName="Data1"}
-$diskconfig+=@{DiskNumber=4 ; FriendlyName="Data2" ; FileSystem="REFS" ; AccessPath="g:" ; Site="Seattle"   ; PrimarySite="Bellevue"  ; Role="Data" ; GroupID=2 ; RGName="Data2Destination" }
-$diskconfig+=@{DiskNumber=3 ; FriendlyName="Data1" ; FileSystem="REFS" ; AccessPath="f:" ; Site="Bellevue"  ; PrimarySite="Seattle"   ; Role="Data" ; GroupID=1 ; RGName="Data1Destination" }
-$diskconfig+=@{DiskNumber=4 ; FriendlyName="Data2" ; FileSystem="REFS" ; AccessPath="g:" ; Site="Bellevue"  ; PrimarySite="Bellevue"  ; Role="Data" ; GroupID=2 ; RGName="Data2Source"      ; CSVFolderName="Data2"}
+$diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Seattle"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Source"      }
+$diskconfig+=@{DiskNumber=2 ; FriendlyName="Log2"  ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Bellevue"  ; Role="Log"  ; GroupID=2 ; RGName="Data2Destination" }
+$diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="REFS" ; Site="Bellevue"  ; PrimarySite="Seattle"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Destination" }
+$diskconfig+=@{DiskNumber=2 ; FriendlyName="Log2"  ; FileSystem="REFS" ; Site="Bellevue"  ; PrimarySite="Bellevue"  ; Role="Log"  ; GroupID=2 ; RGName="Data2Source"      }
+$diskconfig+=@{DiskNumber=3 ; FriendlyName="Data1" ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Seattle"   ; Role="Data" ; GroupID=1 ; RGName="Data1Source"      ; CSVFolderName="Data1"}
+$diskconfig+=@{DiskNumber=4 ; FriendlyName="Data2" ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Bellevue"  ; Role="Data" ; GroupID=2 ; RGName="Data2Destination" }
+$diskconfig+=@{DiskNumber=3 ; FriendlyName="Data1" ; FileSystem="REFS" ; Site="Bellevue"  ; PrimarySite="Seattle"   ; Role="Data" ; GroupID=1 ; RGName="Data1Destination" }
+$diskconfig+=@{DiskNumber=4 ; FriendlyName="Data2" ; FileSystem="REFS" ; Site="Bellevue"  ; PrimarySite="Bellevue"  ; Role="Data" ; GroupID=2 ; RGName="Data2Source"      ; CSVFolderName="Data2"}
 
 #ask for parent vhdx
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
@@ -172,42 +165,45 @@ if ($WindowsInstallationType -eq "Server"){
 #region format disks
     foreach ($disk in $diskconfig){
         if ($Disk.site -eq "Seattle"){
-            new-volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -AccessPath $disk.AccessPath -CimSession $Site1Servers[0] -ErrorAction SilentlyContinue
+            New-Volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -CimSession $Site1Servers[0] -ErrorAction SilentlyContinue
         }
         if ($Disk.site -eq "Bellevue") {
-            new-volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -AccessPath $disk.AccessPath -CimSession $Site2Servers[0] -ErrorAction SilentlyContinue
+            New-Volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -CimSession $Site2Servers[0] -ErrorAction SilentlyContinue
         }
     }
 
 #endregion
 
-#region list storage
-    #List available disks for replication on Node $Site1Servers[0]
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
+#region list storage and add paths to Diskconfig variable
+    #List available disks for replication on Node $Site1Servers[0] and add path to diskconfig
+    Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
 
-        $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
-        $DiskResources | foreach {
-            $resource = $_
-            $DiskGuidValue = $resource | Get-ClusterParameter DiskIdGuid
+    $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+    foreach ($DiskResource in $DiskResources){
+        $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+        $disk=Get-Disk -CimSession $Site1Servers[0] | where Guid -eq $DiskGuidValue.Value
+        $volume=$disk | Get-Partition | Get-Volume
+        #add path to diskconfig
+        ($diskconfig | where Site -eq Seattle | where DiskNumber -eq $disk.Number).Path=$volume.Path
+        #list volume
+        $volume |Select-Object @{N="Name"; E={$DiskResource.Name}}, @{N="Status"; E={$DiskResource.State}}, DriveLetter, Path, FileSystemLabel, Size, SizeRemaining | FT -AutoSize
+    }
 
-            Get-Disk -CimSession $Site1Servers[0] | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume |
-                Select @{N="Name"; E={$resource.Name}}, @{N="Status"; E={$resource.State}}, DriveLetter, FileSystemLabel, Size, SizeRemaining
-        } | FT -AutoSize
-
-    #List available disks for replication on Node $Site2Servers[0]
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
-
-        $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
-        $DiskResources | foreach {
-            $resource = $_
-            $DiskGuidValue = $resource | Get-ClusterParameter DiskIdGuid
-
-            Get-Disk -CimSession $Site2Servers[0] | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume |
-                Select @{N="Name"; E={$resource.Name}}, @{N="Status"; E={$resource.State}}, DriveLetter, FileSystemLabel, Size, SizeRemaining
-        } | FT -AutoSize
-
-    #move group back
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
+#List available disks for replication on Node $Site2Servers[0]
+    Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
+    $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+    foreach ($DiskResource in $DiskResources){
+        $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+        $disk=Get-Disk -CimSession $Site2Servers[0] | where Guid -eq $DiskGuidValue.Value
+        $volume=$disk | Get-Partition | Get-Volume
+        #add path to diskconfig
+        ($diskconfig | where Site -eq Bellevue | where DiskNumber -eq $disk.Number).Path=$volume.Path
+        #list volume
+        $volume |Select-Object @{N="Name"; E={$DiskResource.Name}}, @{N="Status"; E={$DiskResource.State}}, DriveLetter, Path, FileSystemLabel, Size, SizeRemaining | FT -AutoSize
+    }
+    
+#move group back
+    Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
 
 #endregion
 
@@ -285,9 +281,9 @@ if ($WindowsInstallationType -eq "Server"){
     $Destinationdata = $diskconfig  | where site -eq Bellevue | where role -eq data | where PrimarySite -eq Seattle
 
     if ($ReplicationMode -eq "Asynchronous"){
-        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Site1Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.AccessPath -DestinationComputerName $Site2Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.AccessPath -DestinationLogVolumeName $destinationlog.AccessPath
+        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Site1Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site2Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }else{
-        New-SRPartnership -SourceComputerName $Site1Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.AccessPath -DestinationComputerName $Site2Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.AccessPath -DestinationLogVolumeName $destinationlog.AccessPath
+        New-SRPartnership -SourceComputerName $Site1Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site2Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }
 
     #Wait until synced
@@ -309,9 +305,9 @@ if ($WindowsInstallationType -eq "Server"){
     $Destinationdata = $diskconfig  | where site -eq Seattle  | where role -eq data | where PrimarySite -eq Bellevue
 
     if ($ReplicationMode -eq "Asynchronous"){
-        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Site2Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.AccessPath -DestinationComputerName $Site1Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.AccessPath -DestinationLogVolumeName $destinationlog.AccessPath
+        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Site2Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site1Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }else{
-        New-SRPartnership -SourceComputerName $Site2Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.AccessPath -DestinationComputerName $Site1Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.AccessPath -DestinationLogVolumeName $destinationlog.AccessPath
+        New-SRPartnership -SourceComputerName $Site2Servers[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $Site1Servers[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
     }
 
     #Wait until synced
