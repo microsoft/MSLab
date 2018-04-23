@@ -18,8 +18,6 @@ $ClusterIP="10.0.0.112"
 
 $ReplicaNetwork="172.16.1.0"
 
-$SourceRGName="RG01"
-$DestinationRGName="RG02"
 $ReplicationMode="Synchronous" #Synchronous or Asynchronous
 $AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
 
@@ -246,18 +244,23 @@ if ($WindowsInstallationType -eq "Server"){
     #rename csv
     Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
     
-    #flush dns
-    Clear-DnsClientCache
-    
-    #Create some VMs in Redmond
-    foreach ($Site1VMName in $Site1VMNames){
-        New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
-        Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx"
-        New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $Site1Servers[0]
-        Start-VM -name $Site1VMName -ComputerName $Site1Servers[0]
-        Add-ClusterVirtualMachineRole -VMName $Site1VMName -Cluster $clusterName
+    #if RS5, move available storage to Bellevue and back
+    $CurrentBuildNumber=Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
+    if ($CurrentBuildNumber -ge 17639){
+        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
+        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
     }
-    
+
+    #Create some VMs in Redmond
+    if ($VHDPath){
+        foreach ($Site1VMName in $Site1VMNames){
+            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx"
+            New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $Site1Servers[0]
+            Start-VM -name $Site1VMName -ComputerName $Site1Servers[0]
+            Add-ClusterVirtualMachineRole -VMName $Site1VMName -Cluster $clusterName
+        }
+    }
     #move available disks group to Bellevue
     Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
 
@@ -267,15 +270,23 @@ if ($WindowsInstallationType -eq "Server"){
     #rename csv to Data2
     Invoke-Command -ComputerName $Site2Servers[0] -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
     
-    #Create some VMs in Bellevue
-    foreach ($Site2VMName in $Site2VMNames){
-        New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks" -ItemType Directory
-        Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx"
-        New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $Site2Servers[0]
-        Start-VM -name $Site2VMName -ComputerName $Site2Servers[0]
-        Add-ClusterVirtualMachineRole -VMName $Site2VMName -Cluster $clusterName
+    #if RS5, move available storage to Seattle and back
+    $CurrentBuildNumber=Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
+    if ($CurrentBuildNumber -ge 17639){
+        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
+        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
     }
-
+    
+    #Create some VMs in Bellevue
+    if ($VHDPath){
+        foreach ($Site2VMName in $Site2VMNames){
+            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx"
+            New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $Site2Servers[0]
+            Start-VM -name $Site2VMName -ComputerName $Site2Servers[0]
+            Add-ClusterVirtualMachineRole -VMName $Site2VMName -Cluster $clusterName
+        }
+    }
     #move group back
     Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
 
@@ -295,7 +306,8 @@ if ($WindowsInstallationType -eq "Server"){
     }
 
     #configure storage replica network
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork"    
+    Start-Sleep 5
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork" -ErrorAction SilentlyContinue  
     Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName
 
     #Wait until synced
@@ -306,8 +318,8 @@ if ($WindowsInstallationType -eq "Server"){
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
 
-    #enable replication from Bellevue
     
+    #enable replication from Bellevue
     #move available disks group to Bellevuefirst
     Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
     
@@ -323,7 +335,8 @@ if ($WindowsInstallationType -eq "Server"){
     }
 
     #configure storage replica network
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork"    
+    Start-Sleep 5
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -SourceNWInterface "ReplicaNetwork" -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName -DestinationNWInterface "ReplicaNetwork" -ErrorAction SilentlyContinue    
     Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceData.RGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationData.RGName
     
     #Wait until synced
