@@ -59,7 +59,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock { Get-NetFirewallRule -Name *
 
 #Upgrade Powershell on 2008R2 server
 IF ($SMS_2008R2){
-        <#
+        
         #Download .net 4.51
         WriteInfoHighlighted "Testing .net 4.51 presence"
         If ( Test-Path -Path "$PSScriptRootFolder\NDP451-KB2858728-x86-x64-AllOS-ENU.ex" ) {
@@ -92,10 +92,15 @@ IF ($SMS_2008R2){
     
         Copy-Item "$PSScriptRootFolder\NDP451-KB2858728-x86-x64-AllOS-ENU.exe" -Destination "\\$SMS_2008R2\c$\Temp"
         Copy-Item "$PSScriptRootFolder\Windows6.1-KB2819745-x64-MultiPkg.msu" -Destination "\\$SMS_2008R2\c$\Temp"
-    
+        
         Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
-        C:\Temp\NDP451-KB2858728-x86-x64-AllOS-ENU.exe /quiet /norestart
+        cd C:\Temp\
+        . .\Install-Update.ps1
+        Install-Update -InstallerPath C:\Temp\NDP451-KB2858728-x86-x64-AllOS-ENU.exe -KBID KB2858728
         }
+        <#Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
+        C:\Temp\NDP451-KB2858728-x86-x64-AllOS-ENU.exe /quiet /norestart
+        }#>
 
         #Wait for 2008 R2 server to come online before resuming
         Write-host "Waiting for SMS2008R2 to come online again"
@@ -103,20 +108,27 @@ IF ($SMS_2008R2){
         Restart-Computer -computername $SMS_2008R2 -protocol wsman -wait -Force
 
         #Installing Powershell 4.0
+
         Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
+            cd C:\Temp\
+            . .\Install-Update.ps1
+            Install-Update -InstallerPath C:\Temp\Windows6.1-KB2819745-x64-MultiPkg.msu -KBID KB2819745
+            }
+
+        <#Invoke-Command -computername $SMS_2008R2 -ScriptBlock {
         C:\Temp\Windows6.1-KB2819745-x64-MultiPkg.msu /quiet /norestart
-        }
+        }#>
         
         #Wait for servers to come online before resuming
         Write-host "Waiting for SMS2008R2 to come online again"
         Start-Sleep -Seconds 90
         Restart-Computer -computername $SMS_2008R2 -protocol wsman -wait -Force
-        #>
+        
         #Install requierd Roles on 2008R2 Server
         Write-host "Installing IIS on 2008R2 Server"
         Invoke-Command -ComputerName $SMS_2008R2 -ScriptBlock {
             Import-Module Servermanager
-            Add-WindowsFeature Web-server -IncludeAllSubFeature -norestart 
+            Add-WindowsFeature Web-server -IncludeAllSubFeature
         }
 
         #Wait for servers to come online before resuming
@@ -140,7 +152,7 @@ IF($SMS_2019){
 
 
 ##Install Windows Admin Center
-Write-host "Installing Windows Admin Center ont WAC"
+Write-host "Installing Windows Admin Center on WAC"
 Invoke-Command -computername $WAC -ScriptBlock {
 
 mkdir C:\Scripts\
