@@ -32,7 +32,7 @@ FYI this is a work in progress
 . .\Convert-WindowsImage.ps1
 
 #Create Base VHD/VHDX files on the diffrent type of OS you need.
-Convert-WindowsImage -SourcePath C:\Hyperv\WS2008r2_standard_enterprise_datacenter_and_web_sp1_x64.iso -Edition Enterprise -DiskLayout BIOS -VHDFormat VHD -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2008R2.vhd -SizeBytes 60GB -Passthru
+Convert-WindowsImage -SourcePath "2008R2 ISO Path" -Edition Enterprise -DiskLayout BIOS -VHDFormat VHD -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2008R2.vhd -SizeBytes 60GB -Passthru
 Convert-WindowsImage -SourcePath "2012 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
 Convert-WindowsImage -SourcePath "2012R2 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012R2.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
 Convert-WindowsImage -SourcePath "2016 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2016.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
@@ -76,7 +76,7 @@ Copy also in the latest Windows Admin Center file to c:\scripts on the domain co
 
 Continue with [Scenario.ps1](/Scenarios/StorageMigrationService/scenario.ps1) script while reading comments.
 
-*  This will upgrade .net 4.51 and Powershell to 4.0 on 2008R2 server 
+*  This will upgrade .net 4.51 and Powershell to 4.0 on 2008R2 server, this requires user input with the Install-Update script
 *  This will install features to the server
 *  Install Windows Admin Center
 *  Install Chrome on Domain Controller
