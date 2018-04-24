@@ -181,6 +181,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $TimeZone,
+            [parameter(Mandatory=$false)]
+            [string]
+            $RunSynchronous,
             [parameter(Mandatory=$true)]
             [string]
             $DomainName
@@ -211,7 +214,7 @@ If (!( $isAdmin )) {
                     <Password>$AdminPassword</Password>
                     <Username>Administrator</Username>
                 </Credentials>
-                <JoinDomain>$DomainName</JoinDomain>            
+                <JoinDomain>$DomainName</JoinDomain>
         </Identification>
     </component>
  </settings>
@@ -379,7 +382,7 @@ If (!( $isAdmin )) {
                     Position=1)]
             $outputstring
         )
-        Process {  
+        Process {
             $procinfo = New-Object System.Diagnostics.ProcessStartInfo
             $procinfo.FileName = $filename
             $procinfo.Arguments = $arguments
@@ -560,15 +563,19 @@ If (!( $isAdmin )) {
 '@
             WriteInfo "`t `t WCF will be disabled"
         }
-        if ($VMConfig.CustomPowerShellCommand){
-            $RunSynchronous+=@"
-            <RunSynchronousCommand wcm:action="add">
-                <Path>powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -Command "$($VMConfig.CustomPowerShellCommand)"</Path>
-                <Description>run custom powershell</Description>
-                <Order>3</Order>
-            </RunSynchronousCommand>
+        if ($VMConfig.CustomPowerShellCommands){
+            $Order=3
+            foreach ($CustomPowerShellCommand in $VMConfig.CustomPowerShellCommands){
+                $RunSynchronous+=@"
+                <RunSynchronousCommand wcm:action="add">
+                    <Path>powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -Command "$CustomPowerShellCommand"</Path>
+                    <Description>run custom powershell</Description>
+                    <Order>$Order</Order>
+                </RunSynchronousCommand>
 
 "@
+                $Order++
+            }
             WriteInfo "`t `t Custom PowerShell command will be added"
         }
 
@@ -577,7 +584,7 @@ If (!( $isAdmin )) {
         }
 
         #Create Unattend file
-        if ($VMConfig.SkipDjoin -eq $True){
+        if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
             WriteInfo "`t Skipping Djoin"
             if ($VMConfig.AdditionalLocalAdmin){
                 WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
@@ -585,20 +592,23 @@ If (!( $isAdmin )) {
             }else{
                 $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
             }
-        }elseif($VMConfig.Win2012Djoin){
+        }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
             WriteInfo "`t Creating Unattend with win2012-ish domain join"
             $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
-        }elseif(-not $VMConfig.SkipUnattend){
+        
+        }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
             WriteInfo "`t Creating Unattend with djoin blob"
             $path="c:\$vmname.txt"
             Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
             $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
             Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
             $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+        }elseif($VMConfig.Unattend -eq "None"){
+            $unattendFile=$Null
         }
 
         #adding unattend to VHD
-        if (-not $VMConfig.SkipUnattend){
+        if ($unattendFile){
             WriteInfo "`t Adding unattend to VHD"
             Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
             Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
