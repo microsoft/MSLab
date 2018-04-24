@@ -25,6 +25,7 @@ FYI this is a work in progress
 * 8+ GB RAM is required for this scenario
 * SSD (with HDD it is really slow, barely usable)
 * Create OS images with the OS you need with the Convert-WindowsImage.ps1 file
+* Internet connection is required to Install Chrome on DC. So external switch is created. On Win10 there is a bug that internet get's slow on wireless network.
 
 ##To create Windows Images
 ````PowerShell
