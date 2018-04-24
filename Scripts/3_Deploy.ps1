@@ -435,7 +435,11 @@ If (!( $isAdmin )) {
         }
                     
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
-        $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        if ($serverparent.Extension -eq ".vhdx"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        }elseif($serverparent.Extension -eq ".vhd"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         WriteInfo "`t Creating VM"
@@ -444,7 +448,7 @@ If (!( $isAdmin )) {
         }else{
             $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2    
         }
-            $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
+        $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
             $VMTemp | Set-VM -AutomaticCheckpointsEnabled $False
