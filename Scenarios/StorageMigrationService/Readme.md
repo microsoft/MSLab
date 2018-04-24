@@ -9,6 +9,7 @@
 <!-- /TOC -->
 
 ## About the scenario
+Author: Jan-Tore Pedersen / [CloudMechanic.net](http://jtpedersen.com) / [Twitter](http://twitter.com/jantorep) / 
 
 FYI this is a work in progress
 
@@ -27,7 +28,7 @@ FYI this is a work in progress
 * Create OS images with the OS you need with the Convert-WindowsImage.ps1 file
 * Internet connection is required to Install Chrome on DC. So external switch is created. On Win10 there is a bug that internet get's slow on wireless network.
 
-##To create Windows Images
+## To Create Windows Images
 ````PowerShell
 #Run command to enable functions the file is located under \Tools\ where the prereq.ps1 downloaded files
 . .\Convert-WindowsImage.ps1
