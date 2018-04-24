@@ -56,7 +56,6 @@ If (!( $isAdmin )) {
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
   <settings pass="offlineServicing">
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
         <OfflineIdentification>              
@@ -82,7 +81,6 @@ If (!( $isAdmin )) {
       <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
-
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RegisteredOwner>PFE</RegisteredOwner>
