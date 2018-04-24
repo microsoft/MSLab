@@ -66,7 +66,6 @@ If (!( $isAdmin )) {
          </OfflineIdentification>  
     </component>
   </settings>
-
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
