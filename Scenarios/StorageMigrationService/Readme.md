@@ -1,15 +1,16 @@
 <!-- TOC -->
 
-- [About the scenario](#about-the-scenario)
+    - [About the scenario](#about-the-scenario)
     - [Description](#description)
     - [Scenario requirements](#scenario-requirements)
+    - [To Create Windows Images](#to-create-windows-images)
 - [LabConfig.ps1](#labconfigps1)
 - [The lab](#the-lab)
 
 <!-- /TOC -->
 
 ## About the scenario
-Author: Jan-Tore Pedersen / [CloudMechanic.net](http://jtpedersen.com) / [Twitter](http://twitter.com/jantorep) / 
+Author: Jan-Tore Pedersen / [jtpedersen.com](http://jtpedersen.com) / [Twitter](http://twitter.com/jantorep) / 
 
 FYI this is a work in progress
 
