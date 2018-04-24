@@ -24,7 +24,7 @@ $SMS_2008R2 = 'SMS2008R2'
 $SMS_2012R2 = 'SMS_2012R2'
 $SMS_2019 = 'SMS_2019'
 
-$Servers = ($WAC, $SMS_2008R2, $SMS_2012R2, $SMS_2019)
+$Servers = ($WAC, $SMS_2012R2, $SMS_2019)
 
 #Enable firewall rules for servers
 Invoke-Command -ComputerName $Servers -ScriptBlock { Get-NetFirewallRule -Name *FPS* | Enable-NetFirewallRule ; Enable-PSRemoting -Force -Confirm:$false }
@@ -47,7 +47,7 @@ IF ($SMS_2008R2) {
 
     ##Copy IIS files Hello World
     Write-host "Copy IIS files to SMS2008R2"
-    Copy-Item "D:\Scripts\iisstart.htm" -Destination "\\$SMS_2008R2\c$\inetpub\wwwroot"
+    Copy-Item "$PSScriptRootFolder\iisstart.htm" -Destination "\\$SMS_2008R2\c$\inetpub\wwwroot"
         
 }
 IF ($SMS_2019) {
@@ -68,7 +68,7 @@ Invoke-Command -Computername $WAC -ScriptBlock {
     mkdir C:\Scripts\
 }
 
-Copy-Item "D:\Scripts\WindowsAdminCenter1804.msi" -Destination "\\WAC\c$\Scripts"
+Copy-Item "$PSScriptRootFolder\WindowsAdminCenter1804.msi" -Destination "\\WAC\c$\Scripts"
 
 Invoke-Command -Computername $WAC -ScriptBlock {
 
