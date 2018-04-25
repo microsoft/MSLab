@@ -249,7 +249,7 @@ if ($WindowsInstallationType -eq "Server"){
         foreach ($Site1VMName in $Site1VMNames){
             New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
             Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx"
-            New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $Site1Servers[0]
+            New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $CSV.OwnerNode
             Start-VM -name $Site1VMName -ComputerName $Site1Servers[0]
             Add-ClusterVirtualMachineRole -VMName $Site1VMName -Cluster $clusterName
         }
@@ -269,7 +269,7 @@ if ($WindowsInstallationType -eq "Server"){
         foreach ($Site2VMName in $Site2VMNames){
             New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks" -ItemType Directory
             Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx"
-            New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $Site2Servers[0]
+            New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $CSV.OwnerNode
             Start-VM -name $Site2VMName -ComputerName $Site2Servers[0]
             Add-ClusterVirtualMachineRole -VMName $Site2VMName -Cluster $clusterName
         }
