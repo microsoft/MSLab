@@ -242,16 +242,9 @@ if ($WindowsInstallationType -eq "Server"){
     $CSVConfig=$diskconfig | where site -eq Seattle | where CSVFoldername #grab CSV name from diskconfig for site1
     $CSV=Get-ClusterResource -Cluster $ClusterName -name "$($CSVConfig.FriendlyName)_Seattle" | Add-ClusterSharedVolume
     #rename csv
-    Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
+    Invoke-Command -ComputerName $CSV.OwnerNode -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
     
-    #if RS5, move available storage to Bellevue and back
-    $CurrentBuildNumber=Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
-    if ($CurrentBuildNumber -ge 17639){
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
-    }
-
-    #Create some VMs in Redmond
+     #Create some VMs in Redmond
     if ($VHDPath){
         foreach ($Site1VMName in $Site1VMNames){
             New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
@@ -268,15 +261,9 @@ if ($WindowsInstallationType -eq "Server"){
     $CSVConfig=$diskconfig | where site -eq Bellevue | where CSVFoldername #grab CSV name from diskconfig for site1
     $CSV=Get-ClusterResource -Cluster $ClusterName -name "$($CSVConfig.FriendlyName)_Bellevue" | Add-ClusterSharedVolume
     #rename csv to Data2
-    Invoke-Command -ComputerName $Site2Servers[0] -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
+    Invoke-Command -ComputerName $CSV.OwnerNode  -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
     
-    #if RS5, move available storage to Seattle and back
-    $CurrentBuildNumber=Invoke-Command -ComputerName $Site1Servers[0] -ScriptBlock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
-    if ($CurrentBuildNumber -ge 17639){
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
-        Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
-    }
-    
+
     #Create some VMs in Bellevue
     if ($VHDPath){
         foreach ($Site2VMName in $Site2VMNames){
