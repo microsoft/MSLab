@@ -236,24 +236,14 @@ if ($WindowsInstallationType -eq "Server"){
 
 #endregion
 
-#region add Data disks to CSVs and create VMs
+#region add Data disks to CSVs
 
     #add disk from site1
     $CSVConfig=$diskconfig | where site -eq Seattle | where CSVFoldername #grab CSV name from diskconfig for site1
     $CSV=Get-ClusterResource -Cluster $ClusterName -name "$($CSVConfig.FriendlyName)_Seattle" | Add-ClusterSharedVolume
     #rename csv
     Invoke-Command -ComputerName $CSV.OwnerNode -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
-    
-     #Create some VMs in Redmond
-    if ($VHDPath){
-        foreach ($Site1VMName in $Site1VMNames){
-            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
-            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx"
-            New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $CSV.OwnerNode
-            Start-VM -name $Site1VMName -ComputerName $Site1Servers[0]
-            Add-ClusterVirtualMachineRole -VMName $Site1VMName -Cluster $clusterName
-        }
-    }
+
     #move available disks group to Bellevue
     Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site2Servers[0]
 
@@ -262,18 +252,7 @@ if ($WindowsInstallationType -eq "Server"){
     $CSV=Get-ClusterResource -Cluster $ClusterName -name "$($CSVConfig.FriendlyName)_Bellevue" | Add-ClusterSharedVolume
     #rename csv to Data2
     Invoke-Command -ComputerName $CSV.OwnerNode  -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
-    
 
-    #Create some VMs in Bellevue
-    if ($VHDPath){
-        foreach ($Site2VMName in $Site2VMNames){
-            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks" -ItemType Directory
-            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx"
-            New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $CSV.OwnerNode
-            Start-VM -name $Site2VMName -ComputerName $Site2Servers[0]
-            Add-ClusterVirtualMachineRole -VMName $Site2VMName -Cluster $clusterName
-        }
-    }
     #move group back
     Move-ClusterGroup -Cluster $ClusterName -Name "available storage" -Node $Site1Servers[0]
 
@@ -333,6 +312,34 @@ if ($WindowsInstallationType -eq "Server"){
         Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
     }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
     Write-Output "Replica Status: "$r.replicationstatus
+
+#endregion
+
+#region Create VMs
+    
+    #Create some VMs in Redmond
+    $CSVConfig=$diskconfig | where site -eq Seattle | where CSVFoldername #grab CSV name from diskconfig for site1
+    if ($VHDPath){
+        foreach ($Site1VMName in $Site1VMNames){
+            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx"
+            New-VM -Name $Site1VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site1VMName\Virtual Hard Disks\$($Site1VMName)_Disk1.vhdx" -ComputerName $Site1Servers[0]
+            Start-VM -name $Site1VMName -ComputerName $Site1Servers[0]
+            Add-ClusterVirtualMachineRole -VMName $Site1VMName -Cluster $clusterName
+        }
+    }
+
+    #Create some VMs in Bellevue
+    $CSVConfig=$diskconfig | where site -eq Bellevue | where CSVFoldername #grab CSV name from diskconfig for site1
+    if ($VHDPath){
+        foreach ($Site2VMName in $Site2VMNames){
+            New-Item -Path "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$clusterName\ClusterStorage$\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx"
+            New-VM -Name $Site2VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$($CSVConfig.CSVFolderName)" -VHDPath "c:\ClusterStorage\$($CSVConfig.CSVFolderName)\$Site2VMName\Virtual Hard Disks\$($Site2VMName)_Disk1.vhdx" -ComputerName $Site2Servers[0]
+            Start-VM -name $Site2VMName -ComputerName $Site2Servers[0]
+            Add-ClusterVirtualMachineRole -VMName $Site2VMName -Cluster $clusterName
+        }
+    }
 
 #endregion
 
