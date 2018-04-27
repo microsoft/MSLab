@@ -152,13 +152,12 @@ Format disks and add it to CSVs
 New-Volume -DiskNumber 5 -FriendlyName "TestFailoverSite1" -FileSystem ReFS -CimSession Replica1 -ErrorAction SilentlyContinue
 New-Volume -DiskNumber 5 -FriendlyName "TestFailoverSite2" -FileSystem ReFS -CimSession Replica3 -ErrorAction SilentlyContinue
 
-function Add-DiskToCSV ($ClusterName,$FileSystemLabel,$ClusterNodeName)
-{
+#function to rename Cluster disks
+function Rename-ClusterDisk ($ClusterName,$FileSystemLabel,$ClusterNodeName,$NewName){
     #move available disks to $ClusterNodeName
     if ((Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode -ne $ClusterNodeName){
         Move-ClusterGroup -Cluster $ClusterName -Name "Available Storage" -Node $ClusterNodeName
     }
-
     $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
     foreach ($DiskResource in $DiskResources){
         $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
@@ -166,23 +165,14 @@ function Add-DiskToCSV ($ClusterName,$FileSystemLabel,$ClusterNodeName)
             $ClusterDiskName=$DiskResource.name
         }
     }
-    $ClusterDisk=Get-ClusterResource -Cluster $ClusterName -name $ClusterDiskName
-    $ClusterSharedVolume = Add-ClusterSharedVolume -Cluster $ClusterName -InputObject $ClusterDisk
-    $ClusterSharedVolume.Name = $FileSystemLabel
-    $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
-    $path=$path.Substring($path.LastIndexOf("\")+1)
-    $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-    Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$FileSystemLabel -ScriptBlock {
-        param($fullpath,$FileSystemLabel);
-        Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
-    }
+    (Get-ClusterResource -Cluster $ClusterName -name $ClusterDiskName).Name=$NewName
 }
 
-Add-DiskToCSV -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite1 -ClusterNodeName Replica1
-Add-DiskToCSV -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite2 -ClusterNodeName Replica3
-````
+#rename TestFailoverSite1 and TestFailoverSite2 disks
+Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite1 -clusternodename Replica1 -NewName TestFailoverSite1
+Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite2 -clusternodename Replica3 -NewName TestFailoverSite2
 
-![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/TestFailoverCSVs.png)
+````
 
 Get SR Partnerships
 
@@ -196,9 +186,24 @@ Get-SRGroup -CimSession stretch-cluster | select Name -ExpandProperty Replicas |
 Mount
 
 ````PowerShell
-Mount-SRDestination -ComputerName Replica3 -Name Data1Destination -TemporaryPath c:\ClusterStorage\TestFailoverSite2 -Confirm:0
-Mount-SRDestination -ComputerName Replica1 -Name Data2Destination -TemporaryPath c:\ClusterStorage\TestFailoverSite1 -Confirm:0
- 
+
+Function Mount-SRDestinationClusterDisk ($ClusterName,$ClusterNodeName,$RGName,$ClusterDiskName){
+    #move available disks to $ClusterNodeName
+    if ((Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode -ne $ClusterNodeName){
+        Move-ClusterGroup -Cluster $ClusterName -Name "Available Storage" -Node $ClusterNodeName
+    }
+    #grab disk with specified name
+    $DiskIDGuid = Get-ClusterResource -Cluster $ClusterName -Name $ClusterDiskName | Get-ClusterParameter DiskIdGuid
+    #Find path
+    $path=(Get-Disk -CimSession $ClusterNodeName | where Guid -eq $DiskIDGuid.Value | Get-Partition | Get-Volume).path
+    #MountSRDestination
+    Mount-SRDestination -ComputerName $ClusterNodeName -Name $RGName -TemporaryPath $path -Confirm:0
+
+}
+
+Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica3 -RGName Data1Destination -ClusterDiskName TestFailoverSite2
+Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica1 -RGName Data2Destination -ClusterDiskName TestFailoverSite1
+
 ````
 
 Dismount
@@ -211,11 +216,7 @@ Dismount-SRDestination -ComputerName Replica1 -Name Data2Destination -Confirm:0
 
 ## Known issues
 
-VMs refuses to be created before replication is enabled. So scenario script creates VMs after SR is enabled. Following snip is from version of script, where VMs were created before enabling SR
+VMs refuses to be created before replication is enabled in insider preview. So scenario script creates VMs after SR is enabled. Following snip is from version of script, where VMs were created before enabling SR
 
 ![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/VMsNotCreated.png)
-
-Mounting SRDestination will fail into CSV due to bug
-
-![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/Mount-SRDestinationError.png)
 
