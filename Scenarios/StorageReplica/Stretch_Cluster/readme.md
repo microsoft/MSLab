@@ -145,7 +145,7 @@ https://blogs.technet.microsoft.com/filecab/2018/04/24/storage-replica-updates-i
 
 You can run all code from DC
 
-Format disks and add it to CSVs
+Format disks, and rename it in cluster
 
 ````PowerShell
 #Format Disks
@@ -173,6 +173,9 @@ Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSit
 Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite2 -clusternodename Replica3 -NewName TestFailoverSite2
 
 ````
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FailoverDisksRenamed.png)
+
 
 Get SR Partnerships
 
@@ -205,6 +208,9 @@ Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName rep
 Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica1 -RGName Data2Destination -ClusterDiskName TestFailoverSite1
 
 ````
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FailoverDisksMounted.png)
+
 
 Dismount
 
