@@ -3,9 +3,20 @@
 - [Storage Replica - Stretch Cluster scenario](#storage-replica---stretch-cluster-scenario)
     - [LabConfig for Windows Server 2016](#labconfig-for-windows-server-2016)
     - [Labconfig for Windows Server Insider](#labconfig-for-windows-server-insider)
-    - [Scenario.ps1 result](#scenariops1-result)
-    - [Known issues - VMs fails to create in Insider Preview](#known-issues---vms-fails-to-create-in-insider-preview)
+    - [Scenario.ps1](#scenariops1)
+        - [Region LabConfig](#region-labconfig)
+        - [Region install features for management](#region-install-features-for-management)
+        - [Region install roles and features to servers](#region-install-roles-and-features-to-servers)
+        - [Region create and configure cluster](#region-create-and-configure-cluster)
+        - [Region format disks](#region-format-disks)
+        - [Region list storage and add paths to Diskconfig variable](#region-list-storage-and-add-paths-to-diskconfig-variable)
+        - [Region rename cluster disk resources for easier identification](#region-rename-cluster-disk-resources-for-easier-identification)
+        - [Region add Data disks to CSVs](#region-add-data-disks-to-csvs)
+        - [Region enable replication](#region-enable-replication)
+        - [Region Create VMs](#region-create-vms)
+        - [Script result](#script-result)
     - [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
+    - [Known issues](#known-issues)
 
 <!-- /TOC -->
 
@@ -16,7 +27,6 @@ WORK IN PROGRESS
 This scenario will set up stretch cluster, while some VMs are running in site1 and some in site2. All is replicated from site1 to site2 and from site 2 to site 1.
 
 Additionally, you can test failover in Windows Server Insider
-
 
 ## LabConfig for Windows Server 2016
 
@@ -33,7 +43,6 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 ````
 
 ## Labconfig for Windows Server Insider
-
 
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016labInsider17650-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
@@ -58,19 +67,77 @@ $LabConfig.ServerVHDs += @{
  
 
 ````
-## Scenario.ps1 result
+## Scenario.ps1
+
+Collapsed sections in scenario.ps1 (ctrl+m in PowerShell ISE)
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/ScenarioCollapsed.png)
+
+### Region LabConfig
+
+You will be asked for VHD for VMs that will be created. The smallest and most convenient is NanoServer image. Just copy it over and select.
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/VHDPrompt.png)
+
+### Region install features for management
+
+This region is same as in other scenarios. Just checks for RSAT/RSAT features and if missing, it will install it (or notify on Win10)
+
+### Region install roles and features to servers
+
+This region installs SR and Hyper-V to destination servers. In the end, it reboots all.
+
+### Region create and configure cluster
+
+This region creates cluster, configures fault domains, renames replica network and creates and configures file share witness on DC
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/Witness.png)
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FaultDomains.png)
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/ReplicaNetwork.png)
+
+### Region format disks
+
+Disks will be formatted and will populate in cluster as available storage
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FormatDisksResult.png)
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FormatDisksResultCluadmin.png)
+
+### Region list storage and add paths to Diskconfig variable
+
+DiskConfig variable Before
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/DiskConfigBefore.png)
+
+DiskConfig variable After
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/DiskConfigAfter.png)
+
+### Region rename cluster disk resources for easier identification
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/DiskRenameBefore.png)
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/DiskRenameAfter.png)
+
+### Region add Data disks to CSVs
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/DisksInCSVs.png)
+
+### Region enable replication
+
+In this region SR is configured and also SR constraint is added to Replica network.
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/SRStatus.png)
+
+
+### Region Create VMs
 
 ![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/VMs.png)
 
-![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/Disks.png)
+### Script result
 
-
-## Known issues - VMs fails to create in Insider Preview
-
-VMs refuses to be created before replication is enabled. Needs to be created after
-
-![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/VMsNotCreated.png)
-
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FinishedScript.png)
 
 ## Test failover in Windows Server 2019 (insider preview)
 
@@ -142,4 +209,13 @@ Dismount-SRDestination -ComputerName Replica1 -Name Data2Destination -Confirm:0
  
 ````
 
+## Known issues
+
+VMs refuses to be created before replication is enabled. So scenario script creates VMs after SR is enabled. Following snip is from version of script, where VMs were created before enabling SR
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/VMsNotCreated.png)
+
+Mounting SRDestination will fail into CSV due to bug
+
+![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/Mount-SRDestinationError.png)
 

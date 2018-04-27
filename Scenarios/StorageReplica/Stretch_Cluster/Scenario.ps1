@@ -30,6 +30,7 @@ $Servers=$Site1Servers+$Site2Servers
 $NanoServer=$False
 
 #Diskconfig
+## Note: GroupID is not used. It can be used if multiple Data disks are present in each site.
 $diskconfig=@()
 $diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Seattle"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Source"      }
 $diskconfig+=@{DiskNumber=2 ; FriendlyName="Log2"  ; FileSystem="REFS" ; Site="Seattle"   ; PrimarySite="Bellevue"  ; Role="Log"  ; GroupID=2 ; RGName="Data2Destination" }
@@ -41,6 +42,7 @@ $diskconfig+=@{DiskNumber=3 ; FriendlyName="Data1" ; FileSystem="REFS" ; Site="B
 $diskconfig+=@{DiskNumber=4 ; FriendlyName="Data2" ; FileSystem="REFS" ; Site="Bellevue"  ; PrimarySite="Bellevue"  ; Role="Data" ; GroupID=2 ; RGName="Data2Source"      ; CSVFolderName="Data2"}
 
 #ask for parent vhdx
+## Note: easiest is to use Nano server VHD from Windows Server 2016 lab parent disks folder.
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
     $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
         Title="Please select parent VHDx." # You can copy it from parentdisks on the Hyper-V hosts somewhere into the lab and then browse for it"
