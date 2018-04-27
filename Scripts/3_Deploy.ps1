@@ -46,7 +46,7 @@ If (!( $isAdmin )) {
             $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
-            $Specialize
+            $RunSynchronous
         )
 
         if ( Test-Path "Unattend.xml" ) {
@@ -56,7 +56,6 @@ If (!( $isAdmin )) {
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
   <settings pass="offlineServicing">
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
         <OfflineIdentification>              
@@ -66,7 +65,6 @@ If (!( $isAdmin )) {
          </OfflineIdentification>  
     </component>
   </settings>
-
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
@@ -83,20 +81,22 @@ If (!( $isAdmin )) {
       <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
-
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RegisteredOwner>PFE</RegisteredOwner>
       <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
-    $Specialize
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>   
   </settings>
 </unattend>
 
 "@
 
         Set-Content $unattendFile $fileContent
-
         #return the file object
         $unattendFile 
     }
@@ -115,7 +115,7 @@ If (!( $isAdmin )) {
             $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
-            $Specialize,
+            $RunSynchronous,
             [parameter(Mandatory=$false)]
             [string]
             $AdditionalAccount
@@ -134,7 +134,11 @@ If (!( $isAdmin )) {
         <RegisteredOwner>PFE</RegisteredOwner>
           <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
-    $Specialize
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>   
  </settings>
  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -174,6 +178,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $TimeZone,
+            [parameter(Mandatory=$false)]
+            [string]
+            $RunSynchronous,
             [parameter(Mandatory=$true)]
             [string]
             $DomainName
@@ -191,6 +198,11 @@ If (!( $isAdmin )) {
         <RegisteredOwner>PFE</RegisteredOwner>
         <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>    
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <Identification>
                 <Credentials>
@@ -198,7 +210,7 @@ If (!( $isAdmin )) {
                     <Password>$AdminPassword</Password>
                     <Username>Administrator</Username>
                 </Credentials>
-                <JoinDomain>$DomainName</JoinDomain>            
+                <JoinDomain>$DomainName</JoinDomain>
         </Identification>
     </component>
  </settings>
@@ -223,7 +235,6 @@ If (!( $isAdmin )) {
 "@
 
         Set-Content $unattendFile $fileContent
-
         #return the file object
         $unattendFile 
     }
@@ -367,7 +378,7 @@ If (!( $isAdmin )) {
                     Position=1)]
             $outputstring
         )
-        Process {  
+        Process {
             $procinfo = New-Object System.Diagnostics.ProcessStartInfo
             $procinfo.FileName = $filename
             $procinfo.Arguments = $arguments
@@ -420,11 +431,19 @@ If (!( $isAdmin )) {
         }
                     
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
-        $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        if ($serverparent.Extension -eq ".vhdx"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        }elseif($serverparent.Extension -eq ".vhd"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         WriteInfo "`t Creating VM"
-        $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+        if ($VMConfig.Generation -eq 1){
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
+        }else{
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2    
+        }
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
@@ -479,10 +498,14 @@ If (!( $isAdmin )) {
 
         #configure vTPM
         if ($VMConfig.vTPM -eq $True){
-            WriteInfo "`t Enabling vTPM"
-            $keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-            Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-            Enable-VMTPM -VM $VMTemp 
+            if ($VMConfig.Generation -eq 1){
+                WriteError "`t vTPM requested. But vTPM is not compatible with Generation 1"
+            }else{
+                WriteInfo "`t Enabling vTPM"
+                $keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+                Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+                Enable-VMTPM -VM $VMTemp
+            }
         }
 
         #set MemoryMinimumBytes
@@ -514,53 +537,87 @@ If (!( $isAdmin )) {
         }
 
         $Name=$VMConfig.VMName
-            
-        if ($VMConfig.SkipDjoin -eq $True){
-            WriteInfo "`t Skipping Djoin"                
-            if ($VMConfig.DisableWCF -eq $True){
-                if ($VMConfig.AdditionalLocalAdmin -ne $null){
-                    WriteInfo "`t WCF will be disabled and Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
-                    $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
-                }else{
-                    WriteInfo "`t WCF will be disabled"
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
-                }            
-            }else{
-                if ($VMConfig.AdditionalLocalAdmin -ne $null){
-                    WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
-                    $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
-                }else{
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
-                }    
-            }
-        }else{
-            if ($VMConfig.Win2012Djoin -eq $True){
-                WriteInfo "`t Creating Unattend with win2012 domain join"
-                $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -TimeZone $TimeZone
-            }else{
-                WriteInfo "`t Creating Unattend with djoin blob"
-                $path="c:\$vmname.txt"
-                Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-                $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-                if ($VMConfig.DisableWCF -eq $True){
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
-                }else{
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
-                }
-            }
+        #add run synchronous commands
+        WriteInfoHighlighted "`t Adding Sync Commands"
+        $RunSynchronous=""
+        if ($VMConfig.EnableWinRM){
+            $RunSynchronous+=@'
+            <RunSynchronousCommand wcm:action="add">
+                <Path>cmd.exe /c winrm quickconfig -q -force</Path>
+                <Description>enable winrm</Description>
+                <Order>1</Order>
+            </RunSynchronousCommand>
+
+'@
+            WriteInfo "`t `t WinRM will be enabled"
         }
 
-        WriteInfo "`t Adding unattend to VHD"
-        Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-        Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-        #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-        #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-        New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-        Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-            
+        if ($VMConfig.DisableWCF){
+            $RunSynchronous+=@'
+            <RunSynchronousCommand wcm:action="add">
+                <Path>reg add HKLM\Software\Policies\Microsoft\Windows\CloudContent /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f</Path>
+                <Description>disable consumer features</Description>
+                <Order>2</Order>
+            </RunSynchronousCommand>
+
+'@
+            WriteInfo "`t `t WCF will be disabled"
+        }
+        if ($VMConfig.CustomPowerShellCommands){
+            $Order=3
+            foreach ($CustomPowerShellCommand in $VMConfig.CustomPowerShellCommands){
+                $RunSynchronous+=@"
+                <RunSynchronousCommand wcm:action="add">
+                    <Path>powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -Command "$CustomPowerShellCommand"</Path>
+                    <Description>run custom powershell</Description>
+                    <Order>$Order</Order>
+                </RunSynchronousCommand>
+
+"@
+                $Order++
+            }
+            WriteInfo "`t `t Custom PowerShell command will be added"
+        }
+
+        if (-not $RunSynchronous){
+            WriteInfo "`t `t No sync commands requested"
+        }
+
+        #Create Unattend file
+        if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
+            WriteInfo "`t Skipping Djoin"
+            if ($VMConfig.AdditionalLocalAdmin){
+                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
+                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
+            }else{
+                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+            }
+        }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
+            WriteInfo "`t Creating Unattend with win2012-ish domain join"
+            $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+        
+        }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
+            WriteInfo "`t Creating Unattend with djoin blob"
+            $path="c:\$vmname.txt"
+            Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+            $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
+            $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+        }elseif($VMConfig.Unattend -eq "None"){
+            $unattendFile=$Null
+        }
+
+        #adding unattend to VHD
+        if ($unattendFile){
+            WriteInfo "`t Adding unattend to VHD"
+            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+            Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+        }
+       
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Adding metaconfig.mof to VHD"
             Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
@@ -625,18 +682,6 @@ If (!( $isAdmin )) {
     WriteInfo "`t LabFolder is $LabFolder"
 
     $LABfolderDrivePath=$LABfolder.Substring(0,3)
-
-    $DisableWCF=@'
-<component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <RunSynchronous>
-        <RunSynchronousCommand wcm:action="add">
-            <Path>reg add HKLM\Software\Policies\Microsoft\Windows\CloudContent /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f</Path>
-            <Description>disable consumer features</Description>
-            <Order>5</Order>
-        </RunSynchronousCommand>
-    </RunSynchronous>
-</component>
-'@
 
     $ExternalSwitchName="$($Labconfig.Prefix)$($LabConfig.Switchname)-External"
 
@@ -1143,7 +1188,7 @@ If (!( $isAdmin )) {
                         #compose VM name
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
                         
-                        #Add disks                        
+                        #Add disks
                             #add "SSDs"
                                 If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
                                     $SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\SSD-$_.VHDX" -Dynamic -Size $VMConfig.SSDSize}
@@ -1162,8 +1207,8 @@ If (!( $isAdmin )) {
                                         $filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
                                         Add-VMHardDiskDrive -Path $_.path -VMName $VMname
                                         WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
-                                    }    
-                                }      
+                                    }
+                                }
                     }
 
                 #create VM with Replica configuration    
@@ -1245,7 +1290,7 @@ If (!( $isAdmin )) {
 
     #Enable VMNics device naming
         WriteInfo "`t Enabling VMNics device naming"
-        Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming On
+        Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"

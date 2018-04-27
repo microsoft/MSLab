@@ -79,7 +79,7 @@ New-SRPartnership -SourceComputerName $Cluster1Name -SourceRGName $SourceRGName 
 
 do{
     $r=(Get-SRGroup -CimSession $Cluster2Name -Name $DestinationRGName).replicas
-    [System.Console]::Write("Number of remaining bytes {0}`r", $r.NumOfBytesRemaining)
+    [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
     Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
 }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
 Write-Output "Replica Status: "$r.replicationstatus

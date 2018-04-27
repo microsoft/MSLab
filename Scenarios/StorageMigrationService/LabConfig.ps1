@@ -1,7 +1,22 @@
 ﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no'; CreateClientParent=$false ; ClientEdition='Enterprise'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@() }  
+
+$LABConfig.ServerVHDs += @{
+        Edition="ServerDataCenter";
+        VHDName="Win2019_17639.vhdx";
+        Size=60GB
+    }
+
+#Define the Number of Virtual Machines you need based on OS or nr of machines pr
+$LabConfig.VMs = @(
+            @{ VMName = 'SMS_2019'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2019_17639.vhdx'     ; MemoryStartupBytes= 1024MB }, 
+            @{ VMName = 'WAC'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2019_17639.vhdx'     ; MemoryStartupBytes= 1024MB },
+            @{ VMName = 'SMS2008R2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2008R2.vhd'     ; MemoryStartupBytes= 1024MB; EnableWinRM=$True; Generation=1; Unattend="DjoinCred"  },
+            #@{ VMName = 'SMS_2012'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2012.vhdx'     ; MemoryStartupBytes= 1024MB },
+            @{ VMName = 'SMS_2012R2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2012R2.vhdx'     ; MemoryStartupBytes= 1024MB; Win2012Djoin=$True }
+            #@{ VMName = 'SMS_2016'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016.vhdx'     ; MemoryStartupBytes= 1024MB }
+        )
 
 ### HELP ###
 
