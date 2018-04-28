@@ -2,7 +2,7 @@
 
 Enabling BitLocker on S2D is covered in [this](https://technet.microsoft.com/en-us/library/dn383585(v=ws.11).aspx) TechNet article. Enabling BitLocker on CSV is a bit complex task. This scenario will help you understand steps needed and also contains sample script, that rapidly simlifies it.
 
-To try this scenario, deploy [S2D HyperConverged cluster](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) first. To enable BitLocker, you can just run the [script](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/BitLocker%20on%20S2D%20cluster/EnableBitlockerOnS2D.ps1), and it will take care of everything.
+To try this scenario, deploy [S2D HyperConverged cluster](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) first. To enable BitLocker, you can just run the [script](https://github.com/Microsoft/WSLab/tree/master/Scenarios/BitLocker%20on%20S2D%20cluster/EnableBitlockerOnS2D.ps1), and it will take care of everything.
 
 ## High level overview
 
