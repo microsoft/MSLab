@@ -1,10 +1,10 @@
 # fun with VMFleet
 
-Ws2016lab now downloads VMFleet into ToolsVHD during 1_Prereq.ps1. (the VHD with Windows Server is copied manually from ParentDisks folder)
+WSLab now downloads VMFleet into ToolsVHD during 1_Prereq.ps1. (the VHD with Windows Server is copied manually from ParentDisks folder)
 
 ![](/Scenarios/VMFleet/Screenshots/ToolsVHD.png)
 
-Deploy [S2D Hyperconverged scenario](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) and then right-click SetupVMFleet.ps1 and select run with PowerShell
+Deploy [S2D Hyperconverged scenario](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) and then right-click SetupVMFleet.ps1 and select run with PowerShell
 
 ![](/Scenarios/VMFleet/Screenshots/VMFleet_Step1.png)
 

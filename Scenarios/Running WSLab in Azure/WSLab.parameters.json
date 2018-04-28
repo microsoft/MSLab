@@ -6,7 +6,7 @@
           "value": "westeurope"
       },
       "virtualMachineName": {
-          "value": "ws2016lab"
+          "value": "WSLab"
       },
       "virtualMachineSize": {
           "value": "Standard_D16s_v3"
@@ -15,25 +15,25 @@
           "value": "LabAdmin"
       },
       "virtualNetworkName": {
-          "value": "ws2016labRG-vnet"
+          "value": "WSLabRG-vnet"
       },
       "networkInterfaceName": {
-          "value": "ws2016labNIC1"
+          "value": "WSLabNIC1"
       },
       "networkSecurityGroupName": {
-          "value": "ws2016lab-nsg"
+          "value": "WSLab-nsg"
       },
       "adminPassword": {
           "value": null
       },
       "diagnosticsStorageAccountName": {
-          "value": "ws2016labdiagstor"
+          "value": "WSLabdiagstor"
       },
       "diagnosticsStorageAccountType": {
           "value": "Standard_LRS"
       },
       "diagnosticsStorageAccountId": {
-          "value": "Microsoft.Storage/storageAccounts/ws2016labdiagstor"
+          "value": "Microsoft.Storage/storageAccounts/WSLabdiagstor"
       },
       "addressPrefix": {
           "value": "10.0.0.0/24"
@@ -45,7 +45,7 @@
           "value": "10.0.0.0/24"
       },
       "publicIpAddressName": {
-          "value": "ws2016lab-ip"
+          "value": "WSLab-ip"
       },
       "publicIpAddressType": {
           "value": "Dynamic"

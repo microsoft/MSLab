@@ -37,12 +37,12 @@
 * Please hydrate your main lab with SCVMM as demonstrated in this [video](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) 
 * you can download SCVMM 1801 from [eval center](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
 
-* not all best practices are in here. All best practices are in [S2D Hyperconverged Scenario ](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) 
+* not all best practices are in here. All best practices are in [S2D Hyperconverged Scenario ](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) 
 
 # LabConfig
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016labSCVMM-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='Yes'; CreateClientParent=$True ; ClientEdition='Enterprise' }
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabSCVMM-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='Yes'; CreateClientParent=$True ; ClientEdition='Enterprise' }
 
 #these 2 VMs are not needed, if you are pasting scripts to DC and if WDS is on DC
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }

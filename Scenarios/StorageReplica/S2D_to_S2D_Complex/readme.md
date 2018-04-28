@@ -31,7 +31,7 @@
 in following labconfig you can see, that 4 machines are created. There is also additional network (ReplicaNet1), that will be used as network for Storage Replica.
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$false ; CreateClientParent=$true}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$false ; CreateClientParent=$true}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.2.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
@@ -45,7 +45,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 
 # The lab
 
-The lab begins with setting up two s2d clusters. It may not follow all best practices (for all best practices see [S2D Hyperconverged Scenario page](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) )
+The lab begins with setting up two s2d clusters. It may not follow all best practices (for all best practices see [S2D Hyperconverged Scenario page](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) )
 
 Continue with [Scenarip.ps1](/Scenarios/StorageReplica/S2D_to_S2D_Complex/scenario.ps1) script while reading comments.
 
