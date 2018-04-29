@@ -18,7 +18,7 @@ You can watch this scenario in detail on YouTube [here](https://youtu.be/Gd9_rze
 Following LabConfig will create standard 4 node configuration. It will also create VMs with new OS. So we will not be reinstalling, we will just reuse OS VHDs that will be created using this script.
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB }
@@ -37,7 +37,7 @@ After successful deployment turn off node S2D1
 
 ````PowerShell
 #run from the host
-Stop-VM -VMName ws2016lab-s2d1 -TurnOff
+Stop-VM -VMName WSLab-s2d1 -TurnOff
 
 ````
 
@@ -54,10 +54,10 @@ As we are simulating OS failure, we will "reinstall" OS by just replacing OS vhd
 
 ````PowerShell
 #run from the host
-Get-VMHardDiskDrive -VMName ws2016lab-s2d1 | where Path -like *S2D1.vhdx | Remove-VMHardDiskDrive
-$NewHardDisk=Get-VMHardDiskDrive -VMName ws2016lab-s2d1NewOS
-Add-VMHardDiskDrive -VMName ws2016lab-s2d1 -Path $NewHardDisk.Path
-Start-vm -VMName ws2016lab-s2d1
+Get-VMHardDiskDrive -VMName WSLab-s2d1 | where Path -like *S2D1.vhdx | Remove-VMHardDiskDrive
+$NewHardDisk=Get-VMHardDiskDrive -VMName WSLab-s2d1NewOS
+Add-VMHardDiskDrive -VMName WSLab-s2d1 -Path $NewHardDisk.Path
+Start-vm -VMName WSLab-s2d1
  
 ````
 
@@ -112,7 +112,7 @@ This will simulate all OS lost (like all OS disks lost due to some catastrophic 
 
 ````PowerShell
 #run from hyper-v host
-Stop-VM -VMName ws2016lab-s2d* -TurnOff
+Stop-VM -VMName WSLab-s2d* -TurnOff
  
 ````
 
@@ -121,13 +121,13 @@ Now, because you lost everything, lets replace OS on each S2D node with new one.
 ````PowerShell
 #run from the host
 #Remove First OS disks from nodes S2D1-S2D4
-$VMNames=1..4 | % {"ws2016lab-S2D$_"}
+$VMNames=1..4 | % {"WSLab-S2D$_"}
 foreach ($VMName in $VMNames){
     Remove-VMHardDiskDrive -VMName $VMName -ControllerNumber 0 -ControllerLocation 0 -ControllerType SCSI
 }
 
 #add new hard disks
-$NewVHDs=Get-VMHardDiskDrive -VMName ws2016lab-news2d* | Sort-Object
+$NewVHDs=Get-VMHardDiskDrive -VMName WSLab-news2d* | Sort-Object
 $i=0
 foreach ($VMName in $VMNames){
     Add-VMHardDiskDrive -VMName $VMName -Path $NewVHDs[$i].Path
@@ -144,7 +144,7 @@ Lets make this interesting. Because some Donkey mixed all disks lets reconnect i
 
 ````PowerShell
 #run from host to mix Disks
-$VMNames=1..4 | % {"ws2016lab-S2D$_"}
+$VMNames=1..4 | % {"WSLab-S2D$_"}
 1..20 | Foreach-Object {
     $VMs=$VMNames | Get-Random -Count 2
     #get some random disks

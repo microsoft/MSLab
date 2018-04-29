@@ -22,7 +22,7 @@ This scenario works with AdmPwd.E version 7.5.4.0 and newer
 **Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 1GB }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
@@ -41,7 +41,7 @@ $LABConfig.ServerVHDs += @{
 
 ````PowerShell
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 1GB }
@@ -147,7 +147,7 @@ New-ADGroup -Name AdmPwd.E_Resetters -GroupScope Global -Path $OUPath
 ````
 
 The next step is to update schema and set delegation model. Also empty GPO that you will use to define AdmPwd.E settings will be created and linked.
-**Note:** you might need to add your account to schema and enterprise admins. ws2016lab was recently updated to add LabAdmin to these groups during 2_createparentdisks.ps1
+**Note:** you might need to add your account to schema and enterprise admins. WSLab was recently updated to add LabAdmin to these groups during 2_createparentdisks.ps1
 
 ````PowerShell
 #OU path to servers/clients to apply delegation model
