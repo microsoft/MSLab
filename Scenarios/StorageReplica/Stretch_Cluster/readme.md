@@ -45,7 +45,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 ## Labconfig for Windows Server Insider
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016labInsider17650-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17650-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
@@ -189,7 +189,6 @@ Get-SRGroup -CimSession stretch-cluster | select Name -ExpandProperty Replicas |
 Mount
 
 ````PowerShell
-
 Function Mount-SRDestinationClusterDisk ($ClusterName,$ClusterNodeName,$RGName,$ClusterDiskName){
     #move available disks to $ClusterNodeName
     if ((Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode -ne $ClusterNodeName){
@@ -206,7 +205,7 @@ Function Mount-SRDestinationClusterDisk ($ClusterName,$ClusterNodeName,$RGName,$
 
 Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica3 -RGName Data1Destination -ClusterDiskName TestFailoverSite2
 Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica1 -RGName Data2Destination -ClusterDiskName TestFailoverSite1
-
+ 
 ````
 
 ![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FailoverDisksMounted.png)

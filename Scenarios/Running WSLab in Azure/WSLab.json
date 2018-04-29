@@ -36,7 +36,7 @@
     },
     "virtualMachineName": {
       "type": "string",
-      "defaultValue": "ws2016lab"
+      "defaultValue": "WSLab"
     },
     "virtualMachineSize": {
       "type": "string",
@@ -78,15 +78,15 @@
     },
     "virtualNetworkName": {
       "type": "string",
-      "defaultValue": "ws2016lab-vnet"
+      "defaultValue": "WSLab-vnet"
     },
     "networkInterfaceName": {
       "type": "string",
-      "defaultValue": "ws2016labNIC1"
+      "defaultValue": "WSLabNIC1"
     },
     "networkSecurityGroupName": {
       "type": "string",
-      "defaultValue": "ws2016labNIC1"
+      "defaultValue": "WSLabNIC1"
     },
     "adminPassword": {
       "type": "securestring"
@@ -105,7 +105,7 @@
     },
     "publicIpAddressName": {
       "type": "string",
-      "defaultValue": "ws2016lab-ip"
+      "defaultValue": "WSLab-ip"
     },
     "publicIpAddressType": {
       "type": "string",
@@ -136,7 +136,7 @@
         "metadata": {
             "description": "Location of resources that the script is dependent on such as linked templates and DSC modules"
         },
-        "defaultValue": "https://raw.githubusercontent.com/Microsoft/ws2016lab/dev/Scenarios/Running%20ws2016lab%20in%20Azure"
+        "defaultValue": "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure"
     },
     "_artifactsLocationSasToken": {
         "type": "securestring",
@@ -306,14 +306,14 @@
       },
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
-          "name": "ws2016lab/config",
+          "name": "WSLab/config",
           "apiVersion": "2015-06-15",
           "location": "[resourceGroup().location]",
           "tags": {
-              "displayName": "ws2016lab/config"
+              "displayName": "WSLab/config"
           },
           "dependsOn": [
-              "Microsoft.Compute/virtualMachines/ws2016lab"
+              "Microsoft.Compute/virtualMachines/WSLab"
           ],
           "properties": {
               "publisher": "Microsoft.Powershell",
@@ -325,7 +325,7 @@
                   "sasToken": "[parameters('_artifactsLocationSasToken')]",
                   "configurationFunction": "config.ps1\\Config",
                   "properties": { 
-                    "nodeName": "ws2016lab" 
+                    "nodeName": "WSLab" 
                   }
               },
               "protectedSettings": {}

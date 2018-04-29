@@ -14,7 +14,7 @@
 
 This scenario will simulate disk failure and disk replacement in random node.
 
-You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvideos)
+You can watch this scenario in detail on YouTube [tbd](http://aka.ms/WSLabvideos)
 
 **Prereq:** Deploy [S2D Hyperconverged Scenario](/Scenarios/S2D%20Hyperconverged/)
 
@@ -53,7 +53,7 @@ Notice everything is healthy
 
 ````PowerShell
 #run from the host
-    $DiskToPull=Get-VM -Name ws2016lab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
+    $DiskToPull=Get-VM -Name WSLab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
     $DiskToPull
     $PulledDiskPath=$DiskToPull.Path
     $DiskToPull | Remove-VMHardDiskDrive
@@ -130,7 +130,7 @@ Storage subsystem is healthy again (after ~5 minutes)
 
 ````PowerShell
 #run from the host to pull drive
-    $DiskToPull=Get-VM -Name ws2016lab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
+    $DiskToPull=Get-VM -Name WSLab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
     $DiskToPull
     $PulledDiskPath=$DiskToPull.Path
     $DiskToPull | Remove-VMHardDiskDrive
