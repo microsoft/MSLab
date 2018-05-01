@@ -63,15 +63,20 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
 
     #optional: (these are defaults images that will be created during 2_CreateParentDisks.ps1. If nothing is specified, the below config is automatically used)
-    $LABConfig.ServerVHDs += @{
-        Edition="DataCenterCore";
-        VHDName="Win2016Core_G2.vhdx";
+    $LabConfig.ServerVHDs += @{
+        Edition="4" 
+        VHDName="Win2016_G2.vhdx"
+        Size=60GB
+    }
+    $LabConfig.ServerVHDs += @{
+        Edition="3" 
+        VHDName="Win2016Core_G2.vhdx"
         Size=30GB
     }
-    $LABConfig.ServerVHDs += @{
-        Edition="DataCenterNano";
-        VHDName="Win2016NanoHV_G2.vhdx";
-        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package";
+    $LabConfig.ServerVHDs += @{ 
+        Edition="DataCenterNano"
+        VHDName=$NanoServerVHDName
+        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
         Size=30GB
     }
 
@@ -335,7 +340,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
     Edition
         Edition of VHD, consumed by convert-windowsimage
-        possible values: DatacenterNano, DatacenterCore, Datacenter, StandardNano, StandardCore, Standard
+        possible values: DatacenterNano, DatacenterCore, Datacenter, StandardNano, StandardCore, Standard or numbers
 
     VHDName
         Name of VHD that will be created
