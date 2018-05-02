@@ -617,14 +617,16 @@ If (!( $isAdmin )) {
             New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
             Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
         }
-       
+
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Adding metaconfig.mof to VHD"
             Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
         }
-            
-        Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-        #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+
+        if ($unattendFile){
+            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+        }
 
         #add toolsdisk
         if ($VMConfig.AddToolsVHD -eq $True){
