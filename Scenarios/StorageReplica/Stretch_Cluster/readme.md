@@ -171,16 +171,15 @@ function Rename-ClusterDisk ($ClusterName,$FileSystemLabel,$ClusterNodeName,$New
 #rename TestFailoverSite1 and TestFailoverSite2 disks
 Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite1 -clusternodename Replica1 -NewName TestFailoverSite1
 Rename-ClusterDisk -ClusterName Stretch-Cluster -FileSystemLabel TestFailoverSite2 -clusternodename Replica3 -NewName TestFailoverSite2
-
+ 
 ````
 
 ![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FailoverDisksRenamed.png)
 
-
 Get SR Partnerships
 
 ````PowerShell
-Get-SRGroup -CimSession stretch-cluster | select Name -ExpandProperty Replicas | ft Name, DataVolume,ReplicationMode,ReplicationStatus
+Get-SRGroup -CimSession stretch-cluster | select Name -ExpandProperty Replicas | ft Name, DataVolume,ReplicationMode,ReplicationStatus,IsMounted
  
 ````
 
@@ -189,22 +188,39 @@ Get-SRGroup -CimSession stretch-cluster | select Name -ExpandProperty Replicas |
 Mount
 
 ````PowerShell
-Function Mount-SRDestinationClusterDisk ($ClusterName,$ClusterNodeName,$RGName,$ClusterDiskName){
+Function Mount-SRDestinationClusterDisk ($ClusterName,$ClusterNodeName,$RGName,$ClusterDiskName,$DriveLetter){
     #move available disks to $ClusterNodeName
     if ((Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode -ne $ClusterNodeName){
         Move-ClusterGroup -Cluster $ClusterName -Name "Available Storage" -Node $ClusterNodeName
     }
+
+    #move clustergroup to $clusterNodeName be able to see mounted disk online on that node
+    $PartitionID=(Get-SRGroup -CimSession $ClusterName | where Name -eq $RGName).Replicas.PartitionId
+    $Partition=get-disk -CimSession $ClusterNodeName | Get-Partition | where GUID -eq "{$partitionID}"
+    $DiskGuid=$Partition.DiskID.Replace("\\?\Disk","")
+    $ClusterResourceName=Get-ClusterResource -Cluster $clustername | where resourcetype -eq "Physical Disk" | Get-ClusterParameter | where value -eq $DiskGuid
+    $ClusterResourceName.ClusterObject.OwnerGroup | Move-ClusterGroup -Node $ClusterNodeName
+
     #grab disk with specified name
     $DiskIDGuid = Get-ClusterResource -Cluster $ClusterName -Name $ClusterDiskName | Get-ClusterParameter DiskIdGuid
     #Find path
     $path=(Get-Disk -CimSession $ClusterNodeName | where Guid -eq $DiskIDGuid.Value | Get-Partition | Get-Volume).path
     #MountSRDestination
     Mount-SRDestination -ComputerName $ClusterNodeName -Name $RGName -TemporaryPath $path -Confirm:0
+    #assign letter to SRDestination path
+    $DataVolumePath=(Get-SRGroup -CimSession $ClusterName | where Name -eq $RGName).Replicas.DataVolume
+    $partition=get-volume -CimSession $clusterNodeName | where path -eq $DataVolumePath | get-partition
+    if ($partition.Driveletter -and $partition.driveletter -ne $driveletter){
+        $partition | Set-Partition -NewDriveLetter $DriveLetter
+    }elseif (-not $partition.driveletter){
+        $partition | Add-PartitionAccessPath -AccessPath "$($DriveLetter):\"
+    }
 
 }
 
-Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica3 -RGName Data1Destination -ClusterDiskName TestFailoverSite2
-Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica1 -RGName Data2Destination -ClusterDiskName TestFailoverSite1
+#mount cluster disk. Just make sure DriveLetter is not used. No error will be thrown. Needs to be different for each volume mounted.
+Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica3 -RGName Data1Destination -ClusterDiskName TestFailoverSite2 -DriveLetter M
+Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName replica1 -RGName Data2Destination -ClusterDiskName TestFailoverSite1 -DriveLetter N
  
 ````
 
@@ -214,7 +230,12 @@ Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName rep
 Dismount
 
 ````PowerShell
+#to dismount destination without errors its needed to move available storage to the same site as SRDestination Volume
+Move-ClusterGroup -Cluster stretch-cluster -Name "Available Storage" -Node Replica3
 Dismount-SRDestination -ComputerName Replica3 -Name Data1Destination -Confirm:0
+#to be able to move available storage to another site (where first disk is not connected), disk TestFailoverSite1 needs to be Offlined.
+(Get-ClusterResource -Cluster stretch-cluster | where ownergroup -eq "Available Storage") | Stop-ClusterResource
+Move-ClusterGroup -Cluster stretch-cluster -Name "Available Storage" -Node Replica1
 Dismount-SRDestination -ComputerName Replica1 -Name Data2Destination -Confirm:0
  
 ````
