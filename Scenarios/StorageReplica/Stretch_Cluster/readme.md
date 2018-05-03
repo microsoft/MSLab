@@ -230,7 +230,12 @@ Mount-SRDestinationClusterDisk -ClusterName stretch-cluster -ClusterNodeName rep
 Dismount
 
 ````PowerShell
+#to dismount destination without errors its needed to move available storage to the same site as SRDestination Volume
+Move-ClusterGroup -Cluster stretch-cluster -Name "Available Storage" -Node Replica3
 Dismount-SRDestination -ComputerName Replica3 -Name Data1Destination -Confirm:0
+#to be able to move available storage to another site (where first disk is not connected), disk TestFailoverSite1 needs to be Offlined.
+(Get-ClusterResource -Cluster stretch-cluster | where ownergroup -eq "Available Storage") | Stop-ClusterResource
+Move-ClusterGroup -Cluster stretch-cluster -Name "Available Storage" -Node Replica1
 Dismount-SRDestination -ComputerName Replica1 -Name Data2Destination -Confirm:0
  
 ````
