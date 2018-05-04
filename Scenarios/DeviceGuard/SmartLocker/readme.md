@@ -96,14 +96,16 @@ Microsoft recommends that you block the following Microsoft-signed applications 
 
 ````PowerShell
 #grab recommended xml blocklist from GitHub
-$content=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/device-guard/steps-to-deploy-windows-defender-application-control.md 
+#[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$content=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/windows-defender-application-control/microsoft-recommended-block-rules.md 
 
 #find start and end
 $XMLStart=$content.Content.IndexOf("<?xml version=")
 $XMLEnd=$content.Content.IndexOf("</SiPolicy>")+11 # 11 is lenght of string
 
 #create xml
-[xml]$XML=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart)
+$content=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart) #find XML part
+[xml]$XML=$content.Replace("- <","  <") #fix xml as it contains unwanted characters and save it to XML variable
 $XML.Save("$env:TEMP\blocklist.xml")
 
 #add to MyPolicy.xml
