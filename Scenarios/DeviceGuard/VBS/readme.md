@@ -74,7 +74,7 @@ Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -for PowerShell
 
 ````
 
-To check if VBS is running you can run following CIM query as documented [here](https://docs.microsoft.com/en-us/windows/device-security/device-guard/deploy-device-guard-enable-virtualization-based-security). 
+To check if VBS is running you can run following CIM query as documented [here](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-exploit-guard/enable-virtualization-based-protection-of-code-integrity). 
 
 ````PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
