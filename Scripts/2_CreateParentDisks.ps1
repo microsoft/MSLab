@@ -307,6 +307,12 @@ If (!( $isAdmin )) {
                     $ClientMediaNeeded=$True
                 }
 
+        #check if DC exists
+            if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
+                $DCFilesExists=$true
+                WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
+            }
+
 #endregion
 
 #region Ask for ISO images and Cumulative updates
@@ -546,509 +552,514 @@ If (!( $isAdmin )) {
 #endregion
 
 #region Hydrate DC
-    WriteInfoHighlighted "Starting DC Hydration"
+    if (-not $DCFilesExists){
+        WriteInfoHighlighted "Starting DC Hydration"
 
-    $vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
-    $VMPath="$PSScriptRoot\LAB\"
+        $vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
+        $VMPath="$PSScriptRoot\LAB\"
 
-    #reuse VHD if already created
-    if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
-         WriteSuccess "`t $DCVHDName found, reusing, and copying to $vhdpath"
-         New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
-         Copy-Item -Path "$PSScriptRoot\ParentDisks\$DCVHDName" -Destination $vhdpath
-    }else{
-        #Create Parent VHD
-        WriteInfoHighlighted "`t Creating VHD for DC"
-        if ($serverpackages){
-            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
-        }else{
-            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
-        }
-    }
+        #reuse VHD if already created
+            if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
+                WriteSuccess "`t $DCVHDName found, reusing, and copying to $vhdpath"
+                New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
+                Copy-Item -Path "$PSScriptRoot\ParentDisks\$DCVHDName" -Destination $vhdpath
+            }else{
+                #Create Parent VHD
+                WriteInfoHighlighted "`t Creating VHD for DC"
+                if ($serverpackages){
+                    Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
+                }else{
+                    Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
+                }
+            }
 
-    #If the switch does not already exist, then create a switch with the name $SwitchName
-        if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
-            WriteInfoHighlighted "`t Creating temp hydration switch $Switchname"
-            New-VMSwitch -SwitchType Private -Name $Switchname
-        }
+        #If the switch does not already exist, then create a switch with the name $SwitchName
+            if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
+                WriteInfoHighlighted "`t Creating temp hydration switch $Switchname"
+                New-VMSwitch -SwitchType Private -Name $Switchname
+            }
 
-    #create VM DC
-        WriteInfoHighlighted "`t Creating DC VM"
-        $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
-        $DC | Set-VMProcessor -Count 2
-        $DC | Set-VMMemory -DynamicMemoryEnabled $true -MinimumBytes 2GB
-        if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
-        if ($DC.AutomaticCheckpointsEnabled -eq $True){
-            $DC | Set-VM -AutomaticCheckpointsEnabled $False
-        }
+        #create VM DC
+            WriteInfoHighlighted "`t Creating DC VM"
+            $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
+            $DC | Set-VMProcessor -Count 2
+            $DC | Set-VMMemory -DynamicMemoryEnabled $true -MinimumBytes 2GB
+            if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
+            if ($DC.AutomaticCheckpointsEnabled -eq $True){
+                $DC | Set-VM -AutomaticCheckpointsEnabled $False
+            }
 
-    #Apply Unattend to VM
-        WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
-        if (Test-Path "$PSScriptRoot\Temp\*"){
-            Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
-        }
-        $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
-        New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
-        Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-        Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-        #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-        #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
-        New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
-        Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
-        Copy-Item -Path "$PSScriptRoot\tools\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+        #Apply Unattend to VM
+            WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
+            if (Test-Path "$PSScriptRoot\Temp\*"){
+                Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
+            }
+            $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
+            New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
+            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
+            Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
+            Copy-Item -Path "$PSScriptRoot\tools\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
-    #Create credentials for DSC
+        #Create credentials for DSC
 
-        $username = "$($LabConfig.DomainNetbiosName)\Administrator"
-        $password = $AdminPassword
-        $secstr = New-Object -TypeName System.Security.SecureString
-        $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
-        $cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $username, $secstr
+            $username = "$($LabConfig.DomainNetbiosName)\Administrator"
+            $password = $AdminPassword
+            $secstr = New-Object -TypeName System.Security.SecureString
+            $password.ToCharArray() | ForEach-Object {$secstr.AppendChar($_)}
+            $cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $username, $secstr
 
-    #Create DSC configuration
-        configuration DCHydration
-        {
-            param 
-            ( 
-                [Parameter(Mandatory)] 
-                [pscredential]$safemodeAdministratorCred, 
-        
-                [Parameter(Mandatory)] 
-                [pscredential]$domainCred,
-
-                [Parameter(Mandatory)]
-                [pscredential]$NewADUserCred
-
-            )
-
-            Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.17.0.0"
-            #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
-            Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.5.0.0"
-            Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
-            Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.0.0.0"
-            Import-DscResource -ModuleName PSDesiredStateConfiguration
-
-            Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
-
+        #Create DSC configuration
+            configuration DCHydration
             {
-                WindowsFeature ADDSInstall 
-                { 
-                    Ensure = "Present" 
-                    Name = "AD-Domain-Services"
-                }
-
-                WindowsFeature FeatureGPMC
-                {
-                    Ensure = "Present"
-                    Name = "GPMC"
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                }
-
-                WindowsFeature FeatureADPowerShell
-                {
-                    Ensure = "Present"
-                    Name = "RSAT-AD-PowerShell"
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
-
-                WindowsFeature FeatureADAdminCenter
-                {
-                    Ensure = "Present"
-                    Name = "RSAT-AD-AdminCenter"
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
-
-                WindowsFeature FeatureADDSTools
-                {
-                    Ensure = "Present"
-                    Name = "RSAT-ADDS-Tools"
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
-
-                WindowsFeature FeatureDNSTools
-                {
-                    Ensure = "Present"
-                    Name = "RSAT-DNS-Server"
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
-        
-                xADDomain FirstDS 
-                { 
-                    DomainName = $Node.DomainName 
-                    DomainAdministratorCredential = $domainCred 
-                    SafemodeAdministratorPassword = $safemodeAdministratorCred
-                    DomainNetbiosName = $node.DomainNetbiosName
-                    DependsOn = "[WindowsFeature]ADDSInstall"
-                } 
+                param 
+                ( 
+                    [Parameter(Mandatory)] 
+                    [pscredential]$safemodeAdministratorCred, 
             
-                xWaitForADDomain DscForestWait 
-                { 
-                    DomainName = $Node.DomainName 
-                    DomainUserCredential = $domainCred 
-                    RetryCount = $Node.RetryCount 
-                    RetryIntervalSec = $Node.RetryIntervalSec 
-                    DependsOn = "[xADDomain]FirstDS" 
-                }
-                
-                xADOrganizationalUnit DefaultOU
-                {
-                    Name = $Node.DefaultOUName
-                    Path = $Node.DomainDN
-                    ProtectedFromAccidentalDeletion = $true
-                    Description = 'Default OU for all user and computer accounts'
-                    Ensure = 'Present'
-                    DependsOn = "[xADDomain]FirstDS" 
-                }
+                    [Parameter(Mandatory)] 
+                    [pscredential]$domainCred,
 
-                xADUser SQL_SA
-                {
-                    DomainName = $Node.DomainName
-                    DomainAdministratorCredential = $domainCred
-                    UserName = "SQL_SA"
-                    Password = $NewADUserCred
-                    Ensure = "Present"
-                    DependsOn = "[xADOrganizationalUnit]DefaultOU"
-                    Description = "SQL Service Account"
-                    Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
-                    PasswordNeverExpires = $true
-                }
+                    [Parameter(Mandatory)]
+                    [pscredential]$NewADUserCred
 
-                xADUser SQL_Agent
-                {
-                    DomainName = $Node.DomainName
-                    DomainAdministratorCredential = $domainCred
-                    UserName = "SQL_Agent"
-                    Password = $NewADUserCred
-                    Ensure = "Present"
-                    DependsOn = "[xADOrganizationalUnit]DefaultOU"
-                    Description = "SQL Agent Account"
-                    Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
-                    PasswordNeverExpires = $true
-                }
+                )
 
-                xADUser Domain_Admin
-                {
-                    DomainName = $Node.DomainName
-                    DomainAdministratorCredential = $domainCred
-                    UserName = $Node.DomainAdminName
-                    Password = $NewADUserCred
-                    Ensure = "Present"
-                    DependsOn = "[xADOrganizationalUnit]DefaultOU"
-                    Description = "DomainAdmin"
-                    Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
-                    PasswordNeverExpires = $true
-                }
+                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.17.0.0"
+                #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
+                Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.5.0.0"
+                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.0.0.0"
+                Import-DscResource -ModuleName PSDesiredStateConfiguration
 
-                xADUser VMM_SA
-                {
-                    DomainName = $Node.DomainName
-                    DomainAdministratorCredential = $domainCred
-                    UserName = "VMM_SA"
-                    Password = $NewADUserCred
-                    Ensure = "Present"
-                    DependsOn = "[xADUser]Domain_Admin"
-                    Description = "VMM Service Account"
-                    Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
-                    PasswordNeverExpires = $true
-                }
+                Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
 
-                xADGroup DomainAdmins
                 {
-                    GroupName = "Domain Admins"
-                    DependsOn = "[xADUser]VMM_SA"
-                    MembersToInclude = "VMM_SA",$Node.DomainAdminName
-                }
+                    WindowsFeature ADDSInstall 
+                    { 
+                        Ensure = "Present" 
+                        Name = "AD-Domain-Services"
+                    }
 
-                xADGroup SchemaAdmins
-                {
-                    GroupName = "Schema Admins"
-                    GroupScope = "Universal"
-                    DependsOn = "[xADUser]VMM_SA"
-                    MembersToInclude = $Node.DomainAdminName
-                }
-
-                xADGroup EntAdmins
-                {
-                    GroupName = "Enterprise Admins"
-                    GroupScope = "Universal"
-                    DependsOn = "[xADUser]VMM_SA"
-                    MembersToInclude = $Node.DomainAdminName
-                }
-
-                xADUser AdministratorNeverExpires
-                {
-                    DomainName = $Node.DomainName
-                    UserName = "Administrator"
-                    Ensure = "Present"
-                    DependsOn = "[xADDomain]FirstDS"
-                    PasswordNeverExpires = $true
-                }
-
-                xIPaddress IP
-                {
-                    IPAddress = '10.0.0.1/24'
-                    AddressFamily = 'IPv4'
-                    InterfaceAlias = 'Ethernet'
-                }
-                WindowsFeature DHCPServer
-                {
-                    Ensure = "Present"
-                    Name = "DHCP"
-                    DependsOn = "[xADDomain]FirstDS"
-                }
-
-                Service DHCPServer #since insider 17035 dhcpserver was not starting for some reason
-                {
-                    Name = "DHCPServer"
-                    State = "Running"
-                    DependsOn =  "[WindowsFeature]DHCPServer"
-                }
-
-                WindowsFeature DHCPServerManagement
-                {
-                    Ensure = "Present"
-                    Name = "RSAT-DHCP"
-                    DependsOn = "[WindowsFeature]DHCPServer"
-                } 
-
-                xDhcpServerScope ManagementScope
-                {
-                    Ensure = 'Present'
-                    IPStartRange = '10.0.0.10'
-                    IPEndRange = '10.0.0.254'
-                    Name = 'ManagementScope'
-                    SubnetMask = '255.255.255.0'
-                    LeaseDuration = '00:08:00'
-                    State = 'Active'
-                    AddressFamily = 'IPv4'
-                    DependsOn = "[Service]DHCPServer"
-                }
-
-                xDhcpServerOption Option
-                {
-                    Ensure = 'Present'
-                    ScopeID = '10.0.0.0'
-                    DnsDomain = $Node.DomainName
-                    DnsServerIPAddress = '10.0.0.1'
-                    AddressFamily = 'IPv4'
-                    Router = '10.0.0.1'
-                    DependsOn = "[Service]DHCPServer"
-                }
-                
-                xDhcpServerAuthorization LocalServerActivation
-                {
-                    Ensure = 'Present'
-                }
-
-                WindowsFeature DSCServiceFeature
-                {
-                    Ensure = "Present"
-                    Name   = "DSC-Service"
-                }
-
-                <# Does not work, ideas?
-                xDnsServerADZone addReverseADZone
-                {
-                    Name = "0.0.10.in-addr.arpa"
-                    DynamicUpdate = "Secure"
-                    ReplicationScope = "Forest"
-                    Ensure = "Present"
-                    DependsOn = "[xDhcpServerOption]Option"
-                }
-                #>
-
-                If ($LabConfig.PullServerDC){
-                    xDscWebService PSDSCPullServer
+                    WindowsFeature FeatureGPMC
                     {
-                        UseSecurityBestPractices = $false
-                        Ensure                  = "Present"
-                        EndpointName            = "PSDSCPullServer"
-                        Port                    = 8080
-                        PhysicalPath            = "$env:SystemDrive\inetpub\wwwroot\PSDSCPullServer"
-                        CertificateThumbPrint   = "AllowUnencryptedTraffic"
-                        ModulePath              = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Modules"
-                        ConfigurationPath       = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
-                        State                   = "Started"
-                        DependsOn               = "[WindowsFeature]DSCServiceFeature"
+                        Ensure = "Present"
+                        Name = "GPMC"
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    }
+
+                    WindowsFeature FeatureADPowerShell
+                    {
+                        Ensure = "Present"
+                        Name = "RSAT-AD-PowerShell"
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    } 
+
+                    WindowsFeature FeatureADAdminCenter
+                    {
+                        Ensure = "Present"
+                        Name = "RSAT-AD-AdminCenter"
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    } 
+
+                    WindowsFeature FeatureADDSTools
+                    {
+                        Ensure = "Present"
+                        Name = "RSAT-ADDS-Tools"
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    } 
+
+                    WindowsFeature FeatureDNSTools
+                    {
+                        Ensure = "Present"
+                        Name = "RSAT-DNS-Server"
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    } 
+            
+                    xADDomain FirstDS 
+                    { 
+                        DomainName = $Node.DomainName 
+                        DomainAdministratorCredential = $domainCred 
+                        SafemodeAdministratorPassword = $safemodeAdministratorCred
+                        DomainNetbiosName = $node.DomainNetbiosName
+                        DependsOn = "[WindowsFeature]ADDSInstall"
+                    } 
+                
+                    xWaitForADDomain DscForestWait 
+                    { 
+                        DomainName = $Node.DomainName 
+                        DomainUserCredential = $domainCred 
+                        RetryCount = $Node.RetryCount 
+                        RetryIntervalSec = $Node.RetryIntervalSec 
+                        DependsOn = "[xADDomain]FirstDS" 
                     }
                     
-                    File RegistrationKeyFile
+                    xADOrganizationalUnit DefaultOU
+                    {
+                        Name = $Node.DefaultOUName
+                        Path = $Node.DomainDN
+                        ProtectedFromAccidentalDeletion = $true
+                        Description = 'Default OU for all user and computer accounts'
+                        Ensure = 'Present'
+                        DependsOn = "[xADDomain]FirstDS" 
+                    }
+
+                    xADUser SQL_SA
+                    {
+                        DomainName = $Node.DomainName
+                        DomainAdministratorCredential = $domainCred
+                        UserName = "SQL_SA"
+                        Password = $NewADUserCred
+                        Ensure = "Present"
+                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        Description = "SQL Service Account"
+                        Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
+                        PasswordNeverExpires = $true
+                    }
+
+                    xADUser SQL_Agent
+                    {
+                        DomainName = $Node.DomainName
+                        DomainAdministratorCredential = $domainCred
+                        UserName = "SQL_Agent"
+                        Password = $NewADUserCred
+                        Ensure = "Present"
+                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        Description = "SQL Agent Account"
+                        Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
+                        PasswordNeverExpires = $true
+                    }
+
+                    xADUser Domain_Admin
+                    {
+                        DomainName = $Node.DomainName
+                        DomainAdministratorCredential = $domainCred
+                        UserName = $Node.DomainAdminName
+                        Password = $NewADUserCred
+                        Ensure = "Present"
+                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        Description = "DomainAdmin"
+                        Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
+                        PasswordNeverExpires = $true
+                    }
+
+                    xADUser VMM_SA
+                    {
+                        DomainName = $Node.DomainName
+                        DomainAdministratorCredential = $domainCred
+                        UserName = "VMM_SA"
+                        Password = $NewADUserCred
+                        Ensure = "Present"
+                        DependsOn = "[xADUser]Domain_Admin"
+                        Description = "VMM Service Account"
+                        Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
+                        PasswordNeverExpires = $true
+                    }
+
+                    xADGroup DomainAdmins
+                    {
+                        GroupName = "Domain Admins"
+                        DependsOn = "[xADUser]VMM_SA"
+                        MembersToInclude = "VMM_SA",$Node.DomainAdminName
+                    }
+
+                    xADGroup SchemaAdmins
+                    {
+                        GroupName = "Schema Admins"
+                        GroupScope = "Universal"
+                        DependsOn = "[xADUser]VMM_SA"
+                        MembersToInclude = $Node.DomainAdminName
+                    }
+
+                    xADGroup EntAdmins
+                    {
+                        GroupName = "Enterprise Admins"
+                        GroupScope = "Universal"
+                        DependsOn = "[xADUser]VMM_SA"
+                        MembersToInclude = $Node.DomainAdminName
+                    }
+
+                    xADUser AdministratorNeverExpires
+                    {
+                        DomainName = $Node.DomainName
+                        UserName = "Administrator"
+                        Ensure = "Present"
+                        DependsOn = "[xADDomain]FirstDS"
+                        PasswordNeverExpires = $true
+                    }
+
+                    xIPaddress IP
+                    {
+                        IPAddress = '10.0.0.1/24'
+                        AddressFamily = 'IPv4'
+                        InterfaceAlias = 'Ethernet'
+                    }
+                    WindowsFeature DHCPServer
+                    {
+                        Ensure = "Present"
+                        Name = "DHCP"
+                        DependsOn = "[xADDomain]FirstDS"
+                    }
+
+                    Service DHCPServer #since insider 17035 dhcpserver was not starting for some reason
+                    {
+                        Name = "DHCPServer"
+                        State = "Running"
+                        DependsOn =  "[WindowsFeature]DHCPServer"
+                    }
+
+                    WindowsFeature DHCPServerManagement
+                    {
+                        Ensure = "Present"
+                        Name = "RSAT-DHCP"
+                        DependsOn = "[WindowsFeature]DHCPServer"
+                    } 
+
+                    xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
-                        Type   = 'File'
-                        DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
-                        Contents        = $Node.RegistrationKey
+                        IPStartRange = '10.0.0.10'
+                        IPEndRange = '10.0.0.254'
+                        Name = 'ManagementScope'
+                        SubnetMask = '255.255.255.0'
+                        LeaseDuration = '00:08:00'
+                        State = 'Active'
+                        AddressFamily = 'IPv4'
+                        DependsOn = "[Service]DHCPServer"
+                    }
+
+                    xDhcpServerOption Option
+                    {
+                        Ensure = 'Present'
+                        ScopeID = '10.0.0.0'
+                        DnsDomain = $Node.DomainName
+                        DnsServerIPAddress = '10.0.0.1'
+                        AddressFamily = 'IPv4'
+                        Router = '10.0.0.1'
+                        DependsOn = "[Service]DHCPServer"
+                    }
+                    
+                    xDhcpServerAuthorization LocalServerActivation
+                    {
+                        Ensure = 'Present'
+                    }
+
+                    WindowsFeature DSCServiceFeature
+                    {
+                        Ensure = "Present"
+                        Name   = "DSC-Service"
+                    }
+
+                    <# Does not work, ideas?
+                    xDnsServerADZone addReverseADZone
+                    {
+                        Name = "0.0.10.in-addr.arpa"
+                        DynamicUpdate = "Secure"
+                        ReplicationScope = "Forest"
+                        Ensure = "Present"
+                        DependsOn = "[xDhcpServerOption]Option"
+                    }
+                    #>
+
+                    If ($LabConfig.PullServerDC){
+                        xDscWebService PSDSCPullServer
+                        {
+                            UseSecurityBestPractices = $false
+                            Ensure                  = "Present"
+                            EndpointName            = "PSDSCPullServer"
+                            Port                    = 8080
+                            PhysicalPath            = "$env:SystemDrive\inetpub\wwwroot\PSDSCPullServer"
+                            CertificateThumbPrint   = "AllowUnencryptedTraffic"
+                            ModulePath              = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Modules"
+                            ConfigurationPath       = "$env:PROGRAMFILES\WindowsPowerShell\DscService\Configuration"
+                            State                   = "Started"
+                            DependsOn               = "[WindowsFeature]DSCServiceFeature"
+                        }
+                        
+                        File RegistrationKeyFile
+                        {
+                            Ensure = 'Present'
+                            Type   = 'File'
+                            DestinationPath = "$env:ProgramFiles\WindowsPowerShell\DscService\RegistrationKeys.txt"
+                            Contents        = $Node.RegistrationKey
+                        }
                     }
                 }
             }
-        }
 
-        $ConfigData = @{ 
-        
-            AllNodes = @( 
-                @{ 
-                    Nodename = $DCName 
-                    Role = "Parent DC" 
-                    DomainAdminName=$LabConfig.DomainAdminName
-                    DomainName = $LabConfig.DomainName
-                    DomainNetbiosName = $LabConfig.DomainNetbiosName
-                    DomainDN = $LabConfig.DN
-                    DefaultOUName=$LabConfig.DefaultOUName
-                    RegistrationKey='14fc8e72-5036-4e79-9f89-5382160053aa'
-                    PSDscAllowPlainTextPassword = $true
-                    PsDscAllowDomainUser= $true        
-                    RetryCount = 50  
-                    RetryIntervalSec = 30  
-                }         
-            ) 
-        } 
+            $ConfigData = @{ 
+            
+                AllNodes = @( 
+                    @{ 
+                        Nodename = $DCName 
+                        Role = "Parent DC" 
+                        DomainAdminName=$LabConfig.DomainAdminName
+                        DomainName = $LabConfig.DomainName
+                        DomainNetbiosName = $LabConfig.DomainNetbiosName
+                        DomainDN = $LabConfig.DN
+                        DefaultOUName=$LabConfig.DefaultOUName
+                        RegistrationKey='14fc8e72-5036-4e79-9f89-5382160053aa'
+                        PSDscAllowPlainTextPassword = $true
+                        PsDscAllowDomainUser= $true        
+                        RetryCount = 50  
+                        RetryIntervalSec = 30  
+                    }         
+                ) 
+            } 
 
-    #create LCM config
-        [DSCLocalConfigurationManager()]          
-        configuration LCMConfig
-        {
-            Node DC
+        #create LCM config
+            [DSCLocalConfigurationManager()]          
+            configuration LCMConfig
             {
-                Settings
+                Node DC
                 {
-                    RebootNodeIfNeeded = $true
-                    ActionAfterReboot = 'ContinueConfiguration'    
+                    Settings
+                    {
+                        RebootNodeIfNeeded = $true
+                        ActionAfterReboot = 'ContinueConfiguration'    
+                    }
                 }
             }
-        }
 
-    #create DSC MOF files
-        WriteInfoHighlighted "`t Creating DSC Configs for DC"
-        LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
-        DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
-    
-    #copy DSC MOF files to DC
-        WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
-        New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
-        Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\pending.mof"
-        Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
+        #create DSC MOF files
+            WriteInfoHighlighted "`t Creating DSC Configs for DC"
+            LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
+            DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
+        
+        #copy DSC MOF files to DC
+            WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
+            New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
+            Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\pending.mof"
+            Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
 
-    #close VHD and apply changes
-        WriteInfoHighlighted "`t Applying changes to VHD"
-        Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-        #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
+        #close VHD and apply changes
+            WriteInfoHighlighted "`t Applying changes to VHD"
+            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
-    #Start DC VM and wait for configuration
-        WriteInfoHighlighted "`t Starting DC"
-        $DC | Start-VM
+        #Start DC VM and wait for configuration
+            WriteInfoHighlighted "`t Starting DC"
+            $DC | Start-VM
 
-        $VMStartupTime = 250 
-        WriteInfoHighlighted "`t Configuring DC using DSC takes a while."
-        WriteInfo "`t `t Initial configuration in progress. Sleeping $VMStartupTime seconds"
-        Start-Sleep $VMStartupTime
-        $i=1
-        do{
-            $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
-            if ($test -eq $null) {
-                WriteInfo "`t `t Configuration in Progress. Sleeping 10 seconds"
-                Start-Sleep 10
-            }elseif ($test.status -ne "Success" -and $i -eq 1) {
-                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
-                WriteInfoHighlighted "`t `t Invoking DSC Configuration again" 
-                Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
-                $i++
-            }elseif ($test.status -ne "Success" -and $i -gt 1) {
-                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
-                WriteInfoHighlighted "`t `t Restarting DC"
-                Invoke-Command -VMGuid $DC.id -ScriptBlock {Restart-Computer} -Credential $cred
-            }elseif ($test.status -eq "Success" ) {
-                WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
-                WriteInfoHighlighted "`t `t DSC Configured DC Successfully" 
-            }
-        }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
-        $test
-
-    #configure default OU where new Machines will be created using redircmp and add reverse lookup zone (as setting reverse lookup does not work with DSC)
-        Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
-            Param($LabConfig);
-            redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
-            Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
-        } 
-    #install SCVMM or its prereqs if specified so
-        if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
-            $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
-        }
-
-        if ($LabConfig.InstallSCVMM -eq "Yes"){
-            WriteInfoHighlighted "Installing System Center Virtual Machine Manager and its prerequisites"
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                d:\scvmm\1_SQL_Install.ps1
-                d:\scvmm\2_ADK_Install.ps1  
-                Restart-Computer    
-            }
-            Start-Sleep 10
-
-            WriteInfoHighlighted "$($DC.name) was restarted, waiting for Active Directory on $($DC.name) to be started."
+            $VMStartupTime = 250 
+            WriteInfoHighlighted "`t Configuring DC using DSC takes a while."
+            WriteInfo "`t `t Initial configuration in progress. Sleeping $VMStartupTime seconds"
+            Start-Sleep $VMStartupTime
+            $i=1
             do{
-            $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $LabConfig -ErrorAction SilentlyContinue -ScriptBlock {
-                param($LabConfig);
-                Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue}
-                Start-Sleep 5
+                $test=Invoke-Command -VMGuid $DC.id -ScriptBlock {Get-DscConfigurationStatus} -Credential $cred -ErrorAction SilentlyContinue
+                if ($test -eq $null) {
+                    WriteInfo "`t `t Configuration in Progress. Sleeping 10 seconds"
+                    Start-Sleep 10
+                }elseif ($test.status -ne "Success" -and $i -eq 1) {
+                    WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
+                    WriteInfoHighlighted "`t `t Invoking DSC Configuration again" 
+                    Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
+                    $i++
+                }elseif ($test.status -ne "Success" -and $i -gt 1) {
+                    WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
+                    WriteInfoHighlighted "`t `t Restarting DC"
+                    Invoke-Command -VMGuid $DC.id -ScriptBlock {Restart-Computer} -Credential $cred
+                }elseif ($test.status -eq "Success" ) {
+                    WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
+                    WriteInfoHighlighted "`t `t DSC Configured DC Successfully" 
+                }
+            }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
+            $test
+
+        #configure default OU where new Machines will be created using redircmp and add reverse lookup zone (as setting reverse lookup does not work with DSC)
+            Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
+                Param($LabConfig);
+                redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
+                Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
+            } 
+        #install SCVMM or its prereqs if specified so
+            if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+                $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
             }
-            until ($test -ne $Null)
-            WriteSuccess "Active Directory on $($DC.name) is up."
 
-            Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                d:\scvmm\3_SCVMM_Install.ps1    
+            if ($LabConfig.InstallSCVMM -eq "Yes"){
+                WriteInfoHighlighted "Installing System Center Virtual Machine Manager and its prerequisites"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    d:\scvmm\1_SQL_Install.ps1
+                    d:\scvmm\2_ADK_Install.ps1  
+                    Restart-Computer    
+                }
+                Start-Sleep 10
+
+                WriteInfoHighlighted "$($DC.name) was restarted, waiting for Active Directory on $($DC.name) to be started."
+                do{
+                $test=Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $LabConfig -ErrorAction SilentlyContinue -ScriptBlock {
+                    param($LabConfig);
+                    Get-ADComputer -Filter * -SearchBase "$($LabConfig.DN)" -ErrorAction SilentlyContinue}
+                    Start-Sleep 5
+                }
+                until ($test -ne $Null)
+                WriteSuccess "Active Directory on $($DC.name) is up."
+
+                Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    d:\scvmm\3_SCVMM_Install.ps1    
+                }
             }
-        }
 
-        if ($LabConfig.InstallSCVMM -eq "SQL"){
-            WriteInfoHighlighted "Installing SQL"
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                d:\scvmm\1_SQL_Install.ps1  
+            if ($LabConfig.InstallSCVMM -eq "SQL"){
+                WriteInfoHighlighted "Installing SQL"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    d:\scvmm\1_SQL_Install.ps1  
+                }
             }
-        }
 
-        if ($LabConfig.InstallSCVMM -eq "ADK"){
-            WriteInfoHighlighted "Installing ADK"
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                d:\scvmm\2_ADK_Install.ps1
-            }       
-        }
+            if ($LabConfig.InstallSCVMM -eq "ADK"){
+                WriteInfoHighlighted "Installing ADK"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    d:\scvmm\2_ADK_Install.ps1
+                }       
+            }
 
-        if ($LabConfig.InstallSCVMM -eq "Prereqs"){
-            WriteInfoHighlighted "Installing System Center VMM Prereqs"
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                d:\scvmm\1_SQL_Install.ps1
-                d:\scvmm\2_ADK_Install.ps1
-            }  
-        }
+            if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+                WriteInfoHighlighted "Installing System Center VMM Prereqs"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    d:\scvmm\1_SQL_Install.ps1
+                    d:\scvmm\2_ADK_Install.ps1
+                }  
+            }
 
-        if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
-            $DC | Get-VMHardDiskDrive | Where-Object path -eq $toolsVHD.Path | Remove-VMHardDiskDrive
-        }
+            if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
+                $DC | Get-VMHardDiskDrive | Where-Object path -eq $toolsVHD.Path | Remove-VMHardDiskDrive
+            }
+    }
 #endregion
 
 #region backup DC and cleanup
-    WriteInfoHighlighted "Backup DC and cleanup"
-    #shutdown DC 
-        WriteInfo "`t Disconnecting VMNetwork Adapter from DC"
-        $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
-        WriteInfo "`t Shutting down DC"
-        $DC | Stop-VM
-        $DC | Set-VM -MemoryMinimumBytes 512MB
+    #cleanup DC
+    if (-not $DCFilesExists){
+        WriteInfoHighlighted "Backup DC and cleanup"
+        #shutdown DC 
+            WriteInfo "`t Disconnecting VMNetwork Adapter from DC"
+            $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
+            WriteInfo "`t Shutting down DC"
+            $DC | Stop-VM
+            $DC | Set-VM -MemoryMinimumBytes 512MB
 
-    #Backup DC config, remove from Hyper-V, return DC config
-        WriteInfo "`t Creating backup of DC VM configuration"
-        Copy-Item -Path "$vmpath\$DCName\Virtual Machines\" -Destination "$vmpath\$DCName\Virtual Machines_Bak\" -Recurse
-        WriteInfo "`t Removing DC"
-        $DC | Remove-VM -Force
-        WriteInfo "`t Returning VM config and adding to Virtual Machines.zip"
-        Remove-Item -Path "$vmpath\$DCName\Virtual Machines\" -Recurse
-        Rename-Item -Path "$vmpath\$DCName\Virtual Machines_Bak\" -NewName 'Virtual Machines'
-        Compress-Archive -Path "$vmpath\$DCName\Virtual Machines\" -DestinationPath "$vmpath\$DCName\Virtual Machines.zip"
+        #Backup DC config, remove from Hyper-V, return DC config
+            WriteInfo "`t Creating backup of DC VM configuration"
+            Copy-Item -Path "$vmpath\$DCName\Virtual Machines\" -Destination "$vmpath\$DCName\Virtual Machines_Bak\" -Recurse
+            WriteInfo "`t Removing DC"
+            $DC | Remove-VM -Force
+            WriteInfo "`t Returning VM config and adding to Virtual Machines.zip"
+            Remove-Item -Path "$vmpath\$DCName\Virtual Machines\" -Recurse
+            Rename-Item -Path "$vmpath\$DCName\Virtual Machines_Bak\" -NewName 'Virtual Machines'
+            Compress-Archive -Path "$vmpath\$DCName\Virtual Machines\" -DestinationPath "$vmpath\$DCName\Virtual Machines.zip"
+        #cleanup vswitch
+            WriteInfo "`t Removing switch $Switchname"
+            Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
+    }
 
-    #Cleanup The rest ###
-        WriteInfo "`t Removing switch $Switchname"
-        Remove-VMSwitch -Name $Switchname -Force -ErrorAction SilentlyContinue
-
+    #Cleanup The rest
         WriteInfo "`t Dismounting ISO Images"
         if ($ISOServer -ne $Null){
             $ISOServer | Dismount-DiskImage
