@@ -460,7 +460,7 @@ Exit
                 }
     
             }
-            if ($BuildNumber -GT 17334){
+            if ($BuildNumber -GT 17134){
                 $tempvhdname="Win2019Core_$BuildNumber.vhdx"
             }
         }elseif($Edition -like "*Server*"){
@@ -483,11 +483,11 @@ Exit
                 16299 {
                     $tempvhdname="WinServer1709_G2.vhdx"
                 }
-                17334 {
+                17134 {
                     $tempvhdname="WinServer1803_G2.vhdx"
                 }
             }
-            if ($BuildNumber -GT 17334){
+            if ($BuildNumber -GT 17134){
                 $tempvhdname="Win2019_$BuildNumber.vhdx"
             }
         }else{
@@ -519,11 +519,11 @@ Exit
                 16299 {
                     $tempvhdname="Win10RS3_G2.vhdx"
                 }
-                17334 {
+                17134 {
                     $tempvhdname="Win10RS4_G2.vhdx"
                 }
             }
-            if ($BuildNumber -GT 17334){
+            if ($BuildNumber -GT 17134){
                 $tempvhdname="Win10Insider_$BuildNumber.vhdx"
             }
         }
