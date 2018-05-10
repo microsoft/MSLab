@@ -111,7 +111,7 @@ if ($WindowsInstallationType -eq "Server"){
 
     #install Hyper-V
         if ($NanoServer -eq $false){
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
+            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart} #using DISM if nested virt is not enabled
             foreach ($server in $servers) {Install-WindowsFeature -Name "Hyper-V-PowerShell" -ComputerName $server} 
         }
 
