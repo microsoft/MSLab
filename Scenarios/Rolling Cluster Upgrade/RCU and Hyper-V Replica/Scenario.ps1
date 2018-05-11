@@ -39,7 +39,7 @@ Write-host "Script started at $StartDateTime"
         $ServersSite3="S3_W2012_1","S3_W2012_2"
 
         #win2016names
-        $Servers2016Site3="S3_W2016_2","S3_W2016_2"
+        $Servers2016Site3="S3_W2016_1","S3_W2016_2"
 #endregion
 
 #region install features for management (Client needs RSAT, Server/Server Core have different features)
