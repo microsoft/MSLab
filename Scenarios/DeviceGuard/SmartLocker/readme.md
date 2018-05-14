@@ -104,8 +104,7 @@ $XMLStart=$content.Content.IndexOf("<?xml version=")
 $XMLEnd=$content.Content.IndexOf("</SiPolicy>")+11 # 11 is lenght of string
 
 #create xml
-$content=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart) #find XML part
-[xml]$XML=$content.Replace("- <","  <") #fix xml as it contains unwanted characters and save it to XML variable
+[xml]$XML=$content.Content.Substring($xmlstart,$XMLEnd-$XMLStart) #find XML part
 $XML.Save("$env:TEMP\blocklist.xml")
 
 #add to MyPolicy.xml
