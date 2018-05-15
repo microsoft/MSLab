@@ -35,7 +35,7 @@ To create VM with PowerShell, run following command.
 
 ````PowerShell
 #download Azure module if not installed
-if (!(get-module -Name AzureRM*)){
+if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
 }
 
@@ -86,7 +86,7 @@ Or you can create your VM using PowerShell
 ## Windows Server 2016
 ````PowerShell
 #download Azure module if not installed
-if (!(get-module -Name AzureRM*)){
+if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
 }
 
@@ -106,7 +106,7 @@ Login-AzureRmAccount
 ## Windows 10 1709
 ````PowerShell
 #download Azure module if not installed
-if (!(get-module -Name AzureRM*)){
+if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
 }
 
