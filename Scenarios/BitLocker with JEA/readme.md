@@ -28,7 +28,7 @@ if ((Get-HotFix).hotfixid -contains "KB2693643"){
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/RSATCheckResult.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/RSATCheckResult.png)
 
 Run following command to enable Bitlocker on management machine
 
@@ -39,7 +39,7 @@ Run following command to enable Bitlocker on management machine
 
 That was smooth
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/EnableBitlockerManagement.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/EnableBitlockerManagement.png)
 
 Lets try the same on remote computers. Since Enable-Bitlocker does not have -ComputerName or -Cimsession parameter, we will have to use Invoke-Command
 
@@ -52,7 +52,7 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -ScriptBlock {
 
 That's not nice!
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/EnableBitlockerRemote.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/EnableBitlockerRemote.png)
 
 It's because TPM gets initialized after user logon, see?
 
@@ -61,7 +61,7 @@ Invoke-Command -ComputerName "Management","Bitlocker1","Bitlocker2" -ScriptBlock
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/Get-TPM.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/Get-TPM.png)
 
 
 Let's initialize it first and then enable Bitlocker
@@ -76,7 +76,7 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -ScriptBlock {
 
 That's better
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/EnableBitlockerRemoteSuccess.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/EnableBitlockerRemoteSuccess.png)
 
 
 OK, now we need to backup recovery information to AD. Let's do it first on Management machine.
@@ -89,7 +89,7 @@ Backup-BitLockerKeyProtector -MountPoint c: -KeyProtectorId $KeyProtectorID
 
 huh, nothing in AD!
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/RecoveryKeyNotInAD.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/RecoveryKeyNotInAD.png)
 
 and here is some PowerShell to read that info
 
@@ -112,9 +112,9 @@ Get-ADObject -Filter {objectclass -eq 'msFVE-RecoveryInformation'} -SearchBase $
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/BitlockerKeyInADPosh)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeyInADPosh)
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/BitlockerKeyInADGUI.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeyInADGUI.png)
 
 
 And let's try it on Bitlocker1 and 2
@@ -132,7 +132,7 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -ScriptBlock {
 
 Not good! We just hit double-hop issue!
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/BackupKeyRemoteError.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BackupKeyRemoteError.png)
 
 
 
@@ -157,7 +157,7 @@ Add-ADGroupMember -Identity "JEA-BitlockerViewers" -Members JaneDoe
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/ADGroupsAndUsersResult)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/ADGroupsAndUsersResult)
 
 And let's configure JEA on computers Bitlocker1 and Bitlocker2
 
@@ -195,7 +195,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/JEAResult)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JEAResult)
 
 Now lets try if JEA was applied successfully. Note: type password "LS1setup!" for user JohnDoe
 
@@ -206,7 +206,7 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JohnDoe -Conf
 
 That's great! JohnDoe can do just Bitlocker administration!
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/Get-CCommandResult.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/Get-CCommandResult.png)
 
 Let's backup bitlocker now with JEA!
 
@@ -233,7 +233,7 @@ foreach ($ComputerObject in $ComputerObjects){
 
 Success!
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/BitlockerKeysInADPosh.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeysInADPosh.png)
 
 So how was this possible?
 
@@ -246,7 +246,7 @@ exit
  
 ````
 
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/whoami.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/whoami.png)
 
 So let's encrypt also D drives with autounlock and also backup to AD with JEA
 
@@ -273,7 +273,8 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JaneDoe -Conf
 ````
 
 Seems OK!
-![](/Scenarios/Bitlocker%20with%20JEA/Screenshots/JaneGet-BitlockerVolume)
+
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JaneGet-BitlockerVolume)
 
 
 
