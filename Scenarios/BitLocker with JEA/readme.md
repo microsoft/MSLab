@@ -2,7 +2,8 @@
 
 ## About the lab
 
-In this lab you will learn about benefits of JEA for day-to-day administration and not only for Securing the environment, but also for CredSSP mitigation.
+In this lab you will learn about benefits of JEA for day-to-day administration and not only for Securing the environment, but also for [double-hop mitigation](https://blogs.technet.microsoft.com/ashleymcglone/2016/08/30/powershell-remoting-kerberos-double-hop-solved-securely/).
+
 
 ## LabConfig
 
@@ -15,7 +16,7 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
 ````
 ## Lets play with Bitlocker a bit
 
-All tasks will be done from Management (Windows 10) machine. Note the labconfig - we enabled WinRM on all machines, therefore PowerShell remoting will work from very beginning.
+All tasks will be done from Management (Windows 10) machine. Note the labconfig - WinRM is enabled on all machines, therefore PowerShell remoting will work from very beginning.
 
 First make sure that RSAT is installed (if not, download it from aka.ms/RSAT and install).
 
@@ -54,7 +55,7 @@ That's not nice!
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/EnableBitlockerRemote.png)
 
-It's because TPM gets initialized after user logon, see?
+It's because TPM gets initialized after user logon, see? (note TpmReady column)
 
 ````PowerShell
 Invoke-Command -ComputerName "Management","Bitlocker1","Bitlocker2" -ScriptBlock {Get-TPM} | ft
@@ -62,7 +63,6 @@ Invoke-Command -ComputerName "Management","Bitlocker1","Bitlocker2" -ScriptBlock
 ````
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/Get-TPM.png)
-
 
 Let's initialize it first and then enable Bitlocker
 
@@ -112,7 +112,7 @@ Get-ADObject -Filter {objectclass -eq 'msFVE-RecoveryInformation'} -SearchBase $
  
 ````
 
-![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeyInADPosh)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeyInADPosh.png)
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerKeyInADGUI.png)
 
@@ -130,10 +130,9 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -ScriptBlock {
  
 ````
 
-Not good! We just hit double-hop issue!
+Not good! We just hit [double-hop](https://blogs.technet.microsoft.com/ashleymcglone/2016/08/30/powershell-remoting-kerberos-double-hop-solved-securely/) issue!
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BackupKeyRemoteError.png)
-
 
 
 ## JEA
@@ -157,7 +156,7 @@ Add-ADGroupMember -Identity "JEA-BitlockerViewers" -Members JaneDoe
  
 ````
 
-![](/Scenarios/BitLocker%20with%20JEA/Screenshots/ADGroupsAndUsersResult)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/ADGroupsAndUsersResult.png)
 
 And let's configure JEA on computers Bitlocker1 and Bitlocker2
 
@@ -195,8 +194,9 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
  
 ````
 
-![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JEAResult)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JEAResult.png)
 
+Note: error in the end is expected
 Now lets try if JEA was applied successfully. Note: type password "LS1setup!" for user JohnDoe
 
 ````PowerShell
@@ -206,7 +206,7 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JohnDoe -Conf
 
 That's great! JohnDoe can do just Bitlocker administration!
 
-![](/Scenarios/BitLocker%20with%20JEA/Screenshots/Get-CCommandResult.png)
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/Get-CommandResult.png)
 
 Let's backup bitlocker now with JEA!
 
@@ -228,7 +228,7 @@ $ComputerObjects = Get-ADComputer -Filter {cn -like "Bitlocker*"} -Property msTP
 foreach ($ComputerObject in $ComputerObjects){
     Get-ADObject -Filter {objectclass -eq 'msFVE-RecoveryInformation'} -SearchBase $ComputerObject.DistinguishedName -Properties 'msFVE-RecoveryPassword'
 }
-
+ 
 ````
 
 Success!
@@ -263,7 +263,9 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JohnDoe -Conf
  
 ````
 
-And now let's ask Jane to check if all is ok on PC's Bitlocker1 and Bitlocker2 
+Note: there is some error complaining about "A parameter cannot be found that matches parameter name 'First'." (I need to investigate what it requires to run, but all seems to be OK)
+
+And now let's ask Jane to check if all is ok on PC's Bitlocker1 and Bitlocker2
 
 ````PowerShell
 Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JaneDoe -ConfigurationName JEA-Bitlocker -ScriptBlock {
@@ -274,7 +276,4 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JaneDoe -Conf
 
 Seems OK!
 
-![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JaneGet-BitlockerVolume)
-
-
-
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JaneGet-BitlockerVolume.png)
