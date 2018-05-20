@@ -1,3 +1,16 @@
+<!-- TOC -->
+
+- [Bitlocker management with JEA](#bitlocker-management-with-jea)
+    - [About the lab](#about-the-lab)
+    - [LabConfig](#labconfig)
+    - [Lets play with Bitlocker a bit](#lets-play-with-bitlocker-a-bit)
+    - [JEA](#jea)
+    - [BitLocker event log](#bitlocker-event-log)
+    - [PowerShell Logging](#powershell-logging)
+    - [PowerShell JEA Logging](#powershell-jea-logging)
+
+<!-- /TOC -->
+
 # Bitlocker management with JEA
 
 ## About the lab
@@ -277,3 +290,50 @@ Invoke-Command -ComputerName "Bitlocker1","Bitlocker2" -Credential JaneDoe -Conf
 Seems OK!
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/JaneGet-BitlockerVolume.png)
+
+## BitLocker event log
+
+Now let's see if bitlocker was backed up into AD
+
+````PowerShell
+#Grab events from remote computers
+$Computers="Bitlocker1","Bitlocker2"
+$allevents=Invoke-Command -ComputerName $Computers -ScriptBlock {
+    $events=Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Bitlocker-API";Id=784}
+    ForEach ($Event in $Events) {
+        # Convert the event to XML
+        $eventXML = [xml]$Event.ToXml()
+        # create custom object for all values
+        for ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {
+            # Append these as object properties
+            Add-Member -InputObject $Event -MemberType NoteProperty -Force -Name  $eventXML.Event.EventData.Data[$i].name -Value $eventXML.Event.EventData.Data[$i].'#text'
+        }
+    }
+    return $events
+}
+$allevents | select * | ogv
+ 
+````
+
+Events displayed in Out-GridView
+
+![](/Scenarios/BitLocker%20with%20JEA/Screenshots/BitlockerEvents.png)
+
+## PowerShell Logging
+
+<TBD>
+
+https://blogs.msdn.microsoft.com/powershell/2015/06/09/powershell-the-blue-team/
+
+````PowerShell
+#Enable ScriptBlock logging
+$Computers="Bitlocker1","Bitlocker2"
+Invoke-Command -Computername $Computers -ScriptBlock {
+    New-Item -Path HKLM:\Software\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging -Force
+    New-ItemProperty -Path HKLM:\Software\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging -Name EnableScriptBlockLogging           -Value 1 -PropertyType DWORD -Force
+    New-ItemProperty -Path HKLM:\Software\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging -Name EnableScriptBlockInvocationLogging -Value 1 -PropertyType DWORD -Force
+}
+ 
+````
+
+## PowerShell JEA Logging
