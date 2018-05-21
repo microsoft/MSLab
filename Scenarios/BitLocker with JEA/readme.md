@@ -172,7 +172,7 @@ Add-ADGroupMember -Identity "JEA-BitLockerViewers" -Members JaneDoe
 
 ![](/Scenarios/BitLocker%20with%20JEA/Screenshots/ADGroupsAndUsersResult.png)
 
-And let's configure JEA on computers BitLocker1 and BitLocker2. Note how many commands are needed. It's because commandLet's in BitLocker module are using it (I did not test all commands, therefore the list might be bigger). The only extra command is wmoami just to demonstrate whoami output.
+And let's configure JEA on computers BitLocker1 and BitLocker2. Note how many commands are needed. It's because commandlets in BitLocker module are using it (I did not test all, therefore the list might be bigger). The only extra command is wmoami just to demonstrate whoami output.
 
 ````PowerShell
 $computers="BitLocker1","BitLocker2"

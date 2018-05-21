@@ -62,7 +62,7 @@ Notice, that all suspend/resume actions are being tried until it succeeds.
             }until((Get-ClusterNode -Cluster $ClusterName -Name $ClusterNodes).State -eq "Up")
         }
     }
-
+ 
 ````
 
 ## Add Bitlocker registry keys
@@ -90,7 +90,7 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRequireActiveDirectoryBackup -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
         #>
     }
-
+ 
 ````
 ## Move workload away, suspend CSV and enable BitLocker
 
@@ -174,8 +174,9 @@ foreach ($CSV in $CSVs){
         Write-Host "Volume $CSVPath is not FullyDecrypted"
     }
 }
-
+ 
 ````
+
 ## Some Screenshots
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/ClusterSelect.png)
@@ -189,4 +190,3 @@ foreach ($CSV in $CSVs){
 ### CheckBitlockerOnS2D.ps1
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CheckBitlockerOnS2D.png)
-
