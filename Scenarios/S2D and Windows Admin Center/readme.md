@@ -1,6 +1,7 @@
 <!-- TOC -->
 
 - [S2D and Windows Admin Center](#s2d-and-windows-admin-center)
+    - [About the lab](#about-the-lab)
     - [LabConfig and Prerequisites](#labconfig-and-prerequisites)
     - [Install Windows Admin Center](#install-windows-admin-center)
     - [Adding 2016 S2D cluster into Windows Admin Center](#adding-2016-s2d-cluster-into-windows-admin-center)
@@ -13,6 +14,15 @@
 
 # S2D and Windows Admin Center
 
+## About the lab
+
+In this lab you will learn how to manage Hyper-Converged infrastructure built on Windows Server 2016 and 2019 with Windows Admin Center. You will also deep dive into how we configure Role-Based Access Control (RBAC), and how it works. All steps are done with PowerShell to demonstrate automation and also to demonstrate, how easy is maintaining documentation if all is done with PowerShell.
+
+Related Microsoft Docs:
+
+[Windows Admin Center](https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/understand/windows-admin-center)
+[Performance History](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/performance-history)
+
 ## LabConfig and Prerequisites
 
 ````PowerShell
@@ -22,7 +32,7 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
  
 ````
 
-Please finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2016 or [Windows Server 2019 Insider Preview](/Insider/) before proceeding. In above labconfig is Management machine that requires Win10RS4_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
+Finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2016 or [Windows Server 2019 Insider Preview](/Insider/) before proceeding. In above labconfig is Management machine that requires Win10RS4_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
 
 LAB VMs
 
@@ -76,7 +86,7 @@ Add-ClusterResourceType -Name "SDDC Management" -dll "$env:SystemRoot\Cluster\sd
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AddSDDCManagement.png)
 
-As you can see, you can manage your HCI cluster on Windows Server 2016 now.
+As you can see, you can now manage your Windows Server 2016 HCI Cluster.
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/HCClusterManager2016.png)
 
@@ -213,7 +223,7 @@ New-ADUser -Name EldenC -AccountPassword  (ConvertTo-SecureString "LS1setup!" -A
 New-ADUser -Name StevenEk -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 New-ADUser -Name CosDar -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
-#Create domain groups, and let's add users to it.
+#Create domain groups and add users.
     #Admins
     New-ADGroup -Name "Windows Admin Center Administrators" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
     Add-ADGroupMember -Identity "Windows Admin Center Administrators" -Members EldenC
