@@ -258,6 +258,6 @@ Unfortunately cluster management is not possible
 
 But node management works great!
 
-![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AllAdmins.png)
+![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AllAdminsNodes.png)
 
 I hope you enjoyed. If this is too much, we (Premier Field Engineers) can help you out! (If you have premier contract ;)
