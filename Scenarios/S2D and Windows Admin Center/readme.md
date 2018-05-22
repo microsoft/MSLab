@@ -86,7 +86,7 @@ For more information about Performance History visit this link: http://aka.ms/Cl
 
 Performance history in Dashboard.
 
-Note: critical errors are caused because of it's virtual environment and each node has limited amount of memory
+Note: critical errors are there because it's virtual environment and each node has limited amount of memory.
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/HCClusterManager2019.png)
 
@@ -124,7 +124,7 @@ Note: following examples are done on Windows Server 2016 S2D cluster as it's alr
 
 Docs: https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/configure/user-access-control
 
-To install JEA manually, you can navigate to server settings. It's not enough cool since it's quite some clicking as you can see on following screenshots.
+To install JEA manually, you can navigate to server settings. It's not enough cool, since it's quite some clicking as you can see on following screenshots.
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/JEASettings1.png)
 
@@ -144,7 +144,7 @@ $Sessions=New-PSSession -ComputerName $Computers
 #Distribute zip to remote machines
 foreach ($Session in $sessions) {Copy-Item -Path "C:\Temp\WindowsAdminCenter.Jea.zip" -ToSession $session -Destination "c:\windows\Temp" -Force}
 
-#extract zip and install
+#extract zip and install (you can see this code in PowerShell transcript if you enable it and Apply RBAC in Windows Admin Center GUI)
 Invoke-Command -ComputerName $computers -scriptblock {
     $location = Join-Path $env:SystemRoot Temp
     $zip = Join-Path $location WindowsAdminCenter.Jea.zip
@@ -173,15 +173,14 @@ Result. Note: error is expected, since session disconnected
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/RBACResult.png)
 
-
-To validate if DSC Configuration succeeded, you can run following command
+To validate DSC Configuration success, you can run following command
 
 ````PowerShell
 Get-DscConfigurationStatus -CimSession (get-clusternode -Cluster s2d-cluster).Name
  
 ````
 
-Result.
+Result
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/DSCResult.png)
 
@@ -214,17 +213,17 @@ New-ADUser -Name EldenC -AccountPassword  (ConvertTo-SecureString "LS1setup!" -A
 New-ADUser -Name StevenEk -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 New-ADUser -Name CosDar -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
-
 #Create domain groups, and let's add users to it.
-New-ADGroup -Name "Windows Admin Center Administrators" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
-Add-ADGroupMember -Identity "Windows Admin Center Administrators" -Members EldenC
+    #Admins
+    New-ADGroup -Name "Windows Admin Center Administrators" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
+    Add-ADGroupMember -Identity "Windows Admin Center Administrators" -Members EldenC
+    #Hyper-V Admins
+    New-ADGroup -Name "Windows Admin Center Hyper-V Administrators" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
+    #Readers
+    Add-ADGroupMember -Identity "Windows Admin Center Hyper-V Administrators" -Members StevenEk
+    New-ADGroup -Name "Windows Admin Center Readers" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
+    Add-ADGroupMember -Identity "Windows Admin Center Readers" -Members CosDar
 
-New-ADGroup -Name "Windows Admin Center Hyper-V Administrators" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
-Add-ADGroupMember -Identity "Windows Admin Center Hyper-V Administrators" -Members StevenEk
-
-New-ADGroup -Name "Windows Admin Center Readers" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
-Add-ADGroupMember -Identity "Windows Admin Center Readers" -Members CosDar
- 
 ````
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CreateUsersAndGroups.png)
