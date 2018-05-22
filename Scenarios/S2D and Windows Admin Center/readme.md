@@ -22,7 +22,7 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
  
 ````
 
-Please finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2019 or [Windows Server Insider](/Insider/) before proceeding. Note that in above labconfig is Management machine requiring Win10RS4_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
+Please finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2016 or [Windows Server 2019 Insider Preview](/Insider/) before proceeding. In above labconfig is Management machine that requires Win10RS4_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
 
 LAB VMs
 
@@ -34,7 +34,7 @@ Note: Deduplication really helps. If you want to see it in Windows 10, please vo
 
 ## Install Windows Admin Center
 
-note1 : you can run following code to download it from management machine if you provided Internet=$true in LabConfig). If not, copy it over to Management machine manually (ctrl+c, ctrl+v with Enhanced Session Mode)
+Note: You can run following code to download Windows Admin Center from management machine if you provided Internet=$true in LabConfig. If not, copy it over to Management machine manually (ctrl+c, ctrl+v with Enhanced Session Mode) and run Install scripts.
 
 ````PowerShell
 #Create Temp directory
