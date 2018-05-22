@@ -230,7 +230,7 @@ New-ADUser -Name CosDar -AccountPassword  (ConvertTo-SecureString "LS1setup!" -A
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CreateUsersAndGroupsDSA.msc.png)
 
-And let's add groups to our local groups on machines.
+And let's add Domain groups to Local groups on S2D nodes.
 
 ````PowerShell
 $Computers=(Get-ClusterNode -Cluster S2D-Cluster).Name
