@@ -1,3 +1,16 @@
+<!-- TOC -->
+
+- [Get-SDDCDiagnosticInfo](#get-sddcdiagnosticinfo)
+    - [About the lab](#about-the-lab)
+    - [Prereq](#prereq)
+    - [Download and install module](#download-and-install-module)
+        - [From GitHub (Most up-to-date version)](#from-github-most-up-to-date-version)
+        - [From Gallery](#from-gallery)
+    - [Collect data from cluster](#collect-data-from-cluster)
+
+<!-- /TOC -->
+
+# Get-SDDCDiagnosticInfo
 
 ## About the lab
 
@@ -84,7 +97,7 @@ $SDDCModule | Save-Module -Path "$env:ProgramFiles\WindowsPowerShell\Modules"
 
 ![](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/Screenshots/ImportModuleGallery.png)
 
-### Collect data from cluster
+## Collect data from cluster
 
 ````PowerShell
 New-Item -Name SDDCDiagTemp -Path d:\ -ItemType Directory -Force
