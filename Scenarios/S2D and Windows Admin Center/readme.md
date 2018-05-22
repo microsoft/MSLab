@@ -6,6 +6,8 @@
     - [Adding 2016 S2D cluster into Windows Admin Center](#adding-2016-s2d-cluster-into-windows-admin-center)
     - [Exploring Performance history in Windows Server 2019](#exploring-performance-history-in-windows-server-2019)
     - [Managing S2D cluster using JEA](#managing-s2d-cluster-using-jea)
+        - [Installing RoleBased Access remotely](#installing-rolebased-access-remotely)
+        - [Adding users for RBAC Management](#adding-users-for-rbac-management)
 
 <!-- /TOC -->
 
@@ -128,7 +130,7 @@ To install JEA manually, you can navigate to server settings. It's not enough co
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/JEASettings2.png)
 
-Let's see what we can do about scripting. Here is article about it in Microsoft Docs https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/configure/user-access-control 
+Let's see if we can script it.
 
 ````PowerShell
 #invoke rest method first to generate RBAC zip
@@ -169,7 +171,7 @@ $sessions | Remove-PSSession
 
 Result. Note: error is expected, since session disconnected
 
-![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/RBACREsult.png)
+![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/RBACResult.png)
 
 
 To validate if DSC Configuration succeeded, you can run following command
