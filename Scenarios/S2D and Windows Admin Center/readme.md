@@ -67,7 +67,7 @@ Notice, that if you add Windows Server 2016 into Windows Admin Center, you will 
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/2016_S2D_Cluster_Error.png)
 
-Let's to run suggested command remotely
+Let's run suggested command remotely
 
 ````PowerShell
 Add-ClusterResourceType -Name "SDDC Management" -dll "$env:SystemRoot\Cluster\sddcres.dll" -DisplayName "SDDC Management" -Cluster s2d-cluster
