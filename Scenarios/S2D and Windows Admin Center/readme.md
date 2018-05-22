@@ -34,9 +34,7 @@ Note: Deduplication really helps. If you want to see it in Windows 10, please vo
 
 ## Install Windows Admin Center
 
-Download Windows Admin Center from here and install: http://aka.ms/WACDownload 
-
-note1 : you can run following code to download it from management machine if you provided Internet=$true in LabConfig). If not, copy it over to Management machine manually (ctrl+c, ctrl+v with Enhanced Session mmode)
+note1 : you can run following code to download it from management machine if you provided Internet=$true in LabConfig). If not, copy it over to Management machine manually (ctrl+c, ctrl+v with Enhanced Session Mode)
 
 ````PowerShell
 #Create Temp directory
@@ -53,11 +51,11 @@ note1 : you can run following code to download it from management machine if you
  
 ````
 
-Certificate popup in Edge
+Certificate popup in Edge. Select Windows Admin Center Client certificate and click OK. 
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CertificatePopUp.png)
 
-Windows Admin Center in WSLab
+Adding S2D cluster into Windows Admin Center
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AddingS2DCluster.png)
 
@@ -78,11 +76,13 @@ Add-ClusterResourceType -Name "SDDC Management" -dll "$env:SystemRoot\Cluster\sd
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AddSDDCManagement.png)
 
-As you can see, you can manage your HCI cluster on Windows Server 2016 remotely with Windows Admin Center
+As you can see, you can manage your HCI cluster on Windows Server 2016 now.
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/HCClusterManager2016.png)
 
 ## Exploring Performance history in Windows Server 2019
+
+For more information about Performance History visit this link: http://aka.ms/ClusterPerformanceHistory
 
 Performance history in Dashboard.
 
@@ -260,4 +260,4 @@ But node management works great!
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/AllAdminsNodes.png)
 
-I hope you enjoyed. If this is too much, we (Premier Field Engineers) can help you out! (If you have premier contract ;)
+I hope you enjoyed. If this is too much, we (Premier Field Engineers) can help you out! (If you have premier contract)
