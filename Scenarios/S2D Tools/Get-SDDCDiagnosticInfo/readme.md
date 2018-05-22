@@ -29,7 +29,7 @@ Let's try it out. I'll intentionally write script to download and import module 
 
 ### From GitHub (Most up-to-date version)
 
-as you can see, there are multiple ways to install Command. Let's use modified docs script. If your lab is not connected to internet (Internet=$true), then download ZIP on your host and ctrl+c/ctrl+v it into your management machine.
+As you can see, there are multiple ways to install SDDCDiagnosticInfo. Let's use modified docs script. If your lab is not connected to internet (Internet=$true), then download ZIP on your host and ctrl+c/ctrl+v it into your management machine.
 
 ````PowerShell
 #Download ZIP from GitHub to d:\SDDCDiag.zip
@@ -56,18 +56,19 @@ Import-Module PrivateCloud.DiagnosticInfo -Force
  
 ````
 
-You may see following error. It's because it's not signed script
+You will see following error. It's because module is not signed.
 
 ![](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/Screenshots/ImportModuleError.png)
 
 Let's lower execution policy and import it
 
 ````PowerShell
-#Grab current ExecutionPolicy
+#Grab current ExecutionPolicy and lower it
 $executionpolicy=Get-ExecutionPolicy
 Set-ExecutionPolicy -ExecutionPolicy remotesigned -Force
+#import module
 Import-Module PrivateCloud.DiagnosticInfo -Force
-#Return it to previous state
+#Return ExecutionPolicy to previous state
 Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
  
 ````
@@ -126,14 +127,16 @@ After script will finish, it will create ZIP in your users directory
 Let's generate a report into a text file
 
 ````PowerShell
-$DiagZip=(get-childitem $env:USERPROFILE | where Name -like HealthTest*.zip)
-$LatestDiagPath=($DiagZip | sort lastwritetime | select -First 1).FullName
+#find the latest diagnostic zip in UserProfile
+    $DiagZip=(get-childitem $env:USERPROFILE | where Name -like HealthTest*.zip)
+    $LatestDiagPath=($DiagZip | sort lastwritetime | select -First 1).FullName
 #expand to temp directory
-New-Item -Name SDDCDiagTemp -Path d:\ -ItemType Directory -Force
-Expand-Archive -Path $LatestDiagPath -DestinationPath D:\SDDCDiagTemp -Force
-$report=Show-SddcDiagnosticReport -Path D:\SDDCDiagTemp
-$report | out-file d:\SDDCReport.txt
-
+    New-Item -Name SDDCDiagTemp -Path d:\ -ItemType Directory -Force
+    Expand-Archive -Path $LatestDiagPath -DestinationPath D:\SDDCDiagTemp -Force
+#generate report and save to text file
+    $report=Show-SddcDiagnosticReport -Path D:\SDDCDiagTemp
+    $report | out-file d:\SDDCReport.txt
+    
 ````
 
 That's it!
