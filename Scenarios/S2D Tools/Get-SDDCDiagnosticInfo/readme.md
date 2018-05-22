@@ -5,7 +5,8 @@
     - [Prereq](#prereq)
     - [Download and install module](#download-and-install-module)
         - [From GitHub (Most up-to-date version)](#from-github-most-up-to-date-version)
-        - [From Gallery](#from-gallery)
+        - [From Gallery (Offline environment)](#from-gallery-offline-environment)
+        - [From Gallery (Online environment)](#from-gallery-online-environment)
     - [Collect data from cluster](#collect-data-from-cluster)
 
 <!-- /TOC -->
@@ -71,27 +72,32 @@ Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
  
 ````
 
-### From Gallery
+### From Gallery (Offline environment)
 
 It is little bit more straightforward with PowerShell Gallery
 
 ````PowerShell
-$SDDCModule=Find-Module PrivateCloud.DiagnosticInfo
+#download SDDC module to c:\Temp\PrivateCloud.DiagnosticInfo
+Find-Module PrivateCloud.DiagnosticInfo | Save-Module -Path "C:\Temp"
 
-#show module
-$SDDCModule
-
-#download it to modules
-$SDDCModule | Save-Module -Path "$env:ProgramFiles\WindowsPowerShell\Modules"
-
-#Import
+#Copy to destination machine (lets-say c:\Temp) and Import
+    Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
     #grab current state of executionpolicy
     $executionpolicy=Get-ExecutionPolicy
     #lower execution policy
     Set-ExecutionPolicy -ExecutionPolicy remotesigned -Force
     Import-Module PrivateCloud.DiagnosticInfo -Force
-    #Return it to previous state
+    #Return ExecutionPolicy to previous state
     Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
+ 
+````
+
+### From Gallery (Online environment)
+
+And this is simplest
+
+````PowerShell
+Find-Module PrivateCloud.DiagnosticInfo | Install-Module
  
 ````
 
