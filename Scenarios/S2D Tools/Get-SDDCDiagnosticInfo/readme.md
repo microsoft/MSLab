@@ -130,7 +130,7 @@ $report | out-file d:\SDDCReport.txt
 
 ````
 
-THat's it!
+That's it!
 
 [SampleReport](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/SDDCReport.txt)
 
