@@ -21,6 +21,7 @@ In this lab you will learn how to manage Hyper-Converged infrastructure built on
 Related Microsoft Docs:
 
 [Windows Admin Center](https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/understand/windows-admin-center)
+
 [Performance History](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/performance-history)
 
 ## LabConfig and Prerequisites
@@ -238,7 +239,7 @@ New-ADUser -Name CosDar -AccountPassword  (ConvertTo-SecureString "LS1setup!" -A
 
 ![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CreateUsersAndGroups.png)
 
-![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CreateUsersAndGroupsDSA.msc.png)
+![](/Scenarios/S2D%20and%20Windows%20Admin%20Center/Screenshots/CreateUsersAndGroupsDSAmsc.png)
 
 And let's add Domain groups to Local groups on S2D nodes.
 
