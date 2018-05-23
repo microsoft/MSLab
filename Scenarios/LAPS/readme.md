@@ -82,7 +82,7 @@ Next step is to download LAPS install files. Following script will download it i
 ````PowerShell
 #Download files
     #create temp directory
-    New-Item -Path c:\ -Name temp -ItemType Directory
+    New-Item -Path c:\ -Name temp -ItemType Directory -Force
     #download LAPS install file x64
     Invoke-WebRequest -UseBasicParsing -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile "c:\temp\LAPS.x64.msi"
 
