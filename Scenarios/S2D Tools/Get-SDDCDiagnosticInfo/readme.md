@@ -79,7 +79,7 @@ It is little bit more straightforward with PowerShell Gallery
 
 ````PowerShell
 #download SDDC module to c:\Temp\PrivateCloud.DiagnosticInfo
-Find-Module PrivateCloud.DiagnosticInfo | Save-Module -Path "C:\Temp"
+Save-Module -Name PrivateCloud.DiagnosticInfo -Path "C:\Temp"
 
 #Copy to destination machine (lets-say c:\Temp) and Import
     Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
@@ -98,7 +98,7 @@ Find-Module PrivateCloud.DiagnosticInfo | Save-Module -Path "C:\Temp"
 And this is simplest
 
 ````PowerShell
-Find-Module PrivateCloud.DiagnosticInfo | Install-Module
+Install-Module PrivateCloud.DiagnosticInfo
  
 ````
 
