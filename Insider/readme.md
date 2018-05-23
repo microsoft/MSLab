@@ -51,3 +51,9 @@ $LabConfig.VMs += @{ VMName = 'Honolulu' ; Configuration = 'Simple' ; ParentVHD 
 ## Known issues
 
 note  **Unattend='DjoinCred'** in labconfig. There is an issue with blob in unattend in this build. Machine is not domain joined if blob is used.
+
+Reconnect sometimes hangs. Just close window and run LabConfig region and continue with script below creating virtual switches as on below screenshot.
+
+![](/Insider//Screenshots/ReconnectHangs.png)
+
+![](/Insider//Screenshots/ReconnectHangs1.png)
