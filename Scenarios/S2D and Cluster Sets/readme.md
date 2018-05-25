@@ -22,10 +22,19 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 #HyperConverged Clusters
 1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred' ; <#NestedVirt=$True#>}}
-
 1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; <#NestedVirt=$True#>}}
-
 1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; <#NestedVirt=$True#>}}
+ 
+$LabConfig.ServerVHDs += @{
+    Edition="4"
+    VHDName="Win2019_17666.vhdx"
+    Size=60GB
+}
+$LabConfig.ServerVHDs += @{
+    Edition="3"
+    VHDName="Win2019Core_17666.vhdx"
+    Size=30GB
+}
  
 ````
 
