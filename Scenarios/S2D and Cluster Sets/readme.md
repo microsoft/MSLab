@@ -172,7 +172,7 @@ New-ClusterSet -name MyClusterSet -NamespaceRoot MC-SOFS -CimSession MasterClust
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/InfraFS.png)
 
-And let's add Cluster1 and Cluster2
+And let's add Cluster1,2,3
 
 ````PowerShell
 Add-ClusterSetMember -ClusterName Cluster1 -CimSession MyClusterSet -InfraSOFSName CL1-SOFS
@@ -200,7 +200,7 @@ get-clusterset -CimSession MyClusterSet | get-cluster | get-clusternode
 #get all cluster set member nodes
 Get-ClusterSetNode -CimSession MyClusterSet
 
-#get all cluster memmbers
+#get all cluster members
 get-clustersetmember -CimSession MyClusterSet
  
 ````
