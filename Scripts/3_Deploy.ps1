@@ -489,11 +489,12 @@ If (!( $isAdmin )) {
             WriteInfo "`t Setting DSC Mode to Pull"
             PullClientConfig -ComputerName $VMConfig.VMName -DSCConfig $VMConfig.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
         }
-            
+
         #configure nested virt
         if ($VMConfig.NestedVirt -eq $True){
             WriteInfo "`t Enabling NestedVirt"
             $VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
+            $VMTemp | Set-VMMemory -DynamicMemoryEnabled $False
         }
 
         #configure vTPM
