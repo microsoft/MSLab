@@ -13,8 +13,6 @@
 
 ## Sample labconfig for 17666 insider
 
-Note: Nested virtualization is commented (it slows down the environment)
-
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17666-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
