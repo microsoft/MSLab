@@ -1,7 +1,7 @@
 
 <!-- TOC -->
 
-- [S2D and Cluster Sets](#s2d-and-cluster-sets)
+- [S2D and Cluster Sets !!! WORK IN PROGRESS !!!](#s2d-and-cluster-sets--work-in-progress-)
     - [Sample labconfig for 17666 insider](#sample-labconfig-for-17666-insider)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
@@ -9,9 +9,7 @@
 
 <!-- /TOC -->
 
-!!! WORK IN PROGRESS !!!
-
-# S2D and Cluster Sets
+# S2D and Cluster Sets !!! WORK IN PROGRESS !!!
 
 ## Sample labconfig for 17666 insider
 
