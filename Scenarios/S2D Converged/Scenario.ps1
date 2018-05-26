@@ -86,7 +86,7 @@ Write-host "Script started at $StartDateTime"
         $SRIOV=$False
 
     #Nano server? its just faster with Nano. Nano will be soon out of support
-        $NanoServer=$true
+        $NanoServer=$False
 
     #Additional Features in S2D Cluster
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
