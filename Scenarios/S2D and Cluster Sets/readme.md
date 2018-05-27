@@ -21,9 +21,9 @@
 ````PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17666-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
-#Master cluster
-1..3 | ForEach-Object {$VMNames="Master"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17666.vhdx'; MemoryStartupBytes= 512MB ; Unattend='DjoinCred' }}
-#HyperConverged Clusters
+#Management cluster
+1..3 | ForEach-Object {$VMNames="Mgmt"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17666.vhdx'; MemoryStartupBytes= 512MB ; Unattend='DjoinCred' }}
+#HyperConverged Clusters (member clusters)
 1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
 1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
 1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
@@ -45,7 +45,7 @@ $LabConfig.ServerVHDs += @{
 
 ## Prerequisites
 
-Run following code to create 3 HyperConverged clusters. Note: it's way simplified (no networking, no best practices, no CAU, ...). Run this code from DC.
+Run following code to create 3 HyperConverged clusters. Note: it's way simplified (no networking, no best practices, no CAU, ...). Run this code from DC. Cluster will ask for vhd. You can provide nanoserver VHD as it is small.
 
 ````PowerShell
 #Labconfig
@@ -72,9 +72,9 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
 # Install features for management
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     if ($WindowsInstallationType -eq "Server"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica,RSAT-AD-PowerShell
     }elseif ($WindowsInstallationType -eq "Server Core"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Storage-Replica
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Storage-Replica,RSAT-AD-PowerShell
     }
 
 # Install features on servers
@@ -141,9 +141,9 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
 
 ## About the lab
 
-**Cluster Sets** is the new cloud scale-out technology in this Preview release that increases cluster node count in a single SDDC (Software-Defined Data Center) cloud by orders of magnitude. A Cluster Set is a loosely-coupled grouping of multiple Failover Clusters: compute, storage or hyper-converged. Cluster Sets technology enables VM fluidity across member clusters within a Cluster Set and a unified storage namespace across the Cluster Set in support of VM fluidity
+**Cluster Sets** is the new cloud scale-out technology [in Insider Preview release](https://blogs.windows.com/windowsexperience/2018/03/20/announcing-windows-server-vnext-ltsc-build-17623/) that increases cluster node count in a single SDDC (Software-Defined Data Center) cloud by orders of magnitude. A Cluster Set is a loosely-coupled grouping of multiple Failover Clusters: compute, storage or hyper-converged. Cluster Sets technology enables VM fluidity across member clusters within a Cluster Set and a unified storage namespace across the Cluster Set in support of VM fluidity.
 
-In following lab will be 4 clusters. 3 Clusters contain storage (Storage Spaces Direct) and one Master cluster, that manages Cluster Set Namespace.
+In following lab will be 4 clusters. 3 member Clusters contain storage (Storage Spaces Direct) and one Management cluster, that manages Cluster Set Namespace.
 
 ## Little bit theory
 
@@ -180,23 +180,25 @@ An Availability Set helps the administrator configure desired redundancy of clus
 
 ### Create Management Cluster
 
-First we will create Management Cluster "MasterCluster". This cluster can be anywhere (for example in each fault domain one node). This makes the resource highly resilient.
+First we will create Management Cluster "MgmtCluster". This cluster can be anywhere (for example one node on each member cluster - outside cluster set namespace). This makes the resource highly resilient.
 
 ````PowerShell
-$ClusterNodes=1..3 | % {"Master$_"}
+$ClusterName="MgmtCluster"
+$ClusterIP="10.0.0.220"
+$ClusterNodes=1..3 | % {"Mgmt$_"}
 Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
     Install-WindowsFeature -Name "Failover-Clustering"
 }
-New-Cluster -Name MasterCluster -Node $ClusterNodes -StaticAddress "10.0.0.220"
+New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/MasterClusterCreated.png)
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/MgmtClusterCreated.png)
 
-And then we will create Cluster Set master on "MasterCluster"
+And then we will create Cluster Set Master on "MgmtCluster"
 
 ````PowerShell
-New-ClusterSet -name MyClusterSet -NamespaceRoot MC-SOFS -CimSession MasterCluster -StaticAddress "10.0.0.221"
+New-ClusterSet -name "MyClusterSet" -NamespaceRoot "MC-SOFS" -CimSession "MgmtCluster" -StaticAddress "10.0.0.221"
  
 ````
 
@@ -206,7 +208,7 @@ New-ClusterSet -name MyClusterSet -NamespaceRoot MC-SOFS -CimSession MasterClust
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/InfraFS.png)
 
-And let's add Cluster1,2,3
+And let's add member clusters Cluster1,Cluster2 and Cluster3
 
 ````PowerShell
 Add-ClusterSetMember -ClusterName Cluster1 -CimSession MyClusterSet -InfraSOFSName CL1-SOFS
@@ -292,12 +294,16 @@ foreach ($VM in $VMs){
         $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
         $VMs | Start-VM
     }
-
+ 
 ````
 
-Result
+Before move
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Moved_to_MC-SOFS.png)
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMsBeforeMove.png)
+
+After move
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMsAfterMove.png)
 
 ### Enable Live migration with kerberos authentication
 
@@ -345,9 +351,9 @@ And the last step is to add MyClusterSet machine account into local admin group.
 
 ````PowerShell
 $ClusterSet="MyClusterSet"
-$ManagementClusterName=(Get-ClusterSet -CimSession MyClusterSet).ClusterName
+$MgmtClusterterName=(Get-ClusterSet -CimSession MyClusterSet).ClusterName
 Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
-    Add-LocalGroupMember -Group Administrators -Member "$using:ManagementClusterName$"
+    Add-LocalGroupMember -Group Administrators -Member "$using:MgmtClusterterName$"
 }
  
 ````
@@ -357,7 +363,7 @@ Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -
 $ClusterSet="MyClusterSet"
 Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
     Get-LocalGroupMember -Group Administrators
-}
+} | format-table Name,PSComputerName
  
 ````
 
