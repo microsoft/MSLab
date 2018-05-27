@@ -11,6 +11,7 @@
         - [Move all VMs to Cluster Set namespace](#move-all-vms-to-cluster-set-namespace)
         - [Enable Live migration with kerberos authentication](#enable-live-migration-with-kerberos-authentication)
         - [add Management cluster computer account to each node local Administrators group](#add-management-cluster-computer-account-to-each-node-local-administrators-group)
+        - [Register all existing VMs](#register-all-existing-vms)
 
 <!-- /TOC -->
 
@@ -345,6 +346,7 @@ Result (on each node)
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/DelegationSet.png)
 
+
 ### add Management cluster computer account to each node local Administrators group
 
 And the last step is to add MyClusterSet machine account into local admin group.
@@ -368,3 +370,13 @@ Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -
 ````
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/LocalGroups.png)
+
+### Register all existing VMs
+
+````PowerShell
+Get-ClusterSetMember -CimSession MyClusterSet | Register-ClusterSetVM -RegisterAll -CimSession <Cluster_Set_name>
+ 
+````
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/RegisterVMsResult.png)
+
