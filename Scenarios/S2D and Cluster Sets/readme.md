@@ -5,7 +5,12 @@
     - [Sample labconfig for 17666 insider](#sample-labconfig-for-17666-insider)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
+    - [Little bit theory](#little-bit-theory)
     - [The Lab](#the-lab)
+        - [Create Management Cluster](#create-management-cluster)
+        - [Move all VMs to Cluster Set namespace](#move-all-vms-to-cluster-set-namespace)
+        - [Enable Live migration with kerberos authentication](#enable-live-migration-with-kerberos-authentication)
+        - [add Management cluster computer account to each node local Administrators group](#add-management-cluster-computer-account-to-each-node-local-administrators-group)
 
 <!-- /TOC -->
 
@@ -136,13 +141,46 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
 
 ## About the lab
 
-**Cluster Sets** is the new cloud scale-out technology in this Preview release that increases cluster node count in a single SDDC (Software-Defined Data Center) cloud by orders of magnitude. A Cluster Set is a loosely-coupled grouping of multiple Failover Clusters: compute, storage or hyper-converged. Cluster Sets technology enables VM fluidity across member clusters within a Cluster Set and a unified storage namespace across the Cluster Set in support of VM fluidit
+**Cluster Sets** is the new cloud scale-out technology in this Preview release that increases cluster node count in a single SDDC (Software-Defined Data Center) cloud by orders of magnitude. A Cluster Set is a loosely-coupled grouping of multiple Failover Clusters: compute, storage or hyper-converged. Cluster Sets technology enables VM fluidity across member clusters within a Cluster Set and a unified storage namespace across the Cluster Set in support of VM fluidity
 
-In following lab will be 3 clusters. 2 Clusters contain storage (Storage Spaces Direct), but one is in Converged mode, where is Scale-Out fileserver, that provides connectivity for another compute cluster.
+In following lab will be 4 clusters. 3 Clusters contain storage (Storage Spaces Direct) and one Master cluster, that manages Cluster Set Namespace.
+
+## Little bit theory
+
+**Management cluster**
+
+Management cluster in a Cluster Set is a Failover Cluster that hosts the highly-available management plane of the entire Cluster Set and the unified storage namespace (CS-Namespace) referral SOFS. A management cluster is logically decoupled from member clusters that run the VM workloads. This makes the Cluster Set management plane resilient to any localized cluster-wide failures, e.g. loss of power of a member cluster. 
+
+**Member cluster**
+
+A member cluster in a Cluster Set is typically a traditional hyper-converged cluster running VM and S2D workloads. Multiple member clusters participate in a single Cluster Set deployment, forming the larger SDDC cloud fabric. Member clusters differ from a management cluster in two key aspects: member clusters participate in fault domain and availability set constructs, and member clusters are also sized to host VM and S2D workloads. Cluster Set VMs that move across cluster boundaries in a Cluster Set must not be hosted on the management cluster for this reason).
+
+**Cluster Set namespace referral SOFS**
+
+A Cluster Set namespace referral (CS-Namespace) SOFS is a Scale-Out File Server wherein each SMB Share on the CS-Namespace SOFS is a referral share – of type ‘SimpleReferral’ newly introduced in this Preview release. This referral allows SMB clients access to the target SMB share hosted on the member cluster SOFS (SOFS-1, SOFS-2 etc. in Figure 1). The Cluster Set namespace referral SOFS is a light-weight referral mechanism and as such, does not participate in the IO path. The SMB referrals are cached perpetually on the each of the client nodes and the Cluster Sets namespace infrastructure dynamically automatically updates these referrals as needed.
+
+**Cluster Set Master**
+
+In a Cluster Set, the communication between the member clusters is loosely coupled, and is coordinated by a new cluster resource called “Cluster Set Master” (CS-Master). Like any other cluster resource, CS-Master is highly available and resilient to individual member cluster failures and/or the management cluster node failures.
+Through a new Cluster Set WMI provider, CS-Master provides the management endpoint for all Cluster Set manageability interactions.
+
+**Cluster Set Worker**
+
+In a Cluster Set deployment, the CS-Master interacts with a new cluster resource on the member Clusters called “Cluster Set Worker” (CS-Worker). CS-Worker acts as the only liaison on the cluster to orchestrate the local cluster interactions as requested by the CS-Master. Examples of such interactions include VM placement and cluster-local resource inventorying. There is only one CS-Worker instance for each of the member clusters in a Cluster Set.
+
+**Logical Fault Domain (LFD)**
+
+Compute fault domains (FDs) may be of two types in a Cluster Set: Logical Fault Domains (LFD) or Node Fault Domains (Node-FD). In either case, a Fault Domain is the grouping of software and hardware artifacts that the administrator determines could fail together when a failure does occur. While an administrator could designate one or more clusters together as a LFD, each node could participate as a Node-FD in Availability Set. Cluster Sets by design leaves the decision of FD boundary determination to the administrator who is well-versed with data center topological considerations – e.g. PDU, networking – that member clusters share.
+
+**Availability Set**
+
+An Availability Set helps the administrator configure desired redundancy of clustered workloads across fault domains, by organizing those FDs into an Availability Set and deploying workloads into that Availability Set. Let’s say if you are deploying a two-tier application, we recommend that you configure at least two virtual machines in an Availability Set for each tier which will ensure that when one FD in that Availability Set goes down, your application will at least have one virtual machine in each tier hosted on a different FD of that same Availability Set.
 
 ## The Lab
 
-First we will create Cluster "MasterCluster". This cluster can be anywhere (for example in each fault domain one node). This makes the resource highly resilient.
+### Create Management Cluster
+
+First we will create Management Cluster "MasterCluster". This cluster can be anywhere (for example in each fault domain one node). This makes the resource highly resilient.
 
 ````PowerShell
 $ClusterNodes=1..3 | % {"Master$_"}
@@ -203,7 +241,9 @@ get-clustersetmember -CimSession MyClusterSet
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ViewingClusterSet.png)
 
-Now we will move all VM's to cluster set namespace (Live storage migration)
+### Move all VMs to Cluster Set namespace
+
+Now we will move all VM's to cluster set namespace. Since Storage Live Migration does not work as files already exist in destination, we can either move files to another volume or unregister and register again with following trick.
 
 ````PowerShell
 #Grab all VMs from all nodes
@@ -259,6 +299,8 @@ Result
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Moved_to_MC-SOFS.png)
 
+### Enable Live migration with kerberos authentication
+
 Let's now configure kerberos constrained delegation between all nodes to be able to LiveMigrate VMs
 
 ````PowerShell
@@ -297,4 +339,26 @@ Result (on each node)
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/DelegationSet.png)
 
+### add Management cluster computer account to each node local Administrators group
 
+And the last step is to add MyClusterSet machine account into local admin group.
+
+````PowerShell
+$ClusterSet="MyClusterSet"
+$ManagementClusterName=(Get-ClusterSet -CimSession MyClusterSet).ClusterName
+Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
+    Add-LocalGroupMember -Group Administrators -Member "$using:ManagementClusterName$"
+}
+ 
+````
+
+````PowerShell
+#Validate local groups
+$ClusterSet="MyClusterSet"
+Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
+    Get-LocalGroupMember -Group Administrators
+}
+ 
+````
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/LocalGroups.png)
