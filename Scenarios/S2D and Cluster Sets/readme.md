@@ -255,7 +255,11 @@ foreach ($VM in $VMs){
 
 ````
 
-Let's now configure kerberos constrained delegation between all nodes.
+Result
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Moved_to_MC-SOFS.png)
+
+Let's now configure kerberos constrained delegation between all nodes to be able to LiveMigrate VMs
 
 ````PowerShell
     #configure kerberos for shared-nothing live migration between all clusters
