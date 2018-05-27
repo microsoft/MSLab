@@ -206,15 +206,53 @@ get-clustersetmember -CimSession MyClusterSet
 Now we will move all VM's to cluster set namespace (Live storage migration)
 
 ````PowerShell
-#Grab all VMs
-$VMs=Get-VM -CimSession (Get-ClusterSetNode -CimSession MyClusterSet).Name
+#Grab all VMs from all nodes
+    $VMs=Get-VM -CimSession (Get-ClusterSetNode -CimSession MyClusterSet).Name
 
+<# does not work
 #perform storage migration to \\MC-SOFS
 foreach ($VM in $VMs){
     $NewPath=($vm.path).Replace("c:\ClusterStorage\","\\MC-SOFS\")
     $VM | Move-VMStorage -DestinationStoragePath $NewPath
 }
- 
+#>
+
+#remove VMs and import again, but from \\MC-SOFS
+#Shut down VMs
+    $VMs | Stop-VM
+
+#Remove VMs from cluster resources
+    Foreach ($VM in $VMs){
+        Remove-ClusterGroup -Cluster $VM.ComputerName -Name $VM.name -RemoveResources -Force
+    }
+
+#remove VMs and keep VM config
+    Foreach ($VM in $VMs){
+        invoke-command -computername $VM.ComputerName -scriptblock {
+            $path=$using:VM.Path
+            Copy-Item -Path "$path\Virtual Machines" -Destination "$path\Virtual Machines Bak" -recurse
+            Get-VM -Id $Using:VM.id | Remove-VM -force
+            Copy-Item -Path "$path\Virtual Machines Bak\*" -Destination "$path\Virtual Machines" -recurse
+            Remove-Item -Path "$path\Virtual Machines Bak" -recurse
+        }
+    }
+
+#Import again, but replace path to \\MC-SOFS
+    Invoke-Command -ComputerName (get-clustersetmember -CimSession MyClusterSet).ClusterName -ScriptBlock{
+        get-childitem c:\ClusterStorage -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
+            $Path=$_.FullName.Replace("C:\ClusterStorage\","\\MC-SOFS\")
+            Import-VM -Path $Path
+        }
+    }
+
+#Add VMs as Highly available and Start
+    $ClusterSetNodes=Get-ClusterSetNode -CimSession MyClusterSet
+    foreach ($ClusterSetNode in $ClusterSetNodes){
+        $VMs=Get-VM -CimSession $ClusterSetNode.Name
+        $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
+        $VMs | Start-VM
+    }
+
 ````
 
 Let's now configure kerberos constrained delegation between all nodes.
