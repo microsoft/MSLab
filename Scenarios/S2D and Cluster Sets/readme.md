@@ -120,22 +120,24 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
     }
 
 #Create 1 VM on each Volume
-    Foreach ($Cluster in $clusters){
-        $VMName="$($Cluster.Name)_VM1"
-        $VolumeName=$Cluster.VolumeNames[0]
-        New-Item -Path "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks" -ItemType Directory
-        Copy-Item -Path $VHDPath -Destination "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx"
-        New-VM -Name $VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$VolumeName" -VHDPath "c:\ClusterStorage\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx" -ComputerName $Cluster.Nodes[0]
-        Start-VM -name $VMName -ComputerName $Cluster.Nodes[0]
-        Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $Cluster.Name
-
-        $VMName="$($Cluster.Name)_VM2"
-        $VolumeName=$Cluster.VolumeNames[1]
-        New-Item -Path "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks" -ItemType Directory
-        Copy-Item -Path $VHDPath -Destination "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx"
-        New-VM -Name $VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$VolumeName" -VHDPath "c:\ClusterStorage\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx" -ComputerName $Cluster.Nodes[1]
-        Start-VM -name $VMName -ComputerName $Cluster.Nodes[1]
-        Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $Cluster.Name
+    if ($VHDPath){
+        Foreach ($Cluster in $clusters){
+            $VMName="$($Cluster.Name)_VM1"
+            $VolumeName=$Cluster.VolumeNames[0]
+            New-Item -Path "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx"
+            New-VM -Name $VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$VolumeName" -VHDPath "c:\ClusterStorage\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx" -ComputerName $Cluster.Nodes[0]
+            Start-VM -name $VMName -ComputerName $Cluster.Nodes[0]
+            Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $Cluster.Name
+    
+            $VMName="$($Cluster.Name)_VM2"
+            $VolumeName=$Cluster.VolumeNames[1]
+            New-Item -Path "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks" -ItemType Directory
+            Copy-Item -Path $VHDPath -Destination "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx"
+            New-VM -Name $VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$VolumeName" -VHDPath "c:\ClusterStorage\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx" -ComputerName $Cluster.Nodes[1]
+            Start-VM -name $VMName -ComputerName $Cluster.Nodes[1]
+            Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $Cluster.Name
+        }
     }
  
 ````
@@ -196,7 +198,7 @@ New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/MgmtClusterCreated.png)
 
-And then we will create Cluster Set Master on "MgmtCluster"
+And now let's create Cluster Set Master on "MgmtCluster"
 
 ````PowerShell
 New-ClusterSet -name "MyClusterSet" -NamespaceRoot "MC-SOFS" -CimSession "MgmtCluster" -StaticAddress "10.0.0.221"
@@ -249,13 +251,15 @@ get-clustersetmember -CimSession MyClusterSet
 Now we will move all VM's to cluster set namespace. Since Storage Live Migration does not work as files already exist in destination, we can either move files to another volume or unregister and register again with following trick.
 
 ````PowerShell
+    $ClusterSet="MyClusterSet"
+    $ClusterSetSOFS="\\MC-SOFS"
 #Grab all VMs from all nodes
-    $VMs=Get-VM -CimSession (Get-ClusterSetNode -CimSession MyClusterSet).Name
+    $VMs=Get-VM -CimSession (Get-ClusterSetNode -CimSession $ClusterSet).Name
 
 <# does not work
 #perform storage migration to \\MC-SOFS
 foreach ($VM in $VMs){
-    $NewPath=($vm.path).Replace("c:\ClusterStorage\","\\MC-SOFS\")
+    $NewPath=($vm.path).Replace("c:\ClusterStorage\",$ClusterSetSOFS)
     $VM | Move-VMStorage -DestinationStoragePath $NewPath
 }
 #>
@@ -281,15 +285,15 @@ foreach ($VM in $VMs){
     }
 
 #Import again, but replace path to \\MC-SOFS
-    Invoke-Command -ComputerName (get-clustersetmember -CimSession MyClusterSet).ClusterName -ScriptBlock{
+    Invoke-Command -ComputerName (get-clustersetmember -CimSession $ClusterSet).ClusterName -ScriptBlock{
         get-childitem c:\ClusterStorage -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
-            $Path=$_.FullName.Replace("C:\ClusterStorage\","\\MC-SOFS\")
+            $Path=$_.FullName.Replace("C:\ClusterStorage",$using:ClusterSetSOFS)
             Import-VM -Path $Path
         }
     }
 
 #Add VMs as Highly available and Start
-    $ClusterSetNodes=Get-ClusterSetNode -CimSession MyClusterSet
+    $ClusterSetNodes=Get-ClusterSetNode -CimSession $ClusterSet
     foreach ($ClusterSetNode in $ClusterSetNodes){
         $VMs=Get-VM -CimSession $ClusterSetNode.Name
         $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
@@ -346,7 +350,6 @@ Result (on each node)
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/DelegationSet.png)
 
-
 ### add Management cluster computer account to each node local Administrators group
 
 And the last step is to add MyClusterSet machine account into local admin group.
@@ -374,7 +377,9 @@ Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -
 ### Register all existing VMs
 
 ````PowerShell
-Get-ClusterSetMember -CimSession MyClusterSet | Register-ClusterSetVM -RegisterAll -CimSession <Cluster_Set_name>
+#Register all existing VMs
+$ClusterSet="MyClusterSet"
+Get-ClusterSetMember -CimSession $ClusterSet | Register-ClusterSetVM -RegisterAll
  
 ````
 
