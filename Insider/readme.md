@@ -52,9 +52,3 @@ $LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; Pa
 ![](/Insider//Screenshots/cluadmin.png)
  
 ## Known issues
-
-Reconnect sometimes hangs. Just close window and run LabConfig region and continue with script below creating virtual switches as on below screenshot.
-
-![](/Insider//Screenshots/ReconnectHangs.png)
-
-![](/Insider//Screenshots/ReconnectHangs1.png)
