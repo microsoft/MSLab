@@ -53,8 +53,8 @@ Write-host "Script started at $StartDateTime"
         $SOFSHAName="S2D-SOFS"
 
     #Cluster IPs
-        $StorageClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
-        $ComputeClusterIP="10.0.0.112" #If blank (you can write just $ClusterIP="", DHCP will be used)
+        $StorageClusterIP="10.0.0.112" #If blank (you can write just $ClusterIP="", DHCP will be used)
+        $ComputeClusterIP="10.0.0.113" #If blank (you can write just $ClusterIP="", DHCP will be used)
 
     #Storage networks
         $NumberOfStorageNets=1 #1 or 2
@@ -70,7 +70,7 @@ Write-host "Script started at $StartDateTime"
         $StorVLAN2=2
 
     #start IP
-        $IP=1
+        $IP=11
 
     #Real hardware?
         $RealHW=$False #will configure VMQ not to use CPU 0 if $True
@@ -86,7 +86,7 @@ Write-host "Script started at $StartDateTime"
         $SRIOV=$False
 
     #Nano server? its just faster with Nano. Nano will be soon out of support
-        $NanoServer=$true
+        $NanoServer=$False
 
     #Additional Features in S2D Cluster
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
@@ -370,12 +370,12 @@ Write-host "Script started at $StartDateTime"
     #configure File Share Witness for both clusters
         foreach ($ClusterName in ($ComputeClusterName,$S2DClusterName)){
             $WitnessName=$ClusterName+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
             $accounts=@()
             $accounts+="corp\$ClusterName$"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
             # Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
             #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
         }
@@ -489,12 +489,17 @@ Write-host "Script started at $StartDateTime"
     }
     start-sleep 10
 
-    #rename CSV(s)
-    Get-ClusterSharedVolume -Cluster $S2DClusterName | Foreach-Object {
-        $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-        $newname=$_.name.Substring(22,$_.name.Length-23)
-        Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $S2DClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
-    } 
+    #rename CSV(s) to match name on Windows Server 2016 (in 2019 it is not needed as it's already renamed)
+    $CurrentBuildNumber=Invoke-Command -ComputerName $S2DClusterName -scriptblock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
+    if ($CurrentBuildNumber -eq 14393) {
+        $CSVs=Get-ClusterSharedVolume -Cluster $S2DClusterName
+        foreach ($CSV in $CSVs){
+            $volumepath=$CSV.sharedvolumeinfo.friendlyvolumename
+            $newname=$CSV.name.Substring(22,$CSV.name.Length-23)
+            $CSV_Owner=(Get-ClusterSharedVolume -Cluster $S2DClusterName -Name $CSV.Name).ownernode
+            Invoke-Command -ComputerName $CSV_Owner -ScriptBlock {Rename-Item -Path $using:volumepath -NewName $using:newname} -ErrorAction SilentlyContinue
+        }
+    }
 
 #endregion
 
