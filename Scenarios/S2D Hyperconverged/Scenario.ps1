@@ -19,8 +19,8 @@ Write-host "Script started at $StartDateTime"
     #Cluster-Aware-Updating role name
         $CAURoleName="S2D-Clus-CAU"
 
-    #Disable CSV Balancer 
-        $DisableCSVBalancer=$True
+    #Disable CSV Balancer
+        $DisableCSVBalancer=$False
 
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
@@ -158,9 +158,14 @@ Write-host "Script started at $StartDateTime"
 
     #install roles and features
         if (!$NanoServer){
-            #install Hyper-V using DISM (if nested virtualization is not enabled install-windowsfeature would fail)
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
-            
+            #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+                if ($result.ExitCode -eq "failed"){
+                    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
+                }
+            }
+
             #define features
             $features="Failover-Clustering","Hyper-V-PowerShell"
             if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
@@ -168,7 +173,7 @@ Write-host "Script started at $StartDateTime"
             if ($Deduplication){$features+="FS-Data-Deduplication"}
             
             #install features
-            foreach ($server in $servers) {Install-WindowsFeature -Name $features -ComputerName $server} 
+            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
             #restart and wait for computers
             Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
             Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
@@ -318,13 +323,13 @@ Write-host "Script started at $StartDateTime"
     #ConfigureWitness on DC
         #Create new directory
             $WitnessName=$Clustername+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
             $accounts=@()
             $accounts+="corp\$ClusterName$"
             $accounts+="corp\Domain Admins"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
         #Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
@@ -606,8 +611,8 @@ Write-host "Script started at $StartDateTime"
             1..3 | ForEach-Object {
                 $VMName="TestVM$($CSV)_$_"
                 Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
-                    param($CSV,$VMName);
-                    New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
+                    #create some fake VMs
+                    New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
                 }
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }

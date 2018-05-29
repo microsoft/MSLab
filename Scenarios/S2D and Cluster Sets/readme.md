@@ -2,7 +2,7 @@
 <!-- TOC -->
 
 - [S2D and Cluster Sets !!! WORK IN PROGRESS !!!](#s2d-and-cluster-sets--work-in-progress-)
-    - [Sample labconfig for 17666 insider](#sample-labconfig-for-17666-insider)
+    - [Sample labconfig for 17677 insider](#sample-labconfig-for-17677-insider)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
     - [Little bit theory](#little-bit-theory)
@@ -17,26 +17,26 @@
 
 # S2D and Cluster Sets !!! WORK IN PROGRESS !!!
 
-## Sample labconfig for 17666 insider
+## Sample labconfig for 17677 insider
 
 ````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17666-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17677-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 #Management cluster
-1..3 | ForEach-Object {$VMNames="Mgmt"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17666.vhdx'; MemoryStartupBytes= 512MB ; Unattend='DjoinCred' }}
+1..3 | ForEach-Object {$VMNames="Mgmt"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17677.vhdx'; MemoryStartupBytes= 512MB  }}
 #HyperConverged Clusters (member clusters)
-1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
-1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
-1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17666.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; Unattend='DjoinCred'; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17677.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17677.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17677.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
 
 $LabConfig.ServerVHDs += @{
     Edition="4"
-    VHDName="Win2019_17666.vhdx"
+    VHDName="Win2019_17677.vhdx"
     Size=60GB
 }
 $LabConfig.ServerVHDs += @{
     Edition="3"
-    VHDName="Win2019Core_17666.vhdx"
+    VHDName="Win2019Core_17677.vhdx"
     Size=30GB
 }
  
@@ -129,7 +129,7 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
             New-VM -Name $VMName -MemoryStartupBytes 256MB -Generation 2 -Path "c:\ClusterStorage\$VolumeName" -VHDPath "c:\ClusterStorage\$VolumeName\$VMName\Virtual Hard Disks\$($VMName)_Disk1.vhdx" -ComputerName $Cluster.Nodes[0]
             Start-VM -name $VMName -ComputerName $Cluster.Nodes[0]
             Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $Cluster.Name
-    
+
             $VMName="$($Cluster.Name)_VM2"
             $VolumeName=$Cluster.VolumeNames[1]
             New-Item -Path "\\$($Cluster.Name)\ClusterStorage$\$VolumeName\$VMName\Virtual Hard Disks" -ItemType Directory
@@ -356,7 +356,7 @@ And the last step is to add MyClusterSet machine account into local admin group.
 
 ````PowerShell
 $ClusterSet="MyClusterSet"
-$MgmtClusterterName=(Get-ClusterSet -CimSession MyClusterSet).ClusterName
+$MgmtClusterterName=(Get-ClusterSet -CimSession $ClusterSet).ClusterName
 Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
     Add-LocalGroupMember -Group Administrators -Member "$using:MgmtClusterterName$"
 }

@@ -370,12 +370,12 @@ Write-host "Script started at $StartDateTime"
     #configure File Share Witness for both clusters
         foreach ($ClusterName in ($ComputeClusterName,$S2DClusterName)){
             $WitnessName=$ClusterName+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
             $accounts=@()
             $accounts+="corp\$ClusterName$"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
             # Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
             #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
         }
