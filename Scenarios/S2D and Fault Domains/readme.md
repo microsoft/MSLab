@@ -4,7 +4,7 @@
     - [LabConfig](#labconfig)
     - [About the lab](#about-the-lab)
     - [Prereq](#prereq)
-    - [Configure Fault domain](#configure-fault-domain)
+    - [Configure Fault domains](#configure-fault-domains)
     - [Exploring fault domains](#exploring-fault-domains)
         - [Pool](#pool)
         - [Tiers](#tiers)
@@ -74,9 +74,9 @@ Run following script to create cluster. Note: it's way simplified (no networking
  
 ````
 
-## Configure Fault domain
+## Configure Fault domains
 
-There are 2 options. To provide XML or PowerShell. Unfortunately PowerShell works only in Windows Server 2019 as Enable-ClusterS2D hangs in 2016 due to known issue.
+There are 2 options. To use XML or PowerShell. Unfortunately PowerShell works only in Windows Server 2019 as Enable-ClusterS2D hangs in 2016 (if powershell is used) due to known issue.
 
 **XML**
 
@@ -146,7 +146,7 @@ Enable-ClusterS2D -CimSession S2D-Cluster -Verbose
  
 ````
 
-As you can see, Enable-ClusterS2D will find fault domains and will ask you, if you want to configure it.
+As you can see, Enable-ClusterS2D will find fault domains and will ask you, if you want to configure Rack FD.
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Enable-ClusterS2DRack.png)
 
@@ -244,18 +244,6 @@ get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerl
  
 ````
 
-Hmm, S2D still survived!
+S2D still survived!
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownAllDisksRemovedVirtualDisksUp.png)
-
-OK, let's turn off Node 3 now... 
-
-````PowerShell
-#Run from Hyper-V Host to turn off nodes s2d1 and s2s2
-get-vm -Name "wslab-s2d3" | Stop-VM -TurnOff
- 
-````
-
-S2D survived again as we still have Pool quorum (witness+3nodes)
-
-![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/3NodesDown.png)
