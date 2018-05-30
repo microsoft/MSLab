@@ -245,7 +245,7 @@ get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerl
  
 ````
 
-S2D still survived!
+S2D survived!
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownAllDisksRemovedVirtualDisksUp.png)
 
@@ -259,7 +259,7 @@ Stop-VM -Name "WSLab-S2D3" -turnoff
  
 ````
 
-Result
+**Result**
 
 Three nodes down
 
