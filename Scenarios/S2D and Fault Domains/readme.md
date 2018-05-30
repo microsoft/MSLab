@@ -10,6 +10,7 @@
         - [Tiers](#tiers)
         - [Volume](#volume)
     - [Resiliency](#resiliency)
+    - [Return all to normal](#return-all-to-normal)
 
 <!-- /TOC -->
 
@@ -27,7 +28,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 ## About the lab
 
-In this lab we will simulate 3 racks with 2 nodes each. We will also demonstrate how cluster survives errors we will introduce (pulled disk, node turned off). You can learn more about fault tolerance [here](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-fault-tolerance)
+In this lab we will simulate 3 racks with 2 nodes each. We will also demonstrate how cluster survives errors we will introduce (pulled disk, node turned off). You can learn more about fault tolerance [here](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-fault-tolerance) and about quorum [here](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/understand-quorum)
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VMs.png)
 
@@ -192,7 +193,7 @@ Let's explore FaultDomain awareness on volumes
 
 ````PowerShell
 Get-VirtualDisk -CimSession s2d-cluster | ft FriendlyName,FaultDomainAwareness
-
+ 
 ````
 
 As you can see, only "WithoutTier" volume has FaultDomainAwareness defined in Virtual Disk
@@ -247,3 +248,49 @@ get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerl
 S2D still survived!
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownAllDisksRemovedVirtualDisksUp.png)
+
+Note: Pool might go offline if you introduced errors to fast.
+
+Last step would be to turn off S2D3. Just make sure all resources (pool and volumes) are located in Rack3 before introducing last failure
+
+````PowerShell
+#Run from Hyper-V Host to turn off s2d3
+Stop-VM -Name "WSLab-S2D3" -turnoff
+ 
+````
+
+Result
+
+Three nodes down
+
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/ThreeNodesDown.png)
+
+Only 24 disks attached (disks only in Rack3)
+
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/PhysicalDisksLost.png)
+
+And volume are still online! Impressive!
+
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VolumesStillOnline.png)
+
+## Return all to normal
+
+Return all disks to S2D3 and S2D4
+
+````PowerShell
+#Run from the Hyper-V host to return all disks to S2D3 and S2D4
+$VMNames="WSLab-S2D3","WSLab-S2D4"
+foreach ($VMName in $VMNames){
+    $VHDs=(get-childitem -Path "$((get-vm $VMName).ConfigurationLocation)\Virtual Hard Disks" | where name -like HDD*).FullName
+    foreach ($VHD in $VHDs){Add-VMHardDiskDrive -VMName $VMName -Path $VHD}
+}
+ 
+````
+
+Start S2D1 and S2D2
+
+````PowerShell
+#Run from the Hyper-V host to start S2D1, S2D2 and S2D3
+start-vm -Name "WSLab-S2D1","WSLab-S2D2","WSLab-S2D3"
+ 
+````
