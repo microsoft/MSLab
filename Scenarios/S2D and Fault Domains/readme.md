@@ -137,7 +137,7 @@ Get-ClusterFaultDomainxml -CimSession $ClusterName
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/FaultDomainsPowerShell.png)
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/FaultDomainsCluadmin.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/FaultDomainsCluadmin.png)
 
 Let's enable S2D now.
 
@@ -148,7 +148,7 @@ Enable-ClusterS2D -CimSession S2D-Cluster -Verbose
 
 As you can see, Enable-ClusterS2D will find fault domains and will ask you, if you want to configure it.
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Enable-ClusterS2DRack.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Enable-ClusterS2DRack.png)
 
 ## Exploring fault domains
 
@@ -161,7 +161,7 @@ Get-StoragePool -CimSession s2d-cluster -FriendlyName S2D* | fl *
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Get-StoragePool.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StoragePool.png)
 
 ### Tiers
 
@@ -172,7 +172,7 @@ Get-StorageTier -CimSession s2d-cluster
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Get-StorageTier.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StorageTier.png)
 
 ### Volume
 
@@ -186,7 +186,7 @@ New-Volume -StoragePoolFriendlyName s2d* -FriendlyName WithoutTier -FileSystem C
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VolumesCreated.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VolumesCreated.png)
 
 Let's explore FaultDomain awareness on volumes
 
@@ -197,7 +197,7 @@ Get-VirtualDisk -CimSession s2d-cluster | ft FriendlyName,FaultDomainAwareness
 
 As you can see, only "WithoutTier" volume has FaultDomainAwareness defined in Virtual Disk
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Get-VirtualDisk.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-VirtualDisk.png)
 
 To view FaultDomainAwareness on tiered disk, you need to view tier
 
@@ -206,7 +206,7 @@ Get-VirtualDisk -CimSession s2d-cluster| Get-StorageTier | ft FriendlyName,Fault
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/Get-StorageTier2.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StorageTier2.png)
 
 ## Resiliency
 
@@ -218,11 +218,11 @@ get-vm -Name "wslab-s2d1","wslab-s2d2" | Stop-VM -TurnOff
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMsTurnedOff.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VMsTurnedOff.png)
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/NodesDown.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDown.png)
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/NodesDownVirtualDisksUp.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownVirtualDisksUp.png)
 
 As you can see, cluster survives and Virtual Disks (volumes) are online
 
@@ -234,7 +234,7 @@ get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerl
  
 ````
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/NodesDownDiskRemovedVirtualDisksUp.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownDiskRemovedVirtualDisksUp.png)
 
 OK, disks are still online... let's remove all disks from S2D3 and S2D4.
 
@@ -246,7 +246,7 @@ get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerl
 
 Hmm, S2D still survived!
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/NodesDownAllDisksRemovedVirtualDisksUp.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownAllDisksRemovedVirtualDisksUp.png)
 
 OK, let's turn off Node 3 now... 
 
@@ -258,4 +258,4 @@ get-vm -Name "wslab-s2d3" | Stop-VM -TurnOff
 
 S2D survived again as we still have Pool quorum (witness+3nodes)
 
-![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/3NodesDown.png)
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/3NodesDown.png)
