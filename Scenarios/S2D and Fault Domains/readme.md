@@ -30,11 +30,13 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 In this lab we will simulate 3 racks with 2 nodes each. We will also demonstrate how cluster survives errors we will introduce (pulled disk, node turned off). You can learn more about fault tolerance [here](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-fault-tolerance) and about quorum [here](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/understand-quorum)
 
+Run all PowerShell code from DC
+
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VMs.png)
 
 ## Prereq
 
-Run following script to create cluster. Note: it's way simplified (no networking, no best practices, no CAU, no hyper-v...). Run this code from DC.
+Run following script to create cluster. Note: it's way simplified (no networking, no best practices, no CAU, no hyper-v...).
 
 ````PowerShell
 # LabConfig
