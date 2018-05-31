@@ -38,11 +38,13 @@ $LabConfig.ServerVHDs += @{
 
 ## About the lab
 
-This lab introduces new feature present in Windows Server 2019 Insider Preview called Scoped Volumes (also known as delimited volume allocation) For more info visit [docs](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/delimit-volume-allocation) 
+This lab introduces new feature present in Windows Server 2019 Insider Preview called Scoped Volumes (also known as delimited volume allocation) For more info visit [docs](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/delimit-volume-allocation). 
+
+Run all scripts from DC
 
 ## Prereq
 
-Run following script to configure necessary. Note: it's way simplified (no networking, no best practices, no CAU, no Hyper-V...). Run this code from DC.
+Run following script to configure necessary. Note: it's way simplified (no networking, no best practices, no CAU, no Hyper-V...).
 
 ````PowerShell
 # LabConfig
