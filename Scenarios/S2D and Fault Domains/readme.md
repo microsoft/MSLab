@@ -60,7 +60,7 @@ Run following script to create cluster. Note: it's way simplified (no networking
     Start-Sleep 5
     Clear-DNSClientCache
 
-#add file share witnesses
+#add file share witness
     #Create new directory
         $WitnessName=$ClusterName+"Witness"
         Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
@@ -287,10 +287,19 @@ foreach ($VMName in $VMNames){
  
 ````
 
-Start S2D1 and S2D2
+Start S2D1,S2D2 and S2D3
 
 ````PowerShell
 #Run from the Hyper-V host to start S2D1, S2D2 and S2D3
 start-vm -Name "WSLab-S2D1","WSLab-S2D2","WSLab-S2D3"
  
 ````
+
+You will see repair jobs in progress
+
+````PowerShell
+Get-StorageSubSystem -CimSession s2d-cluster -FriendlyName CL* | Get-StorageJob
+ 
+````
+
+![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/StorageJobs.png)
