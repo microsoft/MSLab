@@ -148,6 +148,8 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
 
 In following lab will be 4 clusters. 3 member Clusters contain storage (Storage Spaces Direct) and one Management cluster, that manages Cluster Set Namespace.
 
+For more info visit [this blogpost](https://blogs.msdn.microsoft.com/clustering/2018/05/31/scale-out-file-server-improvements-in-windows-server-2019/)
+
 ## Little bit theory
 
 **Management cluster**
