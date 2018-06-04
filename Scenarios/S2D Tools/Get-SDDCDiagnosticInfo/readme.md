@@ -46,7 +46,7 @@ As you can see, you can find PowerShell module in D drive now.
 
 ![](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/Screenshots/ExpandedZip.png)
 
-The only thing we need is having PrivateCloud.DiagnosticInfo folder in our PowerShell modules folder inside program files and import. So let's copy it.
+The only thing we need is having PrivateCloud.DiagnosticInfo folder in our PowerShell modules folder inside program files and import. So let's copy it and import.
 
 ````PowerShell
 #Copy Module
@@ -56,40 +56,17 @@ Import-Module PrivateCloud.DiagnosticInfo -Force
  
 ````
 
-You will see following error. It's because module is not signed.
-
-![](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/Screenshots/ImportModuleError.png)
-
-Let's lower execution policy and import it
-
-````PowerShell
-#Grab current ExecutionPolicy and lower it
-$executionpolicy=Get-ExecutionPolicy
-Set-ExecutionPolicy -ExecutionPolicy remotesigned -Force
-#import module
-Import-Module PrivateCloud.DiagnosticInfo -Force
-#Return ExecutionPolicy to previous state
-Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
- 
-````
-
 ### From Gallery (Offline environment)
 
-It is little bit more straightforward with PowerShell Gallery
+It is little bit more straightforward with PowerShell Gallery (signed copy will be in Gallery soon, therefore lowering execution policy is necessary)
 
 ````PowerShell
 #download SDDC module to c:\Temp\PrivateCloud.DiagnosticInfo
 Save-Module -Name PrivateCloud.DiagnosticInfo -Path "C:\Temp"
 
 #Copy to destination machine (lets-say c:\Temp) and Import
-    Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
-    #grab current state of executionpolicy
-    $executionpolicy=Get-ExecutionPolicy
-    #lower execution policy
-    Set-ExecutionPolicy -ExecutionPolicy remotesigned -Force
-    Import-Module PrivateCloud.DiagnosticInfo -Force
-    #Return ExecutionPolicy to previous state
-    Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
+Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
+Import-Module PrivateCloud.DiagnosticInfo -Force
  
 ````
 

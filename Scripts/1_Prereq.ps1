@@ -516,6 +516,9 @@ Exit
                 14393 {
                     $tempvhdname="Win10RS1_G2.vhdx"
                 }
+                15064 {
+                    $tempvhdname="Win10RS2_G2.vhdx"
+                }
                 16299 {
                     $tempvhdname="Win10RS3_G2.vhdx"
                 }
