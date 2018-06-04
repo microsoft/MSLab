@@ -92,7 +92,7 @@ Result
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DefaultWindowsPolicyRulesModified.png)
 
-Microsoft recommends that you block the following Microsoft-signed applications and PowerShell files that are [provided in xml](https://docs.microsoft.com/en-us/windows/device-security/device-guard/deploy-code-integrity-policies-steps). To be able to parse it from web, its easier to go directly to GitHub.
+Microsoft recommends that you block the following Microsoft-signed applications and PowerShell files that are [provided in xml](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-application-control/microsoft-recommended-block-rules). To be able to parse it from web, its easier to go directly to GitHub.
 
 ````PowerShell
 #grab recommended xml blocklist from GitHub
