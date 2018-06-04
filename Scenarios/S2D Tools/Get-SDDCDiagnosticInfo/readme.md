@@ -65,14 +65,8 @@ It is little bit more straightforward with PowerShell Gallery (signed copy will 
 Save-Module -Name PrivateCloud.DiagnosticInfo -Path "C:\Temp"
 
 #Copy to destination machine (lets-say c:\Temp) and Import
-    Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
-    #grab current state of executionpolicy
-    $executionpolicy=Get-ExecutionPolicy
-    #lower execution policy
-    Set-ExecutionPolicy -ExecutionPolicy remotesigned -Force
-    Import-Module PrivateCloud.DiagnosticInfo -Force
-    #Return ExecutionPolicy to previous state
-    Set-ExecutionPolicy -ExecutionPolicy $executionpolicy -force
+Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
+Import-Module PrivateCloud.DiagnosticInfo -Force
  
 ````
 
