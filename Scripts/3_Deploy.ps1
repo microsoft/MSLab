@@ -512,7 +512,11 @@ If (!( $isAdmin )) {
         #set MemoryMinimumBytes
         if ($VMConfig.MemoryMinimumBytes -ne $null){
             WriteInfo "`t Configuring MemoryMinimumBytes to $($VMConfig.MemoryMinimumBytes/1MB)MB"
-            Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
+            if ($VMConfig.NestedVirt){
+                "`t `t Skipping! NestedVirt configured"
+            }else{
+                Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
+            }
         }
 
         #Set static Memory
@@ -819,40 +823,44 @@ If (!( $isAdmin )) {
     #connect lab to internet if specified in labconfig
         if ($Labconfig.Internet){
             WriteInfoHighlighted "Internet connectivity requested"
-            WriteInfo "`t Detecting external vSwitch $ExternalSwitchName"
-            $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
-            if ($ExternalSwitch){
-                WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
-            }else{
-                WriteInfo "`t Detecting external VMSwitch"
-                $ExtSwitch=Get-VMSwitch -SwitchType External
-                if (!$ExtSwitch){
-                    WriteInfoHighlighted "`t No External Switch detected. Will create one "
-                    $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
-                    if (!$TempNetAdapters){
-                        WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
-                    }
-                    if ($TempNetAdapters.name.count -eq 1){
-                        WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
-                        $ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
-                    }
-                    if ($TempNetAdapters.name.count -gt 1){
-                        WriteInfo "`t More than 1 NIC detected"
-                        WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
-                        $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
-                        if (!$tempNetAdapter){
-                            WriteErrorAndExit "You did not select any net adapter. Exitting."
+            WriteInfo "`t Detecting default vSwitch"
+            $DefaultSwitch=Get-VMSwitch -Name "Default Switch" -ErrorAction Ignore
+            if (-not $DefaultSwitch){
+                WriteInfo "`t Default switch not present, detecting external vSwitch $ExternalSwitchName"
+                $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
+                if ($ExternalSwitch){
+                    WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
+                }else{
+                    WriteInfo "`t Detecting external VMSwitch"
+                    $ExtSwitch=Get-VMSwitch -SwitchType External
+                    if (!$ExtSwitch){
+                        WriteInfoHighlighted "`t No External Switch detected. Will create one "
+                        $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
+                        if (!$TempNetAdapters){
+                            WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
                         }
-                        $ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        if ($TempNetAdapters.name.count -eq 1){
+                            WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
+                            $ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        }
+                        if ($TempNetAdapters.name.count -gt 1){
+                            WriteInfo "`t More than 1 NIC detected"
+                            WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
+                            $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
+                            if (!$tempNetAdapter){
+                                WriteErrorAndExit "You did not select any net adapter. Exitting."
+                            }
+                            $ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        }
                     }
-                }
-                if ($ExtSwitch.count -eq 1){
-                    WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
-                    $ExternalSwitch=$ExtSwitch
-                }
-                if ($ExtSwitch.count -gt 1){
-                    WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
-                    $ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -Title 'Please Select External Switch you want to use for Internet Connectivity'
+                    if ($ExtSwitch.count -eq 1){
+                        WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
+                        $ExternalSwitch=$ExtSwitch
+                    }
+                    if ($ExtSwitch.count -gt 1){
+                        WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
+                        $ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -Title 'Please Select External Switch you want to use for Internet Connectivity'
+                    }
                 }
             }
         }
@@ -991,9 +999,15 @@ If (!( $isAdmin )) {
     #connect to internet
     if ($labconfig.internet){
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
-            WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
+            WriteInfo "`t `t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
-            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+            if ($DefaultSwitch){
+                WriteInfo "`t`t Connecting Network Adapter Internet to $($DefaultSwitch.Name)"
+                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $DefaultSwitch
+            }else{
+                WriteInfo "`t`t Connecting Network Adapter Internet to $($ExternalSwitch.Name)"
+                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+            }
         }
     }
 
