@@ -14,7 +14,7 @@ This Posh is bit complex. It runs node by node, checking if Bitlocker,RSAT-Featu
 
 Notice, that all suspend/resume actions are being tried until it succeeds.
 
-````PowerShell
+```PowerShell
 #install features and wait for servers to reboot
     foreach ($ClusterNode in $ClusterNodes){
         Write-Output "Installing Bitlocker Feature on $ClusterNode"
@@ -63,7 +63,7 @@ Notice, that all suspend/resume actions are being tried until it succeeds.
         }
     }
  
-````
+```
 
 ## Add Bitlocker registry keys
 
@@ -71,7 +71,7 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerGPO.png)
 
-````PowerShell
+```PowerShell
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
         #Create FVE key
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Force
@@ -91,7 +91,7 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
         #>
     }
  
-````
+```
 ## Move workload away, suspend CSV and enable BitLocker
 
 I really like Out-GridView as it can provide GUI, so you don't have to type anything. In this case it will help filling $CSVs variable with CSVs of your choice. Script identifies owner node, checks if volume is decrypted (if encrypted, it skips it). If its dectrypted, it will go and shuts all VMs on volume off and then suspends volume.
@@ -102,7 +102,7 @@ As already described in high level overview, CredSSP is needed. In this case I c
 
 After BitLocker is enabled, CSV is resumed and VMs started. The last step is to move CSV to other nodes and initiate backup of PasswordProtector to AD.
 
-````PowerShell
+```PowerShell
 $CSVs=Get-ClusterSharedVolume -Cluster $clustername | Out-GridView -PassThru -Title "Please select CSVs to encrypt. Selected CSV will be put in maintenance mode, bitlockered and then resumed"
 
 foreach ($CSV in $CSVs){
@@ -175,7 +175,7 @@ foreach ($CSV in $CSVs){
     }
 }
  
-````
+```
 
 ## Some Screenshots
 

@@ -21,7 +21,7 @@ This scenario works with AdmPwd.E version 7.5.4.0 and newer
 
 **Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 $LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 1GB }
@@ -33,13 +33,13 @@ $LABConfig.ServerVHDs += @{
     Size=40GB
 }
  
-````
+```
 
 ## LabConfig Windows Server 2016
 
 **Note:** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD without creating all parent disks
 
-````PowerShell
+```PowerShell
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
 
@@ -47,7 +47,7 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
 $LabConfig.VMs += @{ VMName = 'AdmPwd-E' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 1GB }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
  
-````
+```
 
 ## The lab
 
@@ -62,29 +62,29 @@ As you can notice, in this scenario is lab connected to internet. It's not manda
 Start Lab VMs. Then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
 **Note:** To kick in enhanced session mode login, logoff and login again.
 
-````PowerShell
+```PowerShell
 #Run from Host
 "*AdmPwd-E","*Management","*server*" | Foreach-Object {Start-VM -VMName $_}
  
-````
+```
 
 ## AdmPwd.E infrastructure setup from Windows 10 management Machine.
 
 **Note:** All actions are performed from Management VM (Windows 10)
 
 First check if RSAT is installed (it's necessary to work with Active Directory). If you did not provide RSAT msu during lab hydration, download it from http://aka.ms/RSAT and install manually.
-````PowerShell
+```PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
 }else{
     Write-Host "RSAT is not installed. Please download and install latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
 }
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/RSATCheckResult.png)
 
 Next step is to download AdmPwd-E install files. Following script will download it into c:\temp. If you did not connect Lab to internet, download it manually from here http://AdmPwd.com/downloads/ and copy to c:\temp. Then you can unzip it with PowerShell or manually
-````PowerShell
+```PowerShell
 #Download files
 New-Item -Path c:\ -Name temp -ItemType Directory
 Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/AdmPwd.E.CSE.Setup.x64.zip -OutFile "c:\temp\AdmPwd.E.CSE.Setup.x64.zip"
@@ -96,11 +96,11 @@ foreach ($file in $files){
     Expand-Archive -Path $file.FullName -DestinationPath c:\temp
 }
  
-````
+```
 
 Next step would be to install Password Decryption Server (PDS) service to AdmPwd-E server and also install management tools into Management machine.
 
-````PowerShell
+```PowerShell
 $AdmPwdServerName="AdmPwd-E"
 
 #install PDS and PowerShell management tools to server.
@@ -131,12 +131,12 @@ Invoke-Command -ComputerName $AdmPwdServerName -scriptblock {
 #install PowerShell management tools, Management UI and copy ADMX template to policy store on management machine
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.Tools.Setup.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/PDSInstallResult.png)
 
 Next step is to create AdmPwd.E groups for Password Readers and Resetters.
 
-````PowerShell
+```PowerShell
 #OU path where Groups will be created
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 
@@ -144,12 +144,12 @@ $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 New-ADGroup -Name AdmPwd.E_Readers -GroupScope Global -Path $OUPath
 New-ADGroup -Name AdmPwd.E_Resetters -GroupScope Global -Path $OUPath
  
-````
+```
 
 The next step is to update schema and set delegation model. Also empty GPO that you will use to define AdmPwd.E settings will be created and linked.
 **Note:** you might need to add your account to schema and enterprise admins. WSLab was recently updated to add LabAdmin to these groups during 2_createparentdisks.ps1
 
-````PowerShell
+```PowerShell
 #OU path to servers/clients to apply delegation model
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 #AdmPwd server
@@ -183,13 +183,13 @@ Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals AdmPwd.E_
 #generate first decryption key (Enterprise Admin membership needed by default; role can be changed in PDS config)
 New-AdmPwdKeyPair -KeySize 2048
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/DelegationResult1.png)
 ![](/Scenarios/AdmPwd.E/Screenshots/DelegationResult2.png)
 
 Now it is needed to install GPO extension into managed machines. There are several ways - like distribute it using GPO. In this case, we will push it using PowerShell.
 
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 $Sessions=New-PSSession -ComputerName $servers
 
@@ -202,7 +202,7 @@ Invoke-Command -Session $sessions -ScriptBlock {
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\AdmPwd.E.CSE.Setup.x64.msi /q"
 }
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/GPOExtensionInstallResult.png)
 
 The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
@@ -214,48 +214,48 @@ The last step would be to configure password policy using GPO that was created a
 You need to fill in Encryption Key to encrypt passwords in AD
 ![](/Scenarios/AdmPwd.E/Screenshots/EncryptionKeyInGPO.png)
 
-````PowerShell
+```PowerShell
 #to grab encryption key ID 1 using PowerShell
 (Get-AdmPwdPublicKey -KeyId 1).Key | clip
  
-````
+```
 
 Once GPO is in place, extension is installed, you can refresh GPO on servers 
 
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 Invoke-Command -ComputerName $servers -ScriptBlock {
     gpupdate /force
 }
  
-````
+```
 
 To check AdmPwd logs on configured servers
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 Invoke-Command -ComputerName $Servers -ScriptBlock { Get-WinEvent -LogName Application } | Where-Object ProviderName -eq AdmPwd | Sort-Object PSComputerName | Format-Table -AutoSize
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ServerLogs.png)
 
 To be able to query local passwords, you need to be in group password readers. To add LabAdmin into the correct group, run following PowerShell code.
 **Note:** you need to logoff and login to get new security token.
-````PowerShell
+```PowerShell
 Add-ADGroupMember -Identity AdmPwd.E_Readers -Members LabAdmin
 Add-ADGroupMember -Identity AdmPwd.E_Resetters -Members LabAdmin
  
-````
+```
 
 Run AdmPwd.E UI to query password or run following PowerShell command
-````PowerShell
+```PowerShell
 $servers="Server1","Server2","server3"
 foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ServerPasswords.png)
 
 Lastly you can view who (and when) was viewing passwords.
-````PowerShell
+```PowerShell
 $AdmPwdServer = "AdmPwd-E"
 $PasswordLog=Invoke-Command -ComputerName $AdmPwdServer -ScriptBlock {
     $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.E-PDS";Id=1001}
@@ -277,7 +277,7 @@ $PasswordLog=Invoke-Command -ComputerName $AdmPwdServer -ScriptBlock {
 
 $PasswordLog | ft User,Computer,TimeRequested
  
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/PasswordLog.png)
 
 
@@ -287,7 +287,7 @@ Managed Domain Accounts is feature of AdmPwd.E that automatically manages passwo
 In following example will be one managed account created and then demonstrated, how to use it different ways.
 
 First create OU, Managed Domain Accounts, modify PDS config file to have accounts in that OU managed by PDS and restart service to apply changes.
-````PowerShell
+```PowerShell
 $AdmPwdServer = "AdmPwd-E"
 #Create OU for Managed accounts
 New-ADOrganizationalUnit -Name "Managed Domain Accounts"
@@ -313,10 +313,10 @@ Invoke-Command -ComputerName $AdmPwdServer -Scriptblock {
     Restart-Service -Name AdmPwd.E.PDS
 }
  
-````
+```
 
 Then check logs on AdmPwd server if it changed password on managed account.
-````PowerShell
+```PowerShell
 $AdmPwdServer = "AdmPwd-E"
 $Log=Invoke-Command -ComputerName $AdmPwdServer -ScriptBlock {
     $events=Get-WinEvent -FilterHashtable @{"ProviderName"="GreyCorbel-AdmPwd.E-PDS";Id=3000}
@@ -335,19 +335,19 @@ $Log=Invoke-Command -ComputerName $AdmPwdServer -ScriptBlock {
 
 #Changed Accounts where password was changed
 $Log | Format-Table Accounts,Time
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountsLog.png)
 
 To retrieve password, there are multiple options. Either PowerShell **Note:** since this is freeware version, you can only have one account in OU. If multiple accounts are present, you will get an error message when getting managed password as this is free version.
 
-````PowerShell
+```PowerShell
 Get-AdmPwdManagedAccountPassword -AccountName MyManagedAccount
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountPassword.png)
 
 Or you can run PowerShell instance with using that account directly using RunAsAdmin tool from here https://github.com/jformacek/AdmPwd-e/releases/tag/v8.0 (latest binaries also available at https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RunAsAdmin.zip)
 
-````PowerShell
+```PowerShell
 #Download RunAsAdmin
 Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RunAsAdmin.zip -OutFile "c:\temp\RunAsAdmin.zip"
 
@@ -355,11 +355,11 @@ Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.wind
 Expand-Archive -Path c:\temp\RunAsAdmin.zip -DestinationPath c:\temp
 
 & "c:\temp\RunAsAdmin.exe" /user:corp\MyManagedAccount /noLocalProfile /path:Powershell.exe
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountRunAsAdmin.png)
 
 Or you can use RDP client
-````PowerShell
+```PowerShell
 #Download RDPCLient
 Invoke-WebRequest -UseBasicParsing -Uri https://gcstoragedownload.blob.core.windows.net/download/AdmPwd.E/Latest/RDPClient.zip -OutFile "c:\temp\RDPClient.zip"
 
@@ -372,5 +372,5 @@ Invoke-Command –Computername Server1 –ScriptBlock {Set-ItemProperty -Path "H
 
 #connect to Server1
 & "c:\temp\RDPClient\RDPClient.exe" /Server:Server1 /user:corp\MyManagedAccount
-````
+```
 ![](/Scenarios/AdmPwd.E/Screenshots/ManagedAccountRDP.png)

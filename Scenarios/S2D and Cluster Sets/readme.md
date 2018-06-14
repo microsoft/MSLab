@@ -19,7 +19,7 @@
 
 ## Sample labconfig for 17677 insider
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17677-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 #Management cluster
@@ -40,7 +40,7 @@ $LabConfig.ServerVHDs += @{
     Size=30GB
 }
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMs.png)
 
@@ -48,7 +48,7 @@ $LabConfig.ServerVHDs += @{
 
 Run following code to create 3 HyperConverged clusters. Note: it's way simplified (no networking, no best practices, no CAU, ...). Run this code from DC. Cluster will ask for vhd. You can provide nanoserver VHD as it is small.
 
-````PowerShell
+```PowerShell
 #Labconfig
     #clusterconfig
     $Clusters=@()
@@ -140,7 +140,7 @@ Run following code to create 3 HyperConverged clusters. Note: it's way simplifie
         }
     }
  
-````
+```
 
 ## About the lab
 
@@ -187,7 +187,7 @@ An Availability Set helps the administrator configure desired redundancy of clus
 
 First we will create Management Cluster "MgmtCluster". This cluster can be anywhere (for example one node on each member cluster - outside cluster set namespace). This makes the resource highly resilient.
 
-````PowerShell
+```PowerShell
 $ClusterName="MgmtCluster"
 $ClusterIP="10.0.0.220"
 $ClusterNodes=1..3 | % {"Mgmt$_"}
@@ -196,16 +196,16 @@ Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
 }
 New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/MgmtClusterCreated.png)
 
 And now let's create Cluster Set Master on "MgmtCluster"
 
-````PowerShell
+```PowerShell
 New-ClusterSet -name "MyClusterSet" -NamespaceRoot "MC-SOFS" -CimSession "MgmtCluster" -StaticAddress "10.0.0.221"
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetCreated.png)
 
@@ -215,12 +215,12 @@ New-ClusterSet -name "MyClusterSet" -NamespaceRoot "MC-SOFS" -CimSession "MgmtCl
 
 And let's add member clusters Cluster1,Cluster2 and Cluster3
 
-````PowerShell
+```PowerShell
 Add-ClusterSetMember -ClusterName Cluster1 -CimSession MyClusterSet -InfraSOFSName CL1-SOFS
 Add-ClusterSetMember -ClusterName Cluster2 -CimSession MyClusterSet -InfraSOFSName CL2-SOFS
 Add-ClusterSetMember -ClusterName Cluster3 -CimSession MyClusterSet -InfraSOFSName CL3-SOFS
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetMembersAdded.png)
 
@@ -234,7 +234,7 @@ As you can see, all shares are visible in \\\MC-SOFS path
 
 Let's play with PowerShell now
 
-````PowerShell
+```PowerShell
 #List all cluster set nodes
 get-clusterset -CimSession MyClusterSet | get-cluster | get-clusternode
 
@@ -244,7 +244,7 @@ Get-ClusterSetNode -CimSession MyClusterSet
 #get all cluster members
 get-clustersetmember -CimSession MyClusterSet
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ViewingClusterSet.png)
 
@@ -252,7 +252,7 @@ get-clustersetmember -CimSession MyClusterSet
 
 Now we will move all VM's to cluster set namespace. Since Storage Live Migration does not work as files already exist in destination, we can either move files to another volume or unregister and register again with following trick.
 
-````PowerShell
+```PowerShell
     $ClusterSet="MyClusterSet"
     $ClusterSetSOFS="\\MC-SOFS"
 #Grab all VMs from all nodes
@@ -302,7 +302,7 @@ foreach ($VM in $VMs){
         $VMs | Start-VM
     }
  
-````
+```
 
 Before move
 
@@ -316,7 +316,7 @@ After move
 
 Let's now configure kerberos constrained delegation between all nodes to be able to LiveMigrate VMs
 
-````PowerShell
+```PowerShell
     #configure kerberos for shared-nothing live migration between all clusters
     # https://technet.microsoft.com/en-us/windows-server-docs/compute/hyper-v/deploy/set-up-hosts-for-live-migration-without-failover-clustering
     $ClusterSet="MyClusterSet"
@@ -346,7 +346,7 @@ Let's now configure kerberos constrained delegation between all nodes to be able
     #Switch to kerberos authentication for live migration
     Set-VMHost -CimSession $Nodes.Name -VirtualMachineMigrationAuthenticationType Kerberos
  
-````
+```
 
 Result (on each node)
 
@@ -356,34 +356,34 @@ Result (on each node)
 
 And the last step is to add MyClusterSet machine account into local admin group.
 
-````PowerShell
+```PowerShell
 $ClusterSet="MyClusterSet"
 $MgmtClusterterName=(Get-ClusterSet -CimSession $ClusterSet).ClusterName
 Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
     Add-LocalGroupMember -Group Administrators -Member "$using:MgmtClusterterName$"
 }
  
-````
+```
 
-````PowerShell
+```PowerShell
 #Validate local groups
 $ClusterSet="MyClusterSet"
 Invoke-Command -ComputerName (Get-ClusterSetNode -CimSession $ClusterSet).Name -ScriptBlock {
     Get-LocalGroupMember -Group Administrators
 } | format-table Name,PSComputerName
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/LocalGroups.png)
 
 ### Register all existing VMs
 
-````PowerShell
+```PowerShell
 #Register all existing VMs
 $ClusterSet="MyClusterSet"
 Get-ClusterSetMember -CimSession $ClusterSet | Register-ClusterSetVM -RegisterAll
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/RegisterVMsResult.png)
 

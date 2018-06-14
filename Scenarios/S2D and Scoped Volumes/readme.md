@@ -15,7 +15,7 @@
 
 ## LabConfig
 
-````PowerShell
+```PowerShell
 #Labconfig is same as insider preview. Just with 6 nodes instead of 4
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
@@ -34,7 +34,7 @@ $LabConfig.ServerVHDs += @{
     Size=30GB
 }
  
-````
+```
 
 ## About the lab
 
@@ -46,7 +46,7 @@ Run all scripts from DC
 
 Run following script to configure necessary. Note: it's way simplified (no networking, no best practices, no CAU, no Hyper-V...).
 
-````PowerShell
+```PowerShell
 # LabConfig
     $Servers=1..6 | % {"S2D$_"}
     $ClusterName="S2D-Cluster"
@@ -87,16 +87,16 @@ Run following script to configure necessary. Note: it's way simplified (no netwo
     Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
  
 
-````
+```
 
 ## Fault domains
 
 Let's explore fault domains first.
 
-````PowerShell
+```PowerShell
 Get-StorageFaultDomain -CimSession S2D-Cluster
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/DefaultFaultDomains.png)
 
@@ -104,33 +104,33 @@ Get-StorageFaultDomain -CimSession S2D-Cluster
 
 So let's create deallocated volume. We can grab servers into variable and  then use just 3 fault domains like this
 
-````PowerShell
+```PowerShell
 $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster | Sort FriendlyName
 $Servers[0,1,2]
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/ThreeFaultDomains.png)
 
 If you would like to have random 3 fault domains, you can do it this way
 
-````PowerShell
+```PowerShell
 $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster| Sort FriendlyName
 $Servers | Get-Random -Count 3
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/RandomThreeFaultDomains.png)
 
 So let's create some volumes
 
-````PowerShell
+```PowerShell
 $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster| Sort FriendlyName
 1..10 | foreach-object {
     New-Volume -FriendlyName "MyVolume$_" -Size 100GB -StorageFaultDomainsToUse ($Servers | Get-Random -Count 3) -cimsession S2D-Cluster -StoragePoolFriendlyName S2D*
 }
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesCreated.png)
 
@@ -139,7 +139,7 @@ $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster
 
 And now let's take a look how is each volume occupied (credits for scripts goes to Cosmos, I just modifed it a bit)
 
-````PowerShell
+```PowerShell
 $S2DClusters=Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)"
 
 Function ConvertTo-PrettyCapacity {
@@ -282,7 +282,7 @@ If ($ActualWindowWidth -Lt $RequiredWindowWidth) {
     $Output | Format-Table
 }
  
-````
+```
 
 Result
 
@@ -292,11 +292,11 @@ Looks great, so how it will look like if random 3 nodes will go down? Let's see.
 
 ## Simulate 3 nodes failure
 
-````PowerShell
+```PowerShell
 #Run from Hyper-V host to turn off random 3 VMs
  get-vm -name *insider*S2D* | Get-Random -Count 3 | stop-vm
  
-````
+```
 
 Three nodes are down
 

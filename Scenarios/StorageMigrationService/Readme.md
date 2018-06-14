@@ -30,7 +30,7 @@ FYI this is a work in progress
 * Internet connection is required to Install Chrome on DC. So external switch is created. On Win10 there is a bug that internet get's slow on wireless network.
 
 ## To Create Windows Images
-````PowerShell
+```PowerShell
 #Run command to enable functions the file is located under \Tools\ where the prereq.ps1 downloaded files
 . .\Convert-WindowsImage.ps1
 
@@ -39,13 +39,13 @@ Convert-WindowsImage -SourcePath "2008R2 ISO Path" -Edition Enterprise -DiskLayo
 Convert-WindowsImage -SourcePath "2012 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
 Convert-WindowsImage -SourcePath "2012R2 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2012R2.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
 Convert-WindowsImage -SourcePath "2016 ISO Path" -Edition Datacenter -DiskLayout UEFI -VHDFormat VHDX -VHDPath C:\HyperV\MigrationLab\ParentDisks\Win2016.vhdx -SizeBytes 60GB -Passthru -RemoteDesktopEnable
-````
+```
 
 # LabConfig.ps1
 
 in following labconfig you can see, that 5 machines are created.
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no'; CreateClientParent=$false ; ClientEdition='Enterprise'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@() }  
 
 $LabConfig.VMs = @(
@@ -57,7 +57,7 @@ $LabConfig.VMs = @(
             #@{ VMName = 'SMS_2016'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016.vhdx'     ; MemoryStartupBytes= 1024MB }
         )
  
-````
+```
 **Deploy.ps1 result**
 
 ![](/Scenarios/StorageMigrationService/screenshots/lab.png)
@@ -68,9 +68,9 @@ The lab begins with setting up the servers you defined in the Labconfig.ps1 scri
 
 After the deploy script has run it's course run the following powershell command to start the vm's
 
-````PowerShell
+```PowerShell
 Get-VM | Where-Object {$_.State –EQ 'Off'} | Start-VM
-````
+```
 
 After this copy in the files Scenario.ps1, installchrome.ps1 and iisstart.htm to c:\scripts on ws2019Migration-DC
 Copy also in the latest Windows Admin Center file to c:\scripts on the domain controller

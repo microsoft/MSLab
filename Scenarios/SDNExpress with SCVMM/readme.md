@@ -25,7 +25,7 @@ Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) / [Twit
 
 # LabConfig
 
-````PowerShell
+```PowerShell
 # VMM SDN Express
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'VMMSDNExpress-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='Yes'; PullServerDC=$false; CreateClientParent=$false ; ClientEdition='Enterprise'; Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true;}
@@ -63,7 +63,7 @@ $LABConfig.ServerVHDs += @{
         VMProcessorCount = 6
     }
 }
-````
+```
 
 # The LAB
 

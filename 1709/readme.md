@@ -5,7 +5,6 @@ To create Windows Server 1709 lab, just replace LabConfig.ps1 with the 1709 labc
 
 Download Windows Server 1709 bits [from eval center](https://www.microsoft.com/en-us/evalcenter/) once its available there, or from your [Visual Studio subscription](https://my.visualstudio.com/Downloads?q=Windows%20Server,%20version%201709) 
 
-
 Download Windows 10 bits [from eval center](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-10-enterprise), or from your [Visual Studio subscription](https://my.visualstudio.com/Downloads?q=Windows%2010%20(multi-edition),%20Version%201709%20(Updated%20Sept%202017)) 
 
 Download latest Server Cumulative update (it's the same file as for 1709 Windows 10) [here](https://www.catalog.update.microsoft.com/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20(1709)%20for%20x64-based%20Systems)
