@@ -12,7 +12,7 @@ Get-DiskPerfReport -ComputerName "S2D1","S2D2" | Out-GridView -Title DiskPerfRep
 
 ![](/Scenarios/S2D%20Tools/Get-DiskPerfReport/Screenshots/output.png)
 
-````PowerShell
+```PowerShell
 <#
 .Synopsis
    Function to list 505 events with info.
@@ -80,4 +80,4 @@ function Get-DiskPerfReport
     return $allevents |select FriendlyName,SerialNumber,MediaType,BusType,OperationalStatus,PhysicalLocation,SlotNumber,TotalIOCount,@{Label="IOCount(0-2ms)";Expression={$($_.BucketIoCount1)}},@{Label="IOCount(2-64ms)";Expression={$($_.BucketIoCount2)}},@{Label="IOCount(64ms-2s)";Expression={$($_.BucketIoCount3)}},@{Label="IOCount(2-5s)";Expression={$($_.BucketIoCount4)}},@{Label="IOCount(5s+)";Expression={$($_.BucketIoCount5)}},TimeCreated,Max*,IoCount*
 }
  
-````
+```

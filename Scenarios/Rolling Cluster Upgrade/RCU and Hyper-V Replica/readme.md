@@ -27,7 +27,7 @@
 
 ## LabConfig
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'RCUHVRep-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@()}
 
 1..2 | ForEach-Object { $VMNames="S1_W2012_" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'   ; ParentVHD = 'win2012r2Core_G2.vhdx' ; SSDNumber = 1; SSDSize=1GB ; HDDNumber = 4  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; VMSet= 'RCU_Site1' ; Unattend="DjoinCred" } }
@@ -37,7 +37,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'R
 1..2 | ForEach-Object { $VMNames="S3_W2012_" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'   ; ParentVHD = 'win2012r2Core_G2.vhdx' ; SSDNumber = 1; SSDSize=1GB ; HDDNumber = 4  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; VMSet= 'RCU_Site3' ; Unattend="DjoinCred" } }
 1..2 | ForEach-Object { $VMNames="S3_W2016_" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'   ; ParentVHD = 'Win2016Core_G2.vhdx'   ; SSDNumber = 1; SSDSize=1GB ; HDDNumber = 4  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; VMSet= 'RCU_Site3' } }
  
-````
+```
 
 ## Scenario Highlights
 

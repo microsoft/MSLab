@@ -18,13 +18,13 @@
 
 ## LabConfig
 
-````PowerShell
+```PowerShell
 #Labconfig is same as default scenario. Just with 6 nodes instead of 4
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..6 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
  
-````
+```
 
 ## About the lab
 
@@ -38,7 +38,7 @@ Run all PowerShell code from DC
 
 Run following script to create cluster. Note: it's way simplified (no networking, no best practices, no CAU, no hyper-v...).
 
-````PowerShell
+```PowerShell
 # LabConfig
     $Servers=1..6 | % {"S2D$_"}
     $ClusterName="S2D-Cluster"
@@ -75,7 +75,7 @@ Run following script to create cluster. Note: it's way simplified (no networking
     #Set Quorum
         Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
  
-````
+```
 
 ## Configure Fault domains
 
@@ -83,7 +83,7 @@ There are 2 options. To use XML or PowerShell. Unfortunately PowerShell works on
 
 **XML**
 
-````PowerShell
+```PowerShell
 #Create Fault domains with XML.
 $xml =  @"
 <Topology>
@@ -106,11 +106,11 @@ $xml =  @"
 
 Set-ClusterFaultDomainXML -XML $xml -CimSession S2D-Cluster
  
-````
+```
 
 **PowerShell**
 
-````PowerShell
+```PowerShell
 $ClusterName="S2D-Cluster"
 
 #Create Fault domains with PowerShell (note: Enable-ClusterS2D will fail in Windows Server 2016. Fixed in Windows Server 2019)
@@ -127,16 +127,16 @@ New-ClusterFaultDomain -Name "SEA"       -FaultDomainType Site    -Location "Con
     #assign racks to site
     1..3 |ForEach-Object {Set-ClusterFaultDomain -Name "Rack0$_" -Parent "SEA"    -CimSession $ClusterName}
  
-````
+```
 
 To display FD you can run following PowerShell or you can display it in Cluadmin
 
-````PowerShell
+```PowerShell
 $ClusterName="S2D-Cluster"
 Get-ClusterFaultDomain -CimSession $ClusterName
 Get-ClusterFaultDomainxml -CimSession $ClusterName
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/FaultDomainsPowerShell.png)
 
@@ -144,10 +144,10 @@ Get-ClusterFaultDomainxml -CimSession $ClusterName
 
 Let's enable S2D now.
 
-````PowerShell
+```PowerShell
 Enable-ClusterS2D -CimSession S2D-Cluster -Verbose
  
-````
+```
 
 As you can see, Enable-ClusterS2D will find fault domains and will ask you, if you want to configure Rack FD.
 
@@ -159,10 +159,10 @@ As you can see, Enable-ClusterS2D will find fault domains and will ask you, if y
 
 Notice, that FaultDomainAwarenessDefault is "StorageRack"
 
-````PowerShell
+```PowerShell
 Get-StoragePool -CimSession s2d-cluster -FriendlyName S2D* | fl *
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StoragePool.png)
 
@@ -170,10 +170,10 @@ Get-StoragePool -CimSession s2d-cluster -FriendlyName S2D* | fl *
 
 Notice, that only one tier was created (same as it would be for 3 node configuration). And also FaultDomanAwareness is "StorageRack"
 
-````PowerShell
+```PowerShell
 Get-StorageTier -CimSession s2d-cluster
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StorageTier.png)
 
@@ -181,22 +181,22 @@ Get-StorageTier -CimSession s2d-cluster
 
 Let's create new volumes. First using predefined tier and then without tier
 
-````PowerShell
+```PowerShell
 #With Tier
 New-Volume -StoragePoolFriendlyName s2d* -FriendlyName WithTier  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 1TB -CimSession S2D-Cluster
 #Without Tier
 New-Volume -StoragePoolFriendlyName s2d* -FriendlyName WithoutTier -FileSystem CSVFS_ReFS -Size 1TB -ResiliencySettingName Mirror -CimSession S2D-Cluster
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VolumesCreated.png)
 
 Let's explore FaultDomain awareness on volumes
 
-````PowerShell
+```PowerShell
 Get-VirtualDisk -CimSession s2d-cluster | ft FriendlyName,FaultDomainAwareness
  
-````
+```
 
 As you can see, only "WithoutTier" volume has FaultDomainAwareness defined in Virtual Disk
 
@@ -204,10 +204,10 @@ As you can see, only "WithoutTier" volume has FaultDomainAwareness defined in Vi
 
 To view FaultDomainAwareness on tiered disk, you need to view tier
 
-````PowerShell
+```PowerShell
 Get-VirtualDisk -CimSession s2d-cluster| Get-StorageTier | ft FriendlyName,FaultDomainAwareness
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/Get-StorageTier2.png)
 
@@ -215,11 +215,11 @@ Get-VirtualDisk -CimSession s2d-cluster| Get-StorageTier | ft FriendlyName,Fault
 
 Let's take one rack offline by pausing S2D1 and S2D2 VMs and let's see what will happen
 
-````PowerShell
+```PowerShell
 #Run from Hyper-V Host to turn off nodes s2d1 and s2s2
 get-vm -Name "wslab-s2d1","wslab-s2d2" | Stop-VM -TurnOff
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/VMsTurnedOff.png)
 
@@ -231,21 +231,21 @@ As you can see, cluster survives and Virtual Disks (volumes) are online
 
 Let's introduce another failure by removing one capacity disk from S2D3 and one from S2D4
 
-````PowerShell
+```PowerShell
 #Run from Hyper-V Host to remove first capacity disk from nodes in rack 2
 get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerlocation -eq 1 | Remove-VMHardDiskDrive
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/NodesDownDiskRemovedVirtualDisksUp.png)
 
 OK, disks are still online... let's remove all disks from S2D3 and S2D4.
 
-````PowerShell
+```PowerShell
 #Run from Hyper-V Host to remove all capacity disk from nodes in rack 2
 get-vm -Name "wslab-s2d3","wslab-s2d4" | Get-VMHardDiskDrive | where controllerlocation -ne 0 | Remove-VMHardDiskDrive
  
-````
+```
 
 S2D survived!
 
@@ -255,11 +255,11 @@ Note: Pool might go offline if you introduced errors to fast.
 
 Last step would be to turn off S2D3. Just make sure all resources (pool and volumes) are located in Rack3 before introducing last failure
 
-````PowerShell
+```PowerShell
 #Run from Hyper-V Host to turn off s2d3
 Stop-VM -Name "WSLab-S2D3" -turnoff
  
-````
+```
 
 **Result**
 
@@ -279,7 +279,7 @@ And volume are still online! Impressive!
 
 Return all disks to S2D3 and S2D4
 
-````PowerShell
+```PowerShell
 #Run from the Hyper-V host to return all disks to S2D3 and S2D4
 $VMNames="WSLab-S2D3","WSLab-S2D4"
 foreach ($VMName in $VMNames){
@@ -287,21 +287,21 @@ foreach ($VMName in $VMNames){
     foreach ($VHD in $VHDs){Add-VMHardDiskDrive -VMName $VMName -Path $VHD}
 }
  
-````
+```
 
 Start S2D1,S2D2 and S2D3
 
-````PowerShell
+```PowerShell
 #Run from the Hyper-V host to start S2D1, S2D2 and S2D3
 start-vm -Name "WSLab-S2D1","WSLab-S2D2","WSLab-S2D3"
  
-````
+```
 
 You will see repair jobs in progress
 
-````PowerShell
+```PowerShell
 Get-StorageSubSystem -CimSession s2d-cluster -FriendlyName CL* | Get-StorageJob
  
-````
+```
 
 ![](/Scenarios/S2D%20and%20Fault%20Domains/Screenshots/StorageJobs.png)
