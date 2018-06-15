@@ -41,6 +41,7 @@ First we will download install files to downloads folder. You can run all code f
     Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.1.3.windows-x64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
     #NSSM - the Non-Sucking Service Manager
     Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
+ 
 ```
 
 Next step would be to copy zip files to Grafana server temp directory. I decided to copy whole zip as if you have a lot files, zips are more effective. Script will also extract zip files and copy to program files. NSSM x64 will be copied to system32 to be able to use it systemwide.
