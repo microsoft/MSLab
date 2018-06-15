@@ -70,6 +70,26 @@ Write-host "Script started at $StartDateTime"
     #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
         $MemoryDump="Active"
 
+    #real VMs? If true, script will create real VMs on mirror disks from vhd you will provide during the deployment. The most convenient is to provide NanoServer
+        $realVMs=$true
+        $NumberOfRealVMs=2 #number of VMs on each mirror disk
+
+    #ask for parent VHDx
+        if ($realVMs){
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select parent VHDx." # You can copy it from parentdisks on the Hyper-V hosts somewhere into the lab and then browse for it"
+            }
+            $openFile.Filter = "VHDx files (*.vhdx)|*.vhdx" 
+            If($openFile.ShowDialog() -eq "OK"){
+                Write-Host  "File $($openfile.FileName) selected" -ForegroundColor Cyan
+            } 
+            if (!$openFile.FileName){
+                Write-Host "No VHD was selected... Skipping VM Creation" -ForegroundColor Red
+            }
+            $VHDPath = $openFile.FileName
+        }
+
 #endregion
 
 #region install features for management (Client needs RSAT, Server/Server Core have different features)
@@ -568,7 +588,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region move NICs out of CPU 0 (not tested)
+#region move NICs out of CPU 0 and to correct NUMA
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
@@ -601,7 +621,7 @@ Write-host "Script started at $StartDateTime"
 
 #region activate High Performance Power plan
     if ($RealHW){
-        <#Cim method
+        <#Cim method for nano servers
         #show enabled power plan
             Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
         #Grab instances of power plans
@@ -620,19 +640,37 @@ Write-host "Script started at $StartDateTime"
 
 #region Create some dummy VMs (3 per each CSV disk)
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
-    $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-    foreach ($CSV in $CSVs){
+    if ($realVMs -and $VHDPath){
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | where name -NotLike *parity*).Name
+        foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
             $CSV=$CSV.TrimEnd(")")
-            1..3 | ForEach-Object {
+            1..$NumberOfRealVMs | ForEach-Object {
                 $VMName="TestVM$($CSV)_$_"
-                Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
-                    #create some fake VMs
-                    New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
-                }
+                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
+                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }
+        }
+        #Start all VMs
+        Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
+    }else{
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+        foreach ($CSV in $CSVs){
+                $CSV=$CSV.Substring(22)
+                $CSV=$CSV.TrimEnd(")")
+                1..3 | ForEach-Object {
+                    $VMName="TestVM$($CSV)_$_"
+                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                        #create some fake VMs
+                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
+                    }
+                    Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+                }
+        }
     }
+
 #endregion
 
 #finishing

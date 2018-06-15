@@ -1,12 +1,19 @@
 <!-- TOC -->
 
 - [S2D and Grafana WORK IN PROGRESS](#s2d-and-grafana-work-in-progress)
+    - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
-    - [The lab WORK IN PROGRESS](#the-lab-work-in-progress)
+    - [The lab](#the-lab)
 
 <!-- /TOC -->
 
 # S2D and Grafana WORK IN PROGRESS
+
+## About the lab
+
+In following lab you will install [Grafana](http://grafana.com), [influxDB and Telegraf](https://www.influxdata.com/time-series-platform/) on remote Windows Server. To be able to run it as service, [NSSM tool](https://nssm.cc/) is used.
+
+As prerequisite, deploy [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with $realVMs=$true parameter in scenario.ps1 and NestedVirt=$true in LabConfig. This will enable real nested VMs. You will be asked during scenario for vhdx. You can provide nanoserver as it's really small.
 
 ## LabConfig
 
@@ -14,11 +21,16 @@
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$true}}
-$LabConfig.VMs += @{ VMName = 'Grafana' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+$LabConfig.VMs += @{ VMName = 'Grafana' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes= 1GB }
+
+#Optional management machine
+#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ```
 
-## The lab WORK IN PROGRESS
+## The lab
+
+First we will download install files to downloads folder. You can run all code from DC or from Management machine. 
 
 ```PowerShell
 #download files to downloads folder
@@ -30,6 +42,8 @@ $LabConfig.VMs += @{ VMName = 'Grafana' ; Configuration = 'Simple' ; ParentVHD =
     #NSSM - the Non-Sucking Service Manager
     Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
 ```
+
+Next step would be to copy zip files to Grafana server temp directory. I decided to copy whole zip as if you have a lot files, zips are more effective. Script will also extract zip files and copy to program files. NSSM x64 will be copied to system32 to be able to use it systemwide.
 
 ```PowerShell
 #Copy influxDB and Grafana to Grafana server
@@ -61,7 +75,10 @@ invoke-command -Session $session -scriptblock {
  
 ```
 
+Following script will run Grafana and InfluxDB as a service
+
 ```PowerShell
+#Run Grafana and InfluxDB as system service
 Invoke-command -computername Grafana -scriptblock {
     #install as service
     Start-Process -FilePath nssm.exe -ArgumentList "install Grafana ""$env:ProgramFiles\Grafana\bin\grafana-server.exe""" -Wait
@@ -75,6 +92,7 @@ Invoke-command -computername Grafana -scriptblock {
 }
  
 ```
+Next PowerShell block will create firewall rules for Grafana and incoming data from telegraf agents.
 
 ```PowerShell
 #enable firewall rules
@@ -132,10 +150,15 @@ $sessions=New-PSSession -ComputerName $servers
 #expand telegraf
 Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
 
-#modify config
+<#
+#reuse default telegraf config and replace server name in config
 $config=get-content -path "$env:temp\telegraf\telegraf.conf"
 $config=$config.replace("127.0.0.1","grafana.corp.contoso.com")
 $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
+#>
+
+#download telegraf configuration from Github
+invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf -OutFile "$env:temp\telegraf\telegraf.conf"
 
 #copy telegraf
 foreach ($session in $sessions){
