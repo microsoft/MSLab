@@ -141,6 +141,8 @@ Next PowerShell block will create firewall rules for Grafana and incoming data f
  
 ```
 
+Following script will push telegraf agent to nodes s2d1,s2d2,s2d3 and s2d4. It will dowload sample telegraf config from GitHub. Feel free to pull it, and add more.
+
 ```PowerShell
 #install agents
 $servers=1..4 | % {"s2d$_"}
@@ -174,3 +176,15 @@ invoke-command -session $sessions -scriptblock {
 }
  
 ```
+
+Once all is set, you can navigate to http://grafana:3000 and login with admin/admin credentials
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaLogin.png)
+
+In Add data source, add Telegraf DB
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaDB.png)
+
+As you can see, all counters are now available for adding to graph.
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaGraph.png)
