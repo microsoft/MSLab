@@ -159,7 +159,8 @@ $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
 #>
 
 #download telegraf configuration from Github
-invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf -OutFile "$env:temp\telegraf\telegraf.conf"
+$config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
+$config.content | Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
 
 #copy telegraf
 foreach ($session in $sessions){
