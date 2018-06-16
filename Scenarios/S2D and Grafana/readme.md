@@ -36,7 +36,7 @@ First we will download install files to downloads folder. You can run all code f
 #download files to downloads folder
     #influxDB and telegraph
     Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.5.3_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.6.4_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.7.0_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
     #Grafana
     Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.1.3.windows-x64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
     #NSSM - the Non-Sucking Service Manager
