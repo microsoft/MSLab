@@ -534,8 +534,7 @@ Write-host "Script started at $StartDateTime"
         #create folders and share it
         foreach ($VolumeName in ($MAPVolumeNames+$MirrorVolumeNames)){
             New-Item -Path "\\$S2DClusterName\ClusterStorage$\$VolumeName" -Name Share -ItemType Directory
-            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$VolumeName\Share" -ScopeName $SOFSHAName -Name $VolumeName
-            Get-SmbShare -CimSession $S2DClusterName -Name $VolumeName -ScopeName $SOFSHAName | Grant-SmbShareAccess -AccessRight Full -AccountName $accounts -Confirm:0 
+            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$VolumeName\Share" -ScopeName $SOFSHAName -Name $VolumeName -FullAccess $accounts
             Invoke-Command -ComputerName $S2DClusterName -ArgumentList $SOFSHAName,$VolumeName -ScriptBlock {
                 param($SOFSHAName,$VolumeName);
                 Set-SmbPathAcl -ScopeName $SOFSHAName -ShareName $VolumeName
@@ -904,8 +903,7 @@ Write-host "Script started at $StartDateTime"
 
     #Create New FileShare
             New-Item -Path "\\$S2DClusterName\ClusterStorage$\$NewMirrorVolumeName" -Name Share -ItemType Directory
-            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$NewMirrorVolumeName\Share" -ScopeName $SOFSHAName -Name $NewMirrorVolumeName
-            Get-SmbShare -CimSession $S2DClusterName -Name $NewMirrorVolumeName -ScopeName $SOFSHAName | Grant-SmbShareAccess -AccessRight Full -AccountName $accounts -Confirm:0 
+            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$NewMirrorVolumeName\Share" -ScopeName $SOFSHAName -Name $NewMirrorVolumeName -FullAccess $accounts
             Invoke-Command -ComputerName $S2DClusterName -ArgumentList $SOFSHAName,$NewMirrorVolumeName -ScriptBlock {
                 param($SOFSHAName,$NewMirrorVolumeName);
                 Set-SmbPathAcl -ScopeName $SOFSHAName -ShareName $NewMirrorVolumeName
