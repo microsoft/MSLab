@@ -93,6 +93,7 @@ Invoke-command -computername Grafana -scriptblock {
 }
  
 ```
+
 Next PowerShell block will create firewall rules for Grafana and incoming data from telegraf agents.
 
 ```PowerShell

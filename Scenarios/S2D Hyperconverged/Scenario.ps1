@@ -333,7 +333,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Create HyperConverged cluster and configure basic settings
-    Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
+    Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
     if ($ClusterIP){
         New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
     }else{
