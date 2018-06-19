@@ -61,11 +61,34 @@ Write-host "Script started at $StartDateTime"
     #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
         $MeltdownMitigationEnable=$false
 
+    #Enable speculative store bypass mitigation? https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in , https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV180012
+        $SpeculativeStoreBypassMitigation=$false
+
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
 
     #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
         $MemoryDump="Active"
+
+    #real VMs? If true, script will create real VMs on mirror disks from vhd you will provide during the deployment. The most convenient is to provide NanoServer
+        $realVMs=$true
+        $NumberOfRealVMs=2 #number of VMs on each mirror disk
+
+    #ask for parent VHDx
+        if ($realVMs){
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select parent VHDx." # You can copy it from parentdisks on the Hyper-V hosts somewhere into the lab and then browse for it"
+            }
+            $openFile.Filter = "VHDx files (*.vhdx)|*.vhdx" 
+            If($openFile.ShowDialog() -eq "OK"){
+                Write-Host  "File $($openfile.FileName) selected" -ForegroundColor Cyan
+            } 
+            if (!$openFile.FileName){
+                Write-Host "No VHD was selected... Skipping VM Creation" -ForegroundColor Red
+            }
+            $VHDPath = $openFile.FileName
+        }
 
 #endregion
 
@@ -142,6 +165,14 @@ Write-host "Script started at $StartDateTime"
         if ($MeltdownMitigationEnable){
             Invoke-Command -ComputerName $servers -ScriptBlock {
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+            }
+        }
+
+    #enable Speculative Store Bypass mitigation
+        if ($SpeculativeStoreBypassMitigation){
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
             }
         }
@@ -302,7 +333,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Create HyperConverged cluster and configure basic settings
-    Test-Cluster -Node $servers -Include "Storage Spaces Direct",Inventory,Network,"System Configuration"
+    Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
     if ($ClusterIP){
         New-Cluster -Name $ClusterName -Node $servers -StaticAddress $ClusterIP
     }else{
@@ -557,7 +588,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region move NICs out of CPU 0 (not tested)
+#region move NICs out of CPU 0 and to correct NUMA
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
@@ -590,7 +621,7 @@ Write-host "Script started at $StartDateTime"
 
 #region activate High Performance Power plan
     if ($RealHW){
-        <#Cim method
+        <#Cim method for nano servers
         #show enabled power plan
             Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
         #Grab instances of power plans
@@ -609,19 +640,37 @@ Write-host "Script started at $StartDateTime"
 
 #region Create some dummy VMs (3 per each CSV disk)
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
-    $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-    foreach ($CSV in $CSVs){
+    if ($realVMs -and $VHDPath){
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | where name -NotLike *parity*).Name
+        foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
             $CSV=$CSV.TrimEnd(")")
-            1..3 | ForEach-Object {
+            1..$NumberOfRealVMs | ForEach-Object {
                 $VMName="TestVM$($CSV)_$_"
-                Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
-                    #create some fake VMs
-                    New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
-                }
+                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
+                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
                 Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
             }
+        }
+        #Start all VMs
+        Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
+    }else{
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+        foreach ($CSV in $CSVs){
+                $CSV=$CSV.Substring(22)
+                $CSV=$CSV.TrimEnd(")")
+                1..3 | ForEach-Object {
+                    $VMName="TestVM$($CSV)_$_"
+                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                        #create some fake VMs
+                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
+                    }
+                    Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+                }
+        }
     }
+
 #endregion
 
 #finishing

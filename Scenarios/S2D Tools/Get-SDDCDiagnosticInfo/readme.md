@@ -31,7 +31,7 @@ Let's try it out. I'll intentionally write script to download and import module 
 
 As you can see, there are multiple ways to install SDDCDiagnosticInfo. Let's use modified docs script. If your lab is not connected to internet (Internet=$true), then download ZIP on your host and ctrl+c/ctrl+v it into your management machine.
 
-````PowerShell
+```PowerShell
 #Download ZIP from GitHub to d:\SDDCDiag.zip
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $module = 'PrivateCloud.DiagnosticInfo'
@@ -40,7 +40,7 @@ Invoke-WebRequest -Uri https://github.com/PowerShell/$module/archive/master.zip 
 #Expand ZIP
 Expand-Archive -Path d:\SDDCDiag.zip -DestinationPath d:\ -Force
  
-````
+```
 
 As you can see, you can find PowerShell module in D drive now.
 
@@ -48,19 +48,19 @@ As you can see, you can find PowerShell module in D drive now.
 
 The only thing we need is having PrivateCloud.DiagnosticInfo folder in our PowerShell modules folder inside program files and import. So let's copy it and import.
 
-````PowerShell
+```PowerShell
 #Copy Module
 Copy-Item -Path D:\PrivateCloud.DiagnosticInfo-master\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules"
 #Import Module
 Import-Module PrivateCloud.DiagnosticInfo -Force
  
-````
+```
 
 ### From Gallery (Offline environment)
 
 It is little bit more straightforward with PowerShell Gallery (signed copy will be in Gallery soon, therefore lowering execution policy is necessary)
 
-````PowerShell
+```PowerShell
 #download SDDC module to c:\Temp\PrivateCloud.DiagnosticInfo
 Save-Module -Name PrivateCloud.DiagnosticInfo -Path "C:\Temp"
 
@@ -68,26 +68,26 @@ Save-Module -Name PrivateCloud.DiagnosticInfo -Path "C:\Temp"
 Copy-Item -Path c:\Temp\PrivateCloud.DiagnosticInfo -Recurse -Destination "C:\Program Files\WindowsPowerShell\Modules" -Force
 Import-Module PrivateCloud.DiagnosticInfo -Force
  
-````
+```
 
 ### From Gallery (Online environment)
 
 And this is simplest
 
-````PowerShell
+```PowerShell
 Install-Module PrivateCloud.DiagnosticInfo
  
-````
+```
 
 ![](/Scenarios/S2D%20Tools/Get-SDDCDiagnosticInfo/Screenshots/ImportModuleGallery.png)
 
 ## Collect data from cluster
 
-````PowerShell
+```PowerShell
 New-Item -Name SDDCDiagTemp -Path d:\ -ItemType Directory -Force
 Get-SddcDiagnosticInfo -ClusterName S2D-Cluster -WriteToPath d:\SDDCDiagTemp
  
-````
+```
 
 As you can see, script will also do validation of current cluster state
 
@@ -103,7 +103,7 @@ After script will finish, it will create ZIP in your users directory
 
 Let's generate a report into a text file
 
-````PowerShell
+```PowerShell
 #find the latest diagnostic zip in UserProfile
     $DiagZip=(get-childitem $env:USERPROFILE | where Name -like HealthTest*.zip)
     $LatestDiagPath=($DiagZip | sort lastwritetime | select -First 1).FullName
@@ -114,7 +114,7 @@ Let's generate a report into a text file
     $report=Show-SddcDiagnosticReport -Path D:\SDDCDiagTemp
     $report | out-file d:\SDDCReport.txt
     
-````
+```
 
 That's it!
 

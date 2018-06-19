@@ -33,7 +33,7 @@ To create VM with PowerShell, run following command.
 
 **Note:** PowerShell DSC in this case does not run, therefore you need to install Hyper-V and download scripts manually.
 
-````PowerShell
+```PowerShell
 #download Azure module if not installed
 if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
@@ -60,7 +60,7 @@ New-AzureRmVm `
 #connect to VM using RDP
 mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 
-````
+```
 # Creating VM with JSON in UI
 
 Or you can just click button and deploy it into your portal
@@ -84,7 +84,7 @@ Or you can just click button and deploy it into your portal
 Or you can create your VM using PowerShell
 
 ## Windows Server 2016
-````PowerShell
+```PowerShell
 #download Azure module if not installed
 if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
@@ -101,10 +101,10 @@ Login-AzureRmAccount
 #connect to VM using RDP
     mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
  
-````
+```
 
 ## Windows 10 1709
-````PowerShell
+```PowerShell
 #download Azure module if not installed
 if (!(get-module -Name AzureRM* -ListAvailable)){
     Install-Module -Name AzureRM
@@ -120,7 +120,7 @@ Login-AzureRmAccount
 #connect to VM using RDP
     mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabwin10RG).IpAddress)
  
-````
+```
 
 ![](/Scenarios/Running%20WSLab%20in%20Azure/Screenshots/TemplatePowerShellDeployment.png)
 
@@ -129,20 +129,20 @@ Login-AzureRmAccount
 To cleanup your resources, you can run following command.
 
 ## Windows Server 2016
-````PowerShell
+```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzureRmVM -verbose #-Force
 Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -verbose #-Force 
 Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmResourceGroup -Verbose #-Force
  
-````
+```
 
 ## Windows 10 1709
-````PowerShell
+```PowerShell
 Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzureRmVM -verbose #-Force
 Get-AzureRmResource | where name -like WSLabwin10* | Remove-AzureRmResource -verbose #-Force 
 Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabwin10RG | Remove-AzureRmResourceGroup -Verbose #-Force
  
-````
+```
 # Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
 

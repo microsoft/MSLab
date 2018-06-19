@@ -6,16 +6,16 @@ This lab is just a quick way how to deploy secguide policies on Win10. It will j
 
 ## LabConfig
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; DCVMProcessorCount=4 ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$true; CreateClientParent=$true}
 
 $LabConfig.VMs += @{ VMName = 'Win10' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 
-````
+```
 
 ## The lab
 
-````PowerShell
+```PowerShell
 #easiest is to run the script in DC. You can download GPOs on another machine and just file copy into dc c:\temp\
 
 #download GPOs and unzip
@@ -31,7 +31,7 @@ foreach ($name in $names) {
     Import-GPO -BackupGpoName $name -TargetName $name -path "c:\Temp\Windows-10-RS4-Security-Baseline-FINAL\GPOs"
 }
  
-````
+```
 
 Result:
 

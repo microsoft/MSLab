@@ -1,4 +1,4 @@
-````PowerShell
+```PowerShell
 #Grab cluster name
 $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -OutputMode Single -Title "Please select your S2D Cluster").Name
 
@@ -68,4 +68,4 @@ DEVPKEY_Device_MatchingDeviceId
 DEVPKEY_Device_DriverProvider
 DEVPKEY_Device_DriverRank
 #>
-````
+```

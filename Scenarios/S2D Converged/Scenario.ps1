@@ -97,6 +97,9 @@ Write-host "Script started at $StartDateTime"
     #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
         $MeltdownMitigationEnable=$false
 
+    #Enable speculative store bypass mitigation? https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in , https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV180012
+        $SpeculativeStoreBypassMitigation=$false
+
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
 
@@ -182,6 +185,14 @@ Write-host "Script started at $StartDateTime"
         if ($MeltdownMitigationEnable){
             Invoke-Command -ComputerName $AllServers -ScriptBlock {
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+            }
+        }
+
+    #enable Speculative Store Bypass mitigation
+        if ($SpeculativeStoreBypassMitigation){
+            Invoke-Command -ComputerName $AllServers -ScriptBlock {
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
             }
         }
@@ -523,8 +534,7 @@ Write-host "Script started at $StartDateTime"
         #create folders and share it
         foreach ($VolumeName in ($MAPVolumeNames+$MirrorVolumeNames)){
             New-Item -Path "\\$S2DClusterName\ClusterStorage$\$VolumeName" -Name Share -ItemType Directory
-            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$VolumeName\Share" -ScopeName $SOFSHAName -Name $VolumeName
-            Get-SmbShare -CimSession $S2DClusterName -Name $VolumeName -ScopeName $SOFSHAName | Grant-SmbShareAccess -AccessRight Full -AccountName $accounts -Confirm:0 
+            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$VolumeName\Share" -ScopeName $SOFSHAName -Name $VolumeName -FullAccess $accounts
             Invoke-Command -ComputerName $S2DClusterName -ArgumentList $SOFSHAName,$VolumeName -ScriptBlock {
                 param($SOFSHAName,$VolumeName);
                 Set-SmbPathAcl -ScopeName $SOFSHAName -ShareName $VolumeName
@@ -542,15 +552,20 @@ Write-host "Script started at $StartDateTime"
         Get-SmbDelegation -SmbServer $SOFSHAName
 #endregion
 
-#region move NICs out of CPU 0 (not tested)
+#region move NICs out of CPU 0 and to correct NUMA
     if ($RealHW){
-        $Switches=Get-VMSwitch -CimSession $AllServers -SwitchType External
+        $Switches=Get-VMSwitch -CimSession $Allservers -SwitchType External
 
         foreach ($switch in $switches){
             $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
             if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
                 $HT=$True
             }
+            #Calculate max processors
+            $number=[math]::log($processor.NumberOfCores-1) / [math]::log( 2 )
+            $number=[math]::Truncate($number)
+            $Maxprocessors=[math]::pow( 2, $number )
+
             $adapters=@()
             $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
 
@@ -560,8 +575,8 @@ Write-host "Script started at $StartDateTime"
                 }else{
                     $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
                 }
-                $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName  
-                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber -MaxProcessors ($processor.NumberOfCores-1)
+                $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
+                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber -MaxProcessors $Maxprocessors
                 $adapter | Set-NetAdapterRss -Profile Closest
             }
         }
@@ -630,6 +645,14 @@ Write-host "Script started at $StartDateTime"
     if ($MeltdownMitigationEnable){
         Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+        }
+    }
+
+#enable Speculative Store Bypass mitigation
+    if ($SpeculativeStoreBypassMitigation){
+        Invoke-Command -ComputerName $S2DNodesToScale -ScriptBlock {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
         }
     }
@@ -736,6 +759,14 @@ Write-host "Script started at $StartDateTime"
     if ($MeltdownMitigationEnable){
         Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 0
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+        }
+    }
+
+    #enable Speculative Store Bypass mitigation
+    if ($SpeculativeStoreBypassMitigation){
+        Invoke-Command -ComputerName $ComputeNodesToScale -ScriptBlock {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
         }
     }
@@ -872,8 +903,7 @@ Write-host "Script started at $StartDateTime"
 
     #Create New FileShare
             New-Item -Path "\\$S2DClusterName\ClusterStorage$\$NewMirrorVolumeName" -Name Share -ItemType Directory
-            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$NewMirrorVolumeName\Share" -ScopeName $SOFSHAName -Name $NewMirrorVolumeName
-            Get-SmbShare -CimSession $S2DClusterName -Name $NewMirrorVolumeName -ScopeName $SOFSHAName | Grant-SmbShareAccess -AccessRight Full -AccountName $accounts -Confirm:0 
+            New-SmbShare -CimSession $S2DClusterName -Path "C:\ClusterStorage\$NewMirrorVolumeName\Share" -ScopeName $SOFSHAName -Name $NewMirrorVolumeName -FullAccess $accounts
             Invoke-Command -ComputerName $S2DClusterName -ArgumentList $SOFSHAName,$NewMirrorVolumeName -ScriptBlock {
                 param($SOFSHAName,$NewMirrorVolumeName);
                 Set-SmbPathAcl -ScopeName $SOFSHAName -ShareName $NewMirrorVolumeName

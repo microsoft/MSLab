@@ -30,7 +30,7 @@
 
 in following labconfig you can see, that 4 machines are created. There is also additional network (ReplicaNet1), that will be used as network for Storage Replica.
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$false ; CreateClientParent=$true}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.2.'; NetVLAN='0'; Subnet='255.255.255.0'}
@@ -38,7 +38,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } } 
 1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } } 
  
-````
+```
 **Deploy.ps1 result**
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/lab.png)
@@ -71,7 +71,7 @@ To flip data1 to Site1, following script will shut down VMs on volume data1 and 
 
 **Warning:** If you use SCVMM, remove-vm deletes also VHD! Therefore make sure you are using Hyper-V module.
 
-````PowerShell
+```PowerShell
 #Initial test
     if ((Get-Command Remove-VM).commandtype -eq "Alias"){
         Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
@@ -122,11 +122,11 @@ To flip data1 to Site1, following script will shut down VMs on volume data1 and 
     $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $NewSourceClusterName}
     $VMs | Start-VM
  
-````
+```
 
 To flip it back, we will use the very same script as above, but with different variables.
 
-````PowerShell
+```PowerShell
 #Initial test
     if ((Get-Command Remove-VM).commandtype -eq "Alias"){
         Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
@@ -177,17 +177,17 @@ To flip it back, we will use the very same script as above, but with different v
     $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $NewSourceClusterName}
     $VMs | Start-VM
  
-````
+```
 
 # Unplanned failover
 
 Simulate the failure of Site1 by pausing VMs on Host
 
-````PowerShell
+```PowerShell
 #run from Hyper-V host to pause VMs in site1
 Suspend-VM -Name *site1*
  
-````
+```
 **Result**
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/pausedVMs.png)
@@ -196,7 +196,7 @@ Now we will let Site2 know, that it is source, and we will import and start all 
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/flipWarning.png)
 
-````PowerShell
+```PowerShell
 #Initial test
     if ((Get-Command Remove-VM).commandtype -eq "Alias"){
         Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
@@ -227,7 +227,7 @@ Now we will let Site2 know, that it is source, and we will import and start all 
     $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $NewSourceClusterName}
     $VMs | Start-VM
  
-````
+```
 
 As you can see, you run all VMs in Site2 now.
 
@@ -235,20 +235,20 @@ As you can see, you run all VMs in Site2 now.
 
 Now we will turn first datacenter on again. If you do this action in real world, make sure noone will access VMs. If the reason of outage was power failure, you may configure VMs not to autostart.
 
-````PowerShell
+```PowerShell
 #Disable VMs Autostart example
 $ClusterName="MyCluster"
 Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | Set-VM -AutomaticStartAction Nothing
  
-````
+```
 
 To resume first datacenter run following command on host machine
 
-````PowerShell
+```PowerShell
 #run from Hyper-V host
 Resume-VM -VMName *site1*
  
-````
+```
 
 Notice, that now you have Active-Active datacenters. Again, make sure if your primary datacenter comes up, it is isolated, so all users will be accessing Site2.
 
@@ -256,7 +256,7 @@ Notice, that now you have Active-Active datacenters. Again, make sure if your pr
 
 The next step would be to cleanup machines on first site. This is necesarry, because without this step, you would have "zombie" VMs after making this cluster destination. The VMs objects may/may not disappear, while VMs still present in registry. What you could see after import is duplicate VM object. Note: keeping Config is not necesarry as these changes will be rewritten when replication will be enforced.
 
-````PowerShell
+```PowerShell
 #Initial test
     if ((Get-Command Remove-VM).commandtype -eq "Alias"){
         Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
@@ -294,7 +294,7 @@ The next step would be to cleanup machines on first site. This is necesarry, bec
 #Flip replication
     Set-SRPartnership -NewSourceComputerName $NewSourceClusterName -SourceRGName $SourceRGName -DestinationComputerName $NewDestinationClusterName -DestinationRGName $DestinationRGName -confirm:$false
  
-````
+```
 
 You can notice now, that Site1 is now destination for all volumes
 
@@ -302,7 +302,7 @@ You can notice now, that Site1 is now destination for all volumes
 
 To flip replication, you can use script for planned failover (following example is the same as script from planned failover)
 
-````PowerShell
+```PowerShell
 #Initial test
     if ((Get-Command Remove-VM).commandtype -eq "Alias"){
         Write-Host "You are using virtual machine manager module. Please dont use it! (different remove-vm behavior...)" -ForegroundColor Yellow
@@ -353,7 +353,7 @@ To flip replication, you can use script for planned failover (following example 
     $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $NewSourceClusterName}
     $VMs | Start-VM
  
-````
+```
 
 Result: All good again
 
