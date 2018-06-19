@@ -18,7 +18,7 @@ The complete documentation and operation guide is available here: https://techne
 
 **Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
 
-````PowerShell
+```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
@@ -29,20 +29,20 @@ $LABConfig.ServerVHDs += @{
     Size=40GB
 }
  
-````
+```
 
 ## LabConfig Windows Server 2016
 
 **Note:** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD without creating all parent disks
 
-````PowerShell
+```PowerShell
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
  
-````
+```
 
 ## The lab
 
@@ -57,29 +57,29 @@ As you can notice, in this scenario is lab connected to internet. It's not manda
 Start VMs and then log into Management VM. (default credentials are LabAdmin/LS1setup! as always). 
 **Note:** To kick in enhanced session mode login, logoff and login again.
 
-````PowerShell
+```PowerShell
 #Run from Host
 "*Management","*server*" | Foreach-Object {Start-VM -VMName $_}
  
-````
+```
 
 ## Setup LAPS from Windows 10 management Machine.
 
 **Note:** All actions are performed from Management VM (Windows 10)
 
 First check if RSAT is installed (it's necessary to work with Active Directory). If you did not provide RSAT msu during lab hydration, download it from http://aka.ms/RSAT and install manually.
-````PowerShell
+```PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
 }else{
     Write-Host "RSAT is not installed. Please download and install latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
 }
  
-````
+```
 ![](/Scenarios/LAPS/Screenshots/RSATCheckResult.png)
 
 Next step is to download LAPS install files. Following script will download it into c:\temp. If you did not connect Lab to internet, download it manually from here https://www.microsoft.com/en-us/download/details.aspx?id=46899 and copy to c:\temp.
-````PowerShell
+```PowerShell
 #Download files
     #create temp directory
     New-Item -Path c:\ -Name temp -ItemType Directory -Force
@@ -91,10 +91,10 @@ Next step is to download LAPS install files. Following script will download it i
         Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/$_" -OutFile "c:\temp\$_"
     }
  
-````
+```
 
 Setup LAPS
-````PowerShell
+```PowerShell
 #install PowerShell management tools, Management UI and copy ADMX template to policy store on management machine
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\LAPS.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
 
@@ -127,12 +127,12 @@ Update-AdmPwdADSchema
     Set-AdmPwdReadPasswordPermission -Identity $OUPath -AllowedPrincipals LAPS_Readers
     Set-AdmPwdResetPasswordPermission -Identity $OUPath -AllowedPrincipals LAPS_Resetters
  
-````
+```
 ![](/Scenarios/LAPS/Screenshots/LAPS_Install_Result.png)
 
 Now it is needed to install GPO extension into managed machines. There are several ways - like distribute it using GPO. In this case, we will push it using PowerShell.
 
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 $Sessions=New-PSSession -ComputerName $servers
 
@@ -145,7 +145,7 @@ Invoke-Command -Session $sessions -ScriptBlock {
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\LAPS.x64.msi /q"
 }
  
-````
+```
 ![](/Scenarios/LAPS/Screenshots/GPOExtensionInstallResult.png)
 
 The last step would be to configure password policy using GPO that was created and push the settings into managed servers (or wait for GPO refresh).
@@ -155,35 +155,35 @@ The last step would be to configure password policy using GPO that was created a
 
 
 Once GPO is in place, extension is installed, you can refresh GPO on servers 
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 Invoke-Command -ComputerName $servers -ScriptBlock {
     gpupdate /force
 }
  
-````
+```
 
 To check LAPS logs on configured servers (should be empty if no errors as HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GPExtensions\{D76B9641-3288-4f75-942D-087DE603E3EA}\ExtensionDebugLevel is 0 by default)
-````PowerShell
+```PowerShell
 $Servers="Server1","Server2","Server3"
 Invoke-Command -ComputerName $Servers -ScriptBlock { Get-WinEvent -LogName Application } | Where-Object ProviderName -eq AdmPwd | Sort-Object PSComputerName | Format-Table -AutoSize
  
-````
+```
 
 To be able to query local passwords, you need to be in group password readers. To add LabAdmin into the correct group, run following PowerShell code.
 **Note:** you need to logoff and login to get new security token.
-````PowerShell
+```PowerShell
 Add-ADGroupMember -Identity LAPS_Readers   -Members LabAdmin
 Add-ADGroupMember -Identity LAPS_Resetters -Members LabAdmin
  
-````
+```
 
 Run AdmPwd.E UI to query password or run following PowerShell command
-````PowerShell
+```PowerShell
 $servers="Server1","Server2","server3"
 foreach ($server in $servers) {Get-AdmPwdPassword -ComputerName $server}
  
-````
+```
 ![](/Scenarios/LAPS/Screenshots/PasswordQueryPowerShell.png)
 
 Or you can use LAPS UI Tool

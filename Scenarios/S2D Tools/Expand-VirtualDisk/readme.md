@@ -2,7 +2,7 @@ Expanding virtual disk as described in this guide https://docs.microsoft.com/en-
 
 The only difference is, that it connects to disk owner (I personally preffer it, altrough it's not really needed). This example is only for disks created with default tiers. It also resizes all volumes on all clusters selected.
 
-````PowerShell
+```PowerShell
 #Ask for cluster(s)
 $S2DClusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)").Name
 
@@ -54,4 +54,4 @@ foreach ($vdisk in $vdisks){
     }
 }
  
-````
+```
