@@ -71,7 +71,7 @@ Write-host "Script started at $StartDateTime"
         $MemoryDump="Active"
 
     #real VMs? If true, script will create real VMs on mirror disks from vhd you will provide during the deployment. The most convenient is to provide NanoServer
-        $realVMs=$true
+        $realVMs=$false
         $NumberOfRealVMs=2 #number of VMs on each mirror disk
 
     #ask for parent VHDx
