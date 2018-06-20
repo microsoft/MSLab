@@ -4,9 +4,11 @@
     - [Description](#description)
     - [Scenario requirements](#scenario-requirements)
 - [LabConfig.ps1](#labconfigps1)
+- [LabConfig.ps1 for Insider Preview](#labconfigps1-for-insider-preview)
 - [The lab](#the-lab)
 - [Planned failover](#planned-failover)
 - [Unplanned failover](#unplanned-failover)
+    - [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
 
 <!-- /TOC -->
 
@@ -35,10 +37,42 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.2.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
-1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } } 
-1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } } 
+1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016Core_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } }
+1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016Core_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } }
+
+#or with NanoServer
+<#
+1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } }
+1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } }
+#>
  
 ```
+
+# LabConfig.ps1 for Insider Preview
+
+```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17692-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
+
+#$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
+
+1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_17692.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
+3..4 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_17692.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
+
+$LabConfig.ServerVHDs += @{
+    Edition="4"
+    VHDName="Win2019_17692.vhdx"
+    Size=60GB
+}
+$LabConfig.ServerVHDs += @{
+    Edition="3"
+    VHDName="Win2019Core_17692.vhdx"
+    Size=30GB
+}
+ 
+```
+
 **Deploy.ps1 result**
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/lab.png)
@@ -358,3 +392,23 @@ To flip replication, you can use script for planned failover (following example 
 Result: All good again
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/result-allgoodagain.png)
+
+## Test failover in Windows Server 2019 (insider preview)
+
+```PowerShell
+#Create Virtual disk TestFailoverSite2
+New-Volume -StoragePoolFriendlyName S2D* -FriendlyName TestFailoverSite1 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession Site1-SR-Clus
+
+#Display SR Groups
+Get-SRGroup -CimSession Site1-SR-Clus | select Name -ExpandProperty Replicas | ft Name, DataVolume,ReplicationMode,ReplicationStatus,IsMounted
+
+#Move TestFailoverSite1 and Data2 CSV to Site1-S2D1
+Get-ClusterSharedVolume -Cluster site1-sr-clus -Name *Data1* | Move-ClusterSharedVolume -Node Site1-S2D1
+Get-ClusterSharedVolume -Cluster site1-sr-clus -Name *TestFailoverSite1* | Move-ClusterSharedVolume -Node Site1-S2D1
+
+#Mount
+Mount-SRDestination -ComputerName Site1-S2D1 -Name Data2_Site1 -TemporaryPath c:\ClusterStorage\TestFailoverSite1 -Confirm:0
+
+#Dismount
+Dismount-SRDestination -ComputerName Site1-S2D1 -Name Data2_Site1 -Confirm:0
+```
