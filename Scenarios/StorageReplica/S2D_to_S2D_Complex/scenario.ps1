@@ -9,14 +9,14 @@ Write-host "Script started at $StartDateTime"
     $Clusters=@()
     $Clusters+=[pscustomobject]@{
         Name= "Site1-SR-Clus"
-        IP = ""
+        IP = "10.0.0.121"
         Servers = 'Site1-S2D1','Site1-S2D2'
         CAURoleName = "Site1SRClusCAU"
     }
 
     $Clusters+=[pscustomobject]@{
         Name= "Site2-SR-Clus"
-        IP = ""
+        IP = "10.0.0.122"
         Servers = 'Site2-S2D1','Site2-S2D2'
         CAURoleName = "Site2SRClusCAU"
     }
@@ -75,7 +75,7 @@ Write-host "Script started at $StartDateTime"
         $iWARP=$False
 
     #Nano server?
-        $NanoServer=$True
+        $NanoServer=$false
 
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
@@ -430,8 +430,8 @@ if (!$NanoServer){
     }
 
     #enable CredSSP to be able to work with NanoServer
-        Enable-WSManCredSSP -role server -Force
-        Enable-WSManCredSSP Client -DelegateComputer $Cluster1FirstNode -Force
+    Invoke-Command -computername $Cluster1FirstNode -ScriptBlock {Enable-WSManCredSSP -role server -Force}
+    Enable-WSManCredSSP Client -DelegateComputer $Cluster1FirstNode -Force
 
     #Create custom credentials
     $username = "corp\Administrator"
@@ -450,6 +450,10 @@ if (!$NanoServer){
     #generate replica report (nano does not have charts API)
     Test-SRTopology -GenerateReport -DataPath \\dc\c$\replicaresults\
 
+    #disable credssp
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -computername $Cluster1FirstNode -ScriptBlock {Disable-WSManCredSSP -role server}
+
     #Add data disks to CSV
         foreach ($ClusterName in $clusters.Name){
             Add-ClusterSharedVolume -Name "Cluster Virtual Disk (Data1)" -Cluster $ClusterName
@@ -460,7 +464,7 @@ if (!$NanoServer){
             Get-ClusterSharedVolume -Cluster $ClusterName | ForEach-Object {
                 $volumepath=$_.sharedvolumeinfo.friendlyvolumename
                 $newname=$_.name.Substring(22,$_.name.Length-23)
-                Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+                Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {Rename-Item -Path $using:volumepath -NewName $using:newname} -ErrorAction SilentlyContinue
             } 
         }
 
