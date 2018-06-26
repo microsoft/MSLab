@@ -8,7 +8,7 @@
 - [The lab](#the-lab)
 - [Planned failover](#planned-failover)
 - [Unplanned failover](#unplanned-failover)
-    - [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
+- [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
 
 <!-- /TOC -->
 
@@ -393,7 +393,7 @@ Result: All good again
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/result-allgoodagain.png)
 
-## Test failover in Windows Server 2019 (insider preview)
+# Test failover in Windows Server 2019 (insider preview)
 
 ```PowerShell
 #Create Virtual disk TestFailoverSite2
