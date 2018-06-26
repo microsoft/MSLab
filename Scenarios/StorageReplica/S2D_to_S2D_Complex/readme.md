@@ -396,7 +396,7 @@ Result: All good again
 # Test failover in Windows Server 2019 (insider preview)
 
 ```PowerShell
-#Create Virtual disk TestFailoverSite2
+#Create Virtual disk TestFailoverSite1
 New-Volume -StoragePoolFriendlyName S2D* -FriendlyName TestFailoverSite1 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession Site1-SR-Clus
 
 #Display SR Groups
@@ -407,8 +407,42 @@ Get-ClusterSharedVolume -Cluster site1-sr-clus -Name *Data1* | Move-ClusterShare
 Get-ClusterSharedVolume -Cluster site1-sr-clus -Name *TestFailoverSite1* | Move-ClusterSharedVolume -Node Site1-S2D1
 
 #Mount
-Mount-SRDestination -ComputerName Site1-S2D1 -Name Data2_Site1 -TemporaryPath c:\ClusterStorage\TestFailoverSite1 -Confirm:0
+Mount-SRDestination -ComputerName Site1-S2D1 -Name Data2-Site1 -TemporaryPath c:\ClusterStorage\TestFailoverSite1 -Confirm:0
 
-#Dismount
-Dismount-SRDestination -ComputerName Site1-S2D1 -Name Data2_Site1 -Confirm:0
+#Display SR Groups
+Get-SRGroup -CimSession Site1-SR-Clus | select Name -ExpandProperty Replicas | ft Name, DataVolume,ReplicationMode,ReplicationStatus,IsMounted
+
+#import VMs
+Invoke-Command -ComputerName Site1-S2D1 -ScriptBlock{
+    get-childitem c:\ClusterStorage\Data2\ -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
+        Import-VM -Path $_.FullName
+    }
+}
+
+#Add VMs as Highly available
+$VMs=Get-VM -CimSession (Get-ClusterNode -Cluster Site1-SR-Clus).Name | where path -like "c:\ClusterStorage\Data2\*"
+$VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster Site1-SR-Clus}
+
+#disconnect from network and start
+$VMs=Get-VM -CimSession (Get-ClusterNode -Cluster Site1-SR-Clus).Name | where path -like "c:\ClusterStorage\Data2\*"
+$VMs | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
+$VMs | Start-VM
+
+##cleanup
+
+#Shut down VMs on Data1 volume
+$VMs=Get-VM -Cimsession (Get-ClusterNode -Cluster Site1-SR-Clus).Name | where path -like "c:\ClusterStorage\Data2\*"
+$VMs | Stop-VM
+
+#Remove VMs from cluster resources
+Foreach ($VM in $VMs){
+    Remove-ClusterGroup -Cluster Site1-SR-Clus -Name $VM.name -RemoveResources -Force
+}
+
+#remove VMs (no need to backup config)
+$VMs | Remove-VM -Force
+
+#Dismount volume
+Dismount-SRDestination -ComputerName Site1-S2D1 -Name Data2-Site1 -Confirm:0
+
 ```
