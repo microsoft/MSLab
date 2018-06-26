@@ -3,8 +3,8 @@
 - [About the scenario](#about-the-scenario)
     - [Description](#description)
     - [Scenario requirements](#scenario-requirements)
-- [LabConfig.ps1](#labconfigps1)
-- [LabConfig.ps1 for Insider Preview](#labconfigps1-for-insider-preview)
+- [LabConfig.ps1 for Windows Server 2016](#labconfigps1-for-windows-server-2016)
+- [Labconfig.ps1 for Windows Server Insider](#labconfigps1-for-windows-server-insider)
 - [The lab](#the-lab)
 - [Planned failover](#planned-failover)
 - [Unplanned failover](#unplanned-failover)
@@ -28,7 +28,7 @@
 * SSD (with HDD it is really slow, barely usable)
 
 
-# LabConfig.ps1
+# LabConfig.ps1 for Windows Server 2016
 
 in following labconfig you can see, that 4 machines are created. There is also additional network (ReplicaNet1), that will be used as network for Storage Replica.
 
@@ -48,7 +48,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
  
 ```
 
-# LabConfig.ps1 for Insider Preview
+# Labconfig.ps1 for Windows Server Insider
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17692-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
@@ -57,8 +57,8 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
 
 #$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
 
-1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_17692.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
-3..4 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_17692.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
+1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2019Core_17692.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } }
+1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2019Core_17692.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } }
 
 $LabConfig.ServerVHDs += @{
     Edition="4"
