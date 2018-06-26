@@ -28,7 +28,7 @@ This scenario will set up stretch cluster, while some VMs are running in site1 a
 
 Additionally, you can test failover in Windows Server Insider
 
-## LabConfig for Windows Server 2016
+## LabConfig.ps1 for Windows Server 2016
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SR-'; SwitchName = 'LabSwitch'; DCEdition='4';AdditionalNetworksConfig=@();VMs=@()}
@@ -42,7 +42,7 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
  
 ```
 
-## Labconfig for Windows Server Insider
+## Labconfig.ps1 for Windows Server Insider
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17692-'; SwitchName = 'LabSwitch'; DCEdition='4'; CreateClientParent=$false ; ClientEdition='Enterprise'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
