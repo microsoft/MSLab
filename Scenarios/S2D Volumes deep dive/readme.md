@@ -154,6 +154,7 @@ To be able to see all attributes, you can run following command
 
 ```PowerShell
 Get-VirtualDisk -CimSession 2nodeCluster -FriendlyName MyVolume | fl *
+ 
 ```
 
 ![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk1.png)
@@ -280,8 +281,12 @@ New-Volume -StoragePoolFriendlyName s2d* -FriendlyName 4wayMirror -FileSystem CS
 
 To display volumes you can use get-virtualdisk or get-storagetier (bit confusing, isn't it? :) )
 
+```PowerShell
+get-virtualdisk -CimSession 2nodecluster,4nodecluster
+get-storagetier -CimSession 2nodecluster,4nodecluster
+ 
+```
 ![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk4.png)
-
 
 ![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetStorageTier.png)
 
