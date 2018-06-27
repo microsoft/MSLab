@@ -91,11 +91,11 @@ Each option uses SMB networks. RDMA (SMB Direct) is preferred as it has almost n
 
 In S2D clusters we can see different traffic flowing:
 
-** Live Migration **
+**Live Migration**
 
 Live Migration is by default using proprietary TCP/IP connection (LM with Compression). Since RDMA is available, it's better to configure it to use SMB instead of default
 
-** Cluster communication **
+**Cluster communication**
 
 There are 3 different cluster communication traffic.
 
@@ -107,11 +107,11 @@ Third is heartbeat. It's using virtual adapter that maps to any available adapte
 
 CSV redirection and SBL layer is SMB, that's why RDMA is preferred choice.
 
-** Backup **
+**Backup**
 
 This traffic is not covered in these examples
 
-** Management **
+**Management**
 
 Management adapter is the one that is used for communication with node. Agents also use this network, that's why this network should be highly available and not multi-homed.
 
