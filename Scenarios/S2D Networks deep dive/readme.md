@@ -284,10 +284,10 @@ Invoke-Command -ComputerName $servers -scriptblock {
         Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
     }
 }
-#Configure vNICs
+#Rename management vNIC
 Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $servers
  
-``` 
+```
 
 ## Conservative networking
 
