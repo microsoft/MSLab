@@ -12,6 +12,8 @@
         - [Management](#management)
     - [Converged Networks](#converged-networks)
     - [Traditional networking](#traditional-networking)
+    - [Conservative networking](#conservative-networking)
+    - [Wrap Up](#wrap-up)
 
 <!-- /TOC -->
 
@@ -26,6 +28,8 @@ $LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 
 $LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
 $LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
 $LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
 
 #optional Win10 management machine
 #$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
@@ -41,6 +45,8 @@ $LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 
 $LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
 $LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
 $LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
 
 #optional Win10 management machine
 #$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
@@ -62,9 +68,11 @@ $LabConfig.ServerVHDs += @{
 
 This lab is deep dive into different network configurations. There are several options I saw in the field. I would categorize it into 2 main options:
 
-* Converged - 2 pNICs in SET Switch, 2 vNICs for SMB (RDMA enabled), 1vNIC for management.
+* **Converged** - 2 pNICs in SET Switch, 2 vNICs for SMB (RDMA enabled), 1vNIC for management.
 
-* Traditional - 2 pNICs for SMB, 2 pNICs in SET switch, 1vNIC for managemement.
+* **Traditional** - 2 pNICs for SMB, 2 pNICs in SET switch, 1vNIC for managemement.
+
+* **Conservative** - 2pNICs in Team for management, 2pNICs for SMB, 2pNICs in SET switch
 
 For each option are 2 servers hydrated, so multi-server management can be demonstrated.
 
@@ -91,17 +99,15 @@ $servers="2NICs1","2NICs2","4NICs1","4NICs2","6NICs1","6NICs2"
 
 ## Little bit theory
 
-Each option uses SMB networks. RDMA (SMB Direct) is preferred as it has almost no CPU overhead.
-
-In S2D clusters we can see different traffic flowing:
+Each option uses SMB networks. RDMA (SMB Direct) is preferred as it has almost no CPU overhead. In S2D clusters we can see different traffic types flowing:
 
 ### Live Migration
 
-Live Migration is by default using proprietary TCP/IP connection (LM with Compression). Since RDMA is available, it's better to configure it to use SMB instead of default
+Live Migration is by default using proprietary TCP/IP connection (LM with Compression). Since RDMA is available, it's better to configure it to use SMB instead of default.
 
 ### Cluster communication
 
-There are 3 different cluster communication traffic.
+There are 3 different cluster communication traffic types.
 
 * Traffic coming from CSV redirection. ReFS is always File System redirected (see [this](https://github.com/Microsoft/WSLab/tree/master/Scenarios/TestingCSVRedirection) scenario)
 
@@ -278,3 +284,85 @@ Invoke-Command -ComputerName $servers -scriptblock {
 Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $servers
  
 ``` 
+
+## Conservative networking
+
+I did not see this configuration in the field much, but let's cover it too, to demonstrate LBFO teaming and creating SETSwitch without vNICs in ManagementOS.
+
+So the first step would be to create LBFO team out of first 2 network adapters. In this example it's easy as DHCP is enabled in the management network. In real world environments LBFO teaming is bit more complicated as it does not inherit network configuration from teamed adapter. I also see, that customers sometimes prefer LACP.
+
+```PowerShell
+$servers="6NICs1","6NICs2"
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    $AdaptersToTeam=Get-Netadapter | sort name  | select -First 2
+    New-NetLbfoTeam -TeamMembers ($AdaptersToTeam).Name -Name Management -TeamNicName Management -TeamingMode SwitchIndependent -LoadBalancingAlgorithm Dynamic -Confirm:0
+}
+ 
+```
+
+To validate networking run following script
+
+```PowerShell
+$servers="6NICs1","6NICs2"
+Get-NetLbfoTeam -CimSession $servers
+Get-NetAdapter -CimSession $servers
+ 
+```
+
+Next step is to configure SMB NICs
+
+```PowerShell
+$servers="6NICs1","6NICs2"
+foreach ($server in $servers){
+    $number=1
+    $SMBNics=get-netadapter -CimSession $server | where name -like "Ethernet*" | sort name  | select -Last 2
+    foreach ($SMBNIC in $SMBNics) {
+        $SMBNic | Rename-NetAdapter -NewName "SMB_$number"
+        $number++
+    }
+}
+
+$StorNet="172.16.1."
+$IP=9
+$servers | foreach-object {
+    #configure IP Addresses
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_1" -CimSession $_ -PrefixLength 24
+    $IP++
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_2" -CimSession $_ -PrefixLength 24
+    $IP++
+}
+
+$StorVLAN=1
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_1 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_2 -CimSession $servers -confirm:0
+
+#Restart each host vNIC adapter so that the Vlan is active.
+Restart-NetAdapter "SMB_1" -CimSession $servers
+Restart-NetAdapter "SMB_2" -CimSession $servers
+ 
+```
+
+And finally the last step is to create SET Switch. Notice -AllowManagementOS $False to skip MGMT NIC creation and choosing only adapters with IP 10.* and Name Ethernet* to avoid adding Team interface (Management)
+
+```PowerShell
+$servers="6NICs1","6NICs2"
+#create SET Switch
+Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -AllowManagementOS $false -NetAdapterName (Get-NetIPAddress -IPAddress 10.* -InterfaceAlias Ethernet*).InterfaceAlias}
+#configure hyperVport
+Invoke-Command -ComputerName $servers -scriptblock {
+    if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+        Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+    }
+}
+ 
+```
+
+Note: as IP of server is changed, you may see reconnection during script execution. It's sometimes necessary to flushDNS as you can see on screenshot below.
+
+![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/flushdns.png)
+
+## Wrap Up
+
+As you can see, we demonstrated different ways to achieve the same. Different customers, different approaches. There is no single answer to the problem, you always need to consider all options and based on pros and cons choose the one that suits you and your environment.
+
+![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/NICsServerManager.png)
