@@ -167,7 +167,7 @@ Notice few attributes, that defines resiliency:
 The complete command in 2016 would be following
 
 ```PowerShell
-New-Volume -StoragePoolFriendlyName S2D* -FriendlyName MyVolume -FileSystem CSVFS_ReFS -Size 10TB -ResiliencySettingName Mirror -CimSession 2nodeCluster
+New-Volume -StoragePoolFriendlyName S2D* -FriendlyName MyVolume -FileSystem CSVFS_ReFS -Size 1TB -ResiliencySettingName Mirror -CimSession 2nodeCluster
  
 ```
 
@@ -178,7 +178,7 @@ Invoke-Command -ComputerName 4nodeCluster -scriptblock {New-Volume -FriendlyName
  
 ```
 
-I can now tell you, that what we did is wrong. Let me explain why. In 4NodeCluster we have 3 tiers (OK, 2 as cache is not possible to simulate). We have both SSDs and HDDs available. Let's explore, where are slabs located.
+I can now tell you, that what we did is wrong. Let me explain why. In 4NodeCluster we have 2 capacity tiers. We have both SSDs and HDDs available. Let's explore, where are slabs located.
 
 ```PowerShell
 Get-VirtualDisk -CimSession 4nodeCluster -FriendlyName MyVolume | get-physicaldisk -CimSession 4nodeCluster
@@ -247,9 +247,8 @@ New-Volume -StoragePoolFriendlyName s2d* -FriendlyName MyVolume1 -FileSystem CSV
 #or alternatively
 #New-Volume -StoragePoolFriendlyName s2d* -FriendlyName MyVolume1 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames MirrorOnSSD -StorageTierSizes 1TB -CimSession 4nodecluster
 
-#4node system, volume on HDD
-New-Volume -StoragePoolFriendlyName s2d* -FriendlyName MyVolume2 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Performance -StorageTierSizes 1TB -CimSession 4nodecluster
-#New-Volume -StoragePoolFriendlyName s2d* -FriendlyName MyVolume1 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames MirrorOnHDD -StorageTierSizes 1TB -CimSession 4nodecluster
+#4node system, volume on HDD (capacity tier is Parity, MirrorOnHDD is used)
+New-Volume -StoragePoolFriendlyName s2d* -FriendlyName MyVolume1 -FileSystem CSVFS_ReFS -StorageTierFriendlyNames MirrorOnHDD -StorageTierSizes 1TB -CimSession 4nodecluster
  
 ```
 
