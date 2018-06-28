@@ -138,6 +138,8 @@ Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch
  
 ```
 
+![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/IOVEnabledNotWorking.png)
+
 The next step would be to configure load balancing algorithm. By default in Windows Server 2016 is Dynamic, while in Server 2019 is HyperVPort. The recommendation for S2D environment would be HyperVPort. Following script will configure HyperVPort on Windows Server 2016 only.
 
 ```PowerShell
@@ -158,6 +160,7 @@ $servers="2NICs1","2NICs2"
 Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $servers
 Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $servers
 Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -CimSession $servers
+ 
 ```
 
 Let's configure static IP addresses now
@@ -191,20 +194,20 @@ Restart-NetAdapter "vEthernet (SMB_2)" -CimSession $servers
  
 ```
 
-Enable RDMA on SMB vNICs and associate vNICS to pNICs
+Enable RDMA on SMB vNICs and map vNICS to pNICs
 
 ```PowerShell
 $servers="2NICs1","2NICs2"
 #enable RDMA
 Enable-NetAdapterRDMA "vEthernet (SMB_1)","vEthernet (SMB_2)" -CimSession $servers
 
-#Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+#map each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
 Invoke-Command -ComputerName $servers -ScriptBlock {
     $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
 }
-
+ 
 ```
 
 To verify networking run following scripts
@@ -219,6 +222,7 @@ $servers="2NICs1","2NICs2"
     Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
 #verify ip config 
     Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+ 
 ```
 
 ## Traditional networking
