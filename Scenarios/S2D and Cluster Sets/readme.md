@@ -261,7 +261,7 @@ Now we will move all VM's to cluster set namespace. Since Storage Live Migration
 <# does not work
 #perform storage migration to \\MC-SOFS
 foreach ($VM in $VMs){
-    $NewPath=($vm.path).Replace("c:\ClusterStorage\",$ClusterSetSOFS)
+    $NewPath=($vm.path).Replace("c:\ClusterStorage",$ClusterSetSOFS)
     $VM | Move-VMStorage -DestinationStoragePath $NewPath
 }
 #>
