@@ -999,17 +999,15 @@ If (!( $isAdmin )) {
     #connect to internet
     if ($labconfig.internet){
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
-            if ($DefaultSwitch) {
-                $internetSwitch = $DefaultSwitch
-            }else{
-                $internetSwitch = $ExternalSwitch
-            }
-
             WriteInfo "`t `t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
-            
-            WriteInfo "`t`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
-            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $internetSwitch
+            if ($DefaultSwitch){
+                WriteInfo "`t`t Connecting Network Adapter Internet to $($DefaultSwitch.Name)"
+                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $DefaultSwitch
+            }else{
+                WriteInfo "`t`t Connecting Network Adapter Internet to $($ExternalSwitch.Name)"
+                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+            }
         }
     }
 
@@ -1076,11 +1074,21 @@ If (!( $isAdmin )) {
                     }until ($test -ne $Null)
                     WriteSuccess "`t `t Active Directory on $($DC.name) is up."
                 }
+
                 WriteInfoHighlighted "`t Requesting DNS settings from Host"
-                $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).name | select -First 1 #in case multiple adapters are in managementos
                 $DNSServers=@()
-                $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+
+                if($internetSwitch.Name -eq "Default Switch"){
+                    $DNSServers+=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "vEthernet ($($internetSwitch.Name))").IPAddress.ToString()
+                }
+                else{
+                    $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | select -First 1 #in case multiple adapters are in managementos
+                    
+                    $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+                }
+
                 $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
+         
                 WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
                     param($DNSServers);
