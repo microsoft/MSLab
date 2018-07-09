@@ -737,11 +737,13 @@ If (!( $isAdmin )) {
             }else{
                 WriteErrorAndExit "`t Windows build older than 14393 detected. vTPM will not work Exiting"
             }
+            <# Not needed anymore as VBS is automatically enabled since 14393 when vTPM is used
             if (((Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).VirtualizationBasedSecurityStatus -ne 0) -and ((Get-Process "secure system") -ne $null )){
                 WriteSuccess "`t Virtualization Based Security is running. vTPM can be enabled"
             }else{
                 WriteErrorAndExit "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration"
             }
+            #>
             #load Guardian
             $guardian=Get-HgsGuardian | Select-Object -first 1
             if($guardian -eq $null){
@@ -807,6 +809,13 @@ If (!( $isAdmin )) {
                 WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
             }
         }
+
+    #enable EnableEnhancedSessionMode if not enabled
+    if (-not (Get-VMHost).EnableEnhancedSessionMode){
+        WriteInfoHighlighted "Enhanced session mode was disabled. Enabling."
+        Set-VMHost -EnableEnhancedSessionMode $true
+    }
+
     #Create Switches
 
         WriteInfoHighlighted "Creating Switch"
