@@ -48,14 +48,11 @@ Note: Deduplication really helps. If you want to see it in Windows 10, please vo
 Note: You can run following code to download Windows Admin Center from management machine if you provided Internet=$true in LabConfig. If not, copy it over to Management machine manually (ctrl+c, ctrl+v with Enhanced Session Mode) and run Install scripts.
 
 ```PowerShell
-#Create Temp directory
-    New-Item -Path c:\ -Name temp -ItemType Directory -Force
-
-#Download Windows Admin Center
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "c:\temp\WindowsAdminCenter.msi"
+#Download Windows Admin Center to downloads
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 
 #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
-    Start-Process msiexec.exe -Wait -ArgumentList "/i c:\temp\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
 
 #Open Windows Admin Center
     Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
