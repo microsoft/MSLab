@@ -2,7 +2,7 @@
 <!-- TOC -->
 
 - [S2D and Cluster Sets !!! WORK IN PROGRESS !!!](#s2d-and-cluster-sets--work-in-progress-)
-    - [Sample labconfig for 17692 insider](#sample-labconfig-for-17692-insider)
+    - [Sample labconfig for 17709 insider](#sample-labconfig-for-17709-insider)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
     - [Little bit theory](#little-bit-theory)
@@ -17,26 +17,26 @@
 
 # S2D and Cluster Sets !!! WORK IN PROGRESS !!!
 
-## Sample labconfig for 17692 insider
+## Sample labconfig for 17709 insider
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17692-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17709-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 #Management cluster
-1..3 | ForEach-Object {$VMNames="Mgmt"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17692.vhdx'; MemoryStartupBytes= 512MB  }}
+1..3 | ForEach-Object {$VMNames="Mgmt"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17709.vhdx'; MemoryStartupBytes= 512MB  }}
 #HyperConverged Clusters (member clusters)
-1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17692.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
-1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17692.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
-1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17692.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="1-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17709.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="2-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17709.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
+1..2 | ForEach-Object {$VMNames="3-S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17709.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$True}}
 
 $LabConfig.ServerVHDs += @{
     Edition="4"
-    VHDName="Win2019_17692.vhdx"
+    VHDName="Win2019_17709.vhdx"
     Size=60GB
 }
 $LabConfig.ServerVHDs += @{
     Edition="3"
-    VHDName="Win2019Core_17692.vhdx"
+    VHDName="Win2019Core_17709.vhdx"
     Size=30GB
 }
  
