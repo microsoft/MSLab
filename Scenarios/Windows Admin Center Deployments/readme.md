@@ -112,25 +112,29 @@ Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$en
 Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Certificate.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
  
 ```
+
 ### Run Windows Admin Center
+
 Based on which mode you've installed proceed with respective section.
 
-> **Note:** Only Edge and Chrome browsers are officialy supported to work with Windows Admin Center.
+> **Note:** Only Edge and Chrome browsers are officially supported to work with Windows Admin Center.
 
 #### If Desktop mode
+
 When installed on Windows 10 to start Windows Admin Center we need to manually execute the application. The application will then start as background process with its icon in system tray. When executed it should automatically open the default web browser and navigate to WAC homepage https://management.corp.contoso.com.
 
 ```PowerShell
 # Open Windows Admin Center
 Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
-
+ 
 ```
+
 #### If Gateway mode
 After the installation on `WacGateway` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Management` virtual machine, navigate to http://wacgateway.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
 ## High Availability installation
 In order to install Windows Admin Center in high availability mode Failover Cluster is required. In this Lab we show how to install Failover cluster in two ways:
-  1. SAN based cluster that simulates traditional architecture with shared SAN storage between each cluster node. 
+  1. SAN based cluster that simulates traditional architecture with shared SAN storage between each cluster node.
   2. Storage Spaces Direct cluster that simulates hyper-converged architecture and can be also deployed in Azure.
 
 Log in to the `DC` virtual machine and run following PowerShell commands from there.
@@ -213,6 +217,7 @@ Get-WacPfxCertificate -ClientAccessPoint "wac-san" -CertificateOutputPath "$env:
 Get-WacPfxCertificate -ClientAccessPoint "wac-s2d" -CertificateOutputPath "$env:USERPROFILE\Downloads\WacHaCertS2D.pfx" -CertificatePassword $certificatePassword
  
 ```
+
 > **Note:** As `Get-Certificate` commandlet currently does not support generating certificate with exportable private key so `certreq` utility is used instead to generate the certificate.
 
 #### Failover clustering management
@@ -343,6 +348,7 @@ Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
 After the failover cluster is ready we can proceed with the installation of the Windows Admin Center.
 
 Run these PowerShell commands from the `DC` virtual machine as previously.
+
 ```PowerShell
 # Download Windows Admin Center to downloads
 $msiFile = "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
@@ -357,9 +363,11 @@ $zipFile = "$env:USERPROFILE\Downloads\WindowsAdminCenterHA-SetupScripts.zip"
 Expand-Archive -LiteralPath $zipfile -DestinationPath "$env:USERPROFILE\Downloads"
  
 ```
-Now when we have downloaded everything on the `DC` node we can copy everything needed to one of the cluster nodes, in our case we will use first node of the cluster. For copying the installation files we will use this function on corresponing failover cluster. 
 
-Let's start by definding the function:
+Now when we have downloaded everything on the `DC` node we can copy everything needed to one of the cluster nodes, in our case we will use first node of the cluster. For copying the installation files we will use this function on corresponding failover cluster.
+
+Let's start by defining the function:
+
 ```PowerShell
 # Prepare cluster node for the Windows Admin Center installation
 function Copy-WacInstallData {
@@ -381,6 +389,7 @@ function Copy-WacInstallData {
 }
  
 ```
+
 And now execute that function for selected cluster(s).
 
 ```PowerShell
@@ -398,6 +407,7 @@ Copy-WacInstallData -ClusterNode $nodesS2D[0] -CertificatePath "$env:USERPROFILE
 And now we need to log in to that node of the cluster directly and there in PowerShell window start the installation process.
 
 For **SAN cluster** connect to `WacSan-Node01` virtual machine and run this:
+
 ```PowerShell
 $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
 C:\data\Install-WindowsAdminCenterHA.ps1 -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint "wac-san" -MsiPath "C:\Data\WindowsAdminCenter.msi" -CertPath "C:\Data\WacHaCertSan.pfx" -CertPassword $certPassword
@@ -405,6 +415,7 @@ C:\data\Install-WindowsAdminCenterHA.ps1 -ClusterStorage "C:\ClusterStorage\Volu
 ```
 
 For **S2D cluster** connect to `WacS2D-Node01` virtual machine and run this:
+
 ```PowerShell
 $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
 C:\data\Install-WindowsAdminCenterHA.ps1 -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint "wac-s2d" -MsiPath "C:\Data\WindowsAdminCenter.msi" -CertPath "C:\Data\WacHaCertS2D.pfx" -CertPassword $certPassword
