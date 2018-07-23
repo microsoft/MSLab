@@ -11,14 +11,14 @@ Write-host "Script started at $StartDateTime"
         $numberofnodes=4
 
     #servernames
-        $ServersPrefix="1709Node"
+        $ServersPrefix="HVNode"
     
     #generate names
         $servers=@()
         1..$numberofnodes | ForEach-Object {$servers+="$ServersPrefix$_"}
 
     #ClusterName
-        $ClusterName="1709-Cluster"
+        $ClusterName="HV-Cluster"
     
     #Cluster IP Address
         $ClusterIP="10.0.0.111"
