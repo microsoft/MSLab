@@ -695,9 +695,6 @@ If (!( $isAdmin )) {
     #Grab TimeZone
     $TimeZone=(Get-TimeZone).id
 
-    #Grab Installation type
-    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-
     #Grab number of processors
     (get-wmiobject win32_processor).NumberOfLogicalProcessors  | ForEach-Object { $global:NumberOfLogicalProcessors += $_}
 
@@ -799,15 +796,6 @@ If (!( $isAdmin )) {
             WriteSuccess "`t Hyper-V is Installed"
         }else{
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
-        }
-
-    #check if running on Core Server and check proper values in LabConfig
-        If ($WindowsInstallationType -eq "Server Core"){
-            If (!$LabConfig.CreateClientParent -and !$LabConfig.ServerISOFolder){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
-            }elseif($LabConfig.CreateClientParent -and (!$LabConfig.ServerISOFolder -or !$LabConfig.ClientISOFolder)){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
-            }
         }
 
     #enable EnableEnhancedSessionMode if not enabled
