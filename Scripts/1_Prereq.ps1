@@ -442,21 +442,21 @@ Exit
     
         #Generate vhdx name
         if ($Edition -like "*Server*Core*"){
-            switch ($BuildNumber){
+            $tempvhdname = switch ($BuildNumber){
                 7600 {
-                    $tempvhdname="Win2008R2Core_G1.vhdx"
+                    "Win2008R2Core_G1.vhdx"
                 }
                 7601 {
-                    $tempvhdname="Win2008R2SP1Core_G1.vhdx"
+                    "Win2008R2SP1Core_G1.vhdx"
                 }
                 9200 {
-                    $tempvhdname="Win2012Core_G2.vhdx"
+                    "Win2012Core_G2.vhdx"
                 }
                 9600 {
-                    $tempvhdname="Win2012R2Core_G2.vhdx"
+                    "Win2012R2Core_G2.vhdx"
                 }
                 14393 {
-                    $tempvhdname="Win2016Core_G2.vhdx"
+                    "Win2016Core_G2.vhdx"
                 }
     
             }
@@ -464,66 +464,66 @@ Exit
                 $tempvhdname="Win2019Core_$BuildNumber.vhdx"
             }
         }elseif($Edition -like "*Server*"){
-            switch ($BuildNumber){
+            $tempvhdname = switch ($BuildNumber){
                 7600 {
-                    $tempvhdname="Win2008R2_G1.vhdx"
+                    "Win2008R2_G1.vhdx"
                 }
                 7601 {
-                    $tempvhdname="Win2008R2SP1_G1.vhdx"
+                    "Win2008R2SP1_G1.vhdx"
                 }
                 9200 {
-                    $tempvhdname="Win2012_G2.vhdx"
+                    "Win2012_G2.vhdx"
                 }
                 9600 {
-                    $tempvhdname="Win2012R2_G2.vhdx"
+                    "Win2012R2_G2.vhdx"
                 }
                 14393 {
-                    $tempvhdname="Win2016_G2.vhdx"
+                    "Win2016_G2.vhdx"
                 }
                 16299 {
-                    $tempvhdname="WinServer1709_G2.vhdx"
+                    "WinServer1709_G2.vhdx"
                 }
                 17134 {
-                    $tempvhdname="WinServer1803_G2.vhdx"
+                    "WinServer1803_G2.vhdx"
                 }
             }
             if ($BuildNumber -GT 17134){
                 $tempvhdname="Win2019_$BuildNumber.vhdx"
             }
         }else{
-            switch ($BuildNumber){
+            $tempvhdname = switch ($BuildNumber){
                 7600 {
-                    $tempvhdname="Win7_G1.vhdx"
+                    "Win7_G1.vhdx"
                 }
                 7601 {
-                    $tempvhdname="Win7SP1_G1.vhdx"
+                    "Win7SP1_G1.vhdx"
                 }
                 9200 {
-                    $tempvhdname="Win8_G2.vhdx"
+                    "Win8_G2.vhdx"
                 }
                 9600 {
-                    $tempvhdname="Win8.1_G2.vhdx"
+                    "Win8.1_G2.vhdx"
                 }
                 10240 {
-                    $tempvhdname="Win10TH1_G2.vhdx"
+                    "Win10TH1_G2.vhdx"
                 }
                 10586 {
-                    $tempvhdname="Win10TH2_G2.vhdx"
+                    "Win10TH2_G2.vhdx"
                 }
                 14393 {
-                    $tempvhdname="Win10RS1_G2.vhdx"
+                    "Win10RS1_G2.vhdx"
                 }
                 14393 {
-                    $tempvhdname="Win10RS1_G2.vhdx"
+                    "Win10RS1_G2.vhdx"
                 }
                 15064 {
-                    $tempvhdname="Win10RS2_G2.vhdx"
+                    "Win10RS2_G2.vhdx"
                 }
                 16299 {
-                    $tempvhdname="Win10RS3_G2.vhdx"
+                    "Win10RS3_G2.vhdx"
                 }
                 17134 {
-                    $tempvhdname="Win10RS4_G2.vhdx"
+                    "Win10RS4_G2.vhdx"
                 }
             }
             if ($BuildNumber -GT 17134){
