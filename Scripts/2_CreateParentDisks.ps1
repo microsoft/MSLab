@@ -173,6 +173,10 @@ If (!( $isAdmin )) {
     
     #Grab TimeZone
     $TimeZone=(Get-TimeZone).id
+
+    #Grab Installation type
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+
 #endregion
 
 #region Check prerequisites
@@ -312,6 +316,15 @@ If (!( $isAdmin )) {
                 $DCFilesExists=$true
                 WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
             }
+
+    #check if running on Core Server and check proper values in LabConfig
+        If ($WindowsInstallationType -eq "Server Core"){
+            If (!$LabConfig.CreateClientParent -and $ServerMediaNeeded -and !$LabConfig.ServerISOFolder){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
+            }elseif(($LabConfig.CreateClientParent -and $ClientMediaNeeded -and !$LabConfig.ClientISOFolder) -or ($ServerMediaNeeded -and !$LabConfig.ServerISOFolder)){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
+            }
+        }
 
 #endregion
 
