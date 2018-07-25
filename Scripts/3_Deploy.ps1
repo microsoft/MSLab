@@ -820,6 +820,11 @@ If (!( $isAdmin )) {
     #connect lab to internet if specified in labconfig
         if ($Labconfig.Internet){
             WriteInfoHighlighted "Internet connectivity requested"
+
+            if (!$LabConfig.CustomDnsForwarders){
+                $LabConfig.CustomDnsForwarders=@("8.8.8.8","1.1.1.1") # Google DNS, Cloudfare
+            }
+
             WriteInfo "`t Detecting default vSwitch"
             $DefaultSwitch=Get-VMSwitch -Name "Default Switch" -ErrorAction Ignore
             if (-not $DefaultSwitch){
@@ -998,13 +1003,14 @@ If (!( $isAdmin )) {
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
             WriteInfo "`t `t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
+
             if ($DefaultSwitch){
-                WriteInfo "`t`t Connecting Network Adapter Internet to $($DefaultSwitch.Name)"
-                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $DefaultSwitch
+                $internetSwitch = $DefaultSwitch
             }else{
-                WriteInfo "`t`t Connecting Network Adapter Internet to $($ExternalSwitch.Name)"
-                $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+                $internetSwitch = $ExternalSwitch
             }
+            WriteInfo "`t`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
+            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $internetSwitch
         }
     }
 
@@ -1072,23 +1078,25 @@ If (!( $isAdmin )) {
                     WriteSuccess "`t `t Active Directory on $($DC.name) is up."
                 }
 
-                WriteInfoHighlighted "`t Requesting DNS settings from Host"
                 $DNSServers=@()
 
-                if($internetSwitch.Name -eq "Default Switch"){
-                    $DNSServers+=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "vEthernet ($($internetSwitch.Name))").IPAddress.ToString()
-                }
-                else{
-                    $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | select -First 1 #in case multiple adapters are in managementos
+                if(!$LabConfig.SkipHostDnsAsForwarder){
+                    WriteInfoHighlighted "`t Requesting DNS settings from Host"
+                    if($internetSwitch.Name -eq "Default Switch"){
+                        # Host's IP of Default Switch acts also as DNS resolver
+                        $DNSServers+=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "vEthernet ($($internetSwitch.Name))").IPAddress.ToString()
+                    }
+                    else{
+                        $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | select -First 1 #in case multiple adapters are in managementos
                     
-                    $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+                        $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+                    }
                 }
 
-                $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
-         
+                $DNSServers+=$LabConfig.CustomDnsForwarders
+
                 WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
-                Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
-                    param($DNSServers);
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
                     Set-Service -Name RemoteAccess -StartupType Automatic
                     Start-Service -Name RemoteAccess
                     netsh.exe routing ip nat install
@@ -1098,13 +1106,10 @@ If (!( $isAdmin )) {
                     netsh.exe routing ip dnsproxy install
                     Write-Host "Restarting service RemoteAccess..."
                     Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
-                    foreach ($DNSServer in $DNSServers){
-                        Add-DnsServerForwarder $DNSServer
-                    }
+                    Add-DnsServerForwarder $Using:DNSServers
                 }
             }
         }
-
 
 #endregion
 
