@@ -1179,8 +1179,8 @@ If (!( $isAdmin )) {
                                     $SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
                                 }
                             }else{
-                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD-$VMSet-*.VHDS"
-                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS"
+                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
+                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
                             }
                         #Build VM
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder

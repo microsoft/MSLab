@@ -16,6 +16,8 @@ Recently I was playing with Intune and I found setting, that will enable your Wi
 
 I decided to do more research, and I found PM who sent me an example script to enable UMCI. Lets take a look how to enable this cool feature with just PowerShell.
 
+**Update:** We released documentation [here](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-application-control/use-windows-defender-application-control-with-intelligent-security-graph)
+
 ## LabConfig
 
 **Note :** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD (use RS3 and newer) without creating all parent disks. You can also use insider previews to test new features!
@@ -24,7 +26,7 @@ I decided to do more research, and I found PM who sent me an example script to e
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true; ClientEdition='Enterprise'}
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-1..3 | % {"Win10_$_"} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$false ; DisableWCF=$True } }
+1..3 | % {"Win10_$_"} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$false ; DisableWCF=$True ; EnableWinRM=$True } }
  
 ```
 
