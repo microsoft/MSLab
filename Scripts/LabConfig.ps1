@@ -10,31 +10,33 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 #region Same as above, but with more explanation
     <#
     $LabConfig=@{
-        DomainAdminName='LabAdmin';            # Used during 2_CreateParentDisks (no affect if changed after this step)
-        AdminPassword='LS1setup!';             # Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
-        Prefix = 'WSLab-';                 # All VMs and vSwitch are created with this prefix, so you can identify the lab
-        SwitchName = 'LabSwitch';              # Name of vSwitch
-        SecureBoot=$true;                      # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
-        DCEdition='4';                         # 4 for DataCenter or 3 for DataCenterCore (or if you prefer standard or if you use SAC, use 1 or 2 image index numbers)
-        CreateClientParent=$false;             # (Optional) If True, client OS will be hydrated
-        ClientEdition='Enterprise';            # (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
-        InstallSCVMM='No';                     # (Optional) Yes/Prereqs/SQL/ADK/No
-        AdditionalNetworksInDC=$false;         # (Optional) If Additional networks should be added also to DC
-        DomainNetbiosName="Corp";              # (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
-        DomainName="Corp.contoso.com";         # (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used
-        DefaultOUName="Workshop";              # (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
-        AllowedVLANs="1-10";                   # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
-        Internet=$false                        # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
-        PullServerDC=$true                     # (Optional) If $false, then DSC Pull Server will not be configured on DC
-        ClientISOFolder=""                     # (Optional) If configured, script will use ISO located in this folder for Windows Client hydration (if more ISOs are present, then out-grid view is called)
-        ClientMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into client OS
-        ServerISOFolder=""                     # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
-        ServerMSUsFolder=""                    # (Optional) If configured, script will inject all MSU files found into server OS
-        EnableGuestServiceInterface=$false     # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
-        DCVMProcessorCount=2                   # (Optional) 2 is default. If specified more/less, processorcount will be modified.
-        AdditionalNetworksConfig=@();          # Just empty array for config below
-        VMs=@();                               # Just empty array for config below
-        ServerVHDs=@()                         # Just empty array for config below
+        DomainAdminName='LabAdmin';                  # Used during 2_CreateParentDisks (no affect if changed after this step)
+        AdminPassword='LS1setup!';                   # Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
+        Prefix = 'WSLab-';                           # All VMs and vSwitch are created with this prefix, so you can identify the lab
+        SwitchName = 'LabSwitch';                    # Name of vSwitch
+        SecureBoot=$true;                            # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
+        DCEdition='4';                               # 4 for DataCenter or 3 for DataCenterCore (or if you prefer standard or if you use SAC, use 1 or 2 image index numbers)
+        CreateClientParent=$false;                   # (Optional) If True, client OS will be hydrated
+        ClientEdition='Enterprise';                  # (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
+        InstallSCVMM='No';                           # (Optional) Yes/Prereqs/SQL/ADK/No
+        AdditionalNetworksInDC=$false;               # (Optional) If Additional networks should be added also to DC
+        DomainNetbiosName="Corp";                    # (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
+        DomainName="Corp.contoso.com";               # (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used
+        DefaultOUName="Workshop";                    # (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
+        AllowedVLANs="1-10";                         # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
+        Internet=$false;                             # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
+        SkipHostDnsAsForwarder=$true;                # (Optional) If $true, local DNS servers won't be used as DNS forwarders in DC
+        CustomDnsForwarders=@("8.8.8.8","1.1.1.1");  # (Optional) If configured, script will use those servers as DNS fordwarders in DC (Defaults to 8.8.8.8 and 1.1.1.1)
+        PullServerDC=$true;                          # (Optional) If $false, then DSC Pull Server will not be configured on DC
+        ClientISOFolder="";                          # (Optional) If configured, script will use ISO located in this folder for Windows Client hydration (if more ISOs are present, then out-grid view is called)
+        ClientMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into client OS
+        ServerISOFolder="";                          # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
+        ServerMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into server OS
+        EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
+        DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
+        AdditionalNetworksConfig=@();                # Just empty array for config below
+        VMs=@();                                     # Just empty array for config below
+        ServerVHDs=@()                               # Just empty array for config below
     }
 
     # Specifying LabVMs
@@ -180,6 +182,16 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
             If only one vSwitch exists, then it will be used
             If more vSwitches exists, you will be prompted for what to use.
         It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
+
+    SkipHostDnsAsForwarder (Optional)
+        If $true, local DNS servers won't be used as DNS forwarders in DC when Internet is enabled. 
+        By default local host's DNS servers will be used as forwarders.
+
+    CustomDnsForwarders (Optional)
+        If configured, DNS servers listed will be appended to DNS forwaders list on DC's DNS server.
+        If not defined at all, commonly known DNS servers will be used as a fallback:
+             - Google DNS: 8.8.8.8
+             - Cloudfare: 1.1.1.1
 
     PullServerDC (optional)
         If $False, Pull Server will not be setup.
