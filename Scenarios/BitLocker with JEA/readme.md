@@ -181,8 +181,22 @@ $computers="BitLocker1","BitLocker2"
 
 Invoke-Command -ComputerName $computers -ScriptBlock {
     $Modules="BitLocker"
-    $AdminVisibleCmdLets ="BitLocker\*","Get-CimInstance","New-ItemProperty","New-Item","Out-String","Where-Object","Select-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
-    $AdminVisibleExternalCommands = "C:\Windows\System32\where.exe","C:\Windows\System32\whoami.exe"
+    $AdminVisibleCmdLets=@()
+    $AdminVisibleCmdLets +="BitLocker\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
+    $AdminVisibleCmdLets += @{
+        Name="New-Item";
+        Parameters = @{Name='ErrorAction'},
+                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
+    }
+    $AdminVisibleCmdLets += @{
+        Name="New-ItemProperty";
+        Parameters = @{Name='Force'},
+                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"},
+                     @{Name='Name'},
+                     @{Name='Value'},
+                     @{Name='PropertyType'}
+    }
+    $AdminVisibleExternalCommands = "C:\Windows\System32\whoami.exe" #just to demonstrate who is running command
     $AdminVisibleProviders= "registry","Variable"
     $ViewerVisibleCmdLets="BitLocker\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
     $AdminRoleName= "BitLockerAdmin"
@@ -228,7 +242,7 @@ Let's backup BitLocker key, but now with JEA!
 
 ```PowerShell
 Invoke-Command -ComputerName "BitLocker1","BitLocker2" -Credential JohnDoe -ConfigurationName JEA-BitLocker -ScriptBlock {
-    New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Force
+    New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
     New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name OSActiveDirectoryBackup -Value 1 -PropertyType DWORD -Force
     New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name OSRecovery -Value 1 -PropertyType DWORD -Force
     $KeyProtectorID=((Get-BitLockerVolume -MountPoint c:).KeyProtector | where-object KeyProtectorType -eq RecoveryPassword).KeyProtectorID
