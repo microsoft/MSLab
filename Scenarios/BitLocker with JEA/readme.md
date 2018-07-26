@@ -32,7 +32,7 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
 
 All tasks will be done from Management (Windows 10) machine. Note the labconfig - WinRM is enabled on all machines, therefore PowerShell remoting will work from very beginning.
 
-First make sure that RSAT is installed (if not, download it from aka.ms/RSAT and install).
+First make sure that RSAT is installed (if not, script will download it and install).
 
 ```PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
