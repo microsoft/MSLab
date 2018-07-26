@@ -20,7 +20,7 @@ In this lab you will learn about benefits of JEA for day-to-day administration -
 ## LabConfig
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); Internet=$true ; VMs=@(); ServerVHDs=@()}
 
 $LabConfig.VMs += @{ VMName = 'BitLocker1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
 $LabConfig.VMs += @{ VMName = 'BitLocker2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
@@ -38,7 +38,9 @@ First make sure that RSAT is installed (if not, download it from aka.ms/RSAT and
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
 }else{
-    Write-Host "RSAT is not installed. Please download and install latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
+    Write-Host "RSAT is not installed. Will install it now." -ForegroundColor Yellow
+    Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/1/D/8/1D8B5022-5477-4B9A-8104-6A71FF9D98AB/WindowsTH-RSAT_WS_1803-x64.msu" -OutFile "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu"
+    Start-Process -Wait -Filepath "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu" -Argumentlist "/quiet"
 }
  
 ```
