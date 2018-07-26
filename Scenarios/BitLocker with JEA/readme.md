@@ -20,7 +20,7 @@ In this lab you will learn about benefits of JEA for day-to-day administration -
 ## LabConfig
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); Internet=$true ; VMs=@(); ServerVHDs=@()}
 
 $LabConfig.VMs += @{ VMName = 'BitLocker1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
 $LabConfig.VMs += @{ VMName = 'BitLocker2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
@@ -32,13 +32,15 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
 
 All tasks will be done from Management (Windows 10) machine. Note the labconfig - WinRM is enabled on all machines, therefore PowerShell remoting will work from very beginning.
 
-First make sure that RSAT is installed (if not, download it from aka.ms/RSAT and install).
+First make sure that RSAT is installed (if not, script will download it and install).
 
 ```PowerShell
 if ((Get-HotFix).hotfixid -contains "KB2693643"){
     Write-Host "RSAT is installed" -ForegroundColor Green
 }else{
-    Write-Host "RSAT is not installed. Please download and install latest Windows 10 RSAT from aka.ms/RSAT" -ForegroundColor Yellow
+    Write-Host "RSAT is not installed. Will install it now." -ForegroundColor Yellow
+    Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/1/D/8/1D8B5022-5477-4B9A-8104-6A71FF9D98AB/WindowsTH-RSAT_WS_1803-x64.msu" -OutFile "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu"
+    Start-Process -Wait -Filepath "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu" -Argumentlist "/quiet"
 }
  
 ```
@@ -179,8 +181,22 @@ $computers="BitLocker1","BitLocker2"
 
 Invoke-Command -ComputerName $computers -ScriptBlock {
     $Modules="BitLocker"
-    $AdminVisibleCmdLets ="BitLocker\*","Get-CimInstance","New-ItemProperty","New-Item","Out-String","Where-Object","Select-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
-    $AdminVisibleExternalCommands = "C:\Windows\System32\where.exe","C:\Windows\System32\whoami.exe"
+    $AdminVisibleCmdLets=@()
+    $AdminVisibleCmdLets +="BitLocker\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
+    $AdminVisibleCmdLets += @{
+        Name="New-Item";
+        Parameters = @{Name='ErrorAction'},
+                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
+    }
+    $AdminVisibleCmdLets += @{
+        Name="New-ItemProperty";
+        Parameters = @{Name='Force'},
+                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"},
+                     @{Name='Name'},
+                     @{Name='Value'},
+                     @{Name='PropertyType'}
+    }
+    $AdminVisibleExternalCommands = "C:\Windows\System32\whoami.exe" #just to demonstrate who is running command
     $AdminVisibleProviders= "registry","Variable"
     $ViewerVisibleCmdLets="BitLocker\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
     $AdminRoleName= "BitLockerAdmin"
@@ -226,7 +242,7 @@ Let's backup BitLocker key, but now with JEA!
 
 ```PowerShell
 Invoke-Command -ComputerName "BitLocker1","BitLocker2" -Credential JohnDoe -ConfigurationName JEA-BitLocker -ScriptBlock {
-    New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Force
+    New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
     New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name OSActiveDirectoryBackup -Value 1 -PropertyType DWORD -Force
     New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name OSRecovery -Value 1 -PropertyType DWORD -Force
     $KeyProtectorID=((Get-BitLockerVolume -MountPoint c:).KeyProtector | where-object KeyProtectorType -eq RecoveryPassword).KeyProtectorID
