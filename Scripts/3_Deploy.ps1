@@ -58,11 +58,11 @@ If (!( $isAdmin )) {
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <settings pass="offlineServicing">
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-        <OfflineIdentification>              
-           <Provisioning>  
+        <OfflineIdentification>
+           <Provisioning>
              <AccountData>$Blob</AccountData>
-           </Provisioning>  
-         </OfflineIdentification>  
+           </Provisioning>
+         </OfflineIdentification>
     </component>
   </settings>
   <settings pass="oobeSystem">
@@ -138,7 +138,7 @@ If (!( $isAdmin )) {
         <RunSynchronous>
             $RunSynchronous
         </RunSynchronous>
-    </component>   
+    </component>
  </settings>
  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -202,7 +202,7 @@ If (!( $isAdmin )) {
         <RunSynchronous>
             $RunSynchronous
         </RunSynchronous>
-    </component>    
+    </component>
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <Identification>
                 <Credentials>
@@ -600,7 +600,7 @@ If (!( $isAdmin )) {
         }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
             WriteInfo "`t Creating Unattend with win2012-ish domain join"
             $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
-        
+
         }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
             WriteInfo "`t Creating Unattend with djoin blob"
             $path="c:\$vmname.txt"
@@ -671,7 +671,7 @@ If (!( $isAdmin )) {
 
     $DN=$null
     $LabConfig.DomainName.Split(".") | ForEach-Object {
-        $DN+="DC=$_,"   
+        $DN+="DC=$_,"
     }
     $LabConfig.DN=$DN.TrimEnd(",")
 
@@ -746,13 +746,13 @@ If (!( $isAdmin )) {
             if($guardian -eq $null){
                 $guardian=New-HgsGuardian -Name LabGuardian -GenerateCertificates
                 WriteInfo "`t HGS with name LabGuardian created"
-            }    
+            }
         }
 
     #Check support for shared disks + enable if possible
         if ($LABConfig.VMs.Configuration -contains "Shared" -or $LABConfig.VMs.Configuration -contains "Replica"){
             WriteInfoHighlighted "Configuration contains Shared or Replica scenario"
-            
+
             WriteInfo "Checking support for shared disks"
             $OS=Get-WmiObject win32_operatingsystem
             if (($OS.caption -like "*Server*") -and $OS.version -gt 10){
@@ -924,7 +924,7 @@ If (!( $isAdmin )) {
             $DC | Checkpoint-VM -SnapshotName Initial
             WriteInfo "`t Virtual Machine $($DC.name) checkpoint created"
             Start-Sleep -Seconds 5
-        
+
         #rename network adapters and add another
             WriteInfo "`t Configuring Network"
 
@@ -941,7 +941,7 @@ If (!( $isAdmin )) {
             }
 
             $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-        
+
         #add aditional networks
             if ($labconfig.AdditionalNetworksInDC -eq $True){
                 WriteInfoHighlighted "`t Configuring Additional networks"
@@ -1084,11 +1084,10 @@ If (!( $isAdmin )) {
                     WriteInfoHighlighted "`t Requesting DNS settings from Host"
                     if($internetSwitch.Name -eq "Default Switch"){
                         # Host's IP of Default Switch acts also as DNS resolver
-                        $DNSServers+=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "vEthernet ($($internetSwitch.Name))").IPAddress.ToString()
+                        $DNSServers+=(Get-HnsNetwork | Where-Object { $_.Name -eq "Default Switch" }).Subnets[0].GatewayAddress
                     }
                     else{
-                        $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | select -First 1 #in case multiple adapters are in managementos
-                    
+                        $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | Select-Object -First 1 #in case multiple adapters are in managementos
                         $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
                     }
                 }
@@ -1130,11 +1129,10 @@ If (!( $isAdmin )) {
 
                     [Parameter(Mandatory=$true)]
                     [string[]]$DomainName
-                )          
+                )
             Node $ComputerName {
-            
                 Settings{
-                
+
                     AllowModuleOverwrite = $True
                     ConfigurationMode = 'ApplyAndAutoCorrect'
                     RefreshMode = 'Pull'
@@ -1204,7 +1202,7 @@ If (!( $isAdmin )) {
                                 WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
                             }
                     }
-                
+
                 #create VM with Simple configuration
                     if ($VMConfig.configuration -eq 'Simple'){
                         BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
@@ -1216,7 +1214,7 @@ If (!( $isAdmin )) {
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #compose VM name
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
-                        
+
                         #Add disks
                             #add "SSDs"
                                 If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
@@ -1255,7 +1253,7 @@ If (!( $isAdmin )) {
                             }
                         #build VM
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
-                        
+
                         #Add disks
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName                
                             WriteInfoHighlighted "`t Attaching Shared Disks..."
@@ -1279,17 +1277,17 @@ If (!( $isAdmin )) {
 
 #region Finishing
     WriteInfoHighlighted "Finishing..." 
-    
+
     #a bit cleanup
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
         if (Test-Path "$PSScriptRoot\unattend.xml") {
             remove-item "$PSScriptRoot\unattend.xml"
         }
-    
+
     #set MacSpoofing and AllowTeaming (for SET switch in VMs to work properly with vNICs)
         WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
-    
+
     #list VMs 
         Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
