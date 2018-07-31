@@ -152,8 +152,9 @@ $Sessions=New-PSSession -ComputerName $Computers
 #Distribute zip to remote machines
 foreach ($Session in $sessions) {Copy-Item -Path "C:\Temp\WindowsAdminCenter.Jea.zip" -ToSession $session -Destination "c:\windows\Temp" -Force}
 
-#extract zip and install (you can see this code in PowerShell transcript if you enable it and Apply RBAC in Windows Admin Center GUI)
+#extract zip and install (you can see this code (except execution policy) in PowerShell transcript if you enable it and Apply RBAC in Windows Admin Center GUI)
 Invoke-Command -ComputerName $computers -scriptblock {
+    if ((Get-ExecutionPolicy) -eq "Restricted"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
     $location = Join-Path $env:SystemRoot Temp
     $zip = Join-Path $location WindowsAdminCenter.Jea.zip
     $location = Join-Path $location ([System.IO.Path]::GetFileNameWithoutExtension($zip))
