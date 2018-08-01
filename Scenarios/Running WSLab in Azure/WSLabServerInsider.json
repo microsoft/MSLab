@@ -194,6 +194,11 @@
                   ]
               },
               "licenseType": "Windows_Server"
+          },
+          "plan": {
+            "name": "2019-datacenter",
+            "publisher": "microsoft-hyperv",
+            "product": "rs5_preview"
           }
       },
       {
