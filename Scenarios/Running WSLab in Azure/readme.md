@@ -4,12 +4,15 @@
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
     - [Windows Server 2016](#windows-server-2016)
+    - [Windows Server 2019 Insider preview](#windows-server-2019-insider-preview)
     - [Windows 10 1803](#windows-10-1803)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
     - [Windows Server 2016](#windows-server-2016-1)
+    - [Windows Server 2019 Insider preview](#windows-server-2019-insider-preview-1)
     - [Windows 10 1803](#windows-10-1803-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
     - [Windows Server 2016](#windows-server-2016-2)
+    - [Windows Server 2019 Insider Preview](#windows-server-2019-insider-preview)
     - [Windows 10 1803](#windows-10-1803-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
@@ -161,7 +164,7 @@ To cleanup your resources, you can run following command.
 
 ```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzureRmVM -verbose #-Force
-Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -verbose #-Force 
+Get-AzureRmResource | where name -like WSLab* | Remove-AzureRmResource -verbose #-Force 
 Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmResourceGroup -Verbose #-Force
  
 ```
@@ -170,7 +173,7 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmR
 
 ```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRGInsider | Remove-AzureRmVM -verbose #-Force
-Get-AzureRmResource | where name -like ws2019* | Remove-AzureRmResource -verbose #-Force 
+Get-AzureRmResource | where name -like WSLABInsider* | Remove-AzureRmResource -verbose #-Force 
 Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRGInsider | Remove-AzureRmResourceGroup -Verbose #-Force
  
 ```
