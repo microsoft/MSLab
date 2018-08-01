@@ -9,12 +9,12 @@
     - [Scenario prerequisites](#scenario-prerequisites)
         - [Install RSAT on Management machine](#install-rsat-on-management-machine)
         - [Install and configure ADCS role on the domain controller](#install-and-configure-adcs-role-on-the-domain-controller)
-    - [Standalone installation](#standalone-installation)
+    - [About Standalone installation](#about-standalone-installation)
+    - [Desktop mode installation on Windows 10](#desktop-mode-installation-on-windows-10)
+    - [Gateway mode installation on single Windows Server](#gateway-mode-installation-on-single-windows-server)
         - [Generate a certificate](#generate-a-certificate)
         - [Install Windows Admin Center](#install-windows-admin-center)
         - [Run Windows Admin Center](#run-windows-admin-center)
-            - [If Desktop mode](#if-desktop-mode)
-            - [If Gateway mode](#if-gateway-mode)
     - [High Availability installation](#high-availability-installation)
         - [Shared prerequisites](#shared-prerequisites)
             - [Generate PFX certificate](#generate-pfx-certificate)
@@ -27,7 +27,7 @@
 
 ## About the lab
 
-In this lab you will set up basic PKI for Windows Admin Center and install WAC without default self-signed certificate to various environments:
+In this lab you will set up basic PKI for Windows Admin Center and install Windows Admin Center without default self-signed certificate to various environments:
 
 - Desktop mode on Windows 10
 - Gateway mode on single Windows Server node
@@ -97,19 +97,43 @@ Invoke-Command -ComputerName "DC" -ScriptBlock {
  
 ```
 
-## Standalone installation
+## About Standalone installation
 
 Windows Admin Center supports installation in two modes:
 
 - Desktop mode when installed on Windows 10
 - Gateway mode when installed on Windows Server
 
-For both modes installation steps are the same, the main differences in our lab is that in desktop mode WAC runs as background process while in Gateway mode WAC runs as a network service.
+In Desktop Mode
 
-You can proceed with the installation on the `WacGateway` virtual machine for gateway mode or on `Management` machine for desktop mode.
-Select one of the mentioned virtual machines and when logged to that virtual machine proceed with following sections.
+- Windows Admin Center runs as Background process
+- Accessed using local address https://localhost:6516/, self-signed certificate is enough
+- Windows Admin Center certificate is used for authentication
 
-For GatewayMode run these commands with `Invoke-Command` and for desktop mode just use the inner content of the `Invoke-Command`s.
+In Gateway mode
+
+- Windows Admin Center runs as a network service
+- Accessed with FQDN, trusted certificate is a must
+- User credentials are used for authentication
+
+## Desktop mode installation on Windows 10
+
+> **Note:** If you don't want to download installer over the Internet, copy MSI file over Downloads manually.
+> **Note:** Only Edge and Chrome browsers are officially supported to work with Windows Admin Center.
+
+```PowerShell
+#Download Windows Admin Center to downloads
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+
+#Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
+
+#Open Windows Admin Center
+    Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
+ 
+```
+
+## Gateway mode installation on single Windows Server
 
 ### Generate a certificate
 
@@ -135,33 +159,23 @@ Invoke-Command -ComputerName "WacGateway" -ScriptBlock {
 > **Note:** If you don't want to download installer over the Internet, copy MSI file over to virtual machine manually.
 
 ```PowerShell
-Invoke-Command -ComputerName "WacGateway" -ScriptBlock {
-    # Download Windows Admin Center to downloads
+#Download Windows Admin Center if not present
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-
-    # Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
-    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Certificate.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
 }
 
+#Create PS Session
+$Session=New-PSSession -ComputerName "WacGateway"
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+#Install Windows Admin Center
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Certificate.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
+}
+ 
 ```
 
 ### Run Windows Admin Center
-
-Based on which mode you've installed proceed with respective section.
-
-> **Note:** Only Edge and Chrome browsers are officialy supported to work with Windows Admin Center.
-
-#### If Desktop mode
-
-When installed on Windows 10 to start Windows Admin Center we need to manually execute the application. The application will then start as background process with its icon in system tray. When executed it should automatically open the default web browser and navigate to WAC homepage https://management.corp.contoso.com.
-
-```PowerShell
-# Open Windows Admin Center
-Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
-
-```
-
-#### If Gateway mode
 
 After the installation on `WacGateway` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Management` virtual machine, navigate to http://wacgateway.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
@@ -180,7 +194,7 @@ These steps are needed for both HA variants.
 
 #### Generate PFX certificate
 
-In HA installation PFX file containing the certificate is needed, following block of code will request that certificate and save it to `WacHaCert.pfx` file in `Downloads` folder of logged in user.
+In HA installation PFX file containing the certificate is needed, following block of code will request that certificate and save it to `Windows Admin CenterHaCert.pfx` file in `Downloads` folder of logged in user.
 
 ```PowerShell
 # Function that creates PFX certificate
@@ -406,7 +420,7 @@ Expand-Archive -LiteralPath $zipfile -DestinationPath "$env:USERPROFILE\Download
 
 Now when we have downloaded everything on the `DC` node we can copy everything needed to one of the cluster nodes, in our case we will use first node of the cluster. For copying the installation files we will use this function on corresponing failover cluster. 
 
-Let's start by definding the function:
+Let's start by defining the function:
 
 ```PowerShell
 # Enable Windows PowerShell remoting on our management machine
