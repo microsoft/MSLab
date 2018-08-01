@@ -6,7 +6,7 @@
           "value": "westeurope"
       },
       "virtualMachineName": {
-          "value": "WSLab2016"
+          "value": "WSLab"
       },
       "virtualMachineSize": {
           "value": "Standard_D16s_v3"
