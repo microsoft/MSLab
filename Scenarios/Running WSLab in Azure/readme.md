@@ -4,13 +4,13 @@
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
     - [Windows Server 2016](#windows-server-2016)
-    - [Windows 10 1709](#windows-10-1709)
+    - [Windows 10 1803](#windows-10-1803)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
     - [Windows Server 2016](#windows-server-2016-1)
-    - [Windows 10 1709](#windows-10-1709-1)
+    - [Windows 10 1803](#windows-10-1803-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
     - [Windows Server 2016](#windows-server-2016-2)
-    - [Windows 10 1709](#windows-10-1709-2)
+    - [Windows 10 1803](#windows-10-1803-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
@@ -25,7 +25,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 1709 machine, as nested 1709 and insider builds does not work well on Windows Server 2016. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
+I also added Windows 10 1803 machine, as nested 1803 and insider builds does not work well on Windows Server 2016. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
@@ -66,11 +66,16 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 Or you can just click button and deploy it into your portal
 
 ## Windows Server 2016
+
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json)
 
+## Windows Server 2019 Insider preview
 
-## Windows 10 1709
+[![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabServerInsider.json)
+[![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json)
+
+## Windows 10 1803
 
 **Note:** for some reason deployment fails, but everything is configured OK. Bug created [here](https://social.msdn.microsoft.com/Forums/en-US/1d5061fa-5135-4ec1-a8dc-32d63f6d261d/dsc-adding-hyperv-role-failing-on-windows-10?forum=WAVirtualMachinesforWindows)
 
@@ -84,6 +89,7 @@ Or you can just click button and deploy it into your portal
 Or you can create your VM using PowerShell
 
 ## Windows Server 2016
+
 ```PowerShell
 #download Azure module if not installed
 if (!(get-module -Name AzureRM* -ListAvailable)){
@@ -103,7 +109,30 @@ Login-AzureRmAccount
  
 ```
 
-## Windows 10 1709
+## Windows Server 2019 Insider preview
+
+```PowerShell
+#download Azure module if not installed
+if (!(get-module -Name AzureRM* -ListAvailable)){
+    Install-Module -Name AzureRM
+}
+
+#login to your azure account
+Login-AzureRmAccount
+
+#Deploy VM to Azure using Template
+    New-AzureRmResourceGroup -Name "WSLabRGInsider" -Location "West Europe"
+    $TemplateUri="https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json"
+    New-AzureRmResourceGroupDeployment -Name WSLabInsider -ResourceGroupName WSLabRGInsider -TemplateUri $TemplateUri -Verbose
+
+#connect to VM using RDP
+    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRGInsider).IpAddress)
+ 
+```
+
+
+## Windows 10 1803
+
 ```PowerShell
 #download Azure module if not installed
 if (!(get-module -Name AzureRM* -ListAvailable)){
@@ -129,6 +158,7 @@ Login-AzureRmAccount
 To cleanup your resources, you can run following command.
 
 ## Windows Server 2016
+
 ```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzureRmVM -verbose #-Force
 Get-AzureRmResource | where name -like ws2016* | Remove-AzureRmResource -verbose #-Force 
@@ -136,13 +166,24 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmR
  
 ```
 
-## Windows 10 1709
+## Windows Server 2019 Insider Preview
+
+```PowerShell
+Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRGInsider | Remove-AzureRmVM -verbose #-Force
+Get-AzureRmResource | where name -like ws2019* | Remove-AzureRmResource -verbose #-Force 
+Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRGInsider | Remove-AzureRmResourceGroup -Verbose #-Force
+ 
+```
+
+## Windows 10 1803
+
 ```PowerShell
 Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzureRmVM -verbose #-Force
 Get-AzureRmResource | where name -like WSLabwin10* | Remove-AzureRmResource -verbose #-Force 
 Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabwin10RG | Remove-AzureRmResourceGroup -Verbose #-Force
  
 ```
+
 # Creating VM Manually
 To create VM, click on New and select Windows Server 2016 VM.
 
