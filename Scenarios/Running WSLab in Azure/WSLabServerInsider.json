@@ -311,14 +311,14 @@
       },
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
-          "name": "WSLab/config",
+          "name": "[concat(parameters('virtualMachineName'),'/config')]",
           "apiVersion": "2015-06-15",
           "location": "[resourceGroup().location]",
           "tags": {
-              "displayName": "WSLab/config"
+              "displayName": "[concat(parameters('virtualMachineName'),'/config')]"
           },
           "dependsOn": [
-              "Microsoft.Compute/virtualMachines/WSLab"
+            "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'))]"
           ],
           "properties": {
               "publisher": "Microsoft.Powershell",
@@ -330,7 +330,7 @@
                   "sasToken": "[parameters('_artifactsLocationSasToken')]",
                   "configurationFunction": "config.ps1\\Config",
                   "properties": { 
-                    "nodeName": "WSLab" 
+                    "nodeName": "[parameters('virtualMachineName')]"
                   }
               },
               "protectedSettings": {}
