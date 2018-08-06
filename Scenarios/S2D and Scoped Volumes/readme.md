@@ -140,7 +140,11 @@ $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster
 And now let's take a look how is each volume occupied (credits for scripts goes to Cosmos, I just modifed it a bit)
 
 ```PowerShell
-$S2DClusters=Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)"
+$S2DClusters=Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 
+
+If ($S2DClusters.count -gt 1){
+    $S2DClusters = $S2DClusters | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)"
+}
 
 Function ConvertTo-PrettyCapacity {
     Param (
