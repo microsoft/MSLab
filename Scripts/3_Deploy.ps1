@@ -592,7 +592,7 @@ If (!( $isAdmin )) {
         if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
             WriteInfo "`t Skipping Djoin"
             if ($VMConfig.AdditionalLocalAdmin){
-                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
+                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
                 $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdditionalAdminName $VMConfig.AdditionalLocalAdmin -AdminPassword $LabConfig.AdminPassword
                 $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
             }else{
