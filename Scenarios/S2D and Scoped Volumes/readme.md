@@ -294,7 +294,7 @@ Looks great, so how it will look like if random 3 nodes will go down? Let's see.
 
 ```PowerShell
 #Run from Hyper-V host to turn off random 3 VMs
- get-vm -name *insider*S2D* | Get-Random -Count 3 | stop-vm
+Get-VM -Name *insider*S2D* | Get-Random -Count 3 | Stop-VM -TurnOff
  
 ```
 
