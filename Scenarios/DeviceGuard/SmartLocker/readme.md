@@ -144,10 +144,12 @@ MSInfo32 status - notice UMCI is running even KMCI/VBS is not. It's probably the
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/MSInfo32.png)
 
 ```PowerShell
-#start services. Alternatively you can run "appidtel start"
-Get-Service -Name applockerfltr,appidsvc,appid | Start-Service
+#start  applockerfltr,appidsvc,appid services. Alternatively you can run "appidtel start"
+Get-Service -Name applockerfltr | Start-Service
 #make it autostart
-Get-Service -Name applockerfltr,appid | Set-Service -StartupType Automatic
+Get-Service -Name applockerfltr | Set-Service -StartupType Automatic
+#validate services are running
+Get-Service -Name applockerfltr,appidsvc,appid
  
 ```
 
@@ -191,9 +193,9 @@ Set Code integrity policy binary to this location : \\\corp.contoso.com\SYSVOL\C
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DeviceGuardCI.png)
 
-Enable AppID Service in System Services (note, SmartLocker Filter driver is missing), will need to start it with script. (will be added)
+Enable Smart Locker Service in System Services using GP Preferences
 
-![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/AppIDSVC.png)
+![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/applockerfltr.png)
 
 And you can start other VMs and see if settings are applied.
 
