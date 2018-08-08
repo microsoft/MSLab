@@ -592,7 +592,8 @@ If (!( $isAdmin )) {
         if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
             WriteInfo "`t Skipping Djoin"
             if ($VMConfig.AdditionalLocalAdmin){
-                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
+                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
+                $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdditionalAdminName $VMConfig.AdditionalLocalAdmin -AdminPassword $LabConfig.AdminPassword
                 $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
             }else{
                 $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
@@ -914,11 +915,12 @@ If (!( $isAdmin )) {
             WriteInfoHighlighted "Looking for DC to be imported"
             get-childitem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
                 $DC=Import-VM -Path $_.FullName
-                if ($DC -eq $null){
-                    WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
-                }
             }
+            if ($DC -eq $null){
+                    WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
+            }else{
             WriteInfo "`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
+            }
 
         #create checkpoint to be able to return to consistent state when cleaned with cleanup.ps1
             $DC | Checkpoint-VM -SnapshotName Initial
