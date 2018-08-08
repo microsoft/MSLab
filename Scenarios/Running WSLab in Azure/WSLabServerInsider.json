@@ -36,7 +36,7 @@
     },
     "virtualMachineName": {
       "type": "string",
-      "defaultValue": "WSLab"
+      "defaultValue": "WSLabInsider"
     },
     "virtualMachineSize": {
       "type": "string",
@@ -173,10 +173,10 @@
               },
               "storageProfile": {
                   "imageReference": {
-                      "publisher": "MicrosoftWindowsServer",
-                      "offer": "WindowsServer",
-                      "sku": "2016-Datacenter",
-                      "version": "latest"
+                    "publisher": "microsoft-hyperv",
+                    "offer": "rs5_preview",
+                    "sku": "2019-datacenter",
+                    "version": "latest"
                   },
                   "osDisk": {
                       "createOption": "fromImage",
@@ -194,6 +194,11 @@
                   ]
               },
               "licenseType": "Windows_Server"
+          },
+          "plan": {
+            "name": "2019-datacenter",
+            "publisher": "microsoft-hyperv",
+            "product": "rs5_preview"
           }
       },
       {
@@ -325,7 +330,7 @@
                   "sasToken": "[parameters('_artifactsLocationSasToken')]",
                   "configurationFunction": "config.ps1\\Config",
                   "properties": { 
-                  "nodeName": "[parameters('virtualMachineName')]"
+                    "nodeName": "[parameters('virtualMachineName')]"
                   }
               },
               "protectedSettings": {}

@@ -140,7 +140,11 @@ $Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster
 And now let's take a look how is each volume occupied (credits for scripts goes to Cosmos, I just modifed it a bit)
 
 ```PowerShell
-$S2DClusters=Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)"
+$S2DClusters=Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 
+
+If ($S2DClusters.count -gt 1){
+    $S2DClusters = $S2DClusters | Out-GridView -PassThru -Title "Please select your S2D Cluster(s)"
+}
 
 Function ConvertTo-PrettyCapacity {
     Param (
@@ -294,7 +298,7 @@ Looks great, so how it will look like if random 3 nodes will go down? Let's see.
 
 ```PowerShell
 #Run from Hyper-V host to turn off random 3 VMs
- get-vm -name *insider*S2D* | Get-Random -Count 3 | stop-vm
+Get-VM -Name *insider*S2D* | Get-Random -Count 3 | Stop-VM -TurnOff
  
 ```
 
