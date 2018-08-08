@@ -307,7 +307,7 @@
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
           "name": "WSLab/config",
-          "apiVersion": "2015-06-15",
+          "apiVersion": "2017-12-01",
           "location": "[resourceGroup().location]",
           "tags": {
               "displayName": "WSLab/config"
@@ -318,7 +318,7 @@
           "properties": {
               "publisher": "Microsoft.Powershell",
               "type": "DSC",
-              "typeHandlerVersion": "2.20",
+              "typeHandlerVersion": "2.76",
               "autoUpgradeMinorVersion": true,
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'), '/dsc/config.zip')]",
