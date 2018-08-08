@@ -66,8 +66,6 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 ```
 # Creating VM with JSON in UI
 
-Or you can just click button and deploy it into your portal
-
 ## Windows Server 2016
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLab.json)
