@@ -54,11 +54,16 @@ Get-ChildItem -Path C:\Windows\schemas\CodeIntegrity\ExamplePolicies\
 
 ![](/Scenarios/DeviceGuard/SmartLocker/Screenshots/DefaultPolicies.png)
 
-So what we can do is we can copy DefaultWindows_Enforced or Audit, so we can manipulate it and apply.
+>**AllowMicrosoft:** this CI policy allows all the files signed by Microsoft. If you are running Server applications such as SQL, Exchange, or the server is monitored by agents published by Microsoft, you should start with this policy.
+
+>**DefaultWindows:** this policy only allows the files which are shipped in Windows and doesn’t permit other applications released by Microsoft (such as Office). This is a good policy to use if the Server is dedicated for inbox server roles/features, such as Hyper-V.
+
+
+So what we can do is we can copy AllowMicrosoft.xml , so we can manipulate it and apply.
 
 ```PowerShell
-#copy DefaultWindows_Enforced.xml to Temp\MyPolicy.xml
-Copy-Item "C:\Windows\schemas\CodeIntegrity\ExamplePolicies\DefaultWindows_Enforced.xml" "$env:TEMP\MyPolicy.xml"
+#copy AllowMicrosoft.xml to Temp\MyPolicy.xml
+Copy-Item "C:\Windows\schemas\CodeIntegrity\ExamplePolicies\AllowMicrosoft.xml" "$env:TEMP\MyPolicy.xml"
  
 ```
 

@@ -311,11 +311,11 @@
       },
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
-          "name": "[concat(parameters('virtualMachineName'),'/config')]",
-          "apiVersion": "2015-06-15",
+          "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
+          "apiVersion": "2017-12-01",
           "location": "[resourceGroup().location]",
           "tags": {
-              "displayName": "[concat(parameters('virtualMachineName'),'/config')]"
+              "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
           },
           "dependsOn": [
             "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'))]"
@@ -323,7 +323,7 @@
           "properties": {
               "publisher": "Microsoft.Powershell",
               "type": "DSC",
-              "typeHandlerVersion": "2.20",
+              "typeHandlerVersion": "2.76",
               "autoUpgradeMinorVersion": true,
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'),'/dsc/config.zip')]",
