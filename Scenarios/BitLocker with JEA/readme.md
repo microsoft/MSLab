@@ -185,8 +185,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     $AdminVisibleCmdLets +="BitLocker\*","TrustedPlatformModule\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
     $AdminVisibleCmdLets += @{
         Name="New-Item";
-        Parameters = @{Name='ErrorAction'},
-                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
+        Parameters = @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
     }
     $AdminVisibleCmdLets += @{
         Name="New-ItemProperty";
@@ -216,7 +215,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     #Create RoleCapabilityFile and SessionConfigurationFile
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$AdminRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $AdminVisibleCmdLets -VisibleExternalCommands $AdminVisibleExternalCommands -VisibleProviders $AdminVisibleProviders
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$ViewerRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $ViewerVisibleCmdLets
-    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode FullLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
+    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode NoLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
 
     #RegisterPSsessionConfiguration
     Register-PSSessionConfiguration -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -Name $ConfigurationName -Force
