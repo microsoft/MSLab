@@ -215,7 +215,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     #Create RoleCapabilityFile and SessionConfigurationFile
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$AdminRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $AdminVisibleCmdLets -VisibleExternalCommands $AdminVisibleExternalCommands -VisibleProviders $AdminVisibleProviders
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$ViewerRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $ViewerVisibleCmdLets
-    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode NoLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
+    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode ConstrainedLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
 
     #RegisterPSsessionConfiguration
     Register-PSSessionConfiguration -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -Name $ConfigurationName -Force
