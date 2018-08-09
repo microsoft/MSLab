@@ -182,7 +182,7 @@ $computers="BitLocker1","BitLocker2"
 Invoke-Command -ComputerName $computers -ScriptBlock {
     $Modules="BitLocker","TrustedPlatformModule"
     $AdminVisibleCmdLets=@()
-    $AdminVisibleCmdLets +="BitLocker\*","TrustedPlatformModule\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
+    $AdminVisibleCmdLets +="BitLocker\*","TrustedPlatformModule\*","Get-CimInstance","Out-String","Where-Object","Select-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
     $AdminVisibleCmdLets += @{
         Name="New-Item";
         Parameters = @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
