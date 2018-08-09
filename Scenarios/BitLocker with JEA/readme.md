@@ -180,9 +180,9 @@ And let's configure JEA on computers BitLocker1 and BitLocker2. Note how many co
 $computers="BitLocker1","BitLocker2"
 
 Invoke-Command -ComputerName $computers -ScriptBlock {
-    $Modules="BitLocker"
+    $Modules="BitLocker","TrustedPlatformModule"
     $AdminVisibleCmdLets=@()
-    $AdminVisibleCmdLets +="BitLocker\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
+    $AdminVisibleCmdLets +="BitLocker\*","TrustedPlatformModule\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
     $AdminVisibleCmdLets += @{
         Name="New-Item";
         Parameters = @{Name='ErrorAction'},
@@ -198,7 +198,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     }
     $AdminVisibleExternalCommands = "C:\Windows\System32\whoami.exe" #just to demonstrate who is running command
     $AdminVisibleProviders= "registry","Variable"
-    $ViewerVisibleCmdLets="BitLocker\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
+    $ViewerVisibleCmdLets="BitLocker\Get-*","TrustedPlatformModule\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
     $AdminRoleName= "BitLockerAdmin"
     $ViewerRoleName="BitLockerViewer"
     $ConfigurationName="JEA-BitLocker"
