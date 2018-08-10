@@ -4,6 +4,8 @@
 - [Videos](#videos)
 - [HowTo](#howto)
     - [Step 1 Download required files (prerequisities):](#step-1-download-required-files-prerequisities)
+        - [Windows Server 2016](#windows-server-2016)
+        - [or Windows Server 2019](#or-windows-server-2019)
     - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
     - [Step 3 (Optional) Check the LabConfig.ps1](#step-3-optional-check-the-labconfigps1)
     - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
@@ -52,9 +54,18 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 # HowTo
 
 ## Step 1 Download required files (prerequisities):
+
 * [Scripts](https://github.com/Microsoft/WSLab/blob/master/scripts.zip?raw=true)
-* [Windows Server 2016](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016) 
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20) for Windows Server 2016 and [Servicing Stack Update](https://www.catalog.update.microsoft.com/Search.aspx?q=2018-04%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20(KB4093137)%20)
+
+### Windows Server 2016
+
+* [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016)
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20) for Windows Server 2016 and [Servicing Stack Update](https://www.catalog.update.microsoft.com/Search.aspx?q=2018-05%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20(KB4132216)%20)
+
+### or Windows Server 2019
+
+* [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
+* [Insider labconfig.ps1](/Insider/LabConfig.ps1)
 
 ## Step 2 Create folder and Unzip scripts there
 

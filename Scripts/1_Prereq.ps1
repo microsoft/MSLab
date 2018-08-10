@@ -937,7 +937,7 @@ $exit=Read-Host
 #region Downloading required Posh Modules
 # Downloading modules into Tools folder if needed.
 
-    $modules=("xActiveDirectory","2.17.0.0"),("xDHCpServer","1.6.0.0"),<#("xDNSServer","1.8.0.0"),#>("xNetworking","5.5.0.0"),("xPSDesiredStateConfiguration","8.0.0.0")
+    $modules=("xActiveDirectory","2.19.0.0"),("xDHCpServer","2.0.0.0")<#,("xDNSServer","1.11.0.0")#>,("NetworkingDSC","6.0.0.0"),("xPSDesiredStateConfiguration","8.4.0.0")
     foreach ($module in $modules){
         WriteInfoHighlighted "Testing if modules are present" 
         $modulename=$module[0]
