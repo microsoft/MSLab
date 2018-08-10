@@ -641,11 +641,11 @@ If (!( $isAdmin )) {
 
                 )
 
-                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.17.0.0"
-                #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
-                Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.5.0.0"
-                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
-                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.0.0.0"
+                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.19.0.0"
+                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.11.0.0"
+                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "6.0.0.0"
+                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "2.0.0.0"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.4.0.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
@@ -699,7 +699,7 @@ If (!( $isAdmin )) {
                         SafemodeAdministratorPassword = $safemodeAdministratorCred
                         DomainNetbiosName = $node.DomainNetbiosName
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
+                    }
                 
                     xWaitForADDomain DscForestWait 
                     { 
@@ -804,7 +804,7 @@ If (!( $isAdmin )) {
                         PasswordNeverExpires = $true
                     }
 
-                    xIPaddress IP
+                    IPaddress IP
                     {
                         IPAddress = '10.0.0.1/24'
                         AddressFamily = 'IPv4'
@@ -834,6 +834,7 @@ If (!( $isAdmin )) {
                     xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
+                        ScopeId = '10.0.0.0'
                         IPStartRange = '10.0.0.10'
                         IPEndRange = '10.0.0.254'
                         Name = 'ManagementScope'
@@ -844,7 +845,7 @@ If (!( $isAdmin )) {
                         DependsOn = "[Service]DHCPServer"
                     }
 
-                    xDhcpServerOption Option
+                    xDhcpServerOption MgmtScopeRouterOption
                     {
                         Ensure = 'Present'
                         ScopeID = '10.0.0.0'
@@ -866,16 +867,14 @@ If (!( $isAdmin )) {
                         Name   = "DSC-Service"
                     }
 
-                    <# Does not work, ideas?
                     xDnsServerADZone addReverseADZone
                     {
                         Name = "0.0.10.in-addr.arpa"
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
-                        DependsOn = "[xDhcpServerOption]Option"
+                        DependsOn = "[xDhcpServerOption]MgmtScopeRouterOption"
                     }
-                    #>
 
                     If ($LabConfig.PullServerDC){
                         xDscWebService PSDSCPullServer
