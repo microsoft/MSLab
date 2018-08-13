@@ -11,8 +11,7 @@ Write-host "Script started at $StartDateTime"
         $numberofnodes=4
         $ServersNamePrefix="S2D"
     #generate servernames (based number of nodes and serversnameprefix)
-        $Servers=@()
-        1..$numberofnodes | ForEach-Object {$Servers+="$($ServersNamePrefix)$_"}
+        $Servers=1..$numberofnodes | ForEach-Object {"$ServersNamePrefix$_"}
     #Cluster Name
         $ClusterName="S2D-Cluster"
 
@@ -56,6 +55,7 @@ Write-host "Script started at $StartDateTime"
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
         $Deduplication=$false #install "FS-Data-Deduplication" on nodes?
+        $SystemInsights=$false #install "System-Insights" on nodes?
 
     #Enable Meltdown mitigation? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
     #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
@@ -202,7 +202,8 @@ Write-host "Script started at $StartDateTime"
             if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
             if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
             if ($Deduplication){$features+="FS-Data-Deduplication"}
-            
+            if ($SystemInsights){$features+="System-Insights","RSAT-System-Insights"}
+
             #install features
             Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
             #restart and wait for computers
