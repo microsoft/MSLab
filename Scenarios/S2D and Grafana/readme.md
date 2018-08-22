@@ -1,4 +1,4 @@
-<!-- TOC -->
+<!-- TOC --> 
 
 - [S2D and Grafana](#s2d-and-grafana)
     - [About the lab](#about-the-lab)
