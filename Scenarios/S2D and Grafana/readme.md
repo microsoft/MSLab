@@ -1,13 +1,13 @@
 <!-- TOC -->
 
-- [S2D and Grafana WORK IN PROGRESS](#s2d-and-grafana-work-in-progress)
+- [S2D and Grafana](#s2d-and-grafana)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
     - [The lab](#the-lab)
 
 <!-- /TOC -->
 
-# S2D and Grafana WORK IN PROGRESS
+# S2D and Grafana
 
 ## About the lab
 
@@ -35,10 +35,10 @@ First we will download install files to downloads folder. You can run all code f
 ```PowerShell
 #download files to downloads folder
     #influxDB and telegraph
-    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.5.3_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.7.0_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.6.1_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.7.3_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
     #Grafana
-    Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.1.3.windows-x64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.2.2.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
     #NSSM - the Non-Sucking Service Manager
     Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
  
