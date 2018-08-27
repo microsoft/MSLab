@@ -17,7 +17,7 @@
 
 ```PowerShell
 #Labconfig is same as insider preview. Just with 6 nodes instead of 4
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..6 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_17738.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
 #optional Win10 management machine
@@ -86,7 +86,6 @@ Run following script to configure necessary. Note: it's way simplified (no netwo
 #Enable S2D
     Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
  
-
 ```
 
 ## Fault domains
@@ -94,7 +93,7 @@ Run following script to configure necessary. Note: it's way simplified (no netwo
 Let's explore fault domains first.
 
 ```PowerShell
-Get-StorageFaultDomain -CimSession S2D-Cluster
+Get-StorageFaultDomain -CimSession S2D-Cluster | ft -AutoSize
  
 ```
 
@@ -102,38 +101,40 @@ Get-StorageFaultDomain -CimSession S2D-Cluster
 
 ## Create volumes
 
-So let's create deallocated volume. We can grab servers into variable and  then use just 3 fault domains like this
+So let's create deallocated volume. We can grab servers into variable and then use just 4 fault domains (FDs). Why 4 FDs? Because you need to maintain quorum after loosing nodes. Therefore just with 3 FDs, if you loose 2, your volume would go detached. While with 4 FDs, after loosing 2 FDs will volume stay online (quorum will be 2 FDs+file share witness in this case). See [this](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/understand-quorum
+) doc for understanding quorum.
+
+Following code will display first 4 Fault Domains
 
 ```PowerShell
-$Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster | Sort FriendlyName
-$Servers[0,1,2]
+$FaultDomains = Get-StorageFaultDomain -Type StorageScaleUnit -CimSession S2D-Cluster | Sort FriendlyName
+$FaultDomains[0,1,2,3]
  
 ```
 
-![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/ThreeFaultDomains.png)
+![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/FourFaultDomains.png)
 
-If you would like to have random 3 fault domains, you can do it this way
+If you would like to have random 4 fault domains, you can do it this way
 
 ```PowerShell
-$Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster| Sort FriendlyName
-$Servers | Get-Random -Count 3
+$FaultDomains = Get-StorageFaultDomain -Type StorageScaleUnit -CimSession S2D-Cluster| Sort FriendlyName
+$FaultDomains | Get-Random -Count 4
  
 ```
 
-![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/RandomThreeFaultDomains.png)
+![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/RandomFourFaultDomains.png)
 
-So let's create some volumes
+So let's create some volumes with 4 Fault Domains (or let's call it 4 scopes)
 
 ```PowerShell
-$Servers = Get-StorageFaultDomain -Type StorageScaleUnit -Cimsession S2D-Cluster| Sort FriendlyName
+$FaultDomains = Get-StorageFaultDomain -Type StorageScaleUnit -CimSession S2D-Cluster| Sort FriendlyName
 1..10 | foreach-object {
-    New-Volume -FriendlyName "MyVolume$_" -Size 100GB -StorageFaultDomainsToUse ($Servers | Get-Random -Count 3) -cimsession S2D-Cluster -StoragePoolFriendlyName S2D*
+    New-Volume -FriendlyName "MyVolume$_" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 4) -CimSession S2D-Cluster -StoragePoolFriendlyName S2D*
 }
  
 ```
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesCreated.png)
-
 
 ## View scoped volumes
 
@@ -215,7 +216,7 @@ foreach ($S2DCluster in $S2DClusters){
     $PhysicalDiskToSfdMap = @{} # Map of PhysicalDisk.UniqueId -> StorageFaultDomain.FriendlyName
     $SfdList | ForEach {
         $StorageFaultDomain = $_
-        $_ | Get-StorageFaultDomain -Type PhysicalDisk -Cimsession $S2DCluster.Name | ForEach {
+        $_ | Get-StorageFaultDomain -Type PhysicalDisk -CimSession $S2DCluster.Name | ForEach {
             $PhysicalDiskToSfdMap[$_.UniqueId] = $StorageFaultDomain.FriendlyName
         }
     }
@@ -226,14 +227,14 @@ foreach ($S2DCluster in $S2DClusters){
 
     Write-Progress -Activity "Get-VirtualDiskFootprintByStorageFaultDomain" -CurrentOperation "Analyzing virtual disk information..." -Status "Step 3/4" -PercentComplete 50
 
-    $GetVirtualDisk = Get-VirtualDisk -Cimsession $S2DCluster.Name | Sort FriendlyName
+    $GetVirtualDisk = Get-VirtualDisk -CimSession $S2DCluster.Name | Sort FriendlyName
 
     $VirtualDiskMap = @{}
 
     $GetVirtualDisk | ForEach {
         # Map of PhysicalDisk.UniqueId -> Size for THIS virtual disk
         $PhysicalDiskToSizeMap = @{}
-        $_ | Get-PhysicalExtent -Cimsession $S2DCluster.Name | ForEach {
+        $_ | Get-PhysicalExtent -CimSession $S2DCluster.Name | ForEach {
             $PhysicalDiskToSizeMap[$_.PhysicalDiskUniqueId] += $_.Size
         }
         # Map of StorageFaultDomain.FriendlyName -> Size for THIS virtual disk
@@ -312,4 +313,12 @@ And let's see what volumes survived
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesStatusPowerShell.png)
 
+![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesStatusPowerShellReason.png)
+
 Excellent!
+
+After starting nodes again, storage jobs will kick in.
+
+![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesRepairing.png)
+
+
