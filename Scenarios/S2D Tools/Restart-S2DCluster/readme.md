@@ -1,4 +1,4 @@
-````PowerShell
+```PowerShell
 #Grab cluster name
 $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1 | Out-GridView -OutputMode Single -Title "Please select your S2D Cluster").Name
 
@@ -59,7 +59,7 @@ foreach ($ClusterNode in $ClusterNodes){
         Resume-ClusterNode -Name $ClusterNode -Cluster $ClusterName -ErrorAction SilentlyContinue
     }until((Get-ClusterNode -Cluster $ClusterName -Name $ClusterNodes).State -eq "Up")
  
-````
+```
 
 
 

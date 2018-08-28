@@ -14,13 +14,13 @@
 
 This scenario will simulate disk failure and disk replacement in random node.
 
-You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvideos)
+You can watch this scenario in detail on YouTube [tbd](http://aka.ms/WSLabvideos)
 
 **Prereq:** Deploy [S2D Hyperconverged Scenario](/Scenarios/S2D%20Hyperconverged/)
 
 # Cluster status when healthy
 
-````PowerShell
+```PowerShell
 #Run from DC or Management machine
 
 #grab SS
@@ -38,7 +38,7 @@ You can watch this scenario in detail on YouTube [tbd](http://aka.ms/ws2016labvi
 #display virtual disks
     Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
  
-````
+```
 
 **Result**
 Notice everything is healthy
@@ -51,27 +51,27 @@ Notice everything is healthy
 
 **Note** keep this window open for returning the drive (to keep variables)
 
-````PowerShell
+```PowerShell
 #run from the host
-    $DiskToPull=Get-VM -Name ws2016lab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
+    $DiskToPull=Get-VM -Name WSLab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
     $DiskToPull
     $PulledDiskPath=$DiskToPull.Path
     $DiskToPull | Remove-VMHardDiskDrive
  
-````
+```
 
 **Result**
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult.png)
 
 Virtual disks will go immediately into warning state
 
-````PowerShell
+```PowerShell
 #Run from DC or Management machine
 
 #display virtual disks
     Get-VirtualDisk -CimSession s2d-cluster | Sort-Object FriendlyName
  
-````
+```
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-VirtualDisks.png)
 
@@ -82,7 +82,7 @@ After some time, Health service will register the failure
 You can notice one disk is in lost communication state
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-DiskLostCommunication.png)
 
-````PowerShell
+```PowerShell
 #Run from DC or Management machine
 
 #list all disks from all nodes
@@ -103,20 +103,20 @@ $disks | select PSComputerName,friendlyname,SerialNumber,healthstatus,Operationa
 $disks | select * | Out-GridView
 #>
  
-````
+```
 
 Notice disk is not present on node3
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RandomDiskPulledResult-DiskNotConnected1.png)
 
 ## Return disk
 
-````PowerShell
+```PowerShell
 #run from the host
 
 #add disk back
     Add-VMHardDiskDrive -VMName $disktopull.VMName -Path $PulledDiskPath
 
-````
+```
 
 **Result**
 Virtual Disks will be healthy again
@@ -128,9 +128,9 @@ Storage subsystem is healthy again (after ~5 minutes)
 
 # Pulling disk again and replacing with different
 
-````PowerShell
+```PowerShell
 #run from the host to pull drive
-    $DiskToPull=Get-VM -Name ws2016lab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
+    $DiskToPull=Get-VM -Name WSLab-s2d* | Get-VMHardDiskDrive | where ControllerLocation -ge 1 | Get-Random
     $DiskToPull
     $PulledDiskPath=$DiskToPull.Path
     $DiskToPull | Remove-VMHardDiskDrive
@@ -139,7 +139,7 @@ Storage subsystem is healthy again (after ~5 minutes)
     New-VHD -Path $NewDiskPath -SizeBytes 4TB
     Add-VMHardDiskDrive -VMName $disktopull.VMName -Path $NewDiskPath
  
-````
+```
 
 **result**
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/DiskReplaced.png)
@@ -169,7 +169,7 @@ After some time Disk will be retired. You will see following job and actions.
     $Pool
     Remove-PhysicalDisk -StoragePool $pool -PhysicalDisks $FailedDisk
  
-````
+```
 
 ![](/Scenarios/S2D%20Failures%20simulation/Screenshots/RemoveRetiredDisk.png)
 

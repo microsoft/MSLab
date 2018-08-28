@@ -27,12 +27,13 @@ foreach ($CSV in $CSVs){
     $CsvPath = ($CSV).SharedVolumeInfo.FriendlyVolumeName
     $Status=Invoke-Command -ComputerName $owner -ArgumentList $CSVPath -ScriptBlock {param($CsvPath); Get-BitLockerVolume -MountPoint $CSVPath}
     $Output += [PSCustomObject]@{
-        "CSVPath"          = $CSVPath
-        "VolumeStatus"     = $Status.VolumeStatus
-        "KeyProtector"     = $Status.KeyProtector
-        "EncryptionMethod" = $Status.EncryptionMethod
-        "MountPoint"       = $Status.MountPoint
-        "ProtectionStatus" = $Status.ProtectionStatus
+        "CSVPath"              = $CSVPath
+        "VolumeStatus"         = $Status.VolumeStatus
+        "KeyProtector"         = $Status.KeyProtector
+        "EncryptionPercentage" = $Status.EncryptionPercentage
+        "EncryptionMethod"     = $Status.EncryptionMethod
+        "MountPoint"           = $Status.MountPoint
+        "ProtectionStatus"     = $Status.ProtectionStatus
     }
 }
 

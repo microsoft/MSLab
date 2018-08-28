@@ -46,7 +46,7 @@ If (!( $isAdmin )) {
             $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
-            $Specialize
+            $RunSynchronous
         )
 
         if ( Test-Path "Unattend.xml" ) {
@@ -56,17 +56,15 @@ If (!( $isAdmin )) {
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
   <settings pass="offlineServicing">
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-        <OfflineIdentification>              
-           <Provisioning>  
+        <OfflineIdentification>
+           <Provisioning>
              <AccountData>$Blob</AccountData>
-           </Provisioning>  
-         </OfflineIdentification>  
+           </Provisioning>
+         </OfflineIdentification>
     </component>
   </settings>
-
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
@@ -83,20 +81,22 @@ If (!( $isAdmin )) {
       <TimeZone>$TimeZone</TimeZone>
     </component>
   </settings>
-
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RegisteredOwner>PFE</RegisteredOwner>
       <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
-    $Specialize
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>   
   </settings>
 </unattend>
 
 "@
 
         Set-Content $unattendFile $fileContent
-
         #return the file object
         $unattendFile 
     }
@@ -115,7 +115,7 @@ If (!( $isAdmin )) {
             $TimeZone,
             [parameter(Mandatory=$false)]
             [string]
-            $Specialize,
+            $RunSynchronous,
             [parameter(Mandatory=$false)]
             [string]
             $AdditionalAccount
@@ -134,7 +134,11 @@ If (!( $isAdmin )) {
         <RegisteredOwner>PFE</RegisteredOwner>
           <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
-    $Specialize
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>
  </settings>
  <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
@@ -174,6 +178,9 @@ If (!( $isAdmin )) {
             [parameter(Mandatory=$true)]
             [string]
             $TimeZone,
+            [parameter(Mandatory=$false)]
+            [string]
+            $RunSynchronous,
             [parameter(Mandatory=$true)]
             [string]
             $DomainName
@@ -191,6 +198,11 @@ If (!( $isAdmin )) {
         <RegisteredOwner>PFE</RegisteredOwner>
         <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <RunSynchronous>
+            $RunSynchronous
+        </RunSynchronous>
+    </component>
     <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <Identification>
                 <Credentials>
@@ -198,7 +210,7 @@ If (!( $isAdmin )) {
                     <Password>$AdminPassword</Password>
                     <Username>Administrator</Username>
                 </Credentials>
-                <JoinDomain>$DomainName</JoinDomain>            
+                <JoinDomain>$DomainName</JoinDomain>
         </Identification>
     </component>
  </settings>
@@ -223,7 +235,6 @@ If (!( $isAdmin )) {
 "@
 
         Set-Content $unattendFile $fileContent
-
         #return the file object
         $unattendFile 
     }
@@ -367,7 +378,7 @@ If (!( $isAdmin )) {
                     Position=1)]
             $outputstring
         )
-        Process {  
+        Process {
             $procinfo = New-Object System.Diagnostics.ProcessStartInfo
             $procinfo.FileName = $filename
             $procinfo.Arguments = $arguments
@@ -420,11 +431,19 @@ If (!( $isAdmin )) {
         }
                     
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
-        $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        if ($serverparent.Extension -eq ".vhdx"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        }elseif($serverparent.Extension -eq ".vhd"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         WriteInfo "`t Creating VM"
-        $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+        if ($VMConfig.Generation -eq 1){
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
+        }else{
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2    
+        }
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
@@ -470,25 +489,34 @@ If (!( $isAdmin )) {
             WriteInfo "`t Setting DSC Mode to Pull"
             PullClientConfig -ComputerName $VMConfig.VMName -DSCConfig $VMConfig.DSCConfig -OutputPath "$PSScriptRoot\temp\dscconfig" -DomainName $LabConfig.DomainName
         }
-            
+
         #configure nested virt
         if ($VMConfig.NestedVirt -eq $True){
             WriteInfo "`t Enabling NestedVirt"
             $VMTemp | Set-VMProcessor -ExposeVirtualizationExtensions $true
+            $VMTemp | Set-VMMemory -DynamicMemoryEnabled $False
         }
 
         #configure vTPM
         if ($VMConfig.vTPM -eq $True){
-            WriteInfo "`t Enabling vTPM"
-            $keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
-            Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
-            Enable-VMTPM -VM $VMTemp 
+            if ($VMConfig.Generation -eq 1){
+                WriteError "`t vTPM requested. But vTPM is not compatible with Generation 1"
+            }else{
+                WriteInfo "`t Enabling vTPM"
+                $keyprotector = New-HgsKeyProtector -Owner $guardian -AllowUntrustedRoot
+                Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
+                Enable-VMTPM -VM $VMTemp
+            }
         }
 
         #set MemoryMinimumBytes
         if ($VMConfig.MemoryMinimumBytes -ne $null){
             WriteInfo "`t Configuring MemoryMinimumBytes to $($VMConfig.MemoryMinimumBytes/1MB)MB"
-            Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
+            if ($VMConfig.NestedVirt){
+                "`t `t Skipping! NestedVirt configured"
+            }else{
+                Set-VM -VM $VMTemp -MemoryMinimumBytes $VMConfig.MemoryMinimumBytes
+            }
         }
 
         #Set static Memory
@@ -514,60 +542,97 @@ If (!( $isAdmin )) {
         }
 
         $Name=$VMConfig.VMName
-            
-        if ($VMConfig.SkipDjoin -eq $True){
-            WriteInfo "`t Skipping Djoin"                
-            if ($VMConfig.DisableWCF -eq $True){
-                if ($VMConfig.AdditionalLocalAdmin -ne $null){
-                    WriteInfo "`t WCF will be disabled and Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
-                    $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
-                }else{
-                    WriteInfo "`t WCF will be disabled"
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
-                }            
-            }else{
-                if ($VMConfig.AdditionalLocalAdmin -ne $null){
-                    WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will added"
-                    $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdminPassword $Labconfig.AdminPassword -AdditionalAdminName $VMConfig.AdditionalLocalAdmin
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
-                }else{
-                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
-                }    
-            }
-        }else{
-            if ($VMConfig.Win2012Djoin -eq $True){
-                WriteInfo "`t Creating Unattend with win2012 domain join"
-                $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -TimeZone $TimeZone
-            }else{
-                WriteInfo "`t Creating Unattend with djoin blob"
-                $path="c:\$vmname.txt"
-                Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-                $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-                if ($VMConfig.DisableWCF -eq $True){
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -Specialize $DisableWCF -TimeZone $TimeZone
-                }else{
-                    $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -TimeZone $TimeZone
-                }
-            }
+        #add run synchronous commands
+        WriteInfoHighlighted "`t Adding Sync Commands"
+        $RunSynchronous=""
+        if ($VMConfig.EnableWinRM){
+            $RunSynchronous+=@'
+            <RunSynchronousCommand wcm:action="add">
+                <Path>cmd.exe /c winrm quickconfig -q -force</Path>
+                <Description>enable winrm</Description>
+                <Order>1</Order>
+            </RunSynchronousCommand>
+
+'@
+            WriteInfo "`t `t WinRM will be enabled"
         }
 
-        WriteInfo "`t Adding unattend to VHD"
-        Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-        Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-        #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-        #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-        New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-        Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
-            
+        if ($VMConfig.DisableWCF){
+            $RunSynchronous+=@'
+            <RunSynchronousCommand wcm:action="add">
+                <Path>reg add HKLM\Software\Policies\Microsoft\Windows\CloudContent /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f</Path>
+                <Description>disable consumer features</Description>
+                <Order>2</Order>
+            </RunSynchronousCommand>
+
+'@
+            WriteInfo "`t `t WCF will be disabled"
+        }
+        if ($VMConfig.CustomPowerShellCommands){
+            $Order=3
+            foreach ($CustomPowerShellCommand in $VMConfig.CustomPowerShellCommands){
+                $RunSynchronous+=@"
+                <RunSynchronousCommand wcm:action="add">
+                    <Path>powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -WindowStyle Hidden -Command "$CustomPowerShellCommand"</Path>
+                    <Description>run custom powershell</Description>
+                    <Order>$Order</Order>
+                </RunSynchronousCommand>
+
+"@
+                $Order++
+            }
+            WriteInfo "`t `t Custom PowerShell command will be added"
+        }
+
+        if (-not $RunSynchronous){
+            WriteInfo "`t `t No sync commands requested"
+        }
+
+        #Create Unattend file
+        if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
+            WriteInfo "`t Skipping Djoin"
+            if ($VMConfig.AdditionalLocalAdmin){
+                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
+                $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdditionalAdminName $VMConfig.AdditionalLocalAdmin -AdminPassword $LabConfig.AdminPassword
+                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
+            }else{
+                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+            }
+        }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
+            WriteInfo "`t Creating Unattend with win2012-ish domain join"
+            $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+
+        }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
+            WriteInfo "`t Creating Unattend with djoin blob"
+            $path="c:\$vmname.txt"
+            Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+            $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
+            $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+        }elseif($VMConfig.Unattend -eq "None"){
+            $unattendFile=$Null
+        }
+
+        #adding unattend to VHD
+        if ($unattendFile){
+            WriteInfo "`t Adding unattend to VHD"
+            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
+            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
+            Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+        }
+
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Adding metaconfig.mof to VHD"
             Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
         }
-            
-        Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-        #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+
+        if ($unattendFile){
+            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
+            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+        }
 
         #add toolsdisk
         if ($VMConfig.AddToolsVHD -eq $True){
@@ -607,7 +672,7 @@ If (!( $isAdmin )) {
 
     $DN=$null
     $LabConfig.DomainName.Split(".") | ForEach-Object {
-        $DN+="DC=$_,"   
+        $DN+="DC=$_,"
     }
     $LabConfig.DN=$DN.TrimEnd(",")
 
@@ -626,25 +691,10 @@ If (!( $isAdmin )) {
 
     $LABfolderDrivePath=$LABfolder.Substring(0,3)
 
-    $DisableWCF=@'
-<component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <RunSynchronous>
-        <RunSynchronousCommand wcm:action="add">
-            <Path>reg add HKLM\Software\Policies\Microsoft\Windows\CloudContent /v DisableWindowsConsumerFeatures /t REG_DWORD /d 1 /f</Path>
-            <Description>disable consumer features</Description>
-            <Order>5</Order>
-        </RunSynchronousCommand>
-    </RunSynchronous>
-</component>
-'@
-
     $ExternalSwitchName="$($Labconfig.Prefix)$($LabConfig.Switchname)-External"
 
     #Grab TimeZone
     $TimeZone=(Get-TimeZone).id
-
-    #Grab Installation type
-    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
 
     #Grab number of processors
     (get-wmiobject win32_processor).NumberOfLogicalProcessors  | ForEach-Object { $global:NumberOfLogicalProcessors += $_}
@@ -685,23 +735,25 @@ If (!( $isAdmin )) {
             }else{
                 WriteErrorAndExit "`t Windows build older than 14393 detected. vTPM will not work Exiting"
             }
+            <# Not needed anymore as VBS is automatically enabled since 14393 when vTPM is used
             if (((Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).VirtualizationBasedSecurityStatus -ne 0) -and ((Get-Process "secure system") -ne $null )){
                 WriteSuccess "`t Virtualization Based Security is running. vTPM can be enabled"
             }else{
                 WriteErrorAndExit "`t Virtualization based security is not running. Enable VBS, or remove vTPM from configuration"
             }
+            #>
             #load Guardian
             $guardian=Get-HgsGuardian | Select-Object -first 1
             if($guardian -eq $null){
                 $guardian=New-HgsGuardian -Name LabGuardian -GenerateCertificates
                 WriteInfo "`t HGS with name LabGuardian created"
-            }    
+            }
         }
 
     #Check support for shared disks + enable if possible
         if ($LABConfig.VMs.Configuration -contains "Shared" -or $LABConfig.VMs.Configuration -contains "Replica"){
             WriteInfoHighlighted "Configuration contains Shared or Replica scenario"
-            
+
             WriteInfo "Checking support for shared disks"
             $OS=Get-WmiObject win32_operatingsystem
             if (($OS.caption -like "*Server*") -and $OS.version -gt 10){
@@ -747,14 +799,12 @@ If (!( $isAdmin )) {
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
         }
 
-    #check if running on Core Server and check proper values in LabConfig
-        If ($WindowsInstallationType -eq "Server Core"){
-            If (!$LabConfig.CreateClientParent -and !$LabConfig.ServerISOFolder){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
-            }elseif($LabConfig.CreateClientParent -and (!$LabConfig.ServerISOFolder -or !$LabConfig.ClientISOFolder)){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
-            }
-        }
+    #enable EnableEnhancedSessionMode if not enabled
+    if (-not (Get-VMHost).EnableEnhancedSessionMode){
+        WriteInfoHighlighted "Enhanced session mode was disabled. Enabling."
+        Set-VMHost -EnableEnhancedSessionMode $true
+    }
+
     #Create Switches
 
         WriteInfoHighlighted "Creating Switch"
@@ -771,40 +821,49 @@ If (!( $isAdmin )) {
     #connect lab to internet if specified in labconfig
         if ($Labconfig.Internet){
             WriteInfoHighlighted "Internet connectivity requested"
-            WriteInfo "`t Detecting external vSwitch $ExternalSwitchName"
-            $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
-            if ($ExternalSwitch){
-                WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
-            }else{
-                WriteInfo "`t Detecting external VMSwitch"
-                $ExtSwitch=Get-VMSwitch -SwitchType External
-                if (!$ExtSwitch){
-                    WriteInfoHighlighted "`t No External Switch detected. Will create one "
-                    $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
-                    if (!$TempNetAdapters){
-                        WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
-                    }
-                    if ($TempNetAdapters.name.count -eq 1){
-                        WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
-                        $ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
-                    }
-                    if ($TempNetAdapters.name.count -gt 1){
-                        WriteInfo "`t More than 1 NIC detected"
-                        WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
-                        $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
-                        if (!$tempNetAdapter){
-                            WriteErrorAndExit "You did not select any net adapter. Exitting."
+
+            if (!$LabConfig.CustomDnsForwarders){
+                $LabConfig.CustomDnsForwarders=@("8.8.8.8","1.1.1.1") # Google DNS, Cloudfare
+            }
+
+            WriteInfo "`t Detecting default vSwitch"
+            $DefaultSwitch=Get-VMSwitch -Name "Default Switch" -ErrorAction Ignore
+            if (-not $DefaultSwitch){
+                WriteInfo "`t Default switch not present, detecting external vSwitch $ExternalSwitchName"
+                $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
+                if ($ExternalSwitch){
+                    WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
+                }else{
+                    WriteInfo "`t Detecting external VMSwitch"
+                    $ExtSwitch=Get-VMSwitch -SwitchType External
+                    if (!$ExtSwitch){
+                        WriteInfoHighlighted "`t No External Switch detected. Will create one "
+                        $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
+                        if (!$TempNetAdapters){
+                            WriteErrorAndExit "No Adapters with Status -eq UP detected. Exitting"
                         }
-                        $ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        if ($TempNetAdapters.name.count -eq 1){
+                            WriteInfo "`t Just one connected NIC detected ($($TempNetAdapters.name)). Will create vSwitch connected to it"
+                            $ExternalSwitch=New-VMSwitch -NetAdapterName $TempNetAdapters.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        }
+                        if ($TempNetAdapters.name.count -gt 1){
+                            WriteInfo "`t More than 1 NIC detected"
+                            WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
+                            $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
+                            if (!$tempNetAdapter){
+                                WriteErrorAndExit "You did not select any net adapter. Exitting."
+                            }
+                            $ExternalSwitch=New-VMSwitch -NetAdapterName $tempNetAdapter.name -Name $ExternalSwitchName -AllowManagementOS $true
+                        }
                     }
-                }
-                if ($ExtSwitch.count -eq 1){
-                    WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
-                    $ExternalSwitch=$ExtSwitch
-                }
-                if ($ExtSwitch.count -gt 1){
-                    WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
-                    $ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -Title 'Please Select External Switch you want to use for Internet Connectivity'
+                    if ($ExtSwitch.count -eq 1){
+                        WriteSuccess "`t External vswitch $($ExtSwitch.name) found. Will be used for connecting lab to internet"
+                        $ExternalSwitch=$ExtSwitch
+                    }
+                    if ($ExtSwitch.count -gt 1){
+                        WriteInfoHighlighted "`t More than 1 External Switch found. Please chose what switch you want to use for internet connectivity"
+                        $ExternalSwitch=Get-VMSwitch -SwitchType External | Out-GridView -OutputMode Single -Title 'Please Select External Switch you want to use for Internet Connectivity'
+                    }
                 }
             }
         }
@@ -856,17 +915,18 @@ If (!( $isAdmin )) {
             WriteInfoHighlighted "Looking for DC to be imported"
             get-childitem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
                 $DC=Import-VM -Path $_.FullName
-                if ($DC -eq $null){
-                    WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
-                }
             }
+            if ($DC -eq $null){
+                    WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
+            }else{
             WriteInfo "`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
+            }
 
         #create checkpoint to be able to return to consistent state when cleaned with cleanup.ps1
             $DC | Checkpoint-VM -SnapshotName Initial
             WriteInfo "`t Virtual Machine $($DC.name) checkpoint created"
             Start-Sleep -Seconds 5
-        
+
         #rename network adapters and add another
             WriteInfo "`t Configuring Network"
 
@@ -883,7 +943,7 @@ If (!( $isAdmin )) {
             }
 
             $DC | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $SwitchName
-        
+
         #add aditional networks
             if ($labconfig.AdditionalNetworksInDC -eq $True){
                 WriteInfoHighlighted "`t Configuring Additional networks"
@@ -943,9 +1003,16 @@ If (!( $isAdmin )) {
     #connect to internet
     if ($labconfig.internet){
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
-            WriteInfo "`t`t Adding Network Adapter Internet and connecting to $($ExternalSwitch.Name)"
+            WriteInfo "`t `t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
-            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $ExternalSwitch
+
+            if ($DefaultSwitch){
+                $internetSwitch = $DefaultSwitch
+            }else{
+                $internetSwitch = $ExternalSwitch
+            }
+            WriteInfo "`t`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
+            $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $internetSwitch
         }
     }
 
@@ -1012,14 +1079,25 @@ If (!( $isAdmin )) {
                     }until ($test -ne $Null)
                     WriteSuccess "`t `t Active Directory on $($DC.name) is up."
                 }
-                WriteInfoHighlighted "`t Requesting DNS settings from Host"
-                $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $externalswitch.Name).name | select -First 1 #in case multiple adapters are in managementos
+
                 $DNSServers=@()
-                $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
-                $DNSServers+="8.8.8.8","208.67.222.222" #Adding OpenDNS and Google DNS servers
+
+                if(!$LabConfig.SkipHostDnsAsForwarder){
+                    WriteInfoHighlighted "`t Requesting DNS settings from Host"
+                    if($internetSwitch.Name -eq "Default Switch"){
+                        # Host's IP of Default Switch acts also as DNS resolver
+                        $DNSServers+=(Get-HnsNetwork | Where-Object { $_.Name -eq "Default Switch" }).Subnets[0].GatewayAddress
+                    }
+                    else{
+                        $vNICName=(Get-VMNetworkAdapter -ManagementOS -SwitchName $internetSwitch.Name).Name | Select-Object -First 1 #in case multiple adapters are in managementos
+                        $DNSServers+=(Get-NetIPConfiguration -InterfaceAlias "vEthernet ($vNICName)").DNSServer.ServerAddresses #grab DNS IP from vNIC
+                    }
+                }
+
+                $DNSServers+=$LabConfig.CustomDnsForwarders
+
                 WriteInfoHighlighted "`t Configuring NAT with netSH and starting services"
-                Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList (,$DNSServers) -ScriptBlock {    
-                    param($DNSServers);
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
                     Set-Service -Name RemoteAccess -StartupType Automatic
                     Start-Service -Name RemoteAccess
                     netsh.exe routing ip nat install
@@ -1027,14 +1105,12 @@ If (!( $isAdmin )) {
                     netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
                     netsh.exe ras set conf confstate = enabled
                     netsh.exe routing ip dnsproxy install
+                    Write-Host "Restarting service RemoteAccess..."
                     Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
-                    foreach ($DNSServer in $DNSServers){
-                        Add-DnsServerForwarder $DNSServer
-                    }
+                    Add-DnsServerForwarder $Using:DNSServers
                 }
             }
         }
-
 
 #endregion
 
@@ -1055,11 +1131,10 @@ If (!( $isAdmin )) {
 
                     [Parameter(Mandatory=$true)]
                     [string[]]$DomainName
-                )          
+                )
             Node $ComputerName {
-            
                 Settings{
-                
+
                     AllowModuleOverwrite = $True
                     ConfigurationMode = 'ApplyAndAutoCorrect'
                     RefreshMode = 'Pull'
@@ -1109,8 +1184,8 @@ If (!( $isAdmin )) {
                                     $SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
                                 }
                             }else{
-                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD-$VMSet-*.VHDS"
-                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS"
+                                $SharedSSDs=Get-VHD -Path "$LABfolder\VMs\SharedSSD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
+                                $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
                             }
                         #Build VM
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
@@ -1129,7 +1204,7 @@ If (!( $isAdmin )) {
                                 WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
                             }
                     }
-                
+
                 #create VM with Simple configuration
                     if ($VMConfig.configuration -eq 'Simple'){
                         BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
@@ -1141,8 +1216,8 @@ If (!( $isAdmin )) {
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #compose VM name
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
-                        
-                        #Add disks                        
+
+                        #Add disks
                             #add "SSDs"
                                 If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
                                     $SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\SSD-$_.VHDX" -Dynamic -Size $VMConfig.SSDSize}
@@ -1161,8 +1236,8 @@ If (!( $isAdmin )) {
                                         $filename=$_.Path.Substring($_.Path.LastIndexOf("\")+1,$_.Path.Length-$_.Path.LastIndexOf("\")-1)
                                         Add-VMHardDiskDrive -Path $_.path -VMName $VMname
                                         WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
-                                    }    
-                                }      
+                                    }
+                                }
                     }
 
                 #create VM with Replica configuration    
@@ -1180,7 +1255,7 @@ If (!( $isAdmin )) {
                             }
                         #build VM
                             BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
-                        
+
                         #Add disks
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName                
                             WriteInfoHighlighted "`t Attaching Shared Disks..."
@@ -1204,17 +1279,17 @@ If (!( $isAdmin )) {
 
 #region Finishing
     WriteInfoHighlighted "Finishing..." 
-    
+
     #a bit cleanup
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
         if (Test-Path "$PSScriptRoot\unattend.xml") {
             remove-item "$PSScriptRoot\unattend.xml"
         }
-    
+
     #set MacSpoofing and AllowTeaming (for SET switch in VMs to work properly with vNICs)
         WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
-    
+
     #list VMs 
         Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
@@ -1244,7 +1319,7 @@ If (!( $isAdmin )) {
 
     #Enable VMNics device naming
         WriteInfo "`t Enabling VMNics device naming"
-        Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -DeviceNaming On
+        Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
     #write how much it took to deploy
         WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"

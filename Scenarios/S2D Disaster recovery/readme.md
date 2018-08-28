@@ -17,14 +17,14 @@ You can watch this scenario in detail on YouTube [here](https://youtu.be/Gd9_rze
 
 Following LabConfig will create standard 4 node configuration. It will also create VMs with new OS. So we will not be reinstalling, we will just reuse OS VHDs that will be created using this script.
 
-````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB }
 1..4 | % {$VMNames="NewS2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes= 512MB }}
  
-````
+```
 **Deploy.ps1 result**
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/Deploy.ps1_result.png)
@@ -35,11 +35,11 @@ Deploy [S2D Hyperconverged Scenario](/Scenarios/S2D%20Hyperconverged/) and turn 
 
 After successful deployment turn off node S2D1
 
-````PowerShell
+```PowerShell
 #run from the host
-Stop-VM -VMName ws2016lab-s2d1 -TurnOff
+Stop-VM -VMName WSLab-s2d1 -TurnOff
 
-````
+```
 
 **Result**
 
@@ -52,14 +52,14 @@ Stop-VM -VMName ws2016lab-s2d1 -TurnOff
 
 As we are simulating OS failure, we will "reinstall" OS by just replacing OS vhd with vhd from S2D1NewOS VM.
 
-````PowerShell
+```PowerShell
 #run from the host
-Get-VMHardDiskDrive -VMName ws2016lab-s2d1 | where Path -like *S2D1.vhdx | Remove-VMHardDiskDrive
-$NewHardDisk=Get-VMHardDiskDrive -VMName ws2016lab-s2d1NewOS
-Add-VMHardDiskDrive -VMName ws2016lab-s2d1 -Path $NewHardDisk.Path
-Start-vm -VMName ws2016lab-s2d1
+Get-VMHardDiskDrive -VMName WSLab-s2d1 | where Path -like *S2D1.vhdx | Remove-VMHardDiskDrive
+$NewHardDisk=Get-VMHardDiskDrive -VMName WSLab-s2d1NewOS
+Add-VMHardDiskDrive -VMName WSLab-s2d1 -Path $NewHardDisk.Path
+Start-vm -VMName WSLab-s2d1
  
-````
+```
 
 **Result**
 
@@ -73,11 +73,11 @@ Run first 4 regions of s2d Hyper-Converged script again to configure basic setti
 
 After node is configured, you can add it to cluster and remove the old one by running following commands
 
-````PowerShell
+```PowerShell
 Add-ClusterNode    -Cluster s2d-cluster -Name S2D1NewOS
 Remove-ClusterNode -Cluster s2d-cluster -Name S2D1 -Force
  
-````
+```
 
 **Result: Notice all disks are now healthy**
 
@@ -85,7 +85,7 @@ Remove-ClusterNode -Cluster s2d-cluster -Name S2D1 -Force
 
 The last step would be to modify fault domain xml (as we used it)
 
-````PowerShell
+```PowerShell
 $xml =  @"
 <Topology>
         <Site Name="SEA" Description="" Location="Contoso HQ, 123 Example St, Room 4010, Seattle">
@@ -101,7 +101,7 @@ $xml =  @"
 
 Set-ClusterFaultDomainXML -XML $xml -CimSession s2d-cluster
  
-````
+```
 
 **Result**
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/OS_failure_recovery_result.png)
@@ -110,31 +110,31 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession s2d-cluster
 
 This will simulate all OS lost (like all OS disks lost due to some catastrophic failure-like someone incorrectly targeted OS Deployment TS in SCCM, so imagine all your S2D nodes are running Win10 instead of Windows Server).
 
-````PowerShell
+```PowerShell
 #run from hyper-v host
-Stop-VM -VMName ws2016lab-s2d* -TurnOff
+Stop-VM -VMName WSLab-s2d* -TurnOff
  
-````
+```
 
 Now, because you lost everything, lets replace OS on each S2D node with new one.
 
-````PowerShell
+```PowerShell
 #run from the host
 #Remove First OS disks from nodes S2D1-S2D4
-$VMNames=1..4 | % {"ws2016lab-S2D$_"}
+$VMNames=1..4 | % {"WSLab-S2D$_"}
 foreach ($VMName in $VMNames){
     Remove-VMHardDiskDrive -VMName $VMName -ControllerNumber 0 -ControllerLocation 0 -ControllerType SCSI
 }
 
 #add new hard disks
-$NewVHDs=Get-VMHardDiskDrive -VMName ws2016lab-news2d* | Sort-Object
+$NewVHDs=Get-VMHardDiskDrive -VMName WSLab-news2d* | Sort-Object
 $i=0
 foreach ($VMName in $VMNames){
     Add-VMHardDiskDrive -VMName $VMName -Path $NewVHDs[$i].Path
     $i++
 }
  
-````
+```
 
 **Result**
 
@@ -142,9 +142,9 @@ foreach ($VMName in $VMNames){
 
 Lets make this interesting. Because some Donkey mixed all disks lets reconnect it randomly to VMs :D
 
-````PowerShell
+```PowerShell
 #run from host to mix Disks
-$VMNames=1..4 | % {"ws2016lab-S2D$_"}
+$VMNames=1..4 | % {"WSLab-S2D$_"}
 1..20 | Foreach-Object {
     $VMs=$VMNames | Get-Random -Count 2
     #get some random disks
@@ -161,7 +161,7 @@ $VMNames=1..4 | % {"ws2016lab-S2D$_"}
 #turn on the VMs now
 Start-VM -VMName $VMNames
  
-````
+```
 
 **Mixed disks result**
 
@@ -169,12 +169,12 @@ Start-VM -VMName $VMNames
 
 Modify following values in LabConfig to create brand new cluster out of brand new OS.
 
-````PowerShell
+```PowerShell
 $ServersNamePrefix="NewS2D"
 $ClusterName="S2D-Cluster1"
 $CAURoleName="S2D-Clus1-CAU"
  
-````
+```
 
 **Modified LabConfig region in Scenario script**
 
@@ -188,10 +188,10 @@ Continue with scenario. Run all regions, until enabling S2D (Labconfig->Create F
 
 Now, after cluster is created, all is configured, you can enable-clusters2d. It will recognize drives and bring volumes online. Even I lost 2 disks somewhere when I was writing the scripts (notice only 46 disks were found)
 
-````PowerShell
+```PowerShell
 Enable-ClusterS2D -CimSession S2D-Cluster1 -confirm:0 -Verbose
  
-````
+```
 
 **Result**
 
@@ -200,7 +200,7 @@ Enable-ClusterS2D -CimSession S2D-Cluster1 -confirm:0 -Verbose
 
 As you can see, volume paths and names are bit messed up. So let's make this right with following PowerShell script
 
-````PowerShell
+```PowerShell
 $ClusterName="S2D-Cluster1"
 $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
 
@@ -241,7 +241,7 @@ Start-Sleep 20
         Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName -ErrorAction SilentlyContinue
     }
  
-````
+```
 
 **Result**
 
@@ -250,16 +250,16 @@ Start-Sleep 20
 
 The very last step would be to optimize volumes to regain resiliency (as we mixed all devices)
 
-````PowerShell
+```PowerShell
 Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePool
  
-````
+```
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalance.png)
 
 To check job you can display it with following piece of script
 
-````PowerShell
+```PowerShell
 $ClusterName="S2D-Cluster1"
 $jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
 if ($jobs){
@@ -273,6 +273,6 @@ if ($jobs){
     }until($jobs -eq $null)
 }
  
-````
+```
 
 ![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalancejob.png)

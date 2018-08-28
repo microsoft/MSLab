@@ -70,24 +70,12 @@ if ($installationType -eq "Nano Server"){
 
 #enable policies to backup Bitlocker key to AD
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
-        #Create FVE key if not exist
-        if (-not (Get-Item -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue)){
-            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE
-        }
-
+        #Create FVE key
+            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Force
         #Configure required registries to enable Recovery and AD Backup (FDVActiveDirectoryBackup and FDVRecovery). FDV stands for Fixed Disk Volume.
-        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue)){
-            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD
-        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue) -ne 1){
-            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1
-        }
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD -Force
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD -Force
 
-        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue)){
-            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD
-        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue) -ne 1){
-            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1
-        }
-    
         <# these are registries that are set by GPO 
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup        -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
@@ -175,3 +163,4 @@ foreach ($CSV in $CSVs){
         Write-Host "Volume $CSVPath is not FullyDecrypted"
     }
 }
+ 

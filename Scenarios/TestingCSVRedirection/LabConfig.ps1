@@ -1,4 +1,4 @@
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
 1..2 | % { $VMNames="SAN"           ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared' ; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; SSDNumber = 1; SSDSize=1GB   ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; VMSet= 'SAN'           ; NestedVirt=$True} }
 1..2 | % { $VMNames="SharedSS"      ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared' ; ParentVHD = 'Win2016NanoHV_G2.vhdx' ; SSDNumber = 3; SSDSize=800GB ; HDDNumber = 9 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; VMSet= 'SharedSSpaces' ; NestedVirt=$True} }

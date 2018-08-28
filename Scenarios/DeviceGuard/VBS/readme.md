@@ -16,8 +16,8 @@ Windows Defender Device Guard is composed of two technologies. Virtualization-ba
 
 ## LabConfig Windows Server 1709
 
-````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
 
@@ -27,18 +27,18 @@ $LABConfig.ServerVHDs += @{
     Size=40GB
 }
  
-````
+```
 ## LabConfig Windows Server 2016
 
 **Note:** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD without creating all parent disks
 
-````PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2016lab-'; SwitchName = 'LabSwitch'; DCEdition='DataCenter'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
+```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true ; ClientEdition='Enterprise'}
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"} | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
  
-````
+```
 
 # Configuring VBS
 
@@ -50,7 +50,7 @@ Registry keys used in following PowerShell match following settings in Group Pol
 
 ![](/Scenarios/DeviceGuard/VBS/Screenshots/VBS_GPO.png)
 
-````PowerShell
+```PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
 
 #configure VBS & Cred Guard
@@ -71,17 +71,17 @@ $Servers=1..3 | Foreach-Object {"Server$_"}
     }
 #restart servers to apply changes
 Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -for PowerShell
+ 
+```
 
-````
+To check if VBS is running you can run following CIM query as documented [here](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-exploit-guard/enable-virtualization-based-protection-of-code-integrity). 
 
-To check if VBS is running you can run following CIM query as documented [here](https://docs.microsoft.com/en-us/windows/device-security/device-guard/deploy-device-guard-enable-virtualization-based-security). 
-
-````PowerShell
+```PowerShell
 $Servers=1..3 | Foreach-Object {"Server$_"}
 
 Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windows\DeviceGuard -CimSession $servers
  
-````
+```
 
 ![](/Scenarios/DeviceGuard//VBS/Screenshots/DG_Status1.png)
 
