@@ -2,7 +2,7 @@
 
 Enabling BitLocker on S2D is covered in [this](https://technet.microsoft.com/en-us/library/dn383585(v=ws.11).aspx) TechNet article. Enabling BitLocker on CSV is a bit complex task. This scenario will help you understand steps needed and also contains sample script, that rapidly simlifies it.
 
-To try this scenario, deploy [S2D HyperConverged cluster](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/S2D%20Hyperconverged) first. To enable BitLocker, you can just run the [script](https://github.com/Microsoft/ws2016lab/tree/master/Scenarios/BitLocker%20on%20S2D%20cluster/EnableBitlockerOnS2D.ps1), and it will take care of everything.
+To try this scenario, deploy [S2D HyperConverged cluster](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) first. To enable BitLocker, you can just run the [script](https://github.com/Microsoft/WSLab/tree/master/Scenarios/BitLocker%20on%20S2D%20cluster/EnableBitlockerOnS2D.ps1), and it will take care of everything.
 
 ## High level overview
 
@@ -14,7 +14,7 @@ This Posh is bit complex. It runs node by node, checking if Bitlocker,RSAT-Featu
 
 Notice, that all suspend/resume actions are being tried until it succeeds.
 
-````PowerShell
+```PowerShell
 #install features and wait for servers to reboot
     foreach ($ClusterNode in $ClusterNodes){
         Write-Output "Installing Bitlocker Feature on $ClusterNode"
@@ -62,8 +62,8 @@ Notice, that all suspend/resume actions are being tried until it succeeds.
             }until((Get-ClusterNode -Cluster $ClusterName -Name $ClusterNodes).State -eq "Up")
         }
     }
-
-````
+ 
+```
 
 ## Add Bitlocker registry keys
 
@@ -71,26 +71,14 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/BitLockerGPO.png)
 
-````PowerShell
+```PowerShell
     Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
-        #Create FVE key if not exist
-        if (-not (Get-Item -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue)){
-            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE
-        }
-
+        #Create FVE key
+            New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Force
         #Configure required registries to enable Recovery and AD Backup (FDVActiveDirectoryBackup and FDVRecovery). FDV stands for Fixed Disk Volume.
-        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue)){
-            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD
-        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -ErrorAction SilentlyContinue) -ne 1){
-            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1
-        }
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup -Value 1 -PropertyType DWORD -Force
+            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD -Force
 
-        if (-not (Get-ItemProperty -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue)){
-            New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1 -PropertyType DWORD
-        }elseif((Get-ItemPropertyValue -path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -ErrorAction SilentlyContinue) -ne 1){
-            Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRecovery -Value 1
-        }
-    
         <# these are registries that are set by GPO 
             New-Item -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -ErrorAction SilentlyContinue
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVActiveDirectoryBackup        -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
@@ -102,8 +90,8 @@ To be able to backup recovery key to AD, policy or registry has to be set. Follo
             New-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\FVE -Name FDVRequireActiveDirectoryBackup -Value 1 -PropertyType DWORD -ErrorAction SilentlyContinue
         #>
     }
-
-````
+ 
+```
 ## Move workload away, suspend CSV and enable BitLocker
 
 I really like Out-GridView as it can provide GUI, so you don't have to type anything. In this case it will help filling $CSVs variable with CSVs of your choice. Script identifies owner node, checks if volume is decrypted (if encrypted, it skips it). If its dectrypted, it will go and shuts all VMs on volume off and then suspends volume.
@@ -114,7 +102,7 @@ As already described in high level overview, CredSSP is needed. In this case I c
 
 After BitLocker is enabled, CSV is resumed and VMs started. The last step is to move CSV to other nodes and initiate backup of PasswordProtector to AD.
 
-````PowerShell
+```PowerShell
 $CSVs=Get-ClusterSharedVolume -Cluster $clustername | Out-GridView -PassThru -Title "Please select CSVs to encrypt. Selected CSV will be put in maintenance mode, bitlockered and then resumed"
 
 foreach ($CSV in $CSVs){
@@ -186,8 +174,9 @@ foreach ($CSV in $CSVs){
         Write-Host "Volume $CSVPath is not FullyDecrypted"
     }
 }
+ 
+```
 
-````
 ## Some Screenshots
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/ClusterSelect.png)
@@ -201,4 +190,3 @@ foreach ($CSV in $CSVs){
 ### CheckBitlockerOnS2D.ps1
 
 ![](/Scenarios/BitLocker%20on%20S2D%20cluster/Screenshots/CheckBitlockerOnS2D.png)
-

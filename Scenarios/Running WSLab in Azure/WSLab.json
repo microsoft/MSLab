@@ -1,0 +1,341 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "allowedValues": [
+        "australiaeast",
+        "australiasoutheast",
+        "brazilsouth",
+        "canadacentral",
+        "canadaeast",
+        "centralindia",
+        "centralus",
+        "eastasia",
+        "eastus",
+        "eastus2",
+        "japaneast",
+        "japanwest",
+        "koreacentral",
+        "koreasouth",
+        "northcentralus",
+        "northeurope",
+        "southcentralus",
+        "southeastasia",
+        "southindia",
+        "uksouth",
+        "ukwest",
+        "westcentralus",
+        "westeurope",
+        "westindia",
+        "westus",
+        "westus2"
+      ]
+    },
+    "virtualMachineName": {
+      "type": "string",
+      "defaultValue": "WSLab"
+    },
+    "virtualMachineSize": {
+      "type": "string",
+      "defaultValue": "Standard_D16s_v3",
+      "allowedValues": [
+        "Standard_D2_v3",
+        "Standard_D4_v3",
+        "Standard_D8_v3",
+        "Standard_D16_v3",
+        "Standard_D32_v3",
+        "Standard_D64_v3",
+        "Standard_D2s_v3",
+        "Standard_D4s_v3",
+        "Standard_D8s_v3",
+        "Standard_D16s_v3",
+        "Standard_D32s_v3",
+        "Standard_D64s_v3",
+        "Standard_E2_v3",
+        "Standard_E4_v3",
+        "Standard_E8_v3",
+        "Standard_E16_v3",
+        "Standard_E32_v3",
+        "Standard_E64_v3",
+        "Standard_E2s_v3",
+        "Standard_E4s_v3",
+        "Standard_E8s_v3",
+        "Standard_E16s_v3",
+        "Standard_E32-8s_v3",
+        "Standard_E32-16s_v3",
+        "Standard_E32s_v3",
+        "Standard_E64-16s_v3",
+        "Standard_E64-32s_v3",
+        "Standard_E64s_v3"
+      ]
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "LabAdmin"
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "WSLab-vnet"
+    },
+    "networkInterfaceName": {
+      "type": "string",
+      "defaultValue": "WSLabNIC1"
+    },
+    "networkSecurityGroupName": {
+      "type": "string",
+      "defaultValue": "WSLabNIC1"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "addressPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24"
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "default"
+    },
+    "subnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24"
+    },
+    "publicIpAddressName": {
+      "type": "string",
+      "defaultValue": "WSLab-ip"
+    },
+    "publicIpAddressType": {
+      "type": "string",
+      "defaultValue": "Dynamic"
+    },
+    "publicIpAddressSku": {
+      "type": "string",
+      "defaultValue": "Basic"
+    },
+    "autoShutdownStatus": {
+      "type": "string",
+      "defaultValue": "Enabled"
+    },
+    "autoShutdownTime": {
+      "type": "string",
+      "defaultValue": "19:00"
+    },
+    "autoShutdownTimeZone": {
+      "type": "string",
+      "defaultValue": "UTC"
+    },
+    "autoShutdownNotificationStatus": {
+      "type": "string",
+      "defaultValue": "Disabled"
+    },
+    "_artifactsLocation": {
+        "type": "string",
+        "metadata": {
+            "description": "Location of resources that the script is dependent on such as linked templates and DSC modules"
+        },
+        "defaultValue": "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure"
+    },
+    "_artifactsLocationSasToken": {
+        "type": "securestring",
+        "metadata": {
+            "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+        },
+        "defaultValue": ""
+    }
+  },
+  "variables": {
+      "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+      "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+  },
+  "resources": [
+      {
+          "name": "[parameters('virtualMachineName')]",
+          "type": "Microsoft.Compute/virtualMachines",
+          "apiVersion": "2016-04-30-preview",
+          "location": "[parameters('location')]",
+          "dependsOn": [
+              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
+          ],
+          "properties": {
+              "osProfile": {
+                  "computerName": "[parameters('virtualMachineName')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "windowsConfiguration": {
+                      "provisionVmAgent": "true"
+                  }
+              },
+              "hardwareProfile": {
+                  "vmSize": "[parameters('virtualMachineSize')]"
+              },
+              "storageProfile": {
+                  "imageReference": {
+                      "publisher": "MicrosoftWindowsServer",
+                      "offer": "WindowsServer",
+                      "sku": "2016-Datacenter",
+                      "version": "latest"
+                  },
+                  "osDisk": {
+                      "createOption": "fromImage",
+                      "managedDisk": {
+                          "storageAccountType": "Premium_LRS"
+                      }
+                  },
+                  "dataDisks": []
+              },
+              "networkProfile": {
+                  "networkInterfaces": [
+                      {
+                          "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+                      }
+                  ]
+              },
+              "licenseType": "Windows_Server"
+          }
+      },
+      {
+          "name": "[concat('shutdown-computevm-', parameters('virtualMachineName'))]",
+          "type": "Microsoft.DevTestLab/schedules",
+          "apiVersion": "2017-04-26-preview",
+          "location": "[parameters('location')]",
+          "properties": {
+              "status": "[parameters('autoShutdownStatus')]",
+              "taskType": "ComputeVmShutdownTask",
+              "dailyRecurrence": {
+                  "time": "[parameters('autoShutdownTime')]"
+              },
+              "timeZoneId": "[parameters('autoShutdownTimeZone')]",
+              "targetResourceId": "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachineName'))]",
+              "notificationSettings": {
+                  "status": "[parameters('autoShutdownNotificationStatus')]",
+                  "timeInMinutes": "30"
+              }
+          },
+          "dependsOn": [
+              "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+          ]
+      },
+      {
+          "name": "[parameters('virtualNetworkName')]",
+          "type": "Microsoft.Network/virtualNetworks",
+          "apiVersion": "2017-08-01",
+          "location": "[parameters('location')]",
+          "properties": {
+              "addressSpace": {
+                  "addressPrefixes": [
+                      "[parameters('addressPrefix')]"
+                  ]
+              },
+              "subnets": [
+                  {
+                      "name": "[parameters('subnetName')]",
+                      "properties": {
+                          "addressPrefix": "[parameters('subnetPrefix')]"
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "name": "[parameters('networkInterfaceName')]",
+          "type": "Microsoft.Network/networkInterfaces",
+          "apiVersion": "2016-09-01",
+          "location": "[parameters('location')]",
+          "dependsOn": [
+              "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+              "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'))]",
+              "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]"
+          ],
+          "properties": {
+              "ipConfigurations": [
+                  {
+                      "name": "ipconfig1",
+                      "properties": {
+                          "subnet": {
+                              "id": "[variables('subnetRef')]"
+                          },
+                          "privateIPAllocationMethod": "Dynamic",
+                          "publicIpAddress": {
+                              "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                          }
+                      }
+                  }
+              ],
+              "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+              }
+          }
+      },
+      {
+          "name": "[parameters('publicIpAddressName')]",
+          "type": "Microsoft.Network/publicIpAddresses",
+          "apiVersion": "2017-08-01",
+          "location": "[parameters('location')]",
+          "properties": {
+              "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
+          },
+          "sku": {
+              "name": "[parameters('publicIpAddressSku')]"
+          }
+      },
+      {
+          "name": "[parameters('networkSecurityGroupName')]",
+          "type": "Microsoft.Network/networkSecurityGroups",
+          "apiVersion": "2017-06-01",
+          "location": "[parameters('location')]",
+          "properties": {
+              "securityRules": [
+                  {
+                      "name": "default-allow-rdp",
+                      "properties": {
+                          "priority": 1000,
+                          "protocol": "TCP",
+                          "access": "Allow",
+                          "direction": "Inbound",
+                          "sourceAddressPrefix": "*",
+                          "sourcePortRange": "*",
+                          "destinationAddressPrefix": "*",
+                          "destinationPortRange": "3389"
+                      }
+                  }
+              ]
+          }
+      },
+      {
+          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
+          "apiVersion": "2017-12-01",
+          "location": "[resourceGroup().location]",
+          "tags": {
+              "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
+          },
+          "dependsOn": [
+            "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'))]"
+          ],
+          "properties": {
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.76",
+              "autoUpgradeMinorVersion": true,
+              "settings": {
+                  "modulesUrl": "[concat(parameters('_artifactsLocation'),'/dsc/config.zip')]",
+                  "sasToken": "[parameters('_artifactsLocationSasToken')]",
+                  "configurationFunction": "config.ps1\\Config",
+                  "properties": { 
+                  "nodeName": "[parameters('virtualMachineName')]"
+                  }
+              },
+              "protectedSettings": {}
+          }
+      }
+  ],
+  "outputs": {
+      "adminUsername": {
+          "type": "string",
+          "value": "[parameters('adminUsername')]"
+      }
+  }
+}

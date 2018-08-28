@@ -9,14 +9,14 @@ Write-host "Script started at $StartDateTime"
     $Clusters=@()
     $Clusters+=[pscustomobject]@{
         Name= "Site1-SR-Clus"
-        IP = ""
+        IP = "10.0.0.121"
         Servers = 'Site1-S2D1','Site1-S2D2'
         CAURoleName = "Site1SRClusCAU"
     }
 
     $Clusters+=[pscustomobject]@{
         Name= "Site2-SR-Clus"
-        IP = ""
+        IP = "10.0.0.122"
         Servers = 'Site2-S2D1','Site2-S2D2'
         CAURoleName = "Site2SRClusCAU"
     }
@@ -75,7 +75,7 @@ Write-host "Script started at $StartDateTime"
         $iWARP=$False
 
     #Nano server?
-        $NanoServer=$True
+        $NanoServer=$false
 
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
@@ -85,6 +85,9 @@ Write-host "Script started at $StartDateTime"
     #Enable Meltdown mitigation? https://support.microsoft.com/en-us/help/4072698/windows-server-guidance-to-protect-against-the-speculative-execution
     #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
         $MeltdownMitigationEnable=$false
+
+    #Enable speculative store bypass mitigation? https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in , https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV180012
+       $SpeculativeStoreBypassMitigation=$false
 
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
@@ -165,6 +168,15 @@ if ($WindowsInstallationType -eq "Server"){
             Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
         }
     }
+
+#enable Speculative Store Bypass mitigation
+    if ($SpeculativeStoreBypassMitigation){
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+        }
+    }
+
 
 #Configure MinVmVersionForCpuBasedMitigations (only needed if you are running VM versions prior 8.0)
     if ($ConfigurePCIDMinVersion){
@@ -418,8 +430,8 @@ if (!$NanoServer){
     }
 
     #enable CredSSP to be able to work with NanoServer
-        Enable-WSManCredSSP -role server -Force
-        Enable-WSManCredSSP Client -DelegateComputer $Cluster1FirstNode -Force
+    Invoke-Command -computername $Cluster1FirstNode -ScriptBlock {Enable-WSManCredSSP -role server -Force}
+    Enable-WSManCredSSP Client -DelegateComputer $Cluster1FirstNode -Force
 
     #Create custom credentials
     $username = "corp\Administrator"
@@ -438,6 +450,10 @@ if (!$NanoServer){
     #generate replica report (nano does not have charts API)
     Test-SRTopology -GenerateReport -DataPath \\dc\c$\replicaresults\
 
+    #disable credssp
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -computername $Cluster1FirstNode -ScriptBlock {Disable-WSManCredSSP -role server}
+
     #Add data disks to CSV
         foreach ($ClusterName in $clusters.Name){
             Add-ClusterSharedVolume -Name "Cluster Virtual Disk (Data1)" -Cluster $ClusterName
@@ -448,7 +464,7 @@ if (!$NanoServer){
             Get-ClusterSharedVolume -Cluster $ClusterName | ForEach-Object {
                 $volumepath=$_.sharedvolumeinfo.friendlyvolumename
                 $newname=$_.name.Substring(22,$_.name.Length-23)
-                Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+                Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {Rename-Item -Path $using:volumepath -NewName $using:newname} -ErrorAction SilentlyContinue
             } 
         }
 
