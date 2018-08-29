@@ -31,13 +31,13 @@ $LABConfig.AdditionalNetworksConfig += @{
     }
 
 $LABConfig.ServerVHDs += @{
-    Edition="ServerDataCenterCore";
+    Edition="3";
     VHDName="WinServerCore.vhdx";
     Size=150GB
 }
 
 $LABConfig.ServerVHDs += @{
-    Edition="ServerDataCenter";
+    Edition="4";
     VHDName="WinServer.vhdx";
     Size=40GB
 }
@@ -70,13 +70,17 @@ $LABConfig.VMs += @{
         StaticMemory=$false;
         VMProcessorCount = 2
     }
+
 ```
 
 # The LAB
 
-**Tip:** When prompt for the VHDX used in VMM select the same as you used for the hosts
+**Tip:** When prompt for the VHDX, select the same as you used for the hosts
+
 
 The script is devided in two parts, first part should be run from the Hyper-V host, second part should be run from the DC
+
+For detailed guidance go to: https://cloudmechanic.net/2018/08/29/deploying-a-sdnv2-lab-on-a-single-host-using-nested-hyper-v/
 
 ## Part 1
 * Select the VHDX to be used for the SDN VMs
