@@ -11,3 +11,15 @@ $disks | select PSComputerName,friendlyname,SerialNumber,healthstatus,Operationa
 $disks | select * | ogv
  
 ```
+
+Alternatively you can add node name into Physical disk description
+
+```PowerShell
+$ClusterName="S2D-Cluster"
+$StorageNodes=Get-StorageSubSystem -CimSession $clusterName -FriendlyName Clus* | Get-StorageNode
+#add owner node name to description
+foreach ($StorageNode in $StorageNodes){$StorageNode | Get-PhysicalDisk -PhysicallyConnected -CimSession $StorageNode.Name | Set-PhysicalDisk -Description $StorageNode.Name -CimSession $StorageNode.Name}
+#display disks
+Get-PhysicalDisk -CimSession $ClusterName | format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+ 
+```
