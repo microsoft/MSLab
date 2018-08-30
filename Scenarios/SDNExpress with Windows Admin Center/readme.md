@@ -22,7 +22,7 @@ Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) / [Twit
 ```PowerShell
 #SDNExpress
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SDNExpress2019-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='No'; PullServerDC=$false; CreateClientParent=$false ; ClientEdition='Enterprise'; Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true; ServerVHDs=@();}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SDNExpress2019-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='4'; VMs=@();InstallSCVMM='No'; PullServerDC=$false; CreateClientParent=$false ; ClientEdition='Enterprise'; Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true; ServerVHDs=@();}
 $LABConfig.AdditionalNetworksConfig += @{ 
         NetName = 'HNV';
         NetAddress='10.103.33.';
