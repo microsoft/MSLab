@@ -3,9 +3,10 @@
 - [Project Description](#project-description)
 - [Videos](#videos)
 - [HowTo](#howto)
-    - [Step 1 Download required files (prerequisities):](#step-1-download-required-files-prerequisities)
+    - [Step 1 Download required files (prerequisites):](#step-1-download-required-files-prerequisites)
         - [Windows Server 2016](#windows-server-2016)
         - [or Windows Server 2019](#or-windows-server-2019)
+        - [Optionally you can download SCVMM 1807 files](#optionally-you-can-download-scvmm-1807-files)
     - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
     - [Step 3 (Optional) Check the LabConfig.ps1](#step-3-optional-check-the-labconfigps1)
     - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
@@ -32,15 +33,14 @@
  * This solution is used in Microsoft Premier Workshop for Software Defined Storage, Hyper-V and System Center VMM. If you have Premier Contract, contact your TAM and our trainers can deliver this workshop for you.
  * Follow [#ws2016lab](https://twitter.com/search?f=tweets&vertical=default&q=%23ws2016lab) hash tag to get latest news.
 
- * Check [this](https://github.com/Microsoft/WSLab/tree/master/Scenarios) page for end to end scenarios! It's just a small portion I wrote for internally for consultants and PFEs in Microsoft
+ * Check [this](https://github.com/Microsoft/WSLab/tree/master/Scenarios) page for end to end scenarios!
 
  * Want to try Windows Server insider builds? Check [this](https://github.com/Microsoft/WSLab/tree/master/Insider) page
 
- * Want to try Windows Server 1709? Check [this](https://github.com/Microsoft/WSLab/tree/master/1709) page
 
 # Videos
 
-Note: Some videos may be a bit outdated as there is continous inovation going on in the scripts.
+Note: Some videos may be a bit outdated as there is continuous innovation going on in the scripts.
 
 * [1 Prereq and Create Parent disks](https://youtu.be/705A-mCvzUc)
 * [2 Basic S2D Scenario Walkthrough](https://youtu.be/cAOCcTjlkm4)
@@ -53,7 +53,7 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 
 # HowTo
 
-## Step 1 Download required files (prerequisities):
+## Step 1 Download required files (prerequisites):
 
 * [Scripts](https://github.com/Microsoft/WSLab/blob/master/scripts.zip?raw=true)
 
@@ -66,6 +66,18 @@ Note: Some videos may be a bit outdated as there is continous inovation going on
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 * [Insider labconfig.ps1](/Insider/LabConfig.ps1)
+
+### Optionally you can download SCVMM 1807 files
+
+Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) (bit outdated)
+
+* [ADK 1803](https://go.microsoft.com/fwlink/?linkid=873065) Note: you need to run setup.exe and download all files and place it to tools disk. Not just setup.exe.
+
+* [SCVMM 1801](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
+
+* [SQL 2017](https://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2017-rtm)
+
+* [SCVMM 1807 Updates](https://support.microsoft.com/en-us/help/4135364/system-center-virtual-machine-manager-version-1807) - [Server](http://download.windowsupdate.com/d/msdownload/update/software/updt/2018/07/kb4135364_vmmserver_amd64_62bb3f73faa19849ae3d4418477a8247e862ad0d.cab) and [Admin Console](http://download.windowsupdate.com/c/msdownload/update/software/updt/2018/07/kb4135365_adminconsole_amd64_ab2fd20910f00a3f640eab2d6c686e65a5e73374.cab) Note: extract MSPs from CABs
 
 ## Step 2 Create folder and Unzip scripts there
 

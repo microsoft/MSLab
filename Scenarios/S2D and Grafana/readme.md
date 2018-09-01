@@ -35,10 +35,10 @@ First we will download install files to downloads folder. You can run all code f
 ```PowerShell
 #download files to downloads folder
     #influxDB and telegraph
-    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.6.1_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.7.3_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.6.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.7.4_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
     #Grafana
-    Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.2.2.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+    Invoke-WebRequest -UseBasicParsing -Uri https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.2.3.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
     #NSSM - the Non-Sucking Service Manager
     Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
  
