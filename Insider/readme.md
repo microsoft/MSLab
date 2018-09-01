@@ -52,3 +52,5 @@ $LabConfig.VMs += @{ VMName = 'PasteScriptsHere' ; Configuration = 'Simple' ; Pa
 ![](/Insider//Screenshots/cluadmin.png)
  
 ## Known issues
+
+17744: DSC configuration may take forever. If so, log in into DC and wait (with Administrator User). It somehow helps to resume DSC configuration. After that, DSC config will succeed .
