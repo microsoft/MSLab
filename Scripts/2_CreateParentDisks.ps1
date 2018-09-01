@@ -196,35 +196,37 @@ If (!( $isAdmin )) {
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
         }
 
-    #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested
-        if ($LabConfig.InstallSCVMM -eq "Yes"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
+    #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested and tools.vhdx not present
+        if (-not (Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).name -contains "tools.vhdx"){
+            if ($LabConfig.InstallSCVMM -eq "Yes"){
+                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
+                    }
+                }    
+            }
+
+            if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
+                    }
+                } 
+            }
+        
+            if ($LabConfig.InstallSCVMM -eq "SQL"){
+                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
+                    }
                 }
             }    
-        }
 
-        if ($LabConfig.InstallSCVMM -eq "Prereqs"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
-                }
-            } 
-        }
-    
-        if ($LabConfig.InstallSCVMM -eq "SQL"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
-                }
-            }
-        }    
-
-        if ($LabConfig.InstallSCVMM -eq "ADK"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
+            if ($LabConfig.InstallSCVMM -eq "ADK"){
+                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
+                    }
                 }
             }
         }
