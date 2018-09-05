@@ -12,7 +12,7 @@
         - [Configure remote servers](#configure-remote-servers)
         - [Connect to Collector and view logs](#connect-to-collector-and-view-logs)
         - [Increase Forwarded Events log size](#increase-forwarded-events-log-size)
-    - [Install Sysmon with sysmonconfig and enable WEF for Sysmont events](#install-sysmon-with-sysmonconfig-and-enable-wef-for-sysmont-events)
+    - [Install Sysmon with sysmonconfig and enable WEF for Sysmon events](#install-sysmon-with-sysmonconfig-and-enable-wef-for-sysmon-events)
         - [Download sysmon and sysmon config](#download-sysmon-and-sysmon-config)
         - [Install sysmon to Server1 and Server2](#install-sysmon-to-server1-and-server2)
         - [Create sysmon subscription](#create-sysmon-subscription)
@@ -273,7 +273,7 @@ So if everything works well, and you will use RDP for connecting to for example 
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewer.png)
 
-## Install Sysmon with sysmonconfig and enable WEF for Sysmont events
+## Install Sysmon with sysmonconfig and enable WEF for Sysmon events
 
 ### Download sysmon and sysmon config
 
