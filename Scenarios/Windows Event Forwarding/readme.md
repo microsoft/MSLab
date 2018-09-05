@@ -228,6 +228,18 @@ eventvwr.msc
  
 ```
 
+Lastly you may want to increase ForwardedEvents log size. You can do it with following command
+
+```PowerShell
+$CollectorName="Collector"
+$LogSize=10GB
+Invoke-Command -computername $CollectorName -scriptblock {
+     wevtutil sl ForwardedEvents /ms:$using:Logsize
+}
+ 
+```
+
 So if everything works well, and you will use RDP for connecting to for example Server1, you will see this event in collector
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewer.png)
+
