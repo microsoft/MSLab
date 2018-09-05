@@ -28,9 +28,8 @@
 
 ## About lab
 
-This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance)
+This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance), how to install Sysmon and monitor Sysmon events using WEF
 
-Todo: how to create custom XML for Sysmon, how to deploy sysmon and how to visualize sysmon events with Weffles
 
 ## LabConfig Windows Server 2016
 
