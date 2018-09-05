@@ -5,6 +5,13 @@
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
     - [Configure event WEF collector and import NSA recommended events](#configure-event-wef-collector-and-import-nsa-recommended-events)
+        - [Download zip with NSA Samples](#download-zip-with-nsa-samples)
+        - [Create groups for each sample rule](#create-groups-for-each-sample-rule)
+        - [Configure Collector](#configure-collector)
+        - [Validate subscriptions on collector server](#validate-subscriptions-on-collector-server)
+        - [Configure remote servers](#configure-remote-servers)
+        - [Connect to Collector and view logs](#connect-to-collector-and-view-logs)
+        - [Increase Forwarded Events log size](#increase-forwarded-events-log-size)
 
 <!-- /TOC -->
 
@@ -57,6 +64,8 @@ $LabConfig.ServerVHDs += @{
 
 ## Configure event WEF collector and import NSA recommended events
 
+### Download zip with NSA Samples
+
 Fist step would be to download Event Forwarding Guidance github project into Downloads and will unzip it. It contains XML samples and list of logs and events recommendations (in JSON and CSV). It also contains some helper functions, for creating custom views.
 
 Run all code from DC (or Win10 management machine, but make sure you install RSAT).
@@ -75,6 +84,8 @@ Expand-Archive -Path $env:USERPROFILE\Downloads\NSASamples.zip -DestinationPath 
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAfiles.png)
 
+### Create groups for each sample rule
+
 Let's create AD Group for each sample rule. This will enable us to control what to collect on each computer
 
 ```PowerShell
@@ -92,6 +103,8 @@ foreach ($sampleRuleName in $sampleRuleNames){
 ```
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAGroups.png)
+
+### Configure Collector
 
 Now it's needed to configure collector server
 
@@ -132,6 +145,8 @@ $CollectorSession | Remove-PSSession
  
 ```
 
+### Validate subscriptions on collector server
+
 Following script will help you validate results
 
 ```PowerShell
@@ -169,6 +184,8 @@ foreach ($line in $result){
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/SubscriptionACL.png)
 
+### Configure remote servers
+
 The NEXT would be to configure remote server to send out logs. To do it, you need to configure Collector Server registry entry (or GPO), add Network Service for each monitored log as reader (with wevtutil sl $logname "/ca:O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x1;;;BO)(A;;0x1;;;SO)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;NS)") Or add it to Event log readers group and also add server to AD Group (so Collector will accept logs from the server)
 
 ```PowerShell
@@ -203,6 +220,8 @@ Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
  
 ```
 
+### Connect to Collector and view logs
+
 To enable firewall rule to be able to connect to remote server with eventvwr.msc run following command
 
 ```PowerShell
@@ -227,6 +246,8 @@ copy-item -path "$WEFFolder\customviews\nt6\*" -destination "$env:ProgramData\Mi
 eventvwr.msc
  
 ```
+
+### Increase Forwarded Events log size
 
 Lastly you may want to increase ForwardedEvents log size. You can do it with following command
 
