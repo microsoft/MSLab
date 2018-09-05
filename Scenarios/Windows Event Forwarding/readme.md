@@ -57,7 +57,7 @@ $LabConfig.ServerVHDs += @{
 
 ## Configure event WEF collector and import NSA recommended events
 
-Fist step would be to download Event Forwarding Guidance github project into Downloads and will unzip it. It contains XML samples and list of logs and events recommendations (in JSON and CSV). It also contains some helper functions, but those will not be used
+Fist step would be to download Event Forwarding Guidance github project into Downloads and will unzip it. It contains XML samples and list of logs and events recommendations (in JSON and CSV). It also contains some helper functions, for creating custom views.
 
 Run all code from DC (or Win10 management machine, but make sure you install RSAT).
 
@@ -79,7 +79,7 @@ Let's create AD Group for each sample rule. This will enable us to control what 
 
 ```PowerShell
 #Create AD Groups for NSA Rules
-$SampleRuleNames=(Get-ChildItem -Path "$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master\Subscriptions\samples").BaseName
+$SampleRuleNames=(Get-ChildItem -Path "$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master\Subscriptions\NT6").BaseName
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 $OUName="WEF Rules"
 
@@ -105,15 +105,22 @@ Invoke-Command -Session $CollectorSession -ScriptBlock {
 }
 
 #Import XML files for rules, that will be configured on collector
-$XMLFiles=Get-ChildItem "$env:USERPROFILE\downloads\Event-Forwarding-Guidance-master\Subscriptions\samples\"
+$XMLFiles=Get-ChildItem "$env:USERPROFILE\downloads\Event-Forwarding-Guidance-master\Subscriptions\NT6\"
 
-#process Templates and and add AD group to each template. 
+#modify target domain name in AccountLogons.xml
+$Path="$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master\Subscriptions\NT6\AccountLogons.xml"
+$AccountLogonsXML=Get-Content -Path $Path
+$AccountLogonsXML[45]=$AccountLogonsXML[45].replace("TEST","$env:userdomain")
+$AccountLogonsXML[59]=$AccountLogonsXML[59].replace("TEST","$env:userdomain")
+$AccountLogonsXML | Out-File -FilePath $Path
+
+#process Templates, add AD group to each template and create subscription
 foreach ($XMLFile in $XMLFiles){
     #Generate AllowedSourceDomainComputers parameter
     $SID=(Get-ADGroup -Identity $XMLFile.Basename).SID.Value
     $AllowedSourceDomainComputers="O:NSG:BAD:P(A;;GA;;;$SID)S:"
     [xml]$XML=get-content $XMLFile.FullName
-    invoke-command -Session $CollectorSession -scriptblock {
+    invoke-command -Session $CollectorSession -ScriptBlock {
         $xml=$using:xml
         $xml.subscription.AllowedSourceDomainComputers=$using:AllowedSourceDomainComputers
         $xml.Save("$env:TEMP\temp.xml")
@@ -203,5 +210,24 @@ $CollectorName="Collector"
 Enable-NetFirewallRule -CimSession $CollectorName -DisplayGroup "Remote Event Log Management"
  
 ```
+
+NSA also provides Custom views generator. It will create custom view xmls out of wecutil xmls. So let's create it and copy to custom views... 
+
+```PowerShell
+$WEFFolder="$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master"
+cd "$WEFFolder\Scripts"
+
+#Create custom view xmls
+.\creatCV.ps1 -dir ..\subscriptions\nt6 -odir ..\customviews\nt6
+
+#copy it to C:\ProgramData\Microsoft\Event Viewer\Views
+copy-item -path "$WEFFolder\customviews\nt6\*" -destination "$env:ProgramData\Microsoft\Event Viewer\Views"
+
+#run event viewer
+eventvwr.msc
+ 
+```
+
+So if everything works well, and you will use RDP for connecting to for example Server1, you will see this event in collector
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewer.png)
