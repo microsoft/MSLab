@@ -188,10 +188,20 @@ foreach ($Server in $servers){
  
 ```
 
-To enable firewall rule to be able to connect to remote server with winevent.msc run following command
+Restart servers to initiate sending logs (I did not figure out yet how to kick in event forwarder)
+
+```PowerShell
+$servers="Server1","Server2"
+Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
+ 
+```
+
+To enable firewall rule to be able to connect to remote server with eventvwr.msc run following command
 
 ```PowerShell
 $CollectorName="Collector"
 Enable-NetFirewallRule -CimSession $CollectorName -DisplayGroup "Remote Event Log Management"
  
 ```
+
+![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewer.png)
