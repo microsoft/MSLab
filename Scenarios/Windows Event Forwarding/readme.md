@@ -1,22 +1,46 @@
+<!-- TOC -->
 
-## About lab WORK IN PROGRESS
+- [Windows Event Forwarding WORK IN PROGRESS](#windows-event-forwarding-work-in-progress)
+    - [About lab](#about-lab)
+    - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
+    - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
+    - [Configure event WEF collector and import NSA recommended events](#configure-event-wef-collector-and-import-nsa-recommended-events)
+
+<!-- /TOC -->
+
+# Windows Event Forwarding WORK IN PROGRESS
+
+## About lab
 
 This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance)
+
+Todo: how to create custom XML for Sysmon, how to deploy sysmon and how to visualize sysmon events with Weffles
 
 ## LabConfig Windows Server 2016
 
 ```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+
+$LabConfig.VMs += @{ VMName = 'Server1'   ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+$LabConfig.VMs += @{ VMName = 'Server2'   ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+$LabConfig.VMs += @{ VMName = 'Collector' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+
+#$LabConfig.VMs += @{ VMName = 'Client1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; DisableWCF=$True ; WinRM=$true }
+#$LabConfig.VMs += @{ VMName = 'Client2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; DisableWCF=$True ; WinRM=$true}
 
 ```
 
 ## LabConfig Windows Server 2019
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17744-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17744-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 
-$LabConfig.VMs += @{ VMName = 'Server1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
-$LabConfig.VMs += @{ VMName = 'Server2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+$LabConfig.VMs += @{ VMName = 'Server1'   ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+$LabConfig.VMs += @{ VMName = 'Server2'   ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
 $LabConfig.VMs += @{ VMName = 'Collector' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
+
+#$LabConfig.VMs += @{ VMName = 'Client1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; DisableWCF=$True ; WinRM=$true }
+#$LabConfig.VMs += @{ VMName = 'Client2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; DisableWCF=$True ; WinRM=$true}
 
 $LabConfig.ServerVHDs += @{
     Edition="4"
@@ -31,38 +55,65 @@ $LabConfig.ServerVHDs += @{
  
 ```
 
-## Scenario
+## Configure event WEF collector and import NSA recommended events
+
+Fist step would be to download Event Forwarding Guidance github project into Downloads and will unzip it. It contains XML samples and list of logs and events recommendations (in JSON and CSV). It also contains some helper functions, but those will not be used
+
+Run all code from DC (or Win10 management machine, but make sure you install RSAT).
 
 ```PowerShell
 #download zip with all NSA samples
-if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){
+if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 }
 Invoke-WebRequest -Uri https://github.com/nsacyber/Event-Forwarding-Guidance/archive/master.zip -OutFile $env:USERPROFILE\Downloads\NSASamples.zip
 
 #unzip
 Expand-Archive -Path $env:USERPROFILE\Downloads\NSASamples.zip -DestinationPath $env:USERPROFILE\Downloads
+ 
+```
 
-#Create Group for monitored servers and add servers there
-New-ADGroup -Name "WEF Member Servers" -Path "ou=workshop,dc=corp,dc=contoso,dc=com" -GroupScope Global
-Add-ADGroupMember -Identity "WEF Member Servers" -Members "Server1$","Server2$"
+![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAfiles.png)
 
-#Generate Allowed source computers string
-$SID=(Get-ADGroup -Identity "WEF Member Servers").SID.Value
-$AllowedSourceDomainComputers="O:NSG:BAD:P(A;;GA;;;$SID)S:"
+Let's create AD Group for each sample rule. This will enable us to control what to collect on each computer
 
-#Create PSSession to Collector server
-$session=New-PSSession -computername Collector
+```PowerShell
+#Create AD Groups for NSA Rules
+$SampleRuleNames=(Get-ChildItem -Path "$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master\Subscriptions\samples").BaseName
+$OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
+$OUName="WEF Rules"
 
-#start WEF service
-invoke-command -session $session -ScriptBlock {WECUtil qc /q}
+New-ADOrganizationalUnit -Name $OUName -Path $OUPath
 
-#import XMLs to remote collector
+foreach ($sampleRuleName in $sampleRuleNames){
+    New-ADGroup -Name $sampleRuleName -Path "ou=$OUName,$OUPath" -GroupScope Global
+}
+ 
+```
+
+![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAGroups.png)
+
+Now it's needed to configure collector server
+
+```PowerShell
+#create session for managed computer (Computername is Collector in this case)
+$CollectorSession=New-PSSession -ComputerName Collector
+
+#configure Event Forwarding on collector server
+Invoke-Command -Session $CollectorSession -ScriptBlock {
+    WECUtil qc /q
+}
+
+#Import XML files for rules, that will be configured on collector
 $XMLFiles=Get-ChildItem "$env:USERPROFILE\downloads\Event-Forwarding-Guidance-master\Subscriptions\samples\"
 
+#process Templates and and add AD group to each template. 
 foreach ($XMLFile in $XMLFiles){
+    #Generate AllowedSourceDomainComputers parameter
+    $SID=(Get-ADGroup -Identity $XMLFile.Basename).SID.Value
+    $AllowedSourceDomainComputers="O:NSG:BAD:P(A;;GA;;;$SID)S:"
     [xml]$XML=get-content $XMLFile.FullName
-    invoke-command -session $session -scriptblock {
+    invoke-command -Session $CollectorSession -scriptblock {
         $xml=$using:xml
         $xml.subscription.AllowedSourceDomainComputers=$using:AllowedSourceDomainComputers
         $xml.Save("$env:TEMP\temp.xml")
@@ -70,34 +121,77 @@ foreach ($XMLFile in $XMLFiles){
     }
 }
 
-#configure servers
+$CollectorSession | Remove-PSSession
+ 
+```
+
+Following script will help you validate results
+
+```PowerShell
+$CollectorName="Collector"
+
+#grab subscriptions
+$subscriptions=Invoke-Command -ComputerName $CollectorName -ScriptBlock {
+    wecutil es #es = enumerate subscriptions = alias for enum-subscription. See wecutil /? for help
+}
+
+#elect what subscription you would like to see
+$SubscriptionToQuery=$subscriptions | Out-GridView -OutputMode Multiple
+$result=Invoke-Command -ComputerName $CollectorName -ScriptBlock {
+    foreach ($subscription in $using:SubscriptionToQuery){
+        wecutil gs $subscription
+    }
+}
+$result
+
+#You also may notice SDDL To translate it back to readable code you can run following PowerShell (todo: create customobject for all results - feel free to pull :) 
+
+foreach ($line in $result){
+    if ($line -like "Subscription Id: *"){
+        write-host "SubscriptionName:" -ForegroundColor Cyan
+        $($line.TrimStart("Subscription Id: "))
+    }
+    if ($line -like "AllowedSourceDomainComputers: *"){
+        $SDDL=$line.TrimStart("AllowedSourceDomainComputers: *")
+        write-host "SubscriptionACLs:" -ForegroundColor Cyan
+        $(ConvertFrom-SDDLString $SDDL)
+    }
+}
+ 
+```
+
+![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/SubscriptionACL.png)
+
+The NEXT would be to configure remote server to send out logs. To do it, you need to configure Collector Server registry entry (or GPO), add Network Service for each monitored log as reader (with wevtutil sl $logname "/ca:O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x1;;;BO)(A;;0x1;;;SO)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;NS)") Or add it to Event log readers group and also add server to AD Group (so Collector will accept logs from the server)
+
+```PowerShell
 $servers="Server1","Server2"
-Invoke-command -computername $servers -scriptblock {
+$CollectorServerName="Collector"
+
+#configure servers
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Add-LocalGroupMember -Group "Event Log Readers" -Member "Network Service"
     $Path="hklm:\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager"
     if(!(Test-Path $Path)){
         New-Item $Path -Force
     }
-    New-ItemProperty -Path $Path -Name 1 -Value "Server=http://Collector:5985/wsman/SubscriptionManager/WEC,Refresh=30" -PropertyType String -force
+    New-ItemProperty -Path $Path -Name 1 -Value "Server=http://$($using:CollectorServerName):5985/wsman/SubscriptionManager/WEC,Refresh=30" -PropertyType String -force
 }
 
-#configure network service to be able to read all logs on servers
-$events=ConvertFrom-csv -InputObject (get-content $env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master\Events\RecommendedEvents.csv)
-$lognames=$events | select "Event Log" -Unique
-
-Invoke-command -computername $servers -scriptblock {
-    foreach ($logname in $using:lognames){
-        if (Get-WinEvent -ListLog $logname -ErrorAction SilentlyContinue){
-            wevtutil sl $logname "/ca:O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x1;;;BO)(A;;0x1;;;SO)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;NS)"
-        }
+#add servers to AD Group
+$ADGroups=(Get-ADGroup -SearchBase "OU=WEF Rules,OU=Workshop,DC=Corp,DC=contoso,DC=com" -Filter *).Name | Out-GridView -OutputMode Multiple
+foreach ($Server in $servers){
+    foreach ($ADGroup in $ADGroups){
+        Add-ADGroupMember -Members "$($server)$" -Identity $ADGroup
     }
 }
+ 
+```
 
-#enable firewall to collector so you are able to connect with event viewer
-Enable-NetFirewallRule -CimSession Collector -DisplayGroup "Remote Event Log Management"
+To enable firewall rule to be able to connect to remote server with winevent.msc run following command
 
-
-#todo... increase size... 
-wevtutil sl $logname /ms:209715200
-
-
+```PowerShell
+$CollectorName="Collector"
+Enable-NetFirewallRule -CimSession $CollectorName -DisplayGroup "Remote Event Log Management"
+ 
 ```
