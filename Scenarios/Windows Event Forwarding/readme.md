@@ -30,7 +30,6 @@
 
 This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance), how to install Sysmon and monitor Sysmon events using WEF
 
-
 ## LabConfig Windows Server 2016
 
 ```PowerShell
@@ -155,37 +154,23 @@ $CollectorSession | Remove-PSSession
 
 ### Validate subscriptions on collector server
 
-Following script will help you validate results
+Following script will help display all subscriptions and it's ACLs
 
 ```PowerShell
 $CollectorName="Collector"
 
-#grab subscriptions
-$subscriptions=Invoke-Command -ComputerName $CollectorName -ScriptBlock {
-    wecutil es #es = enumerate subscriptions = alias for enum-subscription. See wecutil /? for help
-}
-
-#elect what subscription you would like to see
-$SubscriptionToQuery=$subscriptions | Out-GridView -OutputMode Multiple
-$result=Invoke-Command -ComputerName $CollectorName -ScriptBlock {
-    foreach ($subscription in $using:SubscriptionToQuery){
-        wecutil gs $subscription
+Invoke-Command -ComputerName $CollectorName -ScriptBlock {
+    #enumerate subscriptions
+    $subs=wecutil es
+    $output=foreach ($sub in $subs){
+        [xml]$xml=wecutil gs $sub /f:xml
+        $xml.Subscription
     }
-}
-$result
-
-#You also may notice SDDL To translate it back to readable code you can run following PowerShell (todo: create customobject for all results - feel free to pull :) 
-
-foreach ($line in $result){
-    if ($line -like "Subscription Id: *"){
-        write-host "SubscriptionName:" -ForegroundColor Cyan
-        $($line.TrimStart("Subscription Id: "))
+    #add AllowedSourceDomainComputers in Friendly output
+    foreach ($object in $output){
+        $object | Add-Member -MemberType NoteProperty -Force -Name AllowedSourceDomainComputersFriendly -Value (ConvertFrom-SddlString $object.AllowedSourceDomainComputers).DiscretionaryAcl
     }
-    if ($line -like "AllowedSourceDomainComputers: *"){
-        $SDDL=$line.TrimStart("AllowedSourceDomainComputers: *")
-        write-host "SubscriptionACLs:" -ForegroundColor Cyan
-        $(ConvertFrom-SDDLString $SDDL)
-    }
+    $output |ft SubscriptionId,AllowedSourceDomainComputersFriendly
 }
  
 ```
