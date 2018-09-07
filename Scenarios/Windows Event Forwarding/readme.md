@@ -159,19 +159,37 @@ Following script will help display all subscriptions and it's ACLs
 ```PowerShell
 $CollectorName="Collector"
 
-Invoke-Command -ComputerName $CollectorName -ScriptBlock {
+$subscriptions=Invoke-Command -ComputerName $CollectorName -ScriptBlock {
     #enumerate subscriptions
     $subs=wecutil es
-    $output=foreach ($sub in $subs){
+    $subscriptionXMLs= foreach ($sub in $subs){
         [xml]$xml=wecutil gs $sub /f:xml
-        $xml.Subscription
+        $xml.subscription
     }
-    #add AllowedSourceDomainComputers in Friendly output
-    foreach ($object in $output){
-        $object | Add-Member -MemberType NoteProperty -Force -Name AllowedSourceDomainComputersFriendly -Value (ConvertFrom-SddlString $object.AllowedSourceDomainComputers).DiscretionaryAcl
+    $Subscriptions = foreach ($subXML in $subscriptionXMLs) {
+        New-Object PSObject -Property @{
+            SubscriptionId = $subXML.SubscriptionId
+            SubscriptionType = $subXML.SubscriptionType
+            Description = $subXML.Description
+            Enabled = $subXML.Enabled
+            Uri = $subXML.Uri
+            ConfigurationMode = $subXML.ConfigurationMode
+            Delivery = $subXML.Delivery
+            Query = $subXML.Query."#cdata-section"
+            ReadExistingEvents = $subXML.ReadExistingEvents
+            TransportName = $subXML.TransportName
+            ContentFormat = $subXML.ContentFormat
+            Locale = $subXML.Locale
+            LogFile = $subXML.LogFile
+            AllowedSourceNonDomainComputers = $subXML.AllowedSourceNonDomainComputers
+            AllowedSourceDomainComputers = $subXML.AllowedSourceDomainComputers
+            AllowedSourceDomainComputersFriendly = (ConvertFrom-SddlString $subXML.AllowedSourceDomainComputers).DiscretionaryAcl
+        }
     }
-    $output |ft SubscriptionId,AllowedSourceDomainComputersFriendly
+    return $subscriptions
 }
+
+$subscriptions | ft SubscriptionId,AllowedSourceDomainComputersFriendly
  
 ```
 
