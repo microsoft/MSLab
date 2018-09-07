@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [Windows Event Forwarding WORK IN PROGRESS](#windows-event-forwarding-work-in-progress)
+- [Windows Event Forwarding](#windows-event-forwarding)
     - [About lab](#about-lab)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
@@ -24,7 +24,7 @@
 
 <!-- /TOC -->
 
-# Windows Event Forwarding WORK IN PROGRESS
+# Windows Event Forwarding
 
 ## About lab
 
@@ -214,7 +214,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 }
 
 #add servers to AD Group
-$ADGroups=(Get-ADGroup -SearchBase "OU=WEF Rules,OU=Workshop,DC=Corp,DC=contoso,DC=com" -Filter *).Name | Out-GridView -OutputMode Multiple
+$ADGroups=(Get-ADGroup -SearchBase "OU=WEF Rules,OU=Workshop,DC=Corp,DC=contoso,DC=com" -Filter *).Name | Out-GridView -OutputMode Multiple -Title "Select AD Groups"
 foreach ($Server in $servers){
     foreach ($ADGroup in $ADGroups){
         Add-ADGroupMember -Members "$($server)$" -Identity $ADGroup
@@ -241,7 +241,7 @@ Enable-NetFirewallRule -CimSession $CollectorName -DisplayGroup "Remote Event Lo
  
 ```
 
-NSA also provides Custom views generator. It will create custom view xmls out of wecutil xmls. So let's create it and copy to custom views... 
+NSA also provides Custom views generator. It will create custom view xmls out of wecutil xmls. So let's create it and copy to custom views...
 
 ```PowerShell
 $WEFFolder="$env:USERPROFILE\Downloads\Event-Forwarding-Guidance-master"
