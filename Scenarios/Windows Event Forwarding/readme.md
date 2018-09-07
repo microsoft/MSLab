@@ -197,7 +197,7 @@ $subscriptions | ft SubscriptionId,AllowedSourceDomainComputersFriendly
 
 ### Configure remote servers
 
-The NEXT would be to configure remote server to send out logs. To do it, you need to configure Collector Server registry entry (or GPO), add Network Service for each monitored log as reader (with wevtutil sl $logname "/ca:O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x1;;;BO)(A;;0x1;;;SO)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;NS)") Or add it to Event log readers group and also add server to AD Group (so Collector will accept logs from the server)
+The next step is to configure remote server to send out logs. To do it, you need to configure Collector Server registry entry (or GPO), add Network Service for each monitored log as reader (with wevtutil sl $logname "/ca:O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x1;;;BO)(A;;0x1;;;SO)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;NS)") Or add it to Event log readers group and also add server to AD Group (so Collector will accept logs from the server).
 
 ```PowerShell
 $servers="Server1","Server2"
