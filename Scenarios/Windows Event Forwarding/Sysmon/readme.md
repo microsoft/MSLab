@@ -10,7 +10,7 @@
         - [Validate subscriptions on collector server](#validate-subscriptions-on-collector-server)
     - [Configure Collector server address on member servers](#configure-collector-server-address-on-member-servers)
     - [Check if servers are registered with Collector](#check-if-servers-are-registered-with-collector)
-    - [Generate views](#generate-views)
+    - [Generate views for EventViewer and connect to Collector](#generate-views-for-eventviewer-and-connect-to-collector)
         - [All events view](#all-events-view)
         - [Generate Views for each event](#generate-views-for-each-event)
         - [Allow firewall rule for Event logs, connect to Collector and enjoy](#allow-firewall-rule-for-event-logs-connect-to-collector-and-enjoy)
@@ -258,9 +258,9 @@ Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
  
 ```
 
-![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/RegisteredServers.png
+![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/RegisteredServers.png)
 
-## Generate views
+## Generate views for EventViewer and connect to Collector
 
 ### All events view
 
@@ -346,4 +346,4 @@ eventvwr
  
 ```
 
-![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/EventViewer.png
+![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/EventViewer.png)
