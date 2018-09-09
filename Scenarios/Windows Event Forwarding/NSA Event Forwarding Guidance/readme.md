@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [Windows Event Forwarding](#windows-event-forwarding)
+- [NSA Event Forwarding Guidance](#nsa-event-forwarding-guidance)
     - [About lab](#about-lab)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
@@ -12,23 +12,17 @@
         - [Configure remote servers](#configure-remote-servers)
         - [Connect to Collector and view logs](#connect-to-collector-and-view-logs)
         - [Increase Forwarded Events log size](#increase-forwarded-events-log-size)
-    - [Install Sysmon with sysmonconfig and enable WEF for Sysmon events](#install-sysmon-with-sysmonconfig-and-enable-wef-for-sysmon-events)
-        - [Download sysmon and sysmon config](#download-sysmon-and-sysmon-config)
-        - [Install sysmon to Server1 and Server2](#install-sysmon-to-server1-and-server2)
-        - [Create sysmon subscription](#create-sysmon-subscription)
-        - [Add servers to Sysmon AD Group](#add-servers-to-sysmon-ad-group)
-        - [Create sysmon view](#create-sysmon-view)
     - [Install Weffles to explore events](#install-weffles-to-explore-events)
-        - [Download and expand weffles repo](#download-and-expand-weffles-repo)
+        - [Download and expand weffles repository](#download-and-expand-weffles-repository)
         - [Follow guide](#follow-guide)
 
 <!-- /TOC -->
 
-# Windows Event Forwarding
+# NSA Event Forwarding Guidance
 
 ## About lab
 
-This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance), how to install Sysmon and monitor Sysmon events using WEF
+This lab demonstrates how to collect events with Windows Event Forwarding using [NSA samples](https://github.com/nsacyber/Event-Forwarding-Guidance)
 
 ## LabConfig Windows Server 2016
 
@@ -82,14 +76,14 @@ Run all code from DC (or Win10 management machine, but make sure you install RSA
 if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 }
-Invoke-WebRequest -Uri https://github.com/nsacyber/Event-Forwarding-Guidance/archive/master.zip -OutFile $env:USERPROFILE\Downloads\NSASamples.zip
+Invoke-WebRequest -UseBasicParsing -Uri https://github.com/nsacyber/Event-Forwarding-Guidance/archive/master.zip -OutFile $env:USERPROFILE\Downloads\NSASamples.zip
 
 #unzip
 Expand-Archive -Path $env:USERPROFILE\Downloads\NSASamples.zip -DestinationPath $env:USERPROFILE\Downloads
  
 ```
 
-![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAfiles.png)
+![](/Scenarios/Windows%20Event%20Forwarding/NSA%20Event%20Forwarding%20Guidance/Screenshots/NSAfiles.png)
 
 ### Create groups for each sample rule
 
@@ -109,7 +103,7 @@ foreach ($sampleRuleName in $sampleRuleNames){
  
 ```
 
-![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/NSAGroups.png)
+![](/Scenarios/Windows%20Event%20Forwarding/NSA%20Event%20Forwarding%20Guidance/Screenshots/NSAGroups.png)
 
 ### Configure Collector
 
@@ -193,7 +187,7 @@ $subscriptions | ft SubscriptionId,AllowedSourceDomainComputersFriendly
  
 ```
 
-![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/SubscriptionACL.png)
+![](/Scenarios/Windows%20Event%20Forwarding/NSA%20Event%20Forwarding%20Guidance/Screenshots/SubscriptionACL.png)
 
 ### Configure remote servers
 
@@ -273,163 +267,13 @@ Invoke-Command -computername $CollectorName -scriptblock {
 
 So if everything works well, and you will use RDP for connecting to for example Server1, you will see this event in collector
 
-![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewer.png)
-
-## Install Sysmon with sysmonconfig and enable WEF for Sysmon events
-
-### Download sysmon and sysmon config
-
-```PowerShell
-#Download Sysmon
-Invoke-WebRequest -Uri https://download.sysinternals.com/files/Sysmon.zip -OutFile $env:USERPROFILE\Downloads\Sysmon.zip
-
-#unzip
-Expand-Archive -Path $env:USERPROFILE\Downloads\Sysmon.zip -DestinationPath $env:USERPROFILE\Downloads\Sysmon\
-
-#download sysmon config
-$XML=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml
-$xml.Save("$env:USERPROFILE\Downloads\Sysmon\Sysmonconfig-export.xml")
- 
-```
-
-### Install sysmon to Server1 and Server2
-
-```PowerShell
-$servers="Server1","Server2"
-$sessions=New-PSSession -ComputerName $servers
-
-#copy sysmon to servers
-foreach ($session in $sessions){
-    Copy-Item -Path $env:USERPROFILE\Downloads\Sysmon -Destination $env:TEMP -ToSession $session -Recurse -Force
-}
-
-#install sysmon to servers
-Invoke-Command -Session $sessions -ScriptBlock {
-    Start-Process -Wait -FilePath sysmon.exe -ArgumentList "-accepteula -i sysmonconfig-export.xml" -WorkingDirectory "$env:Temp\Sysmon"
-}
-
-#validate if sysmon is running
-Invoke-Command -Session $sessions -ScriptBlock {
-    Get-Service Sysmon
-}
- 
-```
-
-### Create sysmon subscription
-
-```Powershell
-$CollectorName="Collector"
-$OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
-$OUName="WEF Rules"
-$GroupName="Sysmon"
-
-
-#Create AD Group for sysmon rule
-New-ADGroup -Name $GroupName -Path "ou=$OUName,$OUPath" -GroupScope Global
-
-#Generate AllowedSourceDomainComputers parameter
-$SID=(Get-ADGroup -Identity $GroupName).SID.Value
-$AllowedSourceDomainComputers="O:NSG:BAD:P(A;;GA;;;$SID)S:"
-
-#Create XML
-[xml]$xml=@"
-<Subscription xmlns="http://schemas.microsoft.com/2006/03/windows/events/subscription">
-    <SubscriptionId>Sysmon</SubscriptionId>
-    <SubscriptionType>SourceInitiated</SubscriptionType>
-    <Description>Sysmon. Targets: Vista+</Description>
-    <Enabled>true</Enabled>
-    <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
-
-    <!-- Use Normal (default), Custom, MinLatency, MinBandwidth -->
-    <ConfigurationMode>Custom</ConfigurationMode>
-
-    <Delivery Mode="Push">
-        <Batching>
-            <MaxItems>1</MaxItems>
-            <MaxLatencyTime>1000</MaxLatencyTime>
-        </Batching>
-        <PushSettings>
-            <Heartbeat Interval="40000"/>
-        </PushSettings>
-    </Delivery>
-
-    <Query>
-        <![CDATA[
-
-<QueryList>
-  <Query Id="0">
-    <Select Path="Microsoft-Windows-Sysmon/Operational">*</Select>
-  </Query>
-</QueryList>
-
-        ]]>
-    </Query>
-
-    <ReadExistingEvents>true</ReadExistingEvents>
-    <TransportName>http</TransportName>
-    <ContentFormat>RenderedText</ContentFormat>
-    <Locale Language="en-US"/>
-    <LogFile>ForwardedEvents</LogFile>
-    <AllowedSourceNonDomainComputers></AllowedSourceNonDomainComputers>
-    <AllowedSourceDomainComputers>$AllowedSourceDomainComputers</AllowedSourceDomainComputers>
-</Subscription>
-"@
-
-Invoke-Command -ComputerName $CollectorName -ScriptBlock {
-    $($using:xml).Save("$env:TEMP\temp.xml")
-    wecutil cs "$env:TEMP\temp.xml"
-}
-
-```
-
-### Add servers to Sysmon AD Group
-
-the downside of using AD Group different than Domain computers is that it applies after computer restart. However this way you can target just portion of computers.
-
-```PowerShell
-$servers="Server1","Server2"
-foreach ($server in $servers){
-    Add-ADGroupMember -Members "$($server)$" -Identity Sysmon
-}
-
-#restart to grab AD group membership
-Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
- 
-```
-
-### Create sysmon view
-
-```PowerShell
-[xml]$xml=@"
-<ViewerConfig>
-    <QueryConfig>
-        <QueryParams>
-            <UserQuery/>
-        </QueryParams>
-        <QueryNode>
-            <Name>Sysmon</Name>
-            <QueryList>
-                <Query Id="0">
-                    <Select Path="ForwardedEvents">
-                        *[System[Provider[@Name='Microsoft-Windows-Sysmon']]]
-                    </Select>
-                </Query>
-            </QueryList>
-        </QueryNode>
-    </QueryConfig>
-</ViewerConfig>
-"@
-$xml.save("$env:ProgramData\Microsoft\Event Viewer\Views\sysmonview.xml")
- 
-```
-
-![](/Scenarios/Windows%20Event%20Forwarding/Screenshots/EventViewerSysmon.png)
+![](/Scenarios/Windows%20Event%20Forwarding/NSA%20Event%20Forwarding%20Guidance/Screenshots/EventViewer.png)
 
 ## Install Weffles to explore events
 
 Jessica Payne wrote nice solution for hunting malware called WEFFLES (Windows Event Logging Forensic Logging Enhancement Services). All info is located at http://aka.ms/weffles
 
-### Download and expand weffles repo
+### Download and expand weffles repository
 
 ```PowerShell
 #configure TLS if needed
@@ -438,7 +282,7 @@ if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls1
 }
 
 #download zip with Weffles
-Invoke-WebRequest -Uri https://github.com/jepayneMSFT/WEFFLES/archive/master.zip -OutFile $env:USERPROFILE\Downloads\WEFFLES.zip
+Invoke-WebRequest -UseBasicParsing -Uri https://github.com/jepayneMSFT/WEFFLES/archive/master.zip -OutFile $env:USERPROFILE\Downloads\WEFFLES.zip
 
 #unzip
 Expand-Archive -Path $env:USERPROFILE\Downloads\WEFFLES.zip -DestinationPath $env:USERPROFILE\Downloads
