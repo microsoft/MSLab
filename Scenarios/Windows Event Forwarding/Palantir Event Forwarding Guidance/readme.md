@@ -8,8 +8,9 @@
         - [Create group for each sample subscription](#create-group-for-each-sample-subscription)
         - [Configure Collector](#configure-collector)
         - [Validate subscriptions on collector server](#validate-subscriptions-on-collector-server)
-        - [Configure remote servers](#configure-remote-servers)
-    - [Check if servers are registered with Collector](#check-if-servers-are-registered-with-collector)
+    - [Configure and validate subscription on remote servers](#configure-and-validate-subscription-on-remote-servers)
+        - [Configure subscription on remote servers](#configure-subscription-on-remote-servers)
+        - [Check if servers are registered with Collector](#check-if-servers-are-registered-with-collector)
     - [Configure log files](#configure-log-files)
         - [Move log files somewhere else and increase size](#move-log-files-somewhere-else-and-increase-size)
     - [Connect to Collector](#connect-to-collector)
@@ -190,7 +191,9 @@ $subscriptions | ft SubscriptionId,AllowedSourceDomainComputersFriendly,LogFile 
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Palantir%20Event%20Forwarding%20Guidance/Screenshots/Subscriptions.png)
 
-### Configure remote servers
+## Configure and validate subscription on remote servers
+
+### Configure subscription on remote servers
 
 ```PowerShell
 $CollectorServerName="Collector"
@@ -242,7 +245,7 @@ Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
  
 ```
 
-## Check if servers are registered with Collector
+### Check if servers are registered with Collector
 
 ```PowerShell
 $CollectorServerName="Collector"
@@ -259,7 +262,6 @@ Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
 ```
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Palantir%20Event%20Forwarding%20Guidance/Screenshots/RegisteredServers.png)
-
 
 ## Configure log files
 
