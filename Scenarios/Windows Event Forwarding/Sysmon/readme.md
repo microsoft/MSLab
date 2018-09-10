@@ -21,6 +21,8 @@
 
 In this scenario I'll demonstrate installing Sysmon with [SwiftOnSecurity config](https://github.com/SwiftOnSecurity/sysmon-config/) and then I'll demonstrate how to centrally collect logs with WEF. You can find nice info regarding WEF [here](https://blogs.msdn.microsoft.com/canberrapfe/2015/09/21/diy-client-monitoring-setting-up-tiered-event-forwarding/)
 
+This scenario is introduction to Windows Event Forwarding.
+
 ## LabConfig Windows Server 2016
 
 ```PowerShell
