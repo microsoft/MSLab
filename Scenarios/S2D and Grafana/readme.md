@@ -161,9 +161,10 @@ $config=$config.replace("127.0.0.1","grafana.corp.contoso.com")
 $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
 #>
 
-#download telegraf configuration from Github
+#download telegraf configuration from WSLab Github and configure grafana URL
+$GrafanaServerURL="http://grafana.corp.contoso.com:8086"
 $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
-$config.content | Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
+$config.content.replace("PlaceGrafanaURLHere",$GrafanaServerURL) | Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
 
 #copy telegraf
 foreach ($session in $sessions){
