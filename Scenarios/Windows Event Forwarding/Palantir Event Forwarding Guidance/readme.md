@@ -279,7 +279,7 @@ $MaxSize=1GB
 Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
     #Create log folder if not exist
     If (-not (Test-Path $using:Path)){
-        New-Item -Path $Path -Type Directory
+        New-Item -Path $using:Path -Type Directory
     }
     $xml = wevtutil el | select-string -pattern "WEC"
     foreach ($subscription in $xml) {
