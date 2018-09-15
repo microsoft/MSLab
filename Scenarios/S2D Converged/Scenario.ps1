@@ -103,7 +103,10 @@ Write-host "Script started at $StartDateTime"
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
 
-    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
+    #Configure Core scheduler on Windows Server 2016? https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/manage/manage-hyper-v-scheduler-types#configuring-the-hypervisor-scheduler-type-on-windows-server-2016-hyper-v
+        $CoreScheduler=$True
+
+        #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
         $MemoryDump="Active"
 
     #S2D Node Name To Scale
@@ -203,6 +206,21 @@ Write-host "Script started at $StartDateTime"
                 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name MinVmVersionForCpuBasedMitigations -value "1.0"
             }
         }
+
+    #Enable core scheduler
+    if ($CoreScheduler){
+        $RevisionNumber=Invoke-Command -ComputerName $ComputeNodes[0] -ScriptBlock {
+            Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name UBR
+        }
+        $CurrentBuildNumber=Invoke-Command -ComputerName $ComputeNodes[0] -ScriptBlock {
+            Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
+        }
+        if ($CurrentBuildNumber -eq 14393 -and $RevisionNumber -ge 2395){
+            Invoke-Command -ComputerName $ComputeNodes {
+                bcdedit /set hypervisorschedulertype Core
+            }
+        }
+    }
 
     #install roles and features
         if (!$NanoServer){
