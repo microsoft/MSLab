@@ -1,3 +1,15 @@
+<!-- TOC -->
+
+- [S2D and Pester](#s2d-and-pester)
+    - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
+    - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
+    - [The lab](#the-lab)
+        - [Download pester and Polish PowerShell user group files](#download-pester-and-polish-powershell-user-group-files)
+        - [Create a baseline](#create-a-baseline)
+        - [Compare baseline to server with some misconfiguration](#compare-baseline-to-server-with-some-misconfiguration)
+
+<!-- /TOC -->
+
 # S2D and Pester
 
 ## LabConfig Windows Server 2016
