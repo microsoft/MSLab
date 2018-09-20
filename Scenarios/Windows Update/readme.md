@@ -74,7 +74,7 @@ $ScanResult.updates
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/ScanResult2019Error.png
+![](/Scenarios/Windows%20Update/Screenshots/ScanResult2019Error.png)
 
 Let's explore what's changed
 
@@ -91,9 +91,9 @@ Get-CimClass -Namespace root/Microsoft/Windows/WindowsUpdate -CimSession "2019_1
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/2016Classes.png
+![](/Scenarios/Windows%20Update/Screenshots/2016Classes.png)
 
-![](/Scenarios/Windows%20Update/Screenshots/2019Classes.png
+![](/Scenarios/Windows%20Update/Screenshots/2019Classes.png)
 
 Let's explore Methods from WUOperations and WUOperationsSession now.
 
@@ -106,9 +106,9 @@ Get-CimClass -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUO
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/2016Methods.png
+![](/Scenarios/Windows%20Update/Screenshots/2016Methods.png)
 
-![](/Scenarios/Windows%20Update/Screenshots/2019Methods.png
+![](/Scenarios/Windows%20Update/Screenshots/2019Methods.png)
 
 Hmm, there have been changes too! Let's explore what changed then...
 
@@ -132,9 +132,9 @@ $ScanResult.updates
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/ScanResult2016_1.png
+![](/Scenarios/Windows%20Update/Screenshots/ScanResult2016_1.png)
 
-![](/Scenarios/Windows%20Update/Screenshots/ScanResult2019_1.png
+![](/Scenarios/Windows%20Update/Screenshots/ScanResult2019_1.png)
 
 ## Apply updates on 2016 and 2019
 
@@ -204,7 +204,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/ApplyResult2016.png
+![](/Scenarios/Windows%20Update/Screenshots/ApplyResult2016.png)
 
 Let's run update 2019 server too
 
@@ -221,7 +221,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
  
 ```
 
-![](/Scenarios/Windows%20Update/Screenshots/ApplyResult2019.png
+![](/Scenarios/Windows%20Update/Screenshots/ApplyResult2019.png)
 
 ## Update validation
 
