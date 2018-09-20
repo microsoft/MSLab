@@ -101,7 +101,7 @@ Let's explore Methods from WUOperations and WUOperationsSession now.
 #List Windows Server 2016 methods from MSFT_WUOperationsSession class from computer 2016_1
 Get-CimClass -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession -CimSession "2016_1" | Select-Object -ExpandProperty CimClassMethods
 
-#List Windows Server 2016 methods from MSFT_WUOperations class from computer 2019_1
+#List Windows Server 2019 methods from MSFT_WUOperations class from computer 2019_1
 Get-CimClass -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperations -CimSession "2019_1" | Select-Object -ExpandProperty CimClassMethods
  
 ```
