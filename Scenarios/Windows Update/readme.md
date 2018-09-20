@@ -297,13 +297,14 @@ $RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
 $ComputerInfo  = foreach ($Session in $Sessions) {
     New-Object PSObject -Property @{
         ComputerName       = $session.ComputerName
-        RevisionNumber     = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name UBR}
-        InstallationType   = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name InstallationType}
+        BuildBranch        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildBranch}
+        BuildLab           = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildLab}
         CurrentBuildNumber = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name CurrentBuildNumber}
+        EditionID          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name EditionID}
+        InstallationType   = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name InstallationType}
         ProductName        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ProductName}
         ReleaseId          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ReleaseId}
-        BuildBranch        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildBranch}
-        EditionID          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name CompositionEditionID}
+        RevisionNumber     = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name UBR}
     }
 }
 $Sessions | Remove-PSSession
