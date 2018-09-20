@@ -9,9 +9,9 @@
     - [Apply updates on 2016 and 2019](#apply-updates-on-2016-and-2019)
     - [Update validation](#update-validation)
         - [Display installed updates](#display-installed-updates)
-        - [Display pending reboot](#display-pending-reboot)
-        - [Display Last Installation Date](#display-last-installation-date)
-        - [Display Last Success Date](#display-last-success-date)
+        - [Display pending reboot on all Domain Computers](#display-pending-reboot-on-all-domain-computers)
+        - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)
+        - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
 
 <!-- /TOC -->
 
@@ -243,7 +243,7 @@ $ScanResult.updates
  
 ```
 
-### Display pending reboot
+### Display pending reboot on all Domain Computers
 
 ```PowerShell
 $servers=(get-ADComputer -filter *).Name
@@ -251,7 +251,19 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
  
 ```
 
-### Display Last Installation Date
+![](/Scenarios/Windows%20Update/Screenshots/PendingReboot.png)
+
+You can easily reboot machines with pending reboot like this
+```PowerShell
+$servers=(get-ADComputer -filter *).Name
+$result=Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUSettings" -MethodName IsPendingReboot
+$ServersToReboot=($result | where PendingReboot -eq True).PSComputerName
+Restart-Computer -ComputerName $ServersToReboot -Protocol WSMan -Wait -For PowerShell
+```
+
+### Display Last Installation Date on all Domain Computers
+
+Interestingly does not show meaningful information
 
 ```PowerShell
 $servers=(get-ADComputer -filter *).Name
@@ -259,10 +271,14 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
  
 ```
 
-### Display Last Success Date
+![](/Scenarios/Windows%20Update/Screenshots/LastUpdateInstallationDate.png)
+
+### Display Last Scan Success Date on all Domain Computers
 
 ```PowerShell
 $servers=(get-ADComputer -filter *).Name
 Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUSettings" -MethodName GetLastScanSuccessDate
  
 ```
+
+![](/Scenarios/Windows%20Update/Screenshots/LastScanSuccessDate.png)
