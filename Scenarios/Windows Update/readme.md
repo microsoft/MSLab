@@ -254,11 +254,13 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
 ![](/Scenarios/Windows%20Update/Screenshots/PendingReboot.png)
 
 You can easily reboot machines with pending reboot like this
+
 ```PowerShell
 $servers=(get-ADComputer -filter *).Name
 $result=Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUSettings" -MethodName IsPendingReboot
 $ServersToReboot=($result | where PendingReboot -eq True).PSComputerName
 Restart-Computer -ComputerName $ServersToReboot -Protocol WSMan -Wait -For PowerShell
+ 
 ```
 
 ### Display Last Installation Date on all Domain Computers
