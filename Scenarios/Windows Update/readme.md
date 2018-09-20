@@ -12,6 +12,7 @@
         - [Display pending reboot on all Domain Computers](#display-pending-reboot-on-all-domain-computers)
         - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)
         - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
+        - [Display update level](#display-update-level)
 
 <!-- /TOC -->
 
@@ -284,3 +285,30 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
 ```
 
 ![](/Scenarios/Windows%20Update/Screenshots/LastScanSuccessDate.png)
+
+### Display update level
+
+Let's create a function that will create PSObject with all update information from remote machines.
+
+```PowerShell
+$servers=(get-ADComputer -filter *).Name
+$Sessions=New-PSSession -ComputerName $servers
+$RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+$ComputerInfo  = foreach ($Session in $Sessions) {
+    New-Object PSObject -Property @{
+        ComputerName       = $session.ComputerName
+        RevisionNumber     = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name UBR}
+        InstallationType   = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name InstallationType}
+        CurrentBuildNumber = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name CurrentBuildNumber}
+        ProductName        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ProductName}
+        ReleaseId          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ReleaseId}
+        BuildBranch        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildBranch}
+        EditionID          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name CompositionEditionID}
+    }
+}
+$Sessions | Remove-PSSession
+$ComputerInfo | ft ComputerName,CurrentBuildNumber,RevisionNumber
+ 
+```
+
+![](/Scenarios/Windows%20Update/Screenshots/UpdateLevels.png)
