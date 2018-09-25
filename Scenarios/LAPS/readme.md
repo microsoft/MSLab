@@ -108,7 +108,7 @@ Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Dow
 New-Gpo -Name 'LAPS' | New-GPLink -Target $OUPath
 
 #extend AD schema (Schema Admins and Enterprise Admins membership needed)
-
+Update-AdmPwdADSchema
 
 #note: if you are not member of required groups, add your account as member. Logoff/login is needed to update security token.
 #Add-ADGroupMember -Identity "Schema Admins" -Members LabAdmin
