@@ -12,6 +12,9 @@
         - [MirrorOnSSD/HDD ParityOnSSD/HDD tiers](#mirroronssdhdd-parityonssdhdd-tiers)
         - [Creating volumes with tiers](#creating-volumes-with-tiers)
         - [Creating your own tier](#creating-your-own-tier)
+    - [Nested resiliency volumes](#nested-resiliency-volumes)
+        - [Create Nested tiers](#create-nested-tiers)
+        - [Create Nested Volume](#create-nested-volume)
     - [Displaying volumes](#displaying-volumes)
     - [Resizing volumes](#resizing-volumes)
         - [Resize volume without tiers](#resize-volume-without-tiers)
@@ -276,6 +279,32 @@ New-Volume -StoragePoolFriendlyName s2d* -FriendlyName 4wayMirror -FileSystem CS
  
 ```
 
+## Nested resiliency volumes
+
+As announced on Ignite 2018, on 2 node configurations is possible to create "special volumes" that can tolerate multiple failures. Let's create some.
+
+### Create Nested tiers
+
+```PowerShell
+#create NestedMirror tier
+New-StorageTier -StoragePoolFriendlyName S2D* -FriendlyName NestedMirror -ResiliencySettingName Mirror -NumberOfDataCopies 4 -MediaType HDD -CimSession 2nodecluster
+
+#create NestedParity tier
+New-StorageTier -StoragePoolFriendlyName S2D* -FriendlyName NestedParity -ResiliencySettingName Parity -NumberOfDataCopies 2 -PhysicalDiskRedundancy 1 -NumberOfGroups 1 -FaultDomainAwareness StorageScaleUnit -ColumnIsolation PhysicalDisk -MediaType HDD -CimSession 2nodecluster
+ 
+```
+
+### Create Nested Volume
+
+```PowerShell
+#Create Mirror Nested Volume
+New-Volume -StoragePoolFriendlyName S2D* -FriendlyName MyMirrorNestedVolume -StorageTierFriendlyNames NestedMirror -StorageTierSizes 500GB -CimSession 2nodecluster
+
+#Create Parity Nested Volume
+New-Volume -StoragePoolFriendlyName S2D* -FriendlyName MyParityNestedVolume -StorageTierFriendlyNames NestedMirror,NestedParity -StorageTierSizes 200GB, 1TB -CimSession 2nodecluster
+ 
+```
+
 ## Displaying volumes
 
 To display volumes you can use get-virtualdisk or get-storagetier (bit confusing, isn't it? :) )
@@ -285,6 +314,7 @@ get-virtualdisk -CimSession 2nodecluster,4nodecluster
 get-storagetier -CimSession 2nodecluster,4nodecluster
  
 ```
+
 ![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk4.png)
 
 ![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetStorageTier.png)
