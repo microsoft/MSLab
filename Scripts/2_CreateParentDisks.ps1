@@ -459,7 +459,7 @@ If (!( $isAdmin )) {
         }
 
     #load convert-windowsimage to memory
-        . "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1"
+        . "$PSScriptRoot\Temp\convert-windowsimage.ps1"
 
     #Create client OS VHD
         If ($LabConfig.CreateClientParent -eq $true){
