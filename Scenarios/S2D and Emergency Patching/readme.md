@@ -236,6 +236,7 @@ You can notice that all cluster resources are down `Get-ClusterResource -Cluster
 
 ```PowerShell
 $Server="S2D1" #specify one server that is up
+$ClusterName="S2D-Cluster"
 
 #Start ClusterCoreResources
 Get-ClusterGroup -Cluster $Server -Name "Cluster Group" | Start-ClusterGroup
@@ -255,6 +256,10 @@ Get-ClusterSharedVolume -Cluster $ClusterName | Start-ClusterResource
 
 ### Start VMs
 
+Since all VM configurations are in failed state, it's needed to make it online first and then start all VMs
+
+![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/FailedVMResources.png)
+
 ```PowerShell
 $ClusterName="S2D-Cluster"
 $servers=(Get-ClusterNode -Cluster $ClusterName).Name
@@ -264,5 +269,8 @@ Get-ClusterResource -Cluster $ClusterName | Where State -eq Failed | Start-Clust
 
 #Start all VMs
 Start-VM -Name * -CimSession $servers
+Get-VM -CimSession $Servers
  
 ```
+
+![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/VMsRunningAgain.png)
