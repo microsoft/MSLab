@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [S2D and Emergency Patching !!! WORK IN PROGRESS !!!](#s2d-and-emergency-patching--work-in-progress-)
+- [S2D and Emergency Patching](#s2d-and-emergency-patching)
     - [Sample LabConfig for Windows Server 2016](#sample-labconfig-for-windows-server-2016)
     - [Sample LabConfig for Windows Server Insider](#sample-labconfig-for-windows-server-insider)
     - [Prerequisites](#prerequisites)
@@ -10,7 +10,7 @@
         - [Stop all cluster resources and services](#stop-all-cluster-resources-and-services)
         - [Reboot all machines](#reboot-all-machines)
         - [Check Windows Version](#check-windows-version)
-        - [Check intalled updates](#check-intalled-updates)
+        - [Check installed updates](#check-installed-updates)
         - [Check Reboot Pending](#check-reboot-pending)
     - [Start Cluster](#start-cluster)
         - [Start cluster service](#start-cluster-service)
@@ -19,10 +19,10 @@
 
 <!-- /TOC -->
 
-# S2D and Emergency Patching !!! WORK IN PROGRESS !!! 
+# S2D and Emergency Patching
 
-Following scenario is useful if you want to avoid nodes resync, or it's also useful just to shut down cluster gracefully.
- 
+Following scenario is useful if you want to avoid nodes resync, or it's also useful just to shut down cluster gracefully or if you want to apply critical update immediately.
+
 ## Sample LabConfig for Windows Server 2016
 
 Following LabConfig uses 4GB for each VM and nested virt to be able to play with real workload. It's possible to also use standard LabConfig, but VMs would be turned off. Note that Internet is also set to $True to provide internet connectivity to download updates.
@@ -203,7 +203,7 @@ $ComputerInfo | ft ComputerName,CurrentBuildNumber,RevisionNumber
 
 ![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/CheckWindowsVersion.png)
 
-### Check intalled updates
+### Check installed updates
 
 ```PowerShell
 Invoke-Command -ComputerName $servers -ScriptBlock {
