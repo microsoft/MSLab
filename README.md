@@ -64,6 +64,12 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 ### or Windows Server 2019
 
+* [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019
+* For Labconfig uncomment 2019 part in LabConfig.
+
+### or Windows Server Insider Preview
+
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 * [Insider labconfig.ps1](/Insider/LabConfig.ps1)
 

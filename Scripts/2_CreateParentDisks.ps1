@@ -199,7 +199,7 @@ If (!( $isAdmin )) {
     #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested and tools.vhdx not present
         if (-not (Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).name -contains "tools.vhdx"){
             if ($LabConfig.InstallSCVMM -eq "Yes"){
-                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SCVMM\setup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe","Temp\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
                     }
@@ -207,7 +207,7 @@ If (!( $isAdmin )) {
             }
 
             if ($LabConfig.InstallSCVMM -eq "Prereqs"){
-                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe","Temp\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
                     }
@@ -215,7 +215,7 @@ If (!( $isAdmin )) {
             }
         
             if ($LabConfig.InstallSCVMM -eq "SQL"){
-                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
                     }
@@ -223,7 +223,7 @@ If (!( $isAdmin )) {
             }    
 
             if ($LabConfig.InstallSCVMM -eq "ADK"){
-                "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
                     }
@@ -459,7 +459,7 @@ If (!( $isAdmin )) {
         }
 
     #load convert-windowsimage to memory
-        . "$PSScriptRoot\tools\convert-windowsimage.ps1"
+        . "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1"
 
     #Create client OS VHD
         If ($LabConfig.CreateClientParent -eq $true){
@@ -536,7 +536,7 @@ If (!( $isAdmin )) {
             }
         }
 
-    #create Tools VHDX from .\tools\ToolsVHD
+    #create Tools VHDX from .\Temp\ToolsVHD
         if (!(Test-Path "$PSScriptRoot\ParentDisks\tools.vhdx")){
             WriteInfoHighlighted "Creating Tools.vhdx"
             $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
@@ -545,18 +545,18 @@ If (!( $isAdmin )) {
                 $vhddisk = $VHDMount| get-disk 
                 $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
 
-            $VHDPathTest=Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\"
+            $VHDPathTest=Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\"
             if (!$VHDPathTest){
-                New-Item -Type Directory -Path "$PSScriptRoot\Tools\ToolsVHD"
+                New-Item -Type Directory -Path "$PSScriptRoot\Temp\ToolsVHD"
             }
             if ($VHDPathTest){
-                WriteInfo "Found $PSScriptRoot\Tools\ToolsVHD\*, copying files into VHDX"
-                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
+                WriteInfo "Found $PSScriptRoot\Temp\ToolsVHD\*, copying files into VHDX"
+                Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
             }else{
                 WriteInfo "Files not found" 
-                WriteInfoHighlighted "Add required tools into $PSScriptRoot\Tools\toolsVHD and Press any key to continue..."
+                WriteInfoHighlighted "Add required tools into $PSScriptRoot\Temp\ToolsVHD and Press any key to continue..."
                 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+                Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
             }
 
             Dismount-VHD $vhddisk.Number
@@ -1092,10 +1092,10 @@ If (!( $isAdmin )) {
     WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
-    WriteInfo "`t (.\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+    WriteInfo "`t (.\Temp\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
     If ((Read-host "`t Please type Y or N") -like "*Y"){
         WriteInfo "`t `t Cleaning unnecessary items" 
-        "$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
+        "$PSScriptRoot\Temp\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
         } 
