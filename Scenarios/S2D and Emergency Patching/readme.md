@@ -10,6 +10,7 @@
         - [Stop all cluster resources and services](#stop-all-cluster-resources-and-services)
         - [Reboot all machines](#reboot-all-machines)
         - [Check Windows Version](#check-windows-version)
+        - [Check intalled updates](#check-intalled-updates)
         - [Check Reboot Pending](#check-reboot-pending)
     - [Start Cluster](#start-cluster)
         - [Start cluster service](#start-cluster-service)
@@ -201,6 +202,29 @@ $ComputerInfo | ft ComputerName,CurrentBuildNumber,RevisionNumber
 ```
 
 ![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/CheckWindowsVersion.png)
+
+### Check intalled updates
+
+```PowerShell
+Invoke-Command -ComputerName $servers -ScriptBlock {
+$ReleaseID=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name ReleaseID
+    if ($ReleaseID -eq 1607){
+        #Command for Windows Server 2016
+        $Instance = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession
+        $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=1";OnlineScan=$true}
+        $ScanResult.updates
+    }
+    if ($ReleaseID -eq 1809){
+        #Command for Windows Server 2019
+        $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=1"}
+        $ScanResult.updates
+    }
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/InstalledUpdates.png)
+
 
 ### Check Reboot Pending
 
