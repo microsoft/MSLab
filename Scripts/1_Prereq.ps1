@@ -88,12 +88,13 @@ function  Get-WindowsBuildNumber {
 #region Download Scripts
 
 #add scripts for VMM
-    $Filenames="1_SQL_Install","2_ADK_Install.ps1","3_SCVMM_Install.ps1"
+    $Filenames="1_SQL_Install","2_ADK_Install","3_SCVMM_Install"
     foreach ($Filename in $filenames){
         $Path="$PSScriptRoot\Temp\ToolsVHD\SCVMM\$Filename.ps1"
         If (Test-Path -Path $Path){
             WriteSuccess "`t $Filename is present, skipping download"
         }else{
+            $FileContent=$null
             $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
             if ($FileContent){
                 $script = New-Item $Path -type File -Force
@@ -112,6 +113,7 @@ function  Get-WindowsBuildNumber {
     If (Test-Path -Path $Path){
         WriteSuccess "`t $Filename is present, skipping download"
     }else{
+        $FileContent = $null
         $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
         if ($FileContent){
             $script = New-Item $Path -type File -Force
@@ -129,6 +131,7 @@ function  Get-WindowsBuildNumber {
     If (Test-Path -Path $Path){
         WriteSuccess "`t $Filename is present, skipping download"
     }else{
+        $FileContent = $null
         $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/CreateParentDisk.ps1).Content
         if ($FileContent){
             $script = New-Item "$PSScriptRoot\ParentDisks\CreateParentDisk.ps1" -type File -Force
@@ -180,26 +183,18 @@ function  Get-WindowsBuildNumber {
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
     }
 
-# Download convert-windowsimage into ParentDisks and ToolsVHD
+# Download convert-windowsimage into Temp
     WriteInfoHighlighted "Testing convert-windowsimage presence"
-    If ( Test-Path -Path "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1" ) {
+    If ( Test-Path -Path "$PSScriptRoot\Temp\convert-windowsimage.ps1" ) {
         WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
     }else{ 
         WriteInfo "`t Downloading Convert-WindowsImage"
         try{
-            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Tools\convert-windowsimage.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Temp\convert-windowsimage.ps1"
         }catch{
             WriteError "`t Failed to download convert-windowsimage.ps1!"
         }
     }
-
-    If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\convert-windowsimage.ps1" ) {
-        WriteSuccess "`t Convert-windowsimage.ps1 is in ToolsVHD, skipping copy"
-    }else{
-        WriteInfo "`t Copying Convert-windowsimage.ps1 into ToolsVHD"
-        Copy-Item -Path "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1" -Destination "$PSScriptRoot\Temp\ToolsVHD\convert-windowsimage.ps1"
-    }
-
 #endregion
 
 #region Downloading required Posh Modules
@@ -216,7 +211,7 @@ function  Get-WindowsBuildNumber {
             if ((Get-PackageProvider -Name NuGet) -eq $null){   
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Confirm:$false -Force
             }
-            Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Tools\DSC"
+            Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Temp\DSC"
         }else{
             WriteSuccess "`t Module $modulename version found... skipping download"
         }
