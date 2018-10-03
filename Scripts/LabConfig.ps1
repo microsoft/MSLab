@@ -1,7 +1,27 @@
-﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
+﻿#basic config for Windows Server 2016, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$false ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+
+# Basic Windows Server 2019 Labconfig
+
+<#
+
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$false ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+
+$LabConfig.ServerVHDs += @{
+    Edition="4"
+    VHDName="Win2019_G2.vhdx"
+    Size=60GB
+}
+$LabConfig.ServerVHDs += @{
+    Edition="3"
+    VHDName="Win2019Core_G2.vhdx"
+    Size=30GB
+}
+
+#>
 
 ### HELP ###
 

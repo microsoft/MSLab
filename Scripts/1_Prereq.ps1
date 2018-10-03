@@ -78,844 +78,111 @@ function  Get-WindowsBuildNumber {
     }
 
 # Checking Folder Structure
-    "ParentDisks","Tools\DSC","Tools\ToolsVHD\DiskSpd","Tools\ToolsVHD\SCVMM\ADK","Tools\ToolsVHD\SCVMM\SQL","Tools\ToolsVHD\SCVMM\SCVMM","Tools\ToolsVHD\SCVMM\UpdateRollup","Tools\ToolsVHD\VMFleet" | ForEach-Object {
+    "ParentDisks","Temp","Temp\DSC","Temp\ToolsVHD\DiskSpd","Temp\ToolsVHD\SCVMM\ADK","Temp\ToolsVHD\SCVMM\SQL","Temp\ToolsVHD\SCVMM\SCVMM","Temp\ToolsVHD\SCVMM\UpdateRollup","Temp\ToolsVHD\VMFleet" | ForEach-Object {
         if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 
-    "Tools\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Tools\ToolsVHD\SCVMM\SQL\Copy_SQL2016_or_SQL2017_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Tools\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
+    "Temp\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Temp\ToolsVHD\SCVMM\SQL\Copy_SQL2016_or_SQL2017_with_setup.exe_here.txt","Temp\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Temp\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
         if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type File -Path "$PSScriptRoot\$_" } }
 #endregion
 
-#region add scripts for SCVMM
-#adding scripts for SQL install
-    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\1_SQL_Install.ps1" -type File -Force
-    $fileContent =  @'
+#region Download Scripts
 
-# Sample SQL Install
+#add scripts for VMM
+    $Filenames="1_SQL_Install","2_ADK_Install.ps1","3_SCVMM_Install.ps1"
+    foreach ($Filename in $filenames){
+        $Path="$PSScriptRoot\Temp\ToolsVHD\SCVMM\$Filename.ps1"
+        If (Test-Path -Path $Path){
+            WriteSuccess "`t $Filename is present, skipping download"
+        }else{
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
+            if ($FileContent){
+                $script = New-Item $Path -type File -Force
+                $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
+                $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
+                Set-Content -path $script -value $FileContent
+            }else{
+                WriteErrorAndExit "Unable to download $Filename."
+            }
+        }
+    }
 
-# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2016
-
-# Verify Running as Admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
-Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-exit
-}
-
-Start-Transcript -Path "$PSScriptRoot\SQL_Install.log"
-
-$StartDateTime = get-date
-Write-host "Script started at $StartDateTime"
-
-<#
-#check for .net 3.5
-if ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -ne 'Enabled'){
-do{
-    If (Test-Path -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab"){
-        $dotNET = Get-Item -Path "$PSScriptRoot\dotNET\microsoft-windows-netfx3-ondemand-package.cab" -ErrorAction SilentlyContinue
-        Write-Host "microsoft-windows-netfx3-ondemand-package.cab found in dotNET folder... installing" -ForegroundColor Cyan
+#Download SetupVMFleet script
+    $Filename="SetupVMFleet"
+    $Path="$PSScriptRoot\Temp\ToolsVHD\$FileName.ps1"
+    If (Test-Path -Path $Path){
+        WriteSuccess "`t $Filename is present, skipping download"
     }else{
-        Write-Host "No .NET found in $PSScriptRoot\dotNET" -ForegroundColor Cyan
-        Write-Host "please browse for dotNET package (microsoft-windows-netfx3-ondemand-package.cab)" -ForegroundColor Green
-
-        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-        $openFile = New-Object System.Windows.Forms.OpenFileDialog
-        $openFile.Filter = "cab files (*.cab)|*.cab|All files (*.*)|*.*" 
-        If($openFile.ShowDialog() -eq "OK"){
-            Write-Host  "File $openfile selected" -ForegroundColor Cyan
-            $dotNET = Get-Item -Path $openfile.filename -ErrorAction SilentlyContinue
-        }
-        if (!$openFile.FileName){
-            Write-Host  "CAB was not selected... Exitting" -ForegroundColor Red
-            Write-Host "Press any key to continue ..."
-            $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-            $HOST.UI.RawUI.Flushinputbuffer()
-            Exit 
-         } 
-    }
-install-windowsfeature WAS-NET-Environment -Source $dotnet.Directory    
-}
-until ((Get-WindowsOptionalFeature -Online -FeatureName NetFx3).State -eq 'Enabled')
-}
-#>
-
-#install SQL
-
-If (Test-Path -Path "$PSScriptRoot\SQL\setup.exe"){
-$setupfile = (Get-Item -Path "$PSScriptRoot\SQL\setup.exe" -ErrorAction SilentlyContinue).fullname
-Write-Host "$Setupfile found..." -ForegroundColor Cyan
-}else{
-# Open File dialog
-Write-Host "Please locate SQL Setup.exe" -ForegroundColor Green
-[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-$openFile = New-Object System.Windows.Forms.OpenFileDialog
-$openFile.Filter = "setup.exe files |setup.exe|All files (*.*)|*.*" 
-If($openFile.ShowDialog() -eq "OK")
-{
-   $setupfile=$openfile.filename
-   Write-Host  "File $setupfile selected" -ForegroundColor Cyan
-}
-if (!$openFile.FileName){
-        Write-Host  "setup.exe was not selected... Exitting" -ForegroundColor Red
-        Write-Host "Press any key to continue ..."
-        $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-        $HOST.UI.RawUI.Flushinputbuffer()
-        Exit 
-}
-}  
- 
-Write-Host "Installing SQL..." -ForegroundColor Green
-& $setupfile /q /ACTION=Install /FEATURES=SQLEngine /INSTANCENAME=MSSQLSERVER /SQLSVCACCOUNT="DomainNameGoesHere\SQL_SA" /SQLSVCPASSWORD="PasswordGoesHere" /SQLSYSADMINACCOUNTS="DomainNameGoesHere\Domain admins" /AGTSVCACCOUNT="DomainNameGoesHere\SQL_Agent" /AGTSVCPASSWORD="PasswordGoesHere" /TCPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /Indicateprogress /UpdateEnabled=0
-
-Write-Host "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript
-
-Write-Host "Job Done..." -ForegroundColor Green
-Start-Sleep 5
-exit
-
-'@
-    $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-    Set-Content -path $script -value $fileContent
-
-# adding scripts for ADK install
-    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\2_ADK_Install.ps1" -type File -Force
-    $fileContent =  @'
-
-#Sample ADK install
-
-# You can grab ADK here:     https://msdn.microsoft.com/en-us/windows/hardware/dn913721.aspx
-
-# Verify Running as Admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
-Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-exit
-}
-
-
-Start-Transcript -Path "$PSScriptRoot\ADK_Install.log"
-
-$StartDateTime = get-date
-Write-host "Script started at $StartDateTime"
-
-
-If (Test-Path -Path "$PSScriptRoot\ADK\ADKsetup.exe"){
-$setupfile = (Get-Item -Path "$PSScriptRoot\ADK\ADKsetup.exe" -ErrorAction SilentlyContinue).fullname
-}else{
-# Open File dialog
-Write-Host "Please locate ADKSetup.exe" -ForegroundColor Green
-
-[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-$openFile = New-Object System.Windows.Forms.OpenFileDialog
-$openFile.Filter = "ADKSetup.exe files |ADKSetup.exe|All files (*.*)|*.*" 
-If($openFile.ShowDialog() -eq "OK")
-{
-   $setupfile=$openfile.filename
-   Write-Host  "File $setupfile selected" -ForegroundColor Cyan
-}
-}
-
-Write-Host "Installing ADK..." -ForegroundColor Cyan
-
-Write-Host "ADK Is being installed..." -ForegroundColor Cyan
-Start-Process -Wait -FilePath $setupfile -ArgumentList "/features OptionID.DeploymentTools OptionID.WindowsPreinstallationEnvironment /quiet"
-Write-Host "ADK install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-Stop-Transcript
-Write-Host "Job Done..." -ForegroundColor Green
-Start-Sleep 5
-exit
-
-'@
-    Set-Content -path $script -value $fileContent
-
-# adding scripts for SCVMM install 
-    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SCVMM\3_SCVMM_Install.ps1" -type File -Force
-    $fileContent =  @'
-
-# Sample VMM Install
-
-# You can grab eval version here: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
-
-# Verify Running as Admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
-Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Sleep -Seconds 1
-Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-exit
-}
-
-Start-Transcript -Path "$PSScriptRoot\SCVMM_Install.log"
-
-$StartDateTime = get-date
-Write-host "Script started at $StartDateTime"
-
-if ((get-service MSSQLServer).Status -ne "Running"){
-    do{
-        Write-Host "Waiting for SQL Service to start"
-        Start-Sleep 10
-        Start-Service -Name MSSQLServer
-    }until ((get-service MSSQLServer).Status -eq "Running")
-    Write-Host "SQL Service is running"
-}
-
-If (Test-Path -Path "$PSScriptRoot\SCVMM\setup.exe"){
-$setupfile = (Get-Item -Path "$PSScriptRoot\SCVMM\setup.exe" -ErrorAction SilentlyContinue).fullname
-Write-Host "$Setupfile found..." -ForegroundColor Cyan
-}else{
-# Open File dialog
-Write-Host "Please locate Setup.exe" -ForegroundColor Green
-
-[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-$openFile = New-Object System.Windows.Forms.OpenFileDialog
-$openFile.Filter = "setup.exe files |setup.exe|All files (*.*)|*.*" 
-If($openFile.ShowDialog() -eq "OK")
-{
-   $setupfile=$openfile.filename
-   Write-Host  "File $setupfile selected" -ForegroundColor Cyan
-} 
-}
-
-Write-Host "Installing VMM..." -ForegroundColor Green
-
-###Get workdirectory###
-#Install VMM
-$unattendFile = New-Item "$PSScriptRoot\VMServer.ini" -type File
-$fileContent = @"
-[OPTIONS]
-CompanyName=Contoso
-CreateNewSqlDatabase=1
-SqlInstanceName=MSSQLServer
-SqlDatabaseName=VirtualManagerDB
-SqlMachineName=DC
-VmmServiceLocalAccount=0
-LibrarySharePath=C:\ProgramData\Virtual Machine Manager Library Files
-LibraryShareName=MSSCVMMLibrary
-SQMOptIn = 1
-MUOptIn = 1
-"@
-Set-Content $unattendFile $fileContent
-
-Write-Host "VMM is being installed..." -ForegroundColor Cyan
-& $setupfile /server /i /f $PSScriptRoot\VMServer.ini /IACCEPTSCEULA /VmmServiceDomain DomainNameGoesHere /VmmServiceUserName vmm_SA /VmmServiceUserPassword PasswordGoesHere
-do{
-Start-Sleep 1
-}until ((Get-Process | Where-Object {$_.Description -eq "Virtual Machine Manager Setup"} -ErrorAction SilentlyContinue) -eq $null)
-Write-Host "VMM is Installed" -ForegroundColor Green
-
-Remove-Item "$PSScriptRoot\VMServer.ini" -ErrorAction Ignore
-
-Write-Host "VMM install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-
-$StartDateTime = get-date
-$URs=(Get-ChildItem -Path $PSScriptRoot\UpdateRollup -Recurse | where extension -eq .msp).FullName
-
-Foreach ($UR in $URs){
-Write-Host "Update Rollup $UR is being installed"
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/update $UR /quiet /norestart"
-}
-If ($URs){
-Write-Host "UpdateRollups install finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-}
-
-Stop-Transcript
-Write-Host "Job Done..." -ForegroundColor Green
-start-sleep 5
-Exit
-
-'@
-
-    $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-    Set-Content -path $script -value $fileContent
-
-
-# adding createparentdisks script
-
-    $script = New-Item "$PSScriptRoot\Tools\CreateParentDisk.ps1" -type File -Force
-    $fileContent =  @'
-    # Verify Running as Admin
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-    If (!( $isAdmin )) {
-        Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-        exit
-    }
-
-    #region Functions
-
-
-        function WriteInfo($message){
-            Write-Host $message
-        }
-
-        function WriteInfoHighlighted($message){
-            Write-Host $message -ForegroundColor Cyan
-        }
-
-        function WriteSuccess($message){
-            Write-Host $message -ForegroundColor Green
-        }
-
-        function WriteError($message){
-            Write-Host $message -ForegroundColor Red
-        }
-
-        function WriteErrorAndExit($message){
-            Write-Host $message -ForegroundColor Red
-            Write-Host "Press enter to continue ..."
-            $exit=Read-Host
-            Exit
-        }
-
-    #endregion
-
-    #region Ask for ISO
-        WriteInfoHighlighted "Please select ISO image"
-        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-        $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select ISO image"
-        }
-        $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-        If($openFile.ShowDialog() -eq "OK"){
-            WriteInfo  "File $($openfile.FileName) selected"
-        }
-        if (!$openFile.FileName){
-            WriteErrorAndExit  "Iso was not selected... Exitting"
-        }
-        $ISO = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-
-        $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':'
-
-    #endregion
-
-    #region ask for MSU packages
-        WriteInfoHighlighted "Please select msu packages you want to add to image. Click cancel if you don't want any."
-        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-        $msupackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Multiselect = $true;
-            Title="Please select msu packages you want to add to image. Click cancel if you don't want any."
-        }
-        $msupackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-        If($msupackages.ShowDialog() -eq "OK"){
-            WriteInfoHighlighted  "Following patches selected:"
-            foreach ($filename in $msupackages.FileNames){
-                WriteInfo "`t $filename"
-            }
-        }
-
-        #Write info if nothing is selected
-        if (!$msupackages.FileNames){
-            WriteInfoHighlighted "No msu was selected..."
-        }
-
-    #endregion
-        
-    #region download convert-windowsimage if needed and load it
-        
-        if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
-            WriteInfo "`t Downloading Convert-WindowsImage"
-            try{
-                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
-            }catch{
-            WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
-            }
-        }
-
-        #load convert-windowsimage
-        . "$PSScriptRoot\convert-windowsimage.ps1"
-
-    #endregion
-        
-    #region do the job
-        $BuildNumber=(Get-ItemProperty -Path "$ISOMediaPath\setup.exe").versioninfo.FileBuildPart
-
-        if ($BuildNumber -eq 14393){
-            $NanoServer=(Read-Host -Prompt "Server 2016 ISO Selected. Do you want to build NanoServer? Y/N")
-        }
-
-        if ($Nanoserver -eq "Y"){
-            $WindowsImage=Get-WindowsImage -ImagePath "$ISOMediaPath\NanoServer\NanoServer.wim"
-            
-            #ask for edition
-            $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
-
-            #ask for cab files
-                WriteInfoHighlighted "Please select cab packages you want to add to image. Click cancel if you want default."
-                $nanocabs=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -filter *.cab| select BaseName) | Out-GridView -OutputMode Multiple
-                if (!$nanocabs){
-                    $nanocabs="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
-                }
-           #grab Nano packages
-                $NanoPackages=@()
-                foreach ($NanoPackage in $nanocabs){
-                    $NanoPackages+=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -Recurse | Where-Object Name -like $NanoPackage*).FullName
-                }
-                WriteInfoHighlighted  "Following patches selected:"
-                $NanoPackages
-           #create temp name
-           $tempvhdname="Win2016NanoHV_G2.vhdx"
-    
+        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
+        if ($FileContent){
+            $script = New-Item $Path -type File -Force
+            $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
+            $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
+            Set-Content -path $script -value $FileContent
         }else{
-            $WindowsImage=Get-WindowsImage -ImagePath "$ISOMediaPath\sources\install.wim"
-            if ($BuildNumber -lt 7600){
-                if ($ISO -ne $Null){
-                    $ISO | Dismount-DiskImage
-                }
-                WriteErrorAndExit "`t Use Windows 7 or newer!"
-            }
-            #ask for edition
-            $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
-
-            #Generate vhdx name
-            if ($Edition -like "*Server*Core*"){
-                $tempvhdname = switch ($BuildNumber){
-                    7600 {
-                        "Win2008R2Core_G1.vhdx"
-                    }
-                    7601 {
-                        "Win2008R2SP1Core_G1.vhdx"
-                    }
-                    9200 {
-                        "Win2012Core_G2.vhdx"
-                    }
-                    9600 {
-                        "Win2012R2Core_G2.vhdx"
-                    }
-                    14393 {
-                        "Win2016Core_G2.vhdx"
-                    }
-
-                }
-                if ($BuildNumber -GT 17134){
-                    $tempvhdname="Win2019Core_$BuildNumber.vhdx"
-                }
-            }elseif($Edition -like "*Server*"){
-                $tempvhdname = switch ($BuildNumber){
-                    7600 {
-                        "Win2008R2_G1.vhdx"
-                    }
-                    7601 {
-                        "Win2008R2SP1_G1.vhdx"
-                    }
-                    9200 {
-                        "Win2012_G2.vhdx"
-                    }
-                    9600 {
-                        "Win2012R2_G2.vhdx"
-                    }
-                    14393 {
-                        "Win2016_G2.vhdx"
-                    }
-                    16299 {
-                        "WinServer1709_G2.vhdx"
-                    }
-                    17134 {
-                        "WinServer1803_G2.vhdx"
-                    }
-                }
-                if ($BuildNumber -GT 17134){
-                    $tempvhdname="Win2019_$BuildNumber.vhdx"
-                }
-            }else{
-                $tempvhdname = switch ($BuildNumber){
-                    7600 {
-                        "Win7_G1.vhdx"
-                    }
-                    7601 {
-                        "Win7SP1_G1.vhdx"
-                    }
-                    9200 {
-                        "Win8_G2.vhdx"
-                    }
-                    9600 {
-                        "Win8.1_G2.vhdx"
-                    }
-                    10240 {
-                        "Win10TH1_G2.vhdx"
-                    }
-                    10586 {
-                        "Win10TH2_G2.vhdx"
-                    }
-                    14393 {
-                        "Win10RS1_G2.vhdx"
-                    }
-                    14393 {
-                        "Win10RS1_G2.vhdx"
-                    }
-                    15064 {
-                        "Win10RS2_G2.vhdx"
-                    }
-                    16299 {
-                        "Win10RS3_G2.vhdx"
-                    }
-                    17134 {
-                        "Win10RS4_G2.vhdx"
-                    }
-                }
-                if ($BuildNumber -GT 17134){
-                    $tempvhdname="Win10Insider_$BuildNumber.vhdx"
-                }
-            }
+            WriteErrorAndExit "Unable to download $Filename."
         }
+    }
 
-        #ask for imagename
-        $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, $tempvhdname is used")
-        if(!$vhdname){$vhdname=$tempvhdname}
-        
-        #ask for size
-        [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
-        $size=$size*1GB
-        if (!$size){$size=60GB}
-        
-        #Create VHD
-        if ($nanoserver -eq "y"){
-             Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+# add createparentdisks script
+    $Filename="CreateParentDisk"
+    $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
+    If (Test-Path -Path $Path){
+        WriteSuccess "`t $Filename is present, skipping download"
+    }else{
+        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/CreateParentDisk.ps1).Content
+        if ($FileContent){
+            $script = New-Item "$PSScriptRoot\ParentDisks\CreateParentDisk.ps1" -type File -Force
+            Set-Content -path $script -value $FileContent
         }else{
-            if ($msupackages.FileNames -ne $null){
-                if ($BuildNumber -le 7601){
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout BIOS -Package $msupackages.FileNames
-                }else{
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $msupackages.FileNames
-                }
-            }else{
-                if ($BuildNumber -le 7601){
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout BIOS
-                }else{
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI
-                }
-            }
+            WriteErrorAndExit "Unable to download $Filename."
         }
-
-        WriteInfo "Dismounting ISO Image"
-        if ($ISO -ne $Null){
-        $ISO | Dismount-DiskImage
-        }
-        
-        WriteSuccess "Job Done. Press enter to continue..."
-        $exit=Read-Host
-    #endregion
-'@
-
-    Set-Content -path $script -value $fileContent
-
-# adding SetupVMFleet script
-
-    $script = New-Item "$PSScriptRoot\Tools\ToolsVHD\SetupVMFleet.ps1" -type File -Force
-    $fileContent =  @'
-# Verify Running as Admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
-    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-    exit
-}
-
-#region functions
-
-    function WriteInfo($message)
-    {
-        Write-Host $message
     }
-
-    function WriteInfoHighlighted($message)
-    {
-        Write-Host $message -ForegroundColor Cyan
-    }
-
-    function WriteSuccess($message)
-    {
-        Write-Host $message -ForegroundColor Green
-    }
-
-    function WriteError($message)
-    {
-        Write-Host $message -ForegroundColor Red
-    }
-
-    function WriteErrorAndExit($message){
-        Write-Host $message -ForegroundColor Red
-        Write-Host "Press enter to continue ..."
-        $exit=Read-Host
-        Exit
-    }
-
-#endregion
-
-    #region grab variables
-    #verify management tools to be able to list S2D Cluster
-        if ((Get-WmiObject Win32_OperatingSystem).ProductType -ne 1){
-            #Install AD PowerShell if not available
-            if (-not (Get-WindowsFeature RSAT-AD-PowerShell)){
-                Install-WindowsFeature RSAT-AD-PowerShell
-            }
-        }else{
-            #detect RSAT
-            if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
-                Write-Host "Please install RSAT, Exitting in 5s"
-                Start-Sleep 5
-                Exit
-            }
-        }
-
-    #Grab S2D Cluster
-        WriteInfoHighlighted "Asking for S2D Cluster"
-        $ClusterName=((Get-ADComputer -Filter 'serviceprincipalname -like "MSServercluster/*"').Name | ForEach-Object {get-cluster -Name $_ | Where-Object S2DEnabled -eq 1} | Out-GridView -OutputMode Single -Title "Please select your S2D Cluster(s)").Name
-
-        if (-not $ClusterName){
-            Write-Output "No cluster was selected. Exitting"
-            Start-Sleep 5
-            Exit
-        }
-
-    #Grab ClusterNodes
-        $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
-
-    #ask for Password that will be configured inside VHD
-        WriteInfoHighlighted "Please provide password that will be injected as admin password into VHD"
-        $AdminPassword=Read-Host
-
-    #Ask for VHD
-        WriteInfoHighlighted "Please select VHD created by convert-windowsimage. Click cancel if you want to create it"
-        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-        $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select VHD created by convert-windowsimage. Click cancel if you want to create it"
-        }
-        $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
-        If($openFile.ShowDialog() -eq "OK"){
-            WriteInfo  "File $($openfile.FileName) selected"
-        }
-        $VHDPath=$openfile.FileName
-
-#endregion
-
-#region if VHD not selected, create one
-    if (-not $VHDPath){
-        #Ask for ISO
-        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-        $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select ISO image with Windows Server 2016"
-        }
-        $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-        If($openFile.ShowDialog() -eq "OK")
-        {
-            WriteInfo  "File $($openfile.FileName) selected"
-        } 
-        if (!$openFile.FileName){
-                WriteErrorAndExit  "Iso was not selected... Exitting"
-            }
-        $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-
-        $ServerMediaPath = (Get-Volume -DiskImage $ISOServer).DriveLetter+':'
-
-        if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
-            #download latest convert-windowsimage
-            # Download convert-windowsimage if its not in tools folder
-            WriteInfo "`t Downloading Convert-WindowsImage"
-            try{
-                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
-            }catch{
-                WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
-            }
-        }
-
-        #load convert-windowsimage
-        . "$PSScriptRoot\convert-windowsimage.ps1"
-
-        #ask for server edition
-        $Edition=(Get-WindowsImage -ImagePath "$ServerMediaPath\sources\install.wim" | Out-GridView -OutputMode Single).ImageName
-
-        #ask for imagename
-        $vhdname=(Read-Host -Prompt "Please type VHD name (if nothing specified, Win10_G2.vhdx is used")
-        if(!$vhdname){$vhdname="Win10_G2.vhdx"}
-
-        #ask for size
-        [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
-        $size=$size*1GB
-        if (!$size){$size=60GB}
-
-        #Create VHD
-        Convert-WindowsImage -SourcePath "$ServerMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI
-
-        WriteInfo "Dismounting ISO Image"
-        if ($ISOServer -ne $Null){
-        $ISOServer | Dismount-DiskImage
-        }
-
-        $VHDPath="$PSScriptRoot\$vhdname"
-
-    }
-#endregion
-
-#region Mount VHD and apply unattend
-    WriteInfoHighlighted "`t Applying Unattend"
-    if (Test-Path "$PSScriptRoot\Temp\*"){
-            Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
-    }
-    New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
-    Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-    New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Users\Administrator" -force
-    New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
-    $unattendFile = New-Item "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -type File -Force
-    $fileContent =  @"
-<?xml version='1.0' encoding='utf-8'?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
-<settings pass="offlineServicing">
-<component
-    xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    language="neutral"
-    name="Microsoft-Windows-PartitionManager"
-    processorArchitecture="amd64"
-    publicKeyToken="31bf3856ad364e35"
-    versionScope="nonSxS"
-    >
-</component>
-</settings>
-<settings pass="specialize">
-<component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <RegisteredOwner>PFE</RegisteredOwner>
-    <RegisteredOrganization>Contoso</RegisteredOrganization>
-</component>
-</settings>
-<settings pass="oobeSystem">
-<component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-    <AutoLogon>
-    <Password>
-        <Value>$AdminPassword</Value>
-        <PlainText>true</PlainText>
-    </Password>
-    <Enabled>true</Enabled>
-    <LogonCount>999</LogonCount>
-    <Username>administrator</Username>
-    </AutoLogon>
-    <UserAccounts>
-    <AdministratorPassword>
-        <Value>$AdminPassword</Value>
-        <PlainText>true</PlainText>
-    </AdministratorPassword>
-    </UserAccounts>
-    <OOBE>
-    <HideEULAPage>true</HideEULAPage>
-    <SkipMachineOOBE>true</SkipMachineOOBE> 
-    <SkipUserOOBE>true</SkipUserOOBE> 
-    </OOBE>
-    <TimeZone>Pacific Standard Time</TimeZone>
-</component>
-</settings>
-</unattend>
-
-"@
-    Set-Content -path $unattendFile -value $fileContent -Force
-
-    #close VHD and apply changes
-        WriteInfoHighlighted "`t Applying changes to VHD"
-        Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-
-    #cleanup mountdir
-        Remove-Item -Path "$PSScriptRoot\Temp" -Recurse
-
-#endregion
-
-#region create volumes
-WriteInfoHighlighted "Create Volumes"
-Foreach ($ClusterNode in $ClusterNodes){
-    WriteInfo "Creating Volume $ClusterNode"
-    if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName $ClusterNode -ErrorAction SilentlyContinue)){
-        New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $ClusterNode -FileSystem CSVFS_ReFS -StorageTierfriendlyNames Performance -StorageTierSizes 1TB
-    }
-}
-WriteInfo "Creating Volume collect"
-if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName "Collect" -ErrorAction SilentlyContinue)){
-    New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName collect -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Performance -StorageTierSizes 1TB
-}
-
-#rename CSV(s) to match name
-    Get-ClusterSharedVolume -Cluster $ClusterName | % {
-        $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-        $newname=$_.name.Substring(22,$_.name.Length-23)
-        Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $ClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
-    }
-
-#Install Failover Clustering PowerShell on nodes
-    foreach ($ClusterNode in $ClusterNodes){
-        Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
-    }
-
-#copy VMfleet and VHD to one node 
-    New-item -Path "\\$($ClusterNodes[0])\c$\" -Name VMFleet -Type Directory -Force
-    WriteInfoHighlighted "Copying Scripts to \\$($ClusterNodes[0])\c$\VMFleet"
-    Copy-Item "$PSScriptRoot\VMFleet\*" -Destination "\\$($ClusterNodes[0])\c$\VMFleet"
-    WriteInfoHighlighted "Copying $VHDPath to \\$ClusterName\ClusterStorage$\Collect\FleetImage.vhdx" 
-    if (-not (Test-Path -Path "\\$ClusterName\ClusterStorage$\Collect\FleetImage.vhdx")){
-        Copy-Item $VHDPath -Destination "\\$ClusterName\ClusterStorage$\Collect\FleetImage.vhdx"
-    }
-
-WriteInfoHighlighted "Run following commands from $($ClusterNodes[0])"
-"c:\VMFleet\install-vmfleet.ps1 -source C:\VMFleet"
-"Copy-Item \\DC\D$\DiskSpd\Diskspd.exe -Destination c:\ClusterStorage\Collect\Control\Tools\Diskspd.exe"
-"c:\VMFleet\create-vmfleet.ps1 -basevhd C:\ClusterStorage\Collect\FleetImage.vhdx -vms 1 -adminpass $AdminPassword -connectuser DomainNameGoesHere\Administrator -connectpass PasswordGoesHere -FixedVHD:"+'$False'
-"c:\VMFleet\set-vmfleet.ps1 -ProcessorCount 2 -MemoryStartupBytes 512MB -MemoryMinimumBytes 512MB -MemoryMaximumBytes 2GB"
-"c:\VMFleet\Start-Vmfleet.ps1"
-"c:\VMFleet\start-sweep.ps1 -b 4 -t 2 -o 40 -w 0 -d 300"
-"c:\VMFleet\watch-cluster.ps1"
-
-WriteSuccess "Press enter to exit..."
-$exit=Read-Host
-
-'@
-    $fileContent=$fileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-    $fileContent=$fileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-    Set-Content -path $script -value $fileContent
 
 #endregion
 
 #region some tools to download
-# Downloading diskspd if its not in tools folder
+# Downloading diskspd if its not in ToolsVHD folder
     WriteInfoHighlighted "Testing diskspd presence"
-    If ( Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.exe" ) {
+    If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.exe" ) {
         WriteSuccess "`t Diskspd is present, skipping download"
     }else{ 
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
             $webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
             $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
-            Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
+            Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
         }catch{
             WriteError "`t Failed to download Diskspd!"
         }
         # Unnzipping and extracting just diskspd.exe x64
-            Expand-Archive "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip"
-            Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\tools\toolsvhd\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\"
-            Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\diskspd.zip"
-            Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
+            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip"
+            Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\Temp\ToolsVHD\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\"
+            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
+            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
     }
 
 #Download VMFleet
     WriteInfoHighlighted "Testing VMFleet presence"
-    If ( Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\VMFleet\install-vmfleet.ps1" ) {
+    If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\install-vmfleet.ps1" ) {
         WriteSuccess "`t VMFleet is present, skipping download"
     }else{ 
         WriteInfo "`t VMFleet not there - Downloading VMFleet"
         try {
             $downloadurl = "https://github.com/Microsoft/diskspd/archive/master.zip"
-            Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Tools\ToolsVHD\VMFleet\VMFleet.zip"
+            Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
         }catch{
             WriteError "`t Failed to download VMFleet!"
         }
         # Unnzipping and extracting just VMFleet
-            Expand-Archive "$PSScriptRoot\Tools\ToolsVHD\VMFleet\VMFleet.zip" -DestinationPath "$PSScriptRoot\Tools\ToolsVHD\VMFleet\Unzip"
-            Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\VMFleet\Unzip\diskspd-master\Frameworks\VMFleet\*" -Destination "$PSScriptRoot\Tools\ToolsVHD\VMFleet\"
-            Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\VMFleet\VMFleet.zip"
-            Remove-Item -Path "$PSScriptRoot\Tools\ToolsVHD\VMFleet\Unzip" -Recurse -Force
+            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip" -DestinationPath "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip"
+            Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip\diskspd-master\Frameworks\VMFleet\*" -Destination "$PSScriptRoot\Temp\ToolsVHD\VMFleet\"
+            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
+            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
     }
 
-# Download convert-windowsimage into ToolsRoot and ToolsVHD
+# Download convert-windowsimage into ParentDisks and ToolsVHD
     WriteInfoHighlighted "Testing convert-windowsimage presence"
-    If ( Test-Path -Path "$PSScriptRoot\Tools\convert-windowsimage.ps1" ) {
+    If ( Test-Path -Path "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1" ) {
         WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
     }else{ 
         WriteInfo "`t Downloading Convert-WindowsImage"
@@ -926,24 +193,24 @@ $exit=Read-Host
         }
     }
 
-    If ( Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\convert-windowsimage.ps1" ) {
+    If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\convert-windowsimage.ps1" ) {
         WriteSuccess "`t Convert-windowsimage.ps1 is in ToolsVHD, skipping copy"
     }else{
         WriteInfo "`t Copying Convert-windowsimage.ps1 into ToolsVHD"
-        Copy-Item -Path "$PSScriptRoot\Tools\convert-windowsimage.ps1" -Destination "$PSScriptRoot\Tools\ToolsVHD\convert-windowsimage.ps1"
+        Copy-Item -Path "$PSScriptRoot\ParentDisks\convert-windowsimage.ps1" -Destination "$PSScriptRoot\Temp\ToolsVHD\convert-windowsimage.ps1"
     }
 
 #endregion
 
 #region Downloading required Posh Modules
-# Downloading modules into Tools folder if needed.
+# Downloading modules into Temp folder if needed.
 
     $modules=("xActiveDirectory","2.19.0.0"),("xDHCpServer","2.0.0.0"),("xDNSServer","1.11.0.0"),("NetworkingDSC","6.0.0.0"),("xPSDesiredStateConfiguration","8.4.0.0")
     foreach ($module in $modules){
         WriteInfoHighlighted "Testing if modules are present" 
         $modulename=$module[0]
         $moduleversion=$module[1]
-        if (!(Test-Path "$PSScriptRoot\Tools\DSC\$modulename\$Moduleversion")){
+        if (!(Test-Path "$PSScriptRoot\Temp\DSC\$modulename\$Moduleversion")){
             WriteInfo "`t Module $module not found... Downloading"
             #Install NuGET package provider   
             if ((Get-PackageProvider -Name NuGet) -eq $null){   
@@ -964,7 +231,7 @@ $exit=Read-Host
             WriteInfo "`t Module $module will be installed"
             $modulename=$module[0]
             $moduleversion=$module[1]
-            Copy-item -Path "$PSScriptRoot\Tools\DSC\$modulename" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
+            Copy-item -Path "$PSScriptRoot\Temp\DSC\$modulename" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
             WriteSuccess "`t Module was installed."
             Get-DscResource -Module $modulename
         } else {
