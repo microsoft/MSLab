@@ -125,7 +125,7 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 ![](/Screenshots/ToolsCreateParentDisk.png)
 
 ## Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder
- * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the `Tools\SCVMM` folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
+ * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the `temp\ToolsVHD\SCVMM` folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
 
  * You can also copy your favorite tools you would like to have in ToolsVHD, thats always mounted to DC, or optionally to any machine in lab.
 
