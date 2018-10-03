@@ -200,7 +200,7 @@ $ComputerInfo | ft ComputerName,CurrentBuildNumber,RevisionNumber
  
 ```
 
-![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/CheckWidowsVersion.png)
+![](/Scenarios/S2D%20and%20Emergency%20Patching/Screenshots/CheckWindowsVersion.png)
 
 ### Check Reboot Pending
 
