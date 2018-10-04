@@ -31,7 +31,7 @@ function WriteErrorAndExit($message){
     Write-Host $message -ForegroundColor Red
     Write-Host "Press enter to continue ..."
     Stop-Transcript
-    $exit=Read-Host
+    Read-Host | Out-Null
     Exit
 }
 
@@ -241,4 +241,4 @@ function  Get-WindowsBuildNumber {
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 Stop-Transcript
 WriteSuccess "Press enter to continue..."
-$exit=Read-Host
+Read-Host | Out-Null
