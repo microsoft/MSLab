@@ -28,9 +28,25 @@
         function WriteErrorAndExit($message){
             Write-Host $message -ForegroundColor Red
             Write-Host "Press enter to continue ..."
-            $exit=Read-Host
+            Read-Host | Out-Null
             Exit
         }
+
+    #endregion
+
+        #region download convert-windowsimage if needed and load it
+        
+        if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
+            WriteInfo "`t Downloading Convert-WindowsImage"
+            try{
+                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
+            }catch{
+            WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
+            }
+        }
+
+        #load convert-windowsimage
+        . "$PSScriptRoot\convert-windowsimage.ps1"
 
     #endregion
 
@@ -74,23 +90,7 @@
         }
 
     #endregion
-        
-    #region download convert-windowsimage if needed and load it
-        
-        if (!(Test-Path "$PSScriptRoot\convert-windowsimage.ps1")){
-            WriteInfo "`t Downloading Convert-WindowsImage"
-            try{
-                Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
-            }catch{
-            WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
-            }
-        }
 
-        #load convert-windowsimage
-        . "$PSScriptRoot\convert-windowsimage.ps1"
-
-    #endregion
-        
     #region do the job
         $BuildNumber=(Get-ItemProperty -Path "$ISOMediaPath\setup.exe").versioninfo.FileBuildPart
 
@@ -268,5 +268,5 @@
         }
         
         WriteSuccess "Job Done. Press enter to continue..."
-        $exit=Read-Host
+        Read-Host | Out-Null
     #endregion

@@ -30,7 +30,7 @@ If (!( $isAdmin )) {
         Write-Host $message -ForegroundColor Red
         Write-Host "Press enter to continue ..."
         Stop-Transcript
-        $exit=Read-Host
+        Read-Host | Out-Null
         Exit
     }
 
@@ -607,7 +607,8 @@ If (!( $isAdmin )) {
         #Apply Unattend to VM
             WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
             if (Test-Path "$PSScriptRoot\Temp\*"){
-                Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
+                Remove-Item -Path "$PSScriptRoot\Temp\mountdir\" -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -Path "$PSScriptRoot\Temp\unattend.xml" -ErrorAction SilentlyContinue
             }
             $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
             New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
@@ -1108,6 +1109,6 @@ If (!( $isAdmin )) {
 
     Stop-Transcript
     WriteSuccess "Job Done. Press enter to continue..."
-    $exit=Read-Host
+    Read-Host | Out-Null
 
 #endregion
