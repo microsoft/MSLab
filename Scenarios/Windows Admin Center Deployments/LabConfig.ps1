@@ -1,15 +1,4 @@
-$LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WacDeployments-'; SwitchName = 'WacDeploymentsSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@() }
-
-$LabConfig.ServerVHDs += @{
-    Edition="4"
-    VHDName="Win2016_G2.vhdx"
-    Size=60GB
-}
-$LabConfig.ServerVHDs += @{
-    Edition="3"
-    VHDName="Win2016Core_G2.vhdx"
-    Size=30GB
-}
+$LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WacDeployments-'; SwitchName = 'WacDeploymentsSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
 # Management Client Node
 $LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS4_G2.vhdx'; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }

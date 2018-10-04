@@ -46,7 +46,7 @@ Convert-WindowsImage -SourcePath "2016 ISO Path" -Edition Datacenter -DiskLayout
 in following labconfig you can see, that 5 machines are created.
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no'; CreateClientParent=$false ; ClientEdition='Enterprise'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@() }  
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no';  AdditionalNetworksConfig=@(); VMs=@() }  
 
 $LabConfig.VMs = @(
             @{ VMName = 'SMS_2019'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2019_17639.vhdx'     ; MemoryStartupBytes= 1024MB }, 
