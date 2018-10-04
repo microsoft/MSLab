@@ -8,7 +8,6 @@
 
     #region Functions
 
-
         function WriteInfo($message){
             Write-Host $message
         }
