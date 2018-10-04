@@ -7,7 +7,7 @@ This lab is just a quick way how to deploy secguide policies on Win10. It will j
 ## LabConfig
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; DCVMProcessorCount=4 ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$true; CreateClientParent=$true}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; DCVMProcessorCount=4 ; AdditionalNetworksConfig=@(); VMs=@(); Internet=$true}
 
 $LabConfig.VMs += @{ VMName = 'Win10' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 

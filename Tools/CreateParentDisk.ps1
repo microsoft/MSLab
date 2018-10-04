@@ -163,7 +163,7 @@
                     }
                 }
                 if ($BuildNumber -GT 17763 -or $BuildNumber -eq 17744){
-                    $tempvhdname="Win2019Core_$BuildNumber.vhdx"
+                    $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
                 }
             }elseif($Edition -like "*Server*"){
                 $tempvhdname = switch ($BuildNumber){
@@ -187,7 +187,7 @@
                     }
                 }
                 if ($BuildNumber -GT 17763 -or $BuildNumber -eq 17744){
-                    $tempvhdname="Win2019_$BuildNumber.vhdx"
+                    $tempvhdname="WinSrvInsider_$BuildNumber.vhdx"
                 }
             }else{
                 $tempvhdname = switch ($BuildNumber){

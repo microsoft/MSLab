@@ -425,11 +425,11 @@ If (!( $isAdmin )) {
         $serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
             
         if ($serverparent -eq $null){
-            WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found"
+            WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
         }else{
             WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
         }
-                    
+
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
         if ($serverparent.Extension -eq ".vhdx"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
