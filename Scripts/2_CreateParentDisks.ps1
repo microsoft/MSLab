@@ -251,7 +251,13 @@ If (!( $isAdmin )) {
             WriteInfo "`t Server Edition found"
         }else{
             $ISOServer | Dismount-DiskImage
-            WriteErrorAndExit "`t Selected media does not contain Windows Server. Exitting"
+            WriteErrorAndExit "`t Selected media does not contain Windows Server. Exitting."
+        }
+    #Test if it's Windows Server 2016 and newer
+        $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
+        If ($BuildNumber -lt 14393){
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
         }
 
 #Grab packages
@@ -280,7 +286,6 @@ If (!( $isAdmin )) {
 #endregion
 
 #region Generate VHD Config
-    $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
     $ServerVHDs=@()
 
     if ($BuildNumber -eq 14393){
