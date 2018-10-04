@@ -3,7 +3,7 @@
 - [Project Description](#project-description)
 - [Videos](#videos)
 - [HowTo](#howto)
-    - [Step 1 Download required files (prerequisites):](#step-1-download-required-files-prerequisites)
+    - [Step 1 Download required files (prerequisites)](#step-1-download-required-files-prerequisites)
         - [Windows Server 2016](#windows-server-2016)
         - [or Windows Server 2019](#or-windows-server-2019)
         - [or Windows Server Insider Preview](#or-windows-server-insider-preview)
@@ -32,7 +32,7 @@
  * Options for setting up a Windows Server 2016-based lab are simpler than with some of the other available lab automation systems as the project is based on well-crafted Powershell scripts rather than XML or DSC configuration files.
  * Scripts are not intentionally doing everything. You can spend nice time studying scenarios.
  * This solution is used in Microsoft Premier Workshop for Software Defined Storage, Hyper-V and System Center VMM. If you have Premier Contract, contact your TAM and our trainers can deliver this workshop for you.
- * Follow [#ws2016lab](https://twitter.com/search?f=tweets&vertical=default&q=%23ws2016lab) hash tag to get latest news.
+ * Follow [#wslab](https://twitter.com/search?f=tweets&vertical=default&q=%23wslab) hash tag to get latest news.
 
  * Check [this](https://github.com/Microsoft/WSLab/tree/master/Scenarios) page for end to end scenarios!
 
@@ -54,7 +54,7 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 # HowTo
 
-## Step 1 Download required files (prerequisites):
+## Step 1 Download required files (prerequisites)
 
 * [Scripts](https://github.com/Microsoft/WSLab/blob/master/scripts.zip?raw=true)
 
@@ -67,12 +67,11 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
 * [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019
-* In LabConfig.ps1 remove uncomment Server 2019 part.
+
 
 ### or Windows Server Insider Preview
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
-* [Insider labconfig.ps1](/Insider/LabConfig.ps1)
 
 ### Optionally you can download SCVMM 1807 files
 
@@ -102,7 +101,7 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 
 ![](/Screenshots/LabConfigCollapsed.png)
 
-**Advanced LabConfig (deleted lines 1-11)**
+**Advanced LabConfig (deleted lines 1-16)**
 
 ![](/Screenshots/LabConfigAdvanced.png)
 
@@ -136,7 +135,8 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 ![](/Screenshots/ToolsVHDFolderSCVMM2.png)
 
 ## Step 6 Right-click and run with PowerShell 2_CreateParentDisks.ps1
- * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server 2016 ISO file, and it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
+
+ * 2_CreateParentDisks.ps1 will check if you have Hyper-V installed, it will prompt you for Windows Server ISO file, and it will ask for packages (provide Cumulative Update and Servicing Stack Update). After that it will hydrate parent disks and Domain Controller.
  * Domain controller is provisioned using DSC. Takes some time, but after that you do not need to run this step anymore as DC is saved, used for deploy and then returned to previous state before deploy step.
 
 ![](/Screenshots/2_CreateParentDisks.png)
@@ -170,6 +170,7 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 ![](/Screenshots/2_CreateParentDisksResultDC.png)
 
 ## Step 7 Right-click and run with PowerShell Deploy.ps1
+
  * Deploy.ps1 will deploy servers as specified in Labconfig.ps1 By default, it will deploy servers for S2D Hyperconverged [scenario](https://github.com/Microsoft/WSLab/tree/master/Scenarios)
 
 ![](/Screenshots/Deploy.png)
@@ -180,11 +181,12 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
  
 ## Step 8 Continue with S2D Hyperconverged Scenario
 
-* [S2D Hyperconverged Scenario page](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged) 
+* [S2D Hyperconverged Scenario page](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 * will guide you to deploy 4 Node Storage Spaces Direct cluster.
 * Note: scenario is completely separate script. You use it when logged into DC. Take your time and look what it does as you can easily learn from it. If you are not in rush, run it line by line in PowerShell or PowerShell ISE and look with GUI what has changed to fully understand what's happening.
 
 ## Step 9 Cleanup lab with Cleanup.ps1
+
 * VMs and switch is identified using prefix defined in LabConfig.
 * All VMs\Switches with prefix are listed
 

@@ -1,7 +1,6 @@
 <!-- TOC -->
 
 - [Scenario Introduction](#scenario-introduction)
-    - [LabConfig Windows Server 1709](#labconfig-windows-server-1709)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [The lab](#the-lab)
 - [Scenario](#scenario)
@@ -14,30 +13,13 @@
 In this scenario will be LAPS lab deployed. It contains of DC, Management machine and 3 managed servers.
 The complete documentation and operation guide is available here: https://technet.microsoft.com/en-us/mt227395.aspx
 
-## LabConfig Windows Server 1709
-
-**Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
-
-```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
-
-$LABConfig.ServerVHDs += @{
-    Edition="SERVERDATACENTERACORE";
-    VHDName="WinServer1709_G2.vhdx";
-    Size=40GB
-}
- 
-```
-
 ## LabConfig Windows Server 2016
 
 **Note:** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD without creating all parent disks
 
 ```PowerShell
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); Internet=$True }
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
