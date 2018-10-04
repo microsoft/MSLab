@@ -344,10 +344,10 @@ If (!( $isAdmin )) {
                 }
                 $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
             }else{
-                WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
+                WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019 or Server Insider"
                 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
                 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Title="Please select ISO image with Windows Server 2016, 1709 or later"
+                    Title="Please select ISO image with Windows Server 2016, 2019 or Server Insider"
                 }
                 $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
                 If($openFile.ShowDialog() -eq "OK"){
@@ -613,11 +613,11 @@ If (!( $isAdmin )) {
             New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
             Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
             Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
+            #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+            #&"$PSScriptRoot\Temp\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
             New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
             Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
-            Copy-Item -Path "$PSScriptRoot\tools\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+            Copy-Item -Path "$PSScriptRoot\Temp\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
         #Create credentials for DSC
 
@@ -952,7 +952,7 @@ If (!( $isAdmin )) {
         #close VHD and apply changes
             WriteInfoHighlighted "`t Applying changes to VHD"
             Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
+            #&"$PSScriptRoot\Temp\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
         #Start DC VM and wait for configuration
             WriteInfoHighlighted "`t Starting DC"
@@ -1095,7 +1095,7 @@ If (!( $isAdmin )) {
     WriteInfo "`t (.\Temp\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
     If ((Read-host "`t Please type Y or N") -like "*Y"){
         WriteInfo "`t `t Cleaning unnecessary items" 
-        "$PSScriptRoot\Temp\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
+        "$PSScriptRoot\Temp\ToolsVHD","$PSScriptRoot\Temp\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
         } 
