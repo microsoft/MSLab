@@ -6,6 +6,7 @@
     - [Step 1 Download required files (prerequisites):](#step-1-download-required-files-prerequisites)
         - [Windows Server 2016](#windows-server-2016)
         - [or Windows Server 2019](#or-windows-server-2019)
+        - [or Windows Server Insider Preview](#or-windows-server-insider-preview)
         - [Optionally you can download SCVMM 1807 files](#optionally-you-can-download-scvmm-1807-files)
     - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
     - [Step 3 (Optional) Check the LabConfig.ps1](#step-3-optional-check-the-labconfigps1)
@@ -66,7 +67,7 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
 * [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019
-* For Labconfig uncomment 2019 part in LabConfig.
+* In LabConfig.ps1 remove uncomment Server 2019 part.
 
 ### or Windows Server Insider Preview
 
@@ -124,7 +125,7 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 ![](/Screenshots/ToolsCreateParentDisk.png)
 
 ## Step 5 (optional) Copy SCVMM files (or your tools) to toolsVHD folder
- * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the `Tools\SCVMM` folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
+ * If you modified labconfig.ps1 in Step 3 to also deploy SCVMM, populate the `temp\ToolsVHD\SCVMM` folder. If you downloaded SCVMM trial, run the exe file to extract it. Also extract SCVMM Update Rollups (extract MSP files from cabs)
 
  * You can also copy your favorite tools you would like to have in ToolsVHD, thats always mounted to DC, or optionally to any machine in lab.
 
