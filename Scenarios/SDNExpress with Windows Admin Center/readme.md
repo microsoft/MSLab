@@ -22,7 +22,7 @@ Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) / [Twit
 ```PowerShell
 #SDNExpress
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SDNExpress2019-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='4'; VMs=@();InstallSCVMM='No'; PullServerDC=$false; CreateClientParent=$false ; ClientEdition='Enterprise'; Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true; ServerVHDs=@();}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SDNExpress2019-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='4'; VMs=@();InstallSCVMM='No'; PullServerDC=$false;  Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true}
 $LABConfig.AdditionalNetworksConfig += @{ 
         NetName = 'HNV';
         NetAddress='10.103.33.';
@@ -30,24 +30,12 @@ $LABConfig.AdditionalNetworksConfig += @{
         Subnet='255.255.255.0'
     }
 
-$LABConfig.ServerVHDs += @{
-    Edition="3";
-    VHDName="WinServerCore.vhdx";
-    Size=150GB
-}
-
-$LABConfig.ServerVHDs += @{
-    Edition="4";
-    VHDName="WinServer.vhdx";
-    Size=40GB
-}
-
 1..4 | % { 
     $VMNames="HV";
     $LABConfig.VMs += @{
         VMName = "$VMNames$_" ;
         Configuration = 'S2D' ;
-        ParentVHD = 'WinServerCore.vhdx';
+        ParentVHD = 'Win2016Core_G2.vhdx';
         SSDNumber = 2;
         SSDSize=800GB ;
         HDDNumber = 4;
@@ -62,7 +50,7 @@ $LABConfig.ServerVHDs += @{
 $LABConfig.VMs += @{
         VMName = "Management" ;
         Configuration = 'S2D' ;
-        ParentVHD = 'WinServer.vhdx';
+        ParentVHD = 'Win2016_G2.vhdx';
         SSDNumber = 1;
         SSDSize=50GB ;
         MemoryStartupBytes= 2GB;
@@ -70,7 +58,7 @@ $LABConfig.VMs += @{
         StaticMemory=$false;
         VMProcessorCount = 2
     }
-
+ 
 ```
 
 # The LAB
