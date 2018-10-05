@@ -211,6 +211,13 @@ If (!( $isAdmin )) {
         #grab all files in parentdisks folder
             $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
 
+    #check if running on Core Server and check proper values in LabConfig
+        If ($WindowsInstallationType -eq "Server Core"){
+            If (!$LabConfig.ServerISOFolder){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify Server iso location"
+            }
+        }
+
 #endregion
 
 #region Ask for ISO images and Cumulative updates
@@ -266,6 +273,8 @@ If (!( $isAdmin )) {
             if ($LabConfig.ServerMSUsFolder){
                 $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
             }
+        }elseif($WindowsInstallationType -eq "Server Core"){
+            WriteInfoHighlighted "Server Core detected, MSU folder not specified. Skipping MSU prompt"
         }else{
             #ask for MSU patches
             WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
@@ -344,13 +353,6 @@ If (!( $isAdmin )) {
                 $DCFilesExists=$true
                 WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
             }
-
-    #check if running on Core Server and check proper values in LabConfig
-        If ($WindowsInstallationType -eq "Server Core"){
-            If (!$LabConfig.ServerISOFolder){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify Server iso location"
-            }
-        }
 
 #endregion
 
