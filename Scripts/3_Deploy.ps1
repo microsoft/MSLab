@@ -28,7 +28,7 @@ If (!( $isAdmin )) {
         Write-Host $message -ForegroundColor Red
         Write-Host "Press enter to continue ..."
         Stop-Transcript
-        $exit=Read-Host
+        Read-Host | Out-Null
         Exit
     }
 
@@ -1327,5 +1327,5 @@ If (!( $isAdmin )) {
     Stop-Transcript
 
     WriteSuccess "Press enter to continue ..."
-    $exit=Read-Host
+    Read-Host | Out-Null
 #endregion
