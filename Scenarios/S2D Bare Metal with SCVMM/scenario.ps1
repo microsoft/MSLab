@@ -154,12 +154,12 @@
 
     #vSwitch vNICs classifications
         $Classifications=@()
-        $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                  ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vRDMA"                     ; NativePortProfileName="vRDMA"                  ; Description="Classification for vRDMA adapters" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
-        $Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                  ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                  ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="RDMAvNIC"                     ; NativePortProfileName="RDMAvNIC"            ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
+        $Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
         if ($SRIOV) {
-            $Classifications+=@{PortClassificationName="SR-IOV"   ; NativePortProfileName="SR-IOV Profile"                      ; Description=""                                  ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
+            $Classifications+=@{PortClassificationName="SR-IOV"   ; NativePortProfileName="SR-IOV Profile"                      ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
         }
 
     #logical networks definition
@@ -171,8 +171,8 @@
         $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupName=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
 
         $vNICDefinitions=@()
-        $vNICDefinitions+=@{NetAdapterName="SMB_1"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vRDMA"                  ;IPAddressPoolName="Storage IP Pool"}
-        $vNICDefinitions+=@{NetAdapterName="SMB_2"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vRDMA"                  ;IPAddressPoolName="Storage IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB_1"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB_2"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
         $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host management static" ;IPAddressPoolName="Management IP Pool"}
 
     #ask for parent vhdx for Hyper-V Hosts and VMs
@@ -632,7 +632,7 @@
     #Refresh VM Hosts
         Get-SCVMHost | Read-SCVMHost
 
-    #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+    #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
         #install features
             foreach ($server in $servers) {Install-WindowsFeature -Name "Hyper-V-PowerShell" -ComputerName $server} 
 

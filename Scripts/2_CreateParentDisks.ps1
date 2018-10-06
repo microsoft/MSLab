@@ -327,8 +327,8 @@ If (!( $isAdmin )) {
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
         }
-    }elseif ($BuldNumber -ge 17744){
-        #Windows Sevrver Insider
+    }elseif ($BuildNumber -ge 17744){
+        #Windows Sever Insider
         $ServerVHDs += @{
             Edition="4" 
             VHDName="WinSrvInsider_$BuildNumber.vhdx"
@@ -339,20 +339,22 @@ If (!( $isAdmin )) {
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
             Size=30GB
         }
+    }else{
+        WriteErrorAndExit "Plese provide Windows Server 2016, 2019 or Insider greater or equal to build 17744"
     }
 
-        #Test if Tools.vhdx already exists
-            if ($ParentDisksNames -contains "tools.vhdx"){
-                WriteSuccess "`t Tools.vhdx already exists. Creation will be skipped"
-            }else{
-                WriteInfo "`t Tools.vhdx not found, will be created"
-            }
+    #Test if Tools.vhdx already exists
+        if ($ParentDisksNames -contains "tools.vhdx"){
+            WriteSuccess "`t Tools.vhdx already exists. Creation will be skipped"
+        }else{
+            WriteInfo "`t Tools.vhdx not found, will be created"
+        }
 
-        #check if DC exists
-            if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
-                $DCFilesExists=$true
-                WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
-            }
+    #check if DC exists
+        if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
+            $DCFilesExists=$true
+            WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
+        }
 
 #endregion
 
