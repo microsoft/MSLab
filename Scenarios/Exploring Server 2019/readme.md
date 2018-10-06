@@ -109,11 +109,11 @@ Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -Reference
 
 ### What's new in Windows Server 2019 Core
 
-![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewin2019.png)
+![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewIn2019.png)
 
 ### What's now included in 2019 Core (was in Full only in 2016)
 
-![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewin2019Core.png)
+![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewIn2019Core.png)
 
 ### What's now only in Full
 
