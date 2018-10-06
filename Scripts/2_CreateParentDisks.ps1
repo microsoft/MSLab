@@ -327,7 +327,7 @@ If (!( $isAdmin )) {
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
         }
-    }elseif ($BuildNumber -ge 17744){
+    }elseif ($BuildNumber -gt 17763){
         #Windows Sever Insider
         $ServerVHDs += @{
             Edition="4" 
@@ -340,7 +340,8 @@ If (!( $isAdmin )) {
             Size=30GB
         }
     }else{
-        WriteErrorAndExit "Plese provide Windows Server 2016, 2019 or Insider greater or equal to build 17744"
+        $ISOServer | Dismount-DiskImage
+        WriteErrorAndExit "Plese provide Windows Server 2016, 2019 or Insider greater than build 17763"
     }
 
     #Test if Tools.vhdx already exists
