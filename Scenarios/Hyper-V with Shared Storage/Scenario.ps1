@@ -178,7 +178,7 @@ Write-host "Script started at $StartDateTime"
         Restart-NetAdapter "vEthernet (SMB_1)" -CimSession $Servers 
         Restart-NetAdapter "vEthernet (SMB_2)" -CimSession $Servers
 
-        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
         Invoke-Command -ComputerName $servers -ScriptBlock {
             $physicaladapters=Get-NetAdapter | where status -eq up | where Name -NotLike vEthernet* | Sort-Object
             Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName ($physicaladapters[0]).name
