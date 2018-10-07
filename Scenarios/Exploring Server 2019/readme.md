@@ -3,15 +3,17 @@
 - [Exploring Windows Server 2019 WORK IN PROGRESS](#exploring-windows-server-2019-work-in-progress)
     - [LabConfig](#labconfig)
     - [Comparing features](#comparing-features)
-        - [What's new in Windows Server 2019 Core](#whats-new-in-windows-server-2019-core)
+        - [What's new in Windows Server 2019](#whats-new-in-windows-server-2019)
         - [What's now included in 2019 Core (was in Full only in 2016)](#whats-now-included-in-2019-core-was-in-full-only-in-2016)
-        - [What's now only in Full](#whats-now-only-in-full)
-        - [What's removed from 2019](#whats-removed-from-2019)
+        - [What's removed from 2019 (both Full and Core)](#whats-removed-from-2019-both-full-and-core)
+        - [What's removed from 2019 core](#whats-removed-from-2019-core)
+        - [What's removed from 2019 full](#whats-removed-from-2019-full)
     - [Comparing Services](#comparing-services)
-        - [What's new in Windows Server 2019 Core](#whats-new-in-windows-server-2019-core-1)
+        - [What's new in Windows Server 2019](#whats-new-in-windows-server-2019-1)
         - [What's now included in 2019 Core (was in Full only in 2016)](#whats-now-included-in-2019-core-was-in-full-only-in-2016-1)
-        - [What's now only in Full](#whats-now-only-in-full-1)
-        - [What's removed from 2019](#whats-removed-from-2019-1)
+        - [What's removed from 2019 (both Full and Core)](#whats-removed-from-2019-both-full-and-core-1)
+        - [What's removed from 2019 Core](#whats-removed-from-2019-core)
+        - [What's removed from 2019 Full](#whats-removed-from-2019-full)
 
 <!-- /TOC -->
 
@@ -54,11 +56,15 @@ Compare-Object -DifferenceObject $New2019Core2016Core.InputObject -ReferenceObje
 #What is newly included in 2019 Core
 Compare-Object -DifferenceObject $New2019Core2016Core.InputObject -ReferenceObject $New2019Full2016Full.InputObject | where SideIndicator -eq "=>"
 
-#What's now only in Full
-Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "=>"
-
 #What's removed from both core and Full
 Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject -IncludeEqual -ExcludeDifferent
+
+#What's removed from Core
+Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "=>"
+
+#What's removed from Full
+Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "<="
+
  
 ```
 
@@ -70,14 +76,17 @@ Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -Reference
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/FeaturesNewIn2019Core.png)
 
-### What's now only in Full
-
-![](/Scenarios/Exploring%20Server%202019/Screenshots/Features2019FullOnly.png)
-
-### What's removed from 2019
+### What's removed from 2019 (both Full and Core)
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/FeaturesRemovedFrom2019.png)
 
+### What's removed from 2019 core
+
+![](/Scenarios/Exploring%20Server%202019/Screenshots/FeaturesRemovedFrom2019core.png)
+
+### What's removed from 2019 full
+
+![](/Scenarios/Exploring%20Server%202019/Screenshots/FeaturesRemovedFrom2019full.png)
 
 ## Comparing Services
 
@@ -99,11 +108,14 @@ Compare-Object -DifferenceObject $New2019Core2016Core.InputObject -ReferenceObje
 #What is newly included in 2019 Core
 Compare-Object -DifferenceObject $New2019Core2016Core.InputObject -ReferenceObject $New2019Full2016Full.InputObject  | where SideIndicator -eq "=>"
 
-#What's now only in Full
-Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "=>"
-
 #What's removed from both core and Full
 Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject -IncludeEqual -ExcludeDifferent
+
+#What's removed from core
+Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "=>"
+
+#What's removed from full
+Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -ReferenceObject $Removed2019Full2016Full.InputObject | where SideIndicator -eq "<="
  
 ```
 
@@ -115,10 +127,14 @@ Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -Reference
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewIn2019Core.png)
 
-### What's now only in Full
-
-![](/Scenarios/Exploring%20Server%202019/Screenshots/Services2019FullOnly.png)
-
-### What's removed from 2019
+### What's removed from 2019 (both Full and Core)
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesRemovedFrom2019.png)
+
+### What's removed from 2019 Core
+
+![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesRemovedFrom2019core.png)
+
+### What's removed from 2019 Full
+
+![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesRemovedFrom2019full.png)
