@@ -73,6 +73,8 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
+NOTE: In 17744 is a bug, so during deployment process DC creation takes forewer. Workaround is to just log in as corp\Administrator to DC and it magically finishes.
+
 ### Optionally you can download SCVMM 1807 files
 
 Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) (bit outdated)
