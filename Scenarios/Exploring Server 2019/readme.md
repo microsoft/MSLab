@@ -62,7 +62,7 @@ Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -Reference
  
 ```
 
-### What's new in Windows Server 2019 Core
+### What's new in Windows Server 2019
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/FeaturesNewIn2019.png)
 
@@ -107,7 +107,7 @@ Compare-Object -DifferenceObject $Removed2019Core2016Core.InputObject -Reference
  
 ```
 
-### What's new in Windows Server 2019 Core
+### What's new in Windows Server 2019
 
 ![](/Scenarios/Exploring%20Server%202019/Screenshots/ServicesNewIn2019.png)
 
