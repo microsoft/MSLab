@@ -250,11 +250,10 @@
         if ($nanoserver -eq "y"){
             $Packages=($msupackages.FileNames+$NanoPackages)
             if ($Packages){
-                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $Packages
             }else{
                 Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI
             }
-            Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
         }else{
             if ($msupackages.FileNames -ne $null){
                 if ($BuildNumber -le 7601){
