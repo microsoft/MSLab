@@ -104,7 +104,7 @@
             $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
 
             #ask for cab files
-                WriteInfoHighlighted "Please select cab packages you want to add to image. Click cancel if you want default."
+                WriteInfoHighlighted "Please select cab packages you want to add to image. Click cancel if you want default. Select at least Microsoft-NanoServer-Guest-Package"
                 $nanocabs=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -filter *.cab| select BaseName) | Out-GridView -OutputMode Multiple
                 if (!$nanocabs){
                     $nanocabs="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
@@ -114,8 +114,12 @@
                 foreach ($NanoPackage in $nanocabs){
                     $NanoPackages+=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -Recurse | Where-Object Name -like $NanoPackage*).FullName
                 }
-                WriteInfoHighlighted  "Following patches selected:"
-                $NanoPackages
+                if ($NanoPackages){
+                    WriteInfoHighlighted "Following patches selected:"
+                    $NanoPackages
+                }else{
+                    WriteInfoHighlighted "No nano packages selected. You should at least Microsoft-NanoServer-Guest-Package to be able to run NanoServer in Hyper-V"
+                }
            #create temp name
            $tempvhdname="Win2016NanoHV_G2.vhdx"
     
@@ -244,7 +248,13 @@
         
         #Create VHD
         if ($nanoserver -eq "y"){
-             Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+            $Packages=($msupackages.FileNames+$NanoPackages)
+            if ($Packages){
+                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+            }else{
+                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI
+            }
+            Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
         }else{
             if ($msupackages.FileNames -ne $null){
                 if ($BuildNumber -le 7601){
