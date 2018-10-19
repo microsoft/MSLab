@@ -4,6 +4,8 @@
     - [Description and requirements](#description-and-requirements)
 - [LabConfig](#labconfig)
 - [The LAB](#the-lab)
+    - [Part 1](#part-1)
+    - [Part 2](#part-2)
 
 <!-- /TOC -->
 
@@ -28,7 +30,7 @@ Author: Andreas Sobczyk / [CloudMechanic.net](https://CloudMechanic.net) / [Twit
 ```PowerShell
 # VMM SDN Express
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'VMMSDNExpress-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; VMs=@();InstallSCVMM='Yes'; PullServerDC=$false; CreateClientParent=$false ; ClientEdition='Enterprise'; Internet=$true;AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true;}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'VMMSDNExpress-'; SecureBoot=$false; SwitchName = 'LabSwitch'; DCEdition='3'; VMs=@();InstallSCVMM='Yes'; PullServerDC=$false; Internet=$true; AllowedVLANs="1-400"; AdditionalNetworksInDC=$true; AdditionalNetworksConfig=@(); EnableGuestServiceInterface=$true}
 $LABConfig.AdditionalNetworksConfig += @{ 
         NetName = 'HNV';
         NetAddress='10.103.33.';
@@ -42,19 +44,12 @@ $LABConfig.AdditionalNetworksConfig += @{
         Subnet='255.255.255.0'
     }
 
-$LABConfig.ServerVHDs += @{
-    Edition="ServerDataCenterCore";
-    VHDName="WinServerCore.vhdx";
-    Size=40GB
-}
-
 1..4 | % { 
     $VMNames="HV";
     $LABConfig.VMs += @{
         VMName = "$VMNames$_" ;
         Configuration = 'S2D' ;
-        ParentVHD = 'WinServerCore.vhdx';
-        #ParentVHD = 'WinServerCore1709.vhdx';
+        ParentVHD = 'Win2016Core_G2.vhdx';
         SSDNumber = 1;
         SSDSize=150GB ;
         MemoryStartupBytes= 25GB;

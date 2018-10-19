@@ -1,7 +1,6 @@
 <!-- TOC -->
 
 - [Scenario Introduction](#scenario-introduction)
-    - [LabConfig Windows Server 1709](#labconfig-windows-server-1709)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [The lab](#the-lab)
 - [Scenario](#scenario)
@@ -14,30 +13,13 @@
 In this scenario will be LAPS lab deployed. It contains of DC, Management machine and 3 managed servers.
 The complete documentation and operation guide is available here: https://technet.microsoft.com/en-us/mt227395.aspx
 
-## LabConfig Windows Server 1709
-
-**Note:** to make things easier, provide RSAT msu together with cumulative update for client OS.
-
-```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab1709-'; SwitchName = 'LabSwitch'; DCEdition='SERVERDATACENTERACORE'; CreateClientParent=$True ; ClientEdition='Enterprise' ; PullServerDC=$false; Internet=$true; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
-$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'WinServer1709_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
-
-$LABConfig.ServerVHDs += @{
-    Edition="SERVERDATACENTERACORE";
-    VHDName="WinServer1709_G2.vhdx";
-    Size=40GB
-}
- 
-```
-
 ## LabConfig Windows Server 2016
 
 **Note:** If you dont have Win10, you can use CreateParentDisk.ps1 in tools folder to create Win10 VHD without creating all parent disks
 
 ```PowerShell
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@(); Internet=$True ; CreateClientParent=$true}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); Internet=$True }
 
 $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
 1..3 | % {"Server$_"}  | % { $LABConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx'  ; MemoryStartupBytes= 512MB} }
@@ -81,14 +63,12 @@ if ((Get-HotFix).hotfixid -contains "KB2693643"){
 Next step is to download LAPS install files. Following script will download it into c:\temp. If you did not connect Lab to internet, download it manually from here https://www.microsoft.com/en-us/download/details.aspx?id=46899 and copy to c:\temp.
 ```PowerShell
 #Download files
-    #create temp directory
-    New-Item -Path c:\ -Name temp -ItemType Directory -Force
     #download LAPS install file x64
-    Invoke-WebRequest -UseBasicParsing -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile "c:\temp\LAPS.x64.msi"
+    Invoke-WebRequest -UseBasicParsing -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile "$env:UserProfile\Downloads\LAPS.x64.msi"
 
     #optional: download documentation
     "LAPS_TechnicalSpecification.docx","LAPS_OperationsGuide.docx" | ForEach-Object {
-        Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/$_" -OutFile "c:\temp\$_"
+        Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/$_" -OutFile "$env:UserProfile\Downloads\$_"
     }
  
 ```
@@ -96,7 +76,7 @@ Next step is to download LAPS install files. Following script will download it i
 Setup LAPS
 ```PowerShell
 #install PowerShell management tools, Management UI and copy ADMX template to policy store on management machine
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\LAPS.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\LAPS.x64.msi ADDLOCAL=Management.PS,Management.ADMX,Management.UI /q"
 
 #Create LAPS groups 
     #OU path where Groups will be created
@@ -136,13 +116,12 @@ Now it is needed to install GPO extension into managed machines. There are sever
 $Servers="Server1","Server2","Server3"
 $Sessions=New-PSSession -ComputerName $servers
 
-Invoke-Command -Session $sessions -ScriptBlock {new-item -ItemType Directory -Path c:\ -Name Temp}
 foreach ($session in $sessions){
-    Copy-Item -Path C:\temp\LAPS.x64.msi -ToSession $session -Destination c:\temp
+    Copy-Item -Path $env:UserProfile\Downloads\LAPS.x64.msi -ToSession $session -Destination $env:temp
 }
 
 Invoke-Command -Session $sessions -ScriptBlock {
-    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i C:\temp\LAPS.x64.msi /q"
+    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:temp\LAPS.x64.msi /q"
 }
  
 ```

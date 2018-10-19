@@ -237,6 +237,7 @@ If (!( $isAdmin )) {
             if ($ServerISOItem.count -gt 1){
                 WriteInfoHighlighted "Multiple ISO files found. Please select Server ISO one you want"
                 $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Server ISO you want" -OutputMode Single
+<<<<<<< HEAD
             }
             if (!$ServerISOItem){
                 WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
@@ -255,6 +256,26 @@ If (!( $isAdmin )) {
             if (!$openFile.FileName){
                 WriteErrorAndExit  "Iso was not selected... Exitting"
             }
+=======
+            }
+            if (!$ServerISOItem){
+                WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
+            }
+            $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
+        }else{
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            }
+            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+            If($openFile.ShowDialog() -eq "OK"){
+                WriteInfo  "File $($openfile.FileName) selected"
+            } 
+            if (!$openFile.FileName){
+                WriteErrorAndExit  "Iso was not selected... Exitting"
+            }
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
             #Mount ISO
                 $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
         }
@@ -292,12 +313,21 @@ If (!( $isAdmin )) {
             $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                 Multiselect = $true;
                 Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+<<<<<<< HEAD
             }
             $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
             If($ServerPackages.ShowDialog() -eq "OK"){
                 WriteInfoHighlighted  "Following patches selected:"
                 WriteInfo "`t $($ServerPackages.filenames)"
             }
+=======
+            }
+            $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($ServerPackages.ShowDialog() -eq "OK"){
+                WriteInfoHighlighted  "Following patches selected:"
+                WriteInfo "`t $($ServerPackages.filenames)"
+            }
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
 
             $serverpackages=$serverpackages.FileNames | Sort-Object
         }
@@ -732,9 +762,15 @@ If (!( $isAdmin )) {
                     xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
+<<<<<<< HEAD
                         ScopeId = ($DHCPscope+"0")
                         IPStartRange = ($DHCPscope+"10")
                         IPEndRange = ($DHCPscope+"254")
+=======
+                        ScopeId = '10.0.0.0'
+                        IPStartRange = '10.0.0.10'
+                        IPEndRange = '10.0.0.254'
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
                         Name = 'ManagementScope'
                         SubnetMask = '255.255.255.0'
                         LeaseDuration = '00:08:00'

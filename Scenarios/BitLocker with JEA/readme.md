@@ -20,7 +20,7 @@ In this lab you will learn about benefits of JEA for day-to-day administration -
 ## LabConfig
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); Internet=$true ; VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); Internet=$true ; VMs=@()}
 
 $LabConfig.VMs += @{ VMName = 'BitLocker1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
 $LabConfig.VMs += @{ VMName = 'BitLocker2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
@@ -180,13 +180,12 @@ And let's configure JEA on computers BitLocker1 and BitLocker2. Note how many co
 $computers="BitLocker1","BitLocker2"
 
 Invoke-Command -ComputerName $computers -ScriptBlock {
-    $Modules="BitLocker"
+    $Modules="BitLocker","TrustedPlatformModule"
     $AdminVisibleCmdLets=@()
-    $AdminVisibleCmdLets +="BitLocker\*","Get-CimInstance","Out-String","Where-Object"    #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
+    $AdminVisibleCmdLets +="BitLocker\*","TrustedPlatformModule\*","Get-CimInstance","Out-String","Where-Object" #All commands from BitLocker module + all others since Enable-BitLocker and Backup-BitLockerKeyProtector needs it.
     $AdminVisibleCmdLets += @{
         Name="New-Item";
-        Parameters = @{Name='ErrorAction'},
-                     @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
+        Parameters = @{Name='Path' ; ValidatePattern="^HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE.*"}
     }
     $AdminVisibleCmdLets += @{
         Name="New-ItemProperty";
@@ -198,7 +197,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     }
     $AdminVisibleExternalCommands = "C:\Windows\System32\whoami.exe" #just to demonstrate who is running command
     $AdminVisibleProviders= "registry","Variable"
-    $ViewerVisibleCmdLets="BitLocker\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
+    $ViewerVisibleCmdLets="BitLocker\Get-*","TrustedPlatformModule\Get-*","Get-CimInstance" #All commands from BitLocker module that start with Get-
     $AdminRoleName= "BitLockerAdmin"
     $ViewerRoleName="BitLockerViewer"
     $ConfigurationName="JEA-BitLocker"
@@ -216,7 +215,7 @@ Invoke-Command -ComputerName $computers -ScriptBlock {
     #Create RoleCapabilityFile and SessionConfigurationFile
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$AdminRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $AdminVisibleCmdLets -VisibleExternalCommands $AdminVisibleExternalCommands -VisibleProviders $AdminVisibleProviders
     New-PSRoleCapabilityFile -Path "$env:ProgramFiles\WindowsPowerShell\Modules\JEARoles\RoleCapabilities\$ViewerRoleName.psrc" -ModulesToImport $Modules -VisibleCmdlets $ViewerVisibleCmdLets
-    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode FullLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
+    New-PSSessionConfigurationFile -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -SessionType RestrictedRemoteServer -LanguageMode ConstrainedLanguage -RunAsVirtualAccount -RoleDefinitions @{"$env:USERDOMAIN\$AdminGroup" = @{ RoleCapabilities = "$AdminRoleName" };"$env:USERDOMAIN\$ViewerGroup" = @{ RoleCapabilities = "$ViewerRoleName" }}
 
     #RegisterPSsessionConfiguration
     Register-PSSessionConfiguration -Path $env:ProgramData\JEAConfiguration\$ConfigurationName.pssc -Name $ConfigurationName -Force
