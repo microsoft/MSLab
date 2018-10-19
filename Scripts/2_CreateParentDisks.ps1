@@ -30,12 +30,12 @@ If (!( $isAdmin )) {
         Write-Host $message -ForegroundColor Red
         Write-Host "Press enter to continue ..."
         Stop-Transcript
-        $exit=Read-Host
+        Read-Host | Out-Null
         Exit
     }
 
     #Create Unattend for VHD 
-    Function CreateUnattendFileVHD{     
+    Function CreateUnattendFileVHD{
         param (
             [parameter(Mandatory=$true)]
             [string]
@@ -133,6 +133,11 @@ If (!( $isAdmin )) {
             $LabConfig.PullServerDC=$true
         }
 
+        If (!$LabConfig.DHCPscope){
+            $LabConfig.DHCPscope="10.0.0.0"
+        }      
+
+
     #create some built-in variables
         $DN=$null
         $LabConfig.DomainName.Split(".") | ForEach-Object {
@@ -145,37 +150,16 @@ If (!( $isAdmin )) {
         $Switchname="DC_HydrationSwitch_$([guid]::NewGuid())"
         $DCName='DC'
 
-        $ClientVHDName="Win10_G2.vhdx"
-        $FullServerVHDName="Win2016_G2.vhdx"
-        $CoreServerVHDName="Win2016Core_G2.vhdx"
-        $NanoServerVHDName="Win2016NanoHV_G2.vhdx"
-
-    #create $serverVHDs variables if not already in $LabConfig
-        if (!$LabConfig.ServerVHDs){
-            $LabConfig.ServerVHDs=@()
-            $LabConfig.ServerVHDs += @{
-                Edition="4" 
-                VHDName=$FullServerVHDName
-                Size=60GB
-            }
-            $LabConfig.ServerVHDs += @{
-                Edition="3" 
-                VHDName=$CoreServerVHDName
-                Size=30GB
-            }
-            $LabConfig.ServerVHDs += @{ 
-                Edition="DataCenterNano"
-                VHDName=$NanoServerVHDName
-                NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
-                Size=30GB
-            }
-        }
-    
     #Grab TimeZone
     $TimeZone=(Get-TimeZone).id
 
     #Grab Installation type
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+
+    #DCHP scope
+    $DHCPscope = $LabConfig.DHCPscope
+    $ReverseDNSrecord = $DHCPscope -replace '^(\d+)\.(\d+)\.\d+\.(\d+)$','$3.$2.$1.in-addr.arpa'
+    $DHCPscope = $DHCPscope.Substring(0,$DHCPscope.Length-1) 
 
 #endregion
 
@@ -196,35 +180,37 @@ If (!( $isAdmin )) {
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
         }
 
-    #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested
-        if ($LabConfig.InstallSCVMM -eq "Yes"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SCVMM\setup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
+    #check if VMM prereqs files are present if InstallSCVMM or SCVMM prereq is requested and tools.vhdx not present
+        if (-not (Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).name -contains "tools.vhdx"){
+            if ($LabConfig.InstallSCVMM -eq "Yes"){
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SCVMM\setup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe","Temp\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
+                    }
+                }    
+            }
+
+            if ($LabConfig.InstallSCVMM -eq "Prereqs"){
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe","Temp\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
+                    }
+                } 
+            }
+        
+            if ($LabConfig.InstallSCVMM -eq "SQL"){
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
+                    }
                 }
             }    
-        }
 
-        if ($LabConfig.InstallSCVMM -eq "Prereqs"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe","Tools\ToolsVHD\SCVMM\ADK\Installers\Windows PE x86 x64-x86_en-us.msi" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
-                }
-            } 
-        }
-    
-        if ($LabConfig.InstallSCVMM -eq "SQL"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Tools\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
-                }
-            }
-        }    
-
-        if ($LabConfig.InstallSCVMM -eq "ADK"){
-            "Tools\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
-                if(!(Test-Path -Path "$PSScriptRoot\$_")){
-                    WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
+            if ($LabConfig.InstallSCVMM -eq "ADK"){
+                "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
+                    if(!(Test-Path -Path "$PSScriptRoot\$_")){
+                        WriteErrorAndExit "file $_ needed for ADK install not found. Exitting"
+                    }
                 }
             }
         }
@@ -235,94 +221,10 @@ If (!( $isAdmin )) {
         #grab all files in parentdisks folder
             $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
 
-
-        #Find Disk eligible for DC
-            #find VHD Name defined in $LabConfig.ServerVHDs matching requested edition in $LabConfig.DCEdition
-                $DCVHDName=($LabConfig.ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
-                If ($DCVHDName){
-                    WriteInfo "`t $DCVHDName eligible for DC Hydration requested in Labconfig.ServerVHDs. "
-                }
-
-            #test if some VHD can be used for DC
-                If ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
-                    WriteSuccess "`t $DCVHDName parent disk usable for DC exists (as per ServerVHDs and DCEdition in LabConfig)."
-                }elseif(($LabConfig.DCEdition -like "*core") -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$CoreServerVHDName")){
-                    WriteSuccess "`t $CoreServerVHDName exists, will be used for DC Creation."
-                    $DCVHDName=$CoreServerVHDName
-                }elseif(Test-Path -Path "$PSScriptRoot\ParentDisks\$FullServerVHDName"){
-                    WriteSuccess "`t $FullServerVHDName exists, will be used for DC Creation."
-                    $DCVHDName=$FullServerVHDName
-                }elseif($DCVHDName){
-                #    WriteInfo "`t $DCVHDName will be created in ParentDisks and used for DC creation" #duplicite information
-                }else{
-                    WriteInfo "`t VHD eligible for DC not found. VHD for DC will be created after ParentDisks are created."
-                }
-
-        #Test if some ParentDisks already exists
-            foreach ($ServerVHD in $LabConfig.ServerVHDs){
-                if ($ParentDisksNames -contains $ServerVHD.VHDName){
-                    WriteSuccess "`t $($ServerVHD.VHDName) found"
-                }else{
-                    WriteInfo "`t $($ServerVHD.VHDName) not found, will be created"
-                }
-            }
-
-        #Test if Tools.vhdx already exists
-            if ($ParentDisksNames -contains "tools.vhdx"){
-                WriteSuccess "`t Tools.vhdx already exists. Creation will be skipped"
-            }else{
-                WriteInfo "`t Tools.vhdx not found, will be created"
-            }
-
-        #test if Client parent already exists
-            if (($LabConfig.CreateClientParent -eq $true) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
-                WriteSuccess "`t $ClientVHDName already exists. Creation will be skipped."
-            }elseif ($LabConfig.CreateClientParent -eq $true){
-                WriteInfo "`t $ClientVHDName not found, will be created."
-            }
-
-        #Check if all requested VHDs already exists (so its safe to skip prompt for ISO and MSU files)
-            #Test1 - All requested VHDs exists in Parent disks?
-                if ($ParentDisksNames -eq $null){
-                    $test1=$False
-                }else{
-                    $test1=if (!(Compare-Object -ReferenceObject $labconfig.ServerVHDs.vhdname -DifferenceObject $ParentDisksNames | where SideIndicator -eq "<=")){$true}
-                }
-
-            #Test 2 - DC VHD exists?
-                if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
-                    $Test2=$True
-                }
-
-            #Test 3 - Windows 10 VHD requested and exists?
-                $test3=if (($labconfig.CreateClientParent) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){$True}
-
-            #Server Media Needed?
-                if ($test1 -and $test2){
-                    $ServerMediaNeeded=$False
-                }else{
-                    $ServerMediaNeeded=$True
-                }
-
-            #Client media needed?
-                if ($test3){
-                    $ClientMediaNeeded=$False
-                }else{
-                    $ClientMediaNeeded=$True
-                }
-
-        #check if DC exists
-            if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
-                $DCFilesExists=$true
-                WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
-            }
-
     #check if running on Core Server and check proper values in LabConfig
         If ($WindowsInstallationType -eq "Server Core"){
-            If (!$LabConfig.CreateClientParent -and $ServerMediaNeeded -and !$LabConfig.ServerISOFolder){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify iso location"
-            }elseif(($LabConfig.CreateClientParent -and $ClientMediaNeeded -and !$LabConfig.ClientISOFolder) -or ($ServerMediaNeeded -and !$LabConfig.ServerISOFolder)){
-                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder and ClientISOFolder variables in LabConfig to specify iso location"
+            If (!$LabConfig.ServerISOFolder){
+                WriteErrorAndExit "Server Core detected. Please use ServerISOFolder variable in LabConfig to specify Server iso location"
             }
         }
 
@@ -330,119 +232,138 @@ If (!( $isAdmin )) {
 
 #region Ask for ISO images and Cumulative updates
     #Grab Server ISO
-        if ($ServerMediaNeeded){
-            if ($LabConfig.ServerISOFolder){
-                $ServerISOItem = Get-ChildItem -Path $LabConfig.ServerISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-                if ($ServerISOItem.count -gt 1){
-                    WriteInfoHighlighted "Multiple ISO files found. Please select Server ISO one you want"
-                    $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Server ISO you want" -OutputMode Single
-                }
-                if (!$ServerISOItem){
-                    WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
-                }
-                $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
-            }else{
-                WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 1709 or later"
-                [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                    Title="Please select ISO image with Windows Server 2016, 1709 or later"
-                }
-                $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-                If($openFile.ShowDialog() -eq "OK"){
-                    WriteInfo  "File $($openfile.FileName) selected"
-                } 
-                if (!$openFile.FileName){
-                    WriteErrorAndExit  "Iso was not selected... Exitting"
-                }
-                #Mount ISO
-                    $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+        if ($LabConfig.ServerISOFolder){
+            $ServerISOItem = Get-ChildItem -Path $LabConfig.ServerISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
+            if ($ServerISOItem.count -gt 1){
+                WriteInfoHighlighted "Multiple ISO files found. Please select Server ISO one you want"
+                $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Server ISO you want" -OutputMode Single
             }
-            #Grab Server Media Letter
-                $ServerMediaDriveLetter = (Get-Volume -DiskImage $ISOServer).DriveLetter
+            if (!$ServerISOItem){
+                WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
+            }
+            $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
+        }else{
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            }
+            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+            If($openFile.ShowDialog() -eq "OK"){
+                WriteInfo  "File $($openfile.FileName) selected"
+            } 
+            if (!$openFile.FileName){
+                WriteErrorAndExit  "Iso was not selected... Exitting"
+            }
+            #Mount ISO
+                $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
+        }
+    #Grab Server Media Letter
+        $ServerMediaDriveLetter = (Get-Volume -DiskImage $ISOServer).DriveLetter
+
+    #Test if it's server media
+        WriteInfoHighlighted "Testing if selected ISO is Server Media"
+        $WindowsImage=Get-WindowsImage -ImagePath "$($ServerMediaDriveLetter):\sources\install.wim"
+        If ($WindowsImage.ImageName[0].contains("Server")){
+            WriteInfo "`t Server Edition found"
+        }else{
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "`t Selected media does not contain Windows Server. Exitting."
+        }
+    #Test if it's Windows Server 2016 and newer
+        $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
+        If ($BuildNumber -lt 14393){
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
         }
 
-    #Ask for Client ISO
-        if ($ClientMediaNeeded){
-            If ($LabConfig.CreateClientParent){
-                if ($LabConfig.ClientISOFolder){
-                    $ClientISOItem = Get-ChildItem -Path $LabConfig.ClientISOFolder -Recurse -Include '*.iso' -ErrorAction SilentlyContinue
-                    if ($ClientISOItem.count -gt 1){
-                        WriteInfoHighlighted "Multiple ISO files found. Please select Client ISO you want"
-                        $ClientISOItem=$ClientISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Client ISO you want" -OutputMode Single
-                    }
-                    if (!$ClientISOItem){
-                        WriteErrorAndExit  "No iso was found in $($LabConfig.ClientISOFolder) ... Exitting"
-                    }
-                    $ISOClient = Mount-DiskImage -ImagePath $ClientISOItem.FullName -PassThru
-                }else{
-                    WriteInfoHighlighted "Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition."
-                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                    $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                        Title="Please select ISO image with Windows 10 $($Labconfig.ClientEdition) Edition"
-                    }
-                    $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
-                    If($openFile.ShowDialog() -eq "OK"){
-                        WriteInfo  "File $($openfile.FileName) selected"
-                    } 
-                    if (!$openFile.FileName){
-                        WriteErrorAndExit  "Iso was not selected... Exitting"
-                    }
-                    #Mount ISO
-                        $ISOClient = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-                }
-            #Grab Client Media Letter
-                $ClientMediaDriveLetter = (Get-Volume -DiskImage $ISOClient).DriveLetter
+#Grab packages
+    #grab server packages
+        if ($LabConfig.ServerISOFolder){
+            if ($LabConfig.ServerMSUsFolder){
+                $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
             }
+        }elseif($WindowsInstallationType -eq "Server Core"){
+            WriteInfoHighlighted "Server Core detected, MSU folder not specified. Skipping MSU prompt"
+        }else{
+            #ask for MSU patches
+            WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Multiselect = $true;
+                Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+            }
+            $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($ServerPackages.ShowDialog() -eq "OK"){
+                WriteInfoHighlighted  "Following patches selected:"
+                WriteInfo "`t $($ServerPackages.filenames)"
+            }
+
+            $serverpackages=$serverpackages.FileNames | Sort-Object
         }
 
-    #Grab packages
-        #grab server packages
-            if ($ServerMediaNeeded){
-                if ($LabConfig.ServerISOFolder){
-                    if ($LabConfig.ServerMSUsFolder){
-                        $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
-                    }
-                }else{
-                    #ask for MSU patches
-                    WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
-                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                    $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                        Multiselect = $true;
-                        Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
-                    }
-                    $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                    If($ServerPackages.ShowDialog() -eq "OK"){
-                        WriteInfoHighlighted  "Following patches selected:"
-                        WriteInfo "`t $($ServerPackages.filenames)"
-                    }
+#endregion
 
-                    $serverpackages=$serverpackages.FileNames | Sort-Object
-                }
-            }
+#region Generate VHD Config
+    $ServerVHDs=@()
 
-        #grab Client packages
-        If ($ClientMediaNeeded){
-            If ($LabConfig.CreateClientParent){
-                if ($LabConfig.ClientISOFolder){
-                    if ($LabConfig.ClientMSUsFolder){
-                        $clientpackages = (Get-ChildItem -Path $LabConfig.ClientMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
-                    }
-                }else{
-                    #ask for MSU patches
-                    WriteInfoHighlighted "Please select latest Client Cumulative Update (MSU) and (or) RSAT. Click Cancel if you don't want any."
-                    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-                    $ClientPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                        Multiselect = $true;
-                        Title="Please select Windows 10 Cumulative Update and (or) RSAT. Click Cancel if you don't want any."
-                    }
-                    $ClientPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-                    If($ClientPackages.ShowDialog() -eq "OK"){
-                        WriteInfoHighlighted  "Following patches selected:"
-                        WriteInfo "`t $($ClientPackages.filenames)"
-                    }
-                    $clientpackages=$clientpackages.FileNames | Sort-Object
-                }
-            }
+    if ($BuildNumber -eq 14393){
+        #Windows Server 2016
+        $ServerVHDs += @{
+            Edition="4" 
+            VHDName="Win2016_G2.vhdx"
+            Size=60GB
+        }
+        $ServerVHDs += @{
+            Edition="3" 
+            VHDName="Win2016Core_G2.vhdx"
+            Size=30GB
+        }
+        $ServerVHDs += @{
+            Edition="DataCenterNano"
+            VHDName="Win2016NanoHV_G2.vhdx"
+            NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
+            Size=30GB
+        }
+    }elseif ($BuildNumber -eq 17763){
+        #Windows Server 2019
+        $ServerVHDs += @{
+            Edition="4" 
+            VHDName="Win2019_G2.vhdx"
+            Size=60GB
+        }
+        $ServerVHDs += @{
+            Edition="3" 
+            VHDName="Win2019Core_G2.vhdx"
+            Size=30GB
+        }
+    }elseif ($BuildNumber -ge 17744){
+        #Windows Sever Insider
+        $ServerVHDs += @{
+            Edition="4" 
+            VHDName="WinSrvInsider_$BuildNumber.vhdx"
+            Size=60GB
+        }
+        $ServerVHDs += @{
+            Edition="3" 
+            VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
+            Size=30GB
+        }
+    }else{
+        WriteErrorAndExit "Plese provide Windows Server 2016, 2019 or Insider greater or equal to build 17744"
+    }
+
+    #Test if Tools.vhdx already exists
+        if ($ParentDisksNames -contains "tools.vhdx"){
+            WriteSuccess "`t Tools.vhdx already exists. Creation will be skipped"
+        }else{
+            WriteInfo "`t Tools.vhdx not found, will be created"
+        }
+
+    #check if DC exists
+        if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
+            $DCFilesExists=$true
+            WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
         }
 
 #endregion
@@ -457,38 +378,11 @@ If (!( $isAdmin )) {
         }
 
     #load convert-windowsimage to memory
-        . "$PSScriptRoot\tools\convert-windowsimage.ps1"
+        . "$PSScriptRoot\Temp\convert-windowsimage.ps1"
 
-    #Create client OS VHD
-        If ($LabConfig.CreateClientParent -eq $true){
-            WriteInfoHighlighted "Creating Client Parent disk"
-            if (!(Test-Path "$PSScriptRoot\ParentDisks\$ClientVHDName")){
-
-                #exit if client wim not found
-                If (!(Test-Path -Path "$($ClientMediaDriveLetter):\sources\install.wim")){
-                    WriteInfo "`t Dismounting ISO Images"
-                        if ($ISOServer -ne $Null){
-                            $ISOServer | Dismount-DiskImage
-                        }
-                        if ($ISOClient -ne $Null){
-                            $ISOClient | Dismount-DiskImage
-                        }
-                    WriteErrorAndExit "$($ClientMediaDriveLetter):\sources\install.wim not found. Can you try different Client media?"
-                }
-
-                if ($ClientPackages){
-                    Convert-WindowsImage -SourcePath "$($ClientMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI -package $ClientPackages
-                }else{
-                    Convert-WindowsImage -SourcePath "$($ClientMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.ClientEdition -VHDPath "$PSScriptRoot\ParentDisks\$ClientVHDName" -SizeBytes 30GB -VHDFormat VHDX -DiskLayout UEFI 
-                }
-            }else{
-                WriteSuccess "`t Client Parent found, skipping creation"
-            }
-        }
-
-    #Create Servers Parent VHDs
+      #Create Servers Parent VHDs
         WriteInfoHighlighted "Creating Server Parent disk(s)"
-        foreach ($ServerVHD in $LabConfig.ServerVHDs){
+        foreach ($ServerVHD in $ServerVHDs){
             if ($serverVHD.Edition -notlike "*nano"){
                 if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
                     WriteInfo "`t Creating Server Parent $($ServerVHD.VHDName)"
@@ -534,7 +428,7 @@ If (!( $isAdmin )) {
             }
         }
 
-    #create Tools VHDX from .\tools\ToolsVHD
+    #create Tools VHDX from .\Temp\ToolsVHD
         if (!(Test-Path "$PSScriptRoot\ParentDisks\tools.vhdx")){
             WriteInfoHighlighted "Creating Tools.vhdx"
             $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
@@ -543,18 +437,18 @@ If (!( $isAdmin )) {
                 $vhddisk = $VHDMount| get-disk 
                 $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
 
-            $VHDPathTest=Test-Path -Path "$PSScriptRoot\Tools\ToolsVHD\"
+            $VHDPathTest=Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\"
             if (!$VHDPathTest){
-                New-Item -Type Directory -Path "$PSScriptRoot\Tools\ToolsVHD"
+                New-Item -Type Directory -Path "$PSScriptRoot\Temp\ToolsVHD"
             }
             if ($VHDPathTest){
-                WriteInfo "Found $PSScriptRoot\Tools\ToolsVHD\*, copying files into VHDX"
-                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
+                WriteInfo "Found $PSScriptRoot\Temp\ToolsVHD\*, copying files into VHDX"
+                Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
             }else{
                 WriteInfo "Files not found" 
-                WriteInfoHighlighted "Add required tools into $PSScriptRoot\Tools\toolsVHD and Press any key to continue..."
+                WriteInfoHighlighted "Add required tools into $PSScriptRoot\Temp\ToolsVHD and Press any key to continue..."
                 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
-                Copy-Item -Path "$PSScriptRoot\Tools\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
+                Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
             }
 
             Dismount-VHD $vhddisk.Number
@@ -572,6 +466,7 @@ If (!( $isAdmin )) {
         $VMPath="$PSScriptRoot\LAB\"
 
         #reuse VHD if already created
+            $DCVHDName=($ServerVHDs | Where-Object Edition -eq $LabConfig.DCEdition).VHDName
             if ((($DCVHDName) -ne $null) -and (Test-Path -Path "$PSScriptRoot\ParentDisks\$DCVHDName")){
                 WriteSuccess "`t $DCVHDName found, reusing, and copying to $vhdpath"
                 New-Item -Path "$VMPath\$DCName" -Name "Virtual Hard Disks" -ItemType Directory
@@ -604,18 +499,21 @@ If (!( $isAdmin )) {
 
         #Apply Unattend to VM
             WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
-            if (Test-Path "$PSScriptRoot\Temp\*"){
-                Remove-Item -Path "$PSScriptRoot\Temp\*" -Recurse
+            if (Test-Path "$PSScriptRoot\Temp\mountdir"){
+                Remove-Item -Path "$PSScriptRoot\Temp\mountdir\" -Recurse -Force
+            }
+            if (Test-Path "$PSScriptRoot\Temp\unattend"){
+                Remove-Item -Path "$PSScriptRoot\Temp\unattend.xml"
             }
             $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
             New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
             Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
             Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
+            #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
+            #&"$PSScriptRoot\Temp\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
             New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
             Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
-            Copy-Item -Path "$PSScriptRoot\tools\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+            Copy-Item -Path "$PSScriptRoot\Temp\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
         #Create credentials for DSC
 
@@ -641,11 +539,11 @@ If (!( $isAdmin )) {
 
                 )
 
-                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.17.0.0"
-                #Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.8.0.0"
-                Import-DSCResource -ModuleName xNetworking -ModuleVersion "5.5.0.0"
-                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "1.6.0.0"
-                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.0.0.0"
+                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.19.0.0"
+                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.11.0.0"
+                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "6.0.0.0"
+                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "2.0.0.0"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.4.0.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
@@ -699,7 +597,7 @@ If (!( $isAdmin )) {
                         SafemodeAdministratorPassword = $safemodeAdministratorCred
                         DomainNetbiosName = $node.DomainNetbiosName
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
+                    }
                 
                     xWaitForADDomain DscForestWait 
                     { 
@@ -804,9 +702,9 @@ If (!( $isAdmin )) {
                         PasswordNeverExpires = $true
                     }
 
-                    xIPaddress IP
+                    IPaddress IP
                     {
-                        IPAddress = '10.0.0.1/24'
+                        IPAddress = ($DHCPscope+"1/24")
                         AddressFamily = 'IPv4'
                         InterfaceAlias = 'Ethernet'
                     }
@@ -834,8 +732,9 @@ If (!( $isAdmin )) {
                     xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
-                        IPStartRange = '10.0.0.10'
-                        IPEndRange = '10.0.0.254'
+                        ScopeId = ($DHCPscope+"0")
+                        IPStartRange = ($DHCPscope+"10")
+                        IPEndRange = ($DHCPscope+"254")
                         Name = 'ManagementScope'
                         SubnetMask = '255.255.255.0'
                         LeaseDuration = '00:08:00'
@@ -844,14 +743,14 @@ If (!( $isAdmin )) {
                         DependsOn = "[Service]DHCPServer"
                     }
 
-                    xDhcpServerOption Option
+                    xDhcpServerOption MgmtScopeRouterOption
                     {
                         Ensure = 'Present'
-                        ScopeID = '10.0.0.0'
+                        ScopeID = ($DHCPscope+"0")
                         DnsDomain = $Node.DomainName
-                        DnsServerIPAddress = '10.0.0.1'
+                        DnsServerIPAddress = ($DHCPscope+"1")
                         AddressFamily = 'IPv4'
-                        Router = '10.0.0.1'
+                        Router = ($DHCPscope+"1")
                         DependsOn = "[Service]DHCPServer"
                     }
                     
@@ -866,16 +765,14 @@ If (!( $isAdmin )) {
                         Name   = "DSC-Service"
                     }
 
-                    <# Does not work, ideas?
                     xDnsServerADZone addReverseADZone
                     {
-                        Name = "0.0.10.in-addr.arpa"
+                        Name = $ReverseDNSrecord
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
-                        DependsOn = "[xDhcpServerOption]Option"
+                        DependsOn = "[xDhcpServerOption]MgmtScopeRouterOption"
                     }
-                    #>
 
                     If ($LabConfig.PullServerDC){
                         xDscWebService PSDSCPullServer
@@ -951,7 +848,7 @@ If (!( $isAdmin )) {
         #close VHD and apply changes
             WriteInfoHighlighted "`t Applying changes to VHD"
             Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
+            #&"$PSScriptRoot\Temp\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
 
         #Start DC VM and wait for configuration
             WriteInfoHighlighted "`t Starting DC"
@@ -987,7 +884,7 @@ If (!( $isAdmin )) {
             Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
                 Param($LabConfig);
                 redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
-                Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
+                Add-DnsServerPrimaryZone -NetworkID ($DHCPscope+"/24") -ReplicationScope "Forest"
             } 
         #install SCVMM or its prereqs if specified so
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
@@ -1078,9 +975,6 @@ If (!( $isAdmin )) {
             $ISOServer | Dismount-DiskImage
         }
 
-        if ($ISOClient -ne $Null){
-            $ISOClient | Dismount-DiskImage
-        }
 
         WriteInfo "`t Deleting temp dir"
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
@@ -1091,10 +985,10 @@ If (!( $isAdmin )) {
     WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
-    WriteInfo "`t (.\Tools\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+    WriteInfo "`t (.\Temp\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
     If ((Read-host "`t Please type Y or N") -like "*Y"){
         WriteInfo "`t `t Cleaning unnecessary items" 
-        "$PSScriptRoot\Tools\ToolsVHD","$PSScriptRoot\Tools\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
+        "$PSScriptRoot\Temp\ToolsVHD","$PSScriptRoot\Temp\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
         } 
@@ -1107,6 +1001,6 @@ If (!( $isAdmin )) {
 
     Stop-Transcript
     WriteSuccess "Job Done. Press enter to continue..."
-    $exit=Read-Host
+    Read-Host | Out-Null
 
 #endregion

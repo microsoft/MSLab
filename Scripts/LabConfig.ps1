@@ -1,7 +1,12 @@
-﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
+﻿#basic config for Windows Server 2016, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$false ; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
+#Windows Server 2016
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+#Or Windows Server 2019
+#1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+#Or Windows Server Insider
+#1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsider_17744.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 ### HELP ###
 
@@ -15,9 +20,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         Prefix = 'WSLab-';                           # All VMs and vSwitch are created with this prefix, so you can identify the lab
         SwitchName = 'LabSwitch';                    # Name of vSwitch
         SecureBoot=$true;                            # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
-        DCEdition='4';                               # 4 for DataCenter or 3 for DataCenterCore (or if you prefer standard or if you use SAC, use 1 or 2 image index numbers)
-        CreateClientParent=$false;                   # (Optional) If True, client OS will be hydrated
-        ClientEdition='Enterprise';                  # (Mandatory when CreateClientParent=$True) Enterprise/Education/Pro/Home (depends what ISO you use)
+        DCEdition='4';                               # 4 for DataCenter or 3 for DataCenterCore
         InstallSCVMM='No';                           # (Optional) Yes/Prereqs/SQL/ADK/No
         AdditionalNetworksInDC=$false;               # (Optional) If Additional networks should be added also to DC
         DomainNetbiosName="Corp";                    # (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
@@ -28,15 +31,12 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         SkipHostDnsAsForwarder=$true;                # (Optional) If $true, local DNS servers won't be used as DNS forwarders in DC
         CustomDnsForwarders=@("8.8.8.8","1.1.1.1");  # (Optional) If configured, script will use those servers as DNS fordwarders in DC (Defaults to 8.8.8.8 and 1.1.1.1)
         PullServerDC=$true;                          # (Optional) If $false, then DSC Pull Server will not be configured on DC
-        ClientISOFolder="";                          # (Optional) If configured, script will use ISO located in this folder for Windows Client hydration (if more ISOs are present, then out-grid view is called)
-        ClientMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into client OS
         ServerISOFolder="";                          # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
         ServerMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into server OS
         EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
-        ServerVHDs=@()                               # Just empty array for config below
     }
 
     # Specifying LabVMs
@@ -64,54 +64,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
     $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
 
-    #optional: (these are defaults images that will be created during 2_CreateParentDisks.ps1. If nothing is specified, the below config is automatically used)
-    $LabConfig.ServerVHDs += @{
-        Edition="4" 
-        VHDName="Win2016_G2.vhdx"
-        Size=60GB
-    }
-    $LabConfig.ServerVHDs += @{
-        Edition="3" 
-        VHDName="Win2016Core_G2.vhdx"
-        Size=30GB
-    }
-    $LabConfig.ServerVHDs += @{ 
-        Edition="DataCenterNano"
-        VHDName=$NanoServerVHDName
-        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
-        Size=30GB
-    }
-
-    #>
-#endregion
-
-#region More complex labconfig example for Microsoft Premier Software Defined Storage Workshop
-    <#
-    $LabConfig=@{
-        DomainAdminName='LabAdmin';
-        AdminPassword='LS1setup!';
-        Prefix = 'SDSWS-';
-        SwitchName = 'LabSwitch';
-        SecureBoot=$true;
-        DCEdition='ServerDataCenterCore';
-        CreateClientParent=$true;
-        ClientEdition='Enterprise';
-        InstallSCVMM='No';
-        AdditionalNetworksInDC=$false;
-        AdditionalNetworksConfig=@();
-        VMs=@()
-    }
-
-    $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
-
-    $LABConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple'    ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-    1..2 | % { $VMNames="Shared"    ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared' ; ParentVHD = 'Win2016Core_G2.vhdx'      ; SSDNumber = 3; SSDSize=800GB ; HDDNumber = 9  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; VMSet= 'SharedLab1' } }
-    1..2 | % { $VMNames="2Node"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'    ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4  ; HDDSize= 4TB ; MemoryStartupBytes= 512MB ; NestedVirt = $True } } 
-    1..4 | % { $VMNames="S2D"       ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'    ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 12 ; HDDSize= 4TB ; MemoryStartupBytes= 512MB } }
-    1..4 | % { $VMNames="Compute"   ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 512MB ; NestedVirt = $True} }
-    1..2 | % { $VMNames="Replica"   ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; ReplicaHDDSize = 200GB ; ReplicaLogSize = 20GB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSet1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
-    3..4 | % { $VMNames="Replica"   ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; ReplicaHDDSize = 200GB ; ReplicaLogSize = 20GB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSet2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
-
     #>
 #endregion
 
@@ -130,17 +82,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         $True/$False
         This enables or disables secure boot. In Microsoft we can test unsigned test builds with Secureboot off.
 
-    CreateClientParent (Optional)
-        $True/$False
-        If Yes, Client Parent image will be created, so you can create Windows 10 management machine.
-
     DCEdition (Mandatory)
         'ServerDataCenter'/'ServerDataCenterCore'
         If you dont like GUI and you have management VM, you can select Core edition.
-
-    ClientEdition (Optional)
-        Enterprise/Education/Pro/Home
-        Depends what ISO you use. Edition name matches the one you get from DISM.
 
     InstallSCVMM * (Optional)
         'Yes'         - installs ADK, SQL and VMM
@@ -192,18 +136,23 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         If not defined at all, commonly known DNS servers will be used as a fallback:
              - Google DNS: 8.8.8.8
              - Cloudfare: 1.1.1.1
+    
+    DHCPscope (Optional)
+        If configured, a custom DHCP scope will be used. Will always use a '/24'.
+        Specify input like '10.1.0.0' or '192.168.0.0'
+        If not defined at all, DHCP scope 10.0.0.0 will be used:
 
     PullServerDC (optional)
         If $False, Pull Server will not be setup.
 
-    ServerISOFolder,ClientISOFolder
+    ServerISOFolder
         Example: ServerISOFolder="d:\ISO\Server2016"
         Script will try to find ISO in this folder and subfolders. If more ISOs are present, then out-grid view is called and you will be promted to select only one
 
-    ServerMSUsFolder,ClientMSUsFolder
+    ServerMSUsFolder
         Example: ServerMSUsFolder="d:\Updates\Server2016"
-        If ServerISOFolder/ClientISOFolder is specified, then updates are being grabbed from ServerMSUsFolder/ClientMSUsFolder.
-        If ServerMSUsFolder/ClientMSUsFolder is not specified, or empty, you are not asked for providing MSU files and no MSUs are applied.
+        If ServerISOFolder is specified, then updates are being grabbed from ServerMSUsFolder.
+        If ServerMSUsFolder is not specified, or empty, you are not asked for providing MSU files and no MSUs are applied.
 
     DCVMProcessorCount (optional)
         Example: DCVMProcessorCount=4
@@ -338,32 +287,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     Subnet
         Subnet of network.
     #>
-#endregion
-
-#region $LabConfig.ServerVHDs
-    <#
-    Example:
-        $LABConfig.ServerVHDs += @{
-            Edition="DataCenterNano" 
-            VHDName="Win2016NanoHV_G2.vhdx"
-            NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package"
-            Size=30GB
-        }
-
-    Edition
-        Edition of VHD, consumed by convert-windowsimage
-        possible values: DatacenterNano, DatacenterCore, Datacenter, StandardNano, StandardCore, Standard or numbers
-
-    VHDName
-        Name of VHD that will be created
-
-    NanoPackages
-        Names of packages (it will automatically grab all files starting with the name provided, so all cabs with language cabs)
-
-    Size
-        Size in bytes
-    #>
-
 #endregion
 
 #region $LabConfig.VMs Examples
