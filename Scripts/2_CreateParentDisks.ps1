@@ -133,6 +133,11 @@ If (!( $isAdmin )) {
             $LabConfig.PullServerDC=$true
         }
 
+        If (!$LabConfig.DHCPscope){
+            $LabConfig.DHCPscope="10.0.0.0"
+        }      
+
+
     #create some built-in variables
         $DN=$null
         $LabConfig.DomainName.Split(".") | ForEach-Object {
@@ -150,6 +155,11 @@ If (!( $isAdmin )) {
 
     #Grab Installation type
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+
+    #DCHP scope
+    $DHCPscope = $LabConfig.DHCPscope
+    $ReverseDNSrecord = $DHCPscope -replace '^(\d+)\.(\d+)\.\d+\.(\d+)$','$3.$2.$1.in-addr.arpa'
+    $DHCPscope = $DHCPscope.Substring(0,$DHCPscope.Length-1) 
 
 #endregion
 
@@ -227,6 +237,7 @@ If (!( $isAdmin )) {
             if ($ServerISOItem.count -gt 1){
                 WriteInfoHighlighted "Multiple ISO files found. Please select Server ISO one you want"
                 $ServerISOItem=$ServerISOItem | Select-Object Name,FullName | Out-GridView -Title "Multiple ISO files found. Please select Server ISO you want" -OutputMode Single
+<<<<<<< HEAD
             }
             if (!$ServerISOItem){
                 WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
@@ -245,6 +256,26 @@ If (!( $isAdmin )) {
             if (!$openFile.FileName){
                 WriteErrorAndExit  "Iso was not selected... Exitting"
             }
+=======
+            }
+            if (!$ServerISOItem){
+                WriteErrorAndExit  "No iso was found in $($LabConfig.ServerISOFolder) ... Exitting"
+            }
+            $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
+        }else{
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+            $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+                Title="Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            }
+            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+            If($openFile.ShowDialog() -eq "OK"){
+                WriteInfo  "File $($openfile.FileName) selected"
+            } 
+            if (!$openFile.FileName){
+                WriteErrorAndExit  "Iso was not selected... Exitting"
+            }
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
             #Mount ISO
                 $ISOServer = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
         }
@@ -282,12 +313,21 @@ If (!( $isAdmin )) {
             $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                 Multiselect = $true;
                 Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+<<<<<<< HEAD
             }
             $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
             If($ServerPackages.ShowDialog() -eq "OK"){
                 WriteInfoHighlighted  "Following patches selected:"
                 WriteInfo "`t $($ServerPackages.filenames)"
             }
+=======
+            }
+            $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($ServerPackages.ShowDialog() -eq "OK"){
+                WriteInfoHighlighted  "Following patches selected:"
+                WriteInfo "`t $($ServerPackages.filenames)"
+            }
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
 
             $serverpackages=$serverpackages.FileNames | Sort-Object
         }
@@ -695,7 +735,7 @@ If (!( $isAdmin )) {
 
                     IPaddress IP
                     {
-                        IPAddress = '10.0.0.1/24'
+                        IPAddress = ($DHCPscope+"1/24")
                         AddressFamily = 'IPv4'
                         InterfaceAlias = 'Ethernet'
                     }
@@ -723,9 +763,15 @@ If (!( $isAdmin )) {
                     xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
+<<<<<<< HEAD
+                        ScopeId = ($DHCPscope+"0")
+                        IPStartRange = ($DHCPscope+"10")
+                        IPEndRange = ($DHCPscope+"254")
+=======
                         ScopeId = '10.0.0.0'
                         IPStartRange = '10.0.0.10'
                         IPEndRange = '10.0.0.254'
+>>>>>>> df401dba43daa3fb1beaff66ef11c1847a89e660
                         Name = 'ManagementScope'
                         SubnetMask = '255.255.255.0'
                         LeaseDuration = '00:08:00'
@@ -737,11 +783,11 @@ If (!( $isAdmin )) {
                     xDhcpServerOption MgmtScopeRouterOption
                     {
                         Ensure = 'Present'
-                        ScopeID = '10.0.0.0'
+                        ScopeID = ($DHCPscope+"0")
                         DnsDomain = $Node.DomainName
-                        DnsServerIPAddress = '10.0.0.1'
+                        DnsServerIPAddress = ($DHCPscope+"1")
                         AddressFamily = 'IPv4'
-                        Router = '10.0.0.1'
+                        Router = ($DHCPscope+"1")
                         DependsOn = "[Service]DHCPServer"
                     }
                     
@@ -758,7 +804,7 @@ If (!( $isAdmin )) {
 
                     xDnsServerADZone addReverseADZone
                     {
-                        Name = "0.0.10.in-addr.arpa"
+                        Name = $ReverseDNSrecord
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
@@ -875,7 +921,7 @@ If (!( $isAdmin )) {
             Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
                 Param($LabConfig);
                 redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
-                Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
+                Add-DnsServerPrimaryZone -NetworkID ($DHCPscope+"/24") -ReplicationScope "Forest"
             } 
         #install SCVMM or its prereqs if specified so
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){

@@ -35,6 +35,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         ServerMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into server OS
         EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
+        DHCPscope="10.0.0.0"                         # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -136,6 +137,11 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         If not defined at all, commonly known DNS servers will be used as a fallback:
              - Google DNS: 8.8.8.8
              - Cloudfare: 1.1.1.1
+    
+    DHCPscope (Optional)
+        If configured, a custom DHCP scope will be used. Will always use a '/24'.
+        Specify input like '10.1.0.0' or '192.168.0.0'
+        If not defined at all, DHCP scope 10.0.0.0 will be used.
 
     PullServerDC (optional)
         If $False, Pull Server will not be setup.
