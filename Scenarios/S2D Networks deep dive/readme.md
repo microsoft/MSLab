@@ -22,7 +22,7 @@
 ## LabConfig Windows Server 2016
 
 ```Powershell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@()}
 
 $LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
 $LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
@@ -39,28 +39,17 @@ $LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 
 ## LabConfig insider preview
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
-$LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
-$LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
-$LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
-$LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
-$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
-$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_17724.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
+$LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
+$LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
 
 #optional Win10 management machine
 #$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-
-$LabConfig.ServerVHDs += @{
-    Edition="4"
-    VHDName="Win2019_17724.vhdx"
-    Size=60GB
-}
-$LabConfig.ServerVHDs += @{
-    Edition="3"
-    VHDName="Win2019Core_17724.vhdx"
-    Size=30GB
-}
  
 ```
 
@@ -201,7 +190,7 @@ $servers="2NICs1","2NICs2"
 #enable RDMA
 Enable-NetAdapterRDMA "vEthernet (SMB_1)","vEthernet (SMB_2)" -CimSession $servers
 
-#map each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each vRDMA NIC is mapped to separate pRDMA NIC)
+#map each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
 Invoke-Command -ComputerName $servers -ScriptBlock {
     $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name

@@ -1,12 +1,6 @@
 ﻿#basic config, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no'; CreateClientParent=$false ; ClientEdition='Enterprise'; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@() }  
-
-$LABConfig.ServerVHDs += @{
-        Edition="ServerDataCenter";
-        VHDName="Win2019_17639.vhdx";
-        Size=60GB
-    }
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'ws2019Migration-'; SwitchName = 'LabSwitch'; DCEdition='ServerDataCenter'; PullServerDC=$false ;Internet=$true; InstallSCVMM='no';  AdditionalNetworksConfig=@(); VMs=@() }  
 
 #Define the Number of Virtual Machines you need based on OS or nr of machines pr
 $LabConfig.VMs = @(
@@ -76,20 +70,6 @@ $LabConfig.VMs = @(
     }
     $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage2'; NetAddress='172.16.2.'; NetVLAN='2'; Subnet='255.255.255.0'}
     $LABConfig.AdditionalNetworksConfig += @{ NetName = 'Storage3'; NetAddress='172.16.3.'; NetVLAN='3'; Subnet='255.255.255.0'}
-
-    #optional: (these are defaults images that will be created during 2_CreateParentDisks.ps1. If nothing is specified, the below config is automatically used)
-    $LABConfig.ServerVHDs += @{
-        Edition="DataCenterCore";
-        VHDName="Win2016Core_G2.vhdx";
-        Size=30GB
-    }
-    $LABConfig.ServerVHDs += @{
-        Edition="DataCenterNano";
-        VHDName="Win2016NanoHV_G2.vhdx";
-        NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package";
-        Size=30GB
-    }
-
     #>
 #endregion
 
@@ -336,32 +316,6 @@ $LabConfig.VMs = @(
     Subnet
         Subnet of network.
     #>
-#endregion
-
-#region $LabConfig.ServerVHDs
-    <#
-    Example:
-        $LABConfig.ServerVHDs += @{
-            Edition="DataCenterNano" 
-            VHDName="Win2016NanoHV_G2.vhdx"
-            NanoPackages="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package"
-            Size=30GB
-        }
-
-    Edition
-        Edition of VHD, consumed by convert-windowsimage
-        possible values: DatacenterNano, DatacenterCore, Datacenter, StandardNano, StandardCore, Standard
-
-    VHDName
-        Name of VHD that will be created
-
-    NanoPackages
-        Names of packages (it will automatically grab all files starting with the name provided, so all cabs with language cabs)
-
-    Size
-        Size in bytes
-    #>
-
 #endregion
 
 #region $LabConfig.VMs Examples
