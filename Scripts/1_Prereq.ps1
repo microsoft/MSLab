@@ -158,7 +158,8 @@ function  Get-WindowsBuildNumber {
             WriteError "`t Failed to download Diskspd!"
         }
         # Unnzipping and extracting just diskspd.exe x64
-            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip" -DestinationPath "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip"
+            New-Item -Directory "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip"
+            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip" -OutputPath "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip"
             Copy-Item -Path (Get-ChildItem -Path "$PSScriptRoot\Temp\ToolsVHD\diskspd\" -Recurse | Where-Object {$_.Directory -like '*amd64*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
@@ -177,7 +178,8 @@ function  Get-WindowsBuildNumber {
             WriteError "`t Failed to download VMFleet!"
         }
         # Unnzipping and extracting just VMFleet
-            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip" -DestinationPath "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip"
+            New-Item -Directory "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" 
+            Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip" -OutputPath "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip"
             Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip\diskspd-master\Frameworks\VMFleet\*" -Destination "$PSScriptRoot\Temp\ToolsVHD\VMFleet\"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
