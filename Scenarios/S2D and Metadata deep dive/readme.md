@@ -14,7 +14,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 ## About the lab
 
-This lab talks about Pool and Volume metadata. It demonstrates how to display metadata and what different metadata configurations exist.
+This lab talks about Pool and Virtual Disks (S2D Volumes) metadata. It demonstrates how to display metadata and what different metadata configurations exist.
 
 Run all scripts from DC
 
@@ -116,6 +116,8 @@ As you can see, Pool is offline with message in EventLog saying, that pool does 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolDownMessage.png)
 
 OK, this was fun, just don't try it in prod :)
+
+Turn on nodes 1,2,3 now.
 
 ## Exploring Virtual disks metadata
 
