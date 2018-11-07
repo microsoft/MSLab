@@ -304,10 +304,8 @@ And let's see what volumes survived
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesStatusPowerShellReason.png)
 
-Excellent!
+Note: There is a 50:50 chance that volumes will go offline. For explanation take a look into [S2D and Metadata deep dive scenario](/Scenarios/S2D%20and%20Metadata%20deep%20dive/). Your systems will shut one by one (with 5 minutes pause, so Health service can re-balance metadata), you will be fine
 
 After starting nodes again, storage jobs will kick in.
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesRepairing.png)
-
-
