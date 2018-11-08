@@ -75,7 +75,7 @@ Expand-Archive -Path $env:USERPROFILE\Downloads\PalantirWEF.zip -DestinationPath
 
 ```PowerShell
 #Create AD Groups for Palantir subscriptions
-$SampleRuleNames=(Get-ChildItem -Path "$env:USERPROFILE\Downloads\windows-event-forwarding-master\wef-subscriptions").BaseName
+$SampleRuleNames=(Get-ChildItem -Path "$env:USERPROFILE\Downloads\windows-event-forwarding-master\wef-subscriptions" | where extension -eq .xml).BaseName
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
 $OUName="WEF Rules"
 
