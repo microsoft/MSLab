@@ -198,7 +198,8 @@ Invoke-Command -ComputerName CA -ScriptBlock{
     Start-Service WMSVC
 }
 
-#Add Templates
+#region Add Templates Option 1 (Does not work, probably something wrong with Enrollment server roles)
+
 #Download Import,Export script, and Templates
 "Export-CertificateTemplate.ps1","Import-CertificateTemplate.ps1","CertTemplates.dat" | Foreach-Object {
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Certification%20Authority/Resources/$_" -OutFile "$env:UserProfile\Downloads\$_"
@@ -250,7 +251,14 @@ Invoke-WebRequest -Uri  https://gallery.technet.microsoft.com/scriptcenter/Certi
     #Load Import function
     . "$env:UserProfile\Downloads\Import-CertificateTemplate.ps1"
     Import-CertificateTemplate -Path $env:UserProfile\Downloads\CertTemplates.dat
-    
+
+#endregion
+
+#region Add templates option 2
+
+#https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+
+#endregion
 #Set permissions on TPM Template
 Get-CertificateTemplate -Name "Computer 2016 TPM" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "Domain Computers" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
