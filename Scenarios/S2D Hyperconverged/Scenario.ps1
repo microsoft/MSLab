@@ -379,7 +379,7 @@ Write-host "Script started at $StartDateTime"
             $accounts+="corp\Domain Admins"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
         #Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessNa Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
