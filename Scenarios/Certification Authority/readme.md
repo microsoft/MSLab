@@ -198,69 +198,140 @@ Invoke-Command -ComputerName CA -ScriptBlock{
     Start-Service WMSVC
 }
 
-#region Add Templates Option 1 (Does not work, probably something wrong with Enrollment server roles)
 
-#Download Import,Export script, and Templates
-"Export-CertificateTemplate.ps1","Import-CertificateTemplate.ps1","CertTemplates.dat" | Foreach-Object {
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Certification%20Authority/Resources/$_" -OutFile "$env:UserProfile\Downloads\$_"
+#region Add templates
+
+#inspired by https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+
+#initial functions
+
+Function Get-RandomHex {
+param ([int]$Length)
+    $Hex = '0123456789ABCDEF'
+    [string]$Return = $null
+    For ($i=1;$i -le $length;$i++) {
+        $Return += $Hex.Substring((Get-Random -Minimum 0 -Maximum 16),1)
+    }
+    Return $Return
 }
+
+Function IsUniqueOID {
+param ($cn,$TemplateOID,$Server,$ConfigNC)
+    $Search = Get-ADObject -Server $Server `
+        -SearchBase "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC" `
+        -Filter {cn -eq $cn -and msPKI-Cert-Template-OID -eq $TemplateOID}
+    If ($Search) {$False} Else {$True}
+}
+
+Function New-TemplateOID {
+Param($Server,$ConfigNC)
+    <#
+    OID CN/Name                    [10000000-99999999].[32 hex characters]
+    OID msPKI-Cert-Template-OID    [Forest base OID].[1000000-99999999].[10000000-99999999]  <--- second number same as first number in OID name
+    #>
+    do {
+        $OID_Part_1 = Get-Random -Minimum 1000000  -Maximum 99999999
+        $OID_Part_2 = Get-Random -Minimum 10000000 -Maximum 99999999
+        $OID_Part_3 = Get-RandomHex -Length 32
+        $OID_Forest = Get-ADObject -Server $Server `
+            -Identity "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC" `
+            -Properties msPKI-Cert-Template-OID |
+            Select-Object -ExpandProperty msPKI-Cert-Template-OID
+        $msPKICertTemplateOID = "$OID_Forest.$OID_Part_1.$OID_Part_2"
+        $Name = "$OID_Part_2.$OID_Part_3"
+    } until (IsUniqueOID -cn $Name -TemplateOID $msPKICertTemplateOID -Server $Server -ConfigNC $ConfigNC)
+    Return @{
+        TemplateOID  = $msPKICertTemplateOID
+        TemplateName = $Name
+    }
+}
+
+Function New-Template {
+Param($DisplayName,$TemplateOtherAttributes)
+
+    #grab DC
+    $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
+    #grab Naming Context
+    $ConfigNC = (Get-ADRootDSE -Server $Server).configurationNamingContext
+    #Create OID
+        $OID = New-TemplateOID -Server $Server -ConfigNC $ConfigNC
+        $TemplateOIDPath = "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC"
+        $OIDOtherAttributes = @{
+	            'DisplayName' = $DisplayName
+	            'flags' = [System.Int32]'1'
+	            'msPKI-Cert-Template-OID' = $OID.TemplateOID
+        }
+        New-ADObject -Path $TemplateOIDPath -OtherAttributes $OIDOtherAttributes -Name $OID.TemplateName -Type 'msPKI-Enterprise-Oid' -Server $Server
+    #Create Template itself
+        $TemplateOtherAttributes+= @{
+            'msPKI-Cert-Template-OID' = $OID.TemplateOID
+        }
+        $TemplatePath = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$ConfigNC"
+        New-ADObject -Path $TemplatePath -OtherAttributes $TemplateOtherAttributes -Name $DisplayName -DisplayName $DisplayName -Type pKICertificateTemplate -Server $Server
+}
+
+#CreateTPMAttestedTemplate
+
+$DisplayName="Computer2016TPM"
+$TemplateOtherAttributes = @{
+	    'flags' = [System.Int32]'131680'
+	    'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+	    'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+	    'msPKI-Enrollment-Flag' = [System.Int32]'32'
+	    'msPKI-Minimal-Key-Size' = [System.Int32]'521'
+	    'msPKI-Private-Key-Flag' = [System.Int32]'101061632'
+	    'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'msPKI-RA-Signature' = [System.Int32]'0'
+        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
+	    'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'pKIMaxIssuingDepth' = [System.Int32]'0'
+	    'ObjectClass' = [System.String]'pKICertificateTemplate'
+	    'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+	    'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')	    
+        'pKIDefaultKeySpec' = [System.Int32]'1'
+	    'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+	    'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+	    'pKIKeyUsage' = [System.Byte[]]@('136')
+	    'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+	    'revision' = [System.Int32]'100'
+}
+New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
+
+#CreateNormalTemplate
+$DisplayName="Computer2016"
+$TemplateOtherAttributes = @{
+	    'flags' = [System.Int32]'131680'
+	    'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+	    'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+	    'msPKI-Enrollment-Flag' = [System.Int32]'32'
+	    'msPKI-Minimal-Key-Size' = [System.Int32]'521'
+	    'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
+	    'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'msPKI-RA-Signature' = [System.Int32]'0'
+        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
+	    'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'pKIMaxIssuingDepth' = [System.Int32]'0'
+	    'ObjectClass' = [System.String]'pKICertificateTemplate'
+	    'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+	    'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')	    
+        'pKIDefaultKeySpec' = [System.Int32]'1'
+	    'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+	    'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+	    'pKIKeyUsage' = [System.Byte[]]@('136')
+	    'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+	    'revision' = [System.Int32]'100'
+}
+New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
+
+#endregion
 
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
 Install-Module -Name PSPKI -Force
 Import-Module PSPKI
 
-#Install "Certificate Enrollment Policy Web Server" and "Certificate Enrollment Web Server"
-Install-WindowsFeature -Name "ADCS-Enroll-Web-Svc","ADCS-Enroll-Web-Pol" -ComputerName CA
-
-#Configure "Certificate Enrollment Policy Web Server" and "Certificate Enrollment Web Server" (Needs some work around figuring out cert first...)
-
-    #Enable CredSSP
-    # Temporarily enable CredSSP delegation to avoid double-hop issue
-    Enable-WSManCredSSP -Role "Client" -DelegateComputer CA -Force
-    Invoke-Command -ComputerName CA -ScriptBlock { Enable-WSManCredSSP Server -Force }
-
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
-
-    Invoke-Command -ComputerName CA -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        $ThumbPrint=(Get-ChildItem -Path Cert:\LocalMachine\CA | where Subject -Like *Contoso-Root-CA* | select -First 1).Thumbprint
-        Install-AdcsEnrollmentPolicyWebService -AuthenticationType Kerberos -SSLCertThumbprint $ThumbPrint -Confirm:0
-        Install-AdcsEnrollmentWebService -ApplicationPoolIdentity -CAConfig "CA.corp.contoso.com\Contoso-Root-CA" -SSLCertThumbprint $ThumbPrint -AuthenticationType Certificate -Confirm:0
-    }
-
-    # Disable CredSSP
-    Disable-WSManCredSSP -Role Client
-    Invoke-Command -ComputerName CA -ScriptBlock { Disable-WSManCredSSP Server }
-
-
-# Add Certificate Template Import/Export script
-Invoke-WebRequest -Uri  https://gallery.technet.microsoft.com/scriptcenter/Certificate-Templatre-f53ecebe/file/129706/1/CertificateTemplate-Configuration.ps1 -OutFile "$env:UserProfile\Downloads\CertificateTemplate-Configuration.ps1"
-
-#Export templates (Was done just to export manually created templates) so you can download it now)
-<#
-    Import-Module PSPKI
-    $Templates = Get-CertificateTemplate -Name "Computer2016","Computer2016TPM"
-    #Load Export function
-    . "$env:UserProfile\Downloads\Export-CertificateTemplate.ps1"
-    Export-CertificateTemplate -Template $templates -Path $env:UserProfile\Downloads\CertTemplates.dat
-#>
-
-#Import templates
-    Import-Module PSPKI
-    #Load Import function
-    . "$env:UserProfile\Downloads\Import-CertificateTemplate.ps1"
-    Import-CertificateTemplate -Path $env:UserProfile\Downloads\CertTemplates.dat
-
-#endregion
-
-#region Add templates option 2
-
-#https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
-
-#endregion
-#Set permissions on TPM Template
-Get-CertificateTemplate -Name "Computer 2016 TPM" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "Domain Computers" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
+#Set permissions on TPM Templates
+Get-CertificateTemplate -Name "Computer2016TPM" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "Domain Computers" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
 <#TBD
 #configure cert for remote management (different cert is needed than Root)
