@@ -2,7 +2,7 @@
 
 - [S2D and Emergency Patching](#s2d-and-emergency-patching)
     - [Sample LabConfig for Windows Server 2016](#sample-labconfig-for-windows-server-2016)
-    - [Sample LabConfig for Windows Server Insider](#sample-labconfig-for-windows-server-insider)
+    - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [Prerequisites](#prerequisites)
     - [Emergency shutdown and patching process](#emergency-shutdown-and-patching-process)
         - [Invoke Windows Update](#invoke-windows-update)
@@ -32,12 +32,13 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True }}
  
 ```
-## Sample LabConfig for Windows Server Insider
+
+## Sample LabConfig for Windows Server 2019
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17744-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; PullServerDC=$false ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
 
-1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True }}
+1..4 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True }}
 
 ```
 
