@@ -318,6 +318,9 @@ Param($DisplayName,$TemplateOtherAttributes)
 
 #region Create Templates
 
+#First import ActiveDirectory module to be able to create [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection] type
+Import-Module ActiveDirectory
+
 #CreateTPMAttestedTemplate
 
 $DisplayName="Computer2016TPM"
