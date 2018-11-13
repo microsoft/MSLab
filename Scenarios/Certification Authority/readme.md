@@ -1,9 +1,9 @@
 <!-- TOC -->
 
 - [Certification Authority !!!WORK IN PROGRESS!!!](#certification-authority-work-in-progress)
+    - [LabConfig](#labconfig)
     - [About the lab](#about-the-lab)
         - [Resources](#resources)
-    - [LabConfig](#labconfig)
     - [Scenario](#scenario)
         - [Install CA](#install-ca)
         - [Configure remote management](#configure-remote-management)
@@ -17,24 +17,6 @@
 <!-- /TOC -->
 
 # Certification Authority !!!WORK IN PROGRESS!!!
-
-## About the lab
-
-It was some time  was thinking about some nice way to automate Certification templates and then autoenrollment of certificates. This scenario will enable automation of another scenarios that depends on Certs such as Windows Admin Center, SDN (network Controller) and others.
-
-In this scenario will be also demonstrated how to use TPM Attested certificates.
-
-### Resources
-
-https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/
-
-https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
-
-https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
-
-https://www.sysadmins.lv/projects/pspki/default.aspx
-
-https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
 
 ## LabConfig
 
@@ -55,7 +37,27 @@ $LabConfig.VMs += @{ VMName = 'ServerExt3'     ; Configuration = 'Simple'; Paren
  
 ```
 
+## About the lab
+
+It was some time  was thinking about some nice way to automate Certification templates and then autoenrollment of certificates. This scenario will enable automation of another scenarios that depends on Certs such as Windows Admin Center, SDN (network Controller) and others.
+
+In this scenario will be also demonstrated how to use TPM Attested certificates.
+
+### Resources
+
+https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/
+
+https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
+
+https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+
+https://www.sysadmins.lv/projects/pspki/default.aspx
+
+https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
+
 ## Scenario
+
+Run all code from DC (or management machine with RSAT)
 
 ### Install CA
 
@@ -228,7 +230,7 @@ Invoke-Command -ComputerName ca -ScriptBlock {
 To enable IIS remote management run following code inspired by https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
 
 ```PowerShell
-#configure remote management
+#configure IIS remote management
 Invoke-Command -ComputerName CA -ScriptBlock{
     Install-WindowsFeature  Web-Mgmt-Service
     Set-ItemProperty -Path  HKLM:\SOFTWARE\Microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1
@@ -324,16 +326,16 @@ $TemplateOtherAttributes = @{
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
         'msPKI-Certificate-Name-Flag' = [System.Int32]'1207959552'
         'msPKI-Enrollment-Flag' = [System.Int32]'32'
-        'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-        'msPKI-Private-Key-Flag' = [System.Int32]'101058560'
-        'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101066752'
+        'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`RSA`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
         'msPKI-RA-Signature' = [System.Int32]'0'
         'msPKI-Template-Minor-Revision' = [System.Int32]'1'
         'msPKI-Template-Schema-Version' = [System.Int32]'4'
         'pKIMaxIssuingDepth' = [System.Int32]'0'
         'ObjectClass' = [System.String]'pKICertificateTemplate'
         'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
-        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')        
+        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1,Microsoft Platform Crypto Provider')
         'pKIDefaultKeySpec' = [System.Int32]'1'
         'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
         'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
