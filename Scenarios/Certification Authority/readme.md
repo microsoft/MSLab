@@ -400,7 +400,7 @@ Foreach ($computer in $computers){
         certutil -pulse
     }
 
-
+<#TBD
 #configure cert for remote management (different cert is needed than Root)
     Invoke-Command -ComputerName CA -ScriptBlock {
         Import-Module WebAdministration
@@ -409,7 +409,7 @@ Foreach ($computer in $computers){
         New-Item -Path IIS:\SslBindings\0.0.0.0!8172 -value $CACert
     }
 
-
+#>
 
 
 ```
