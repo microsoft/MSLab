@@ -257,9 +257,9 @@ Param($DisplayName,$TemplateOtherAttributes)
         $OID = New-TemplateOID -Server $Server -ConfigNC $ConfigNC
         $TemplateOIDPath = "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC"
         $OIDOtherAttributes = @{
-	            'DisplayName' = $DisplayName
-	            'flags' = [System.Int32]'1'
-	            'msPKI-Cert-Template-OID' = $OID.TemplateOID
+                'DisplayName' = $DisplayName
+                'flags' = [System.Int32]'1'
+                'msPKI-Cert-Template-OID' = $OID.TemplateOID
         }
         New-ADObject -Path $TemplateOIDPath -OtherAttributes $OIDOtherAttributes -Name $OID.TemplateName -Type 'msPKI-Enterprise-Oid' -Server $Server
     #Create Template itself
@@ -274,52 +274,52 @@ Param($DisplayName,$TemplateOtherAttributes)
 
 $DisplayName="Computer2016TPM"
 $TemplateOtherAttributes = @{
-	    'flags' = [System.Int32]'131680'
-	    'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
-	    'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
-	    'msPKI-Enrollment-Flag' = [System.Int32]'32'
-	    'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-	    'msPKI-Private-Key-Flag' = [System.Int32]'101061632'
-	    'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'flags' = [System.Int32]'131680'
+        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+        'msPKI-Enrollment-Flag' = [System.Int32]'32'
+        'msPKI-Minimal-Key-Size' = [System.Int32]'521'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101061632'
+        'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
         'msPKI-RA-Signature' = [System.Int32]'0'
         'msPKI-Template-Minor-Revision' = [System.Int32]'1'
-	    'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'msPKI-Template-Schema-Version' = [System.Int32]'4'
         'pKIMaxIssuingDepth' = [System.Int32]'0'
-	    'ObjectClass' = [System.String]'pKICertificateTemplate'
-	    'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
-	    'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')	    
+        'ObjectClass' = [System.String]'pKICertificateTemplate'
+        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')        
         'pKIDefaultKeySpec' = [System.Int32]'1'
-	    'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
-	    'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
-	    'pKIKeyUsage' = [System.Byte[]]@('136')
-	    'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
-	    'revision' = [System.Int32]'100'
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+        'pKIKeyUsage' = [System.Byte[]]@('136')
+        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+        'revision' = [System.Int32]'100'
 }
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
 #CreateNormalTemplate
 $DisplayName="Computer2016"
 $TemplateOtherAttributes = @{
-	    'flags' = [System.Int32]'131680'
-	    'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
-	    'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
-	    'msPKI-Enrollment-Flag' = [System.Int32]'32'
-	    'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-	    'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
-	    'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'flags' = [System.Int32]'131680'
+        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+        'msPKI-Enrollment-Flag' = [System.Int32]'32'
+        'msPKI-Minimal-Key-Size' = [System.Int32]'521'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
+        'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
         'msPKI-RA-Signature' = [System.Int32]'0'
         'msPKI-Template-Minor-Revision' = [System.Int32]'1'
-	    'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'msPKI-Template-Schema-Version' = [System.Int32]'4'
         'pKIMaxIssuingDepth' = [System.Int32]'0'
-	    'ObjectClass' = [System.String]'pKICertificateTemplate'
-	    'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
-	    'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')	    
+        'ObjectClass' = [System.String]'pKICertificateTemplate'
+        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')        
         'pKIDefaultKeySpec' = [System.Int32]'1'
-	    'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
-	    'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
-	    'pKIKeyUsage' = [System.Byte[]]@('136')
-	    'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
-	    'revision' = [System.Int32]'100'
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+        'pKIKeyUsage' = [System.Byte[]]@('136')
+        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+        'revision' = [System.Int32]'100'
 }
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
