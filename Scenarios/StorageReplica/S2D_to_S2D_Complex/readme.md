@@ -4,11 +4,11 @@
     - [Description](#description)
     - [Scenario requirements](#scenario-requirements)
 - [LabConfig.ps1 for Windows Server 2016](#labconfigps1-for-windows-server-2016)
-- [Labconfig.ps1 for Windows Server Insider](#labconfigps1-for-windows-server-insider)
+- [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
 - [The lab](#the-lab)
 - [Planned failover](#planned-failover)
 - [Unplanned failover](#unplanned-failover)
-- [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
+- [Test failover in Windows Server 2019](#test-failover-in-windows-server-2019)
 
 <!-- /TOC -->
 
@@ -48,17 +48,17 @@ $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='1
  
 ```
 
-# Labconfig.ps1 for Windows Server Insider
+# Sample LabConfig for Windows Server 2019
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17744-'; SwitchName = 'LabSwitch'; DCEdition='4';  PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4';  PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
 #$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
 
-1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } }
-1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } }
+1..2 | % { $VMNames="Site1-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2019Core_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True;AdditionalNetworks=$True } }
+1..2 | % { $VMNames="Site2-S2D"     ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D'      ; ParentVHD = 'Win2019Core_G2.vhdx'   ; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 4GB ;NestedVirt=$True; AdditionalNetworks=$True } }
  
 ```
 
@@ -382,7 +382,7 @@ Result: All good again
 
 ![](/Scenarios/StorageReplica/S2D_to_S2D_Complex/Screenshots/result-allgoodagain.png)
 
-# Test failover in Windows Server 2019 (insider preview)
+# Test failover in Windows Server 2019
 
 ```PowerShell
 #Create Virtual disk TestFailoverSite1

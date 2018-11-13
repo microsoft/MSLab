@@ -1,8 +1,8 @@
 <!-- TOC -->
 
 - [Storage Replica - Stretch Cluster scenario](#storage-replica---stretch-cluster-scenario)
-    - [LabConfig.ps1 for Windows Server 2016](#labconfigps1-for-windows-server-2016)
-    - [Labconfig.ps1 for Windows Server Insider](#labconfigps1-for-windows-server-insider)
+    - [Sample LabConfig for Windows Server 2016](#sample-labconfig-for-windows-server-2016)
+    - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [Scenario.ps1](#scenariops1)
         - [Region LabConfig](#region-labconfig)
         - [Region install features for management](#region-install-features-for-management)
@@ -15,7 +15,7 @@
         - [Region enable replication](#region-enable-replication)
         - [Region Create VMs](#region-create-vms)
         - [Script result](#script-result)
-    - [Test failover in Windows Server 2019 (insider preview)](#test-failover-in-windows-server-2019-insider-preview)
+    - [Test failover in Windows Server 2019](#test-failover-in-windows-server-2019)
     - [Known issues](#known-issues)
 
 <!-- /TOC -->
@@ -26,35 +26,36 @@ WORK IN PROGRESS
 
 This scenario will set up stretch cluster, while some VMs are running in site1 and some in site2. All is replicated from site1 to site2 and from site 2 to site 1.
 
-Additionally, you can test failover in Windows Server Insider
+Additionally, you can test failover in Windows Server 2019
 
-## LabConfig.ps1 for Windows Server 2016
+## Sample LabConfig for Windows Server 2016
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'SR-'; SwitchName = 'LabSwitch'; DCEdition='4';AdditionalNetworksConfig=@();VMs=@()}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
-#$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
+#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
 
 1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2016Core_G2.vhdx'   ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 2  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
 3..4 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2016Core_G2.vhdx'   ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 2  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
  
 ```
 
-## Labconfig.ps1 for Windows Server Insider
+## Sample LabConfig for Windows Server 2019
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider17744-'; SwitchName = 'LabSwitch'; DCEdition='4';  PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4';  PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
 $LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
-#$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
+#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
 
-1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
-3..4 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
+1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_G2.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite1' ; NestedVirt=$True ; AdditionalNetworks = $True} }
+3..4 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Shared'  ; ParentVHD = 'Win2019Core_G2.vhdx'  ; SSDNumber = 2; SSDSize=200GB ; HDDNumber = 3  ; HDDSize= 2TB ; MemoryStartupBytes= 2GB ; MemoryMinimumBytes= 1GB ; VMSet= 'ReplicaSite2' ; NestedVirt=$True ; AdditionalNetworks = $True} }
  
 ```
+
 ## Scenario.ps1
 
 Collapsed sections in scenario.ps1 (ctrl+m in PowerShell ISE)
@@ -127,7 +128,7 @@ In this region SR is configured and also SR constraint is added to Replica netwo
 
 ![](/Scenarios/StorageReplica/Stretch_Cluster/screenshots/FinishedScript.png)
 
-## Test failover in Windows Server 2019 (insider preview)
+## Test failover in Windows Server 2019
 
 https://blogs.technet.microsoft.com/filecab/2018/04/24/storage-replica-updates-in-windows-server-2019-insider-preview-build-17650/
 

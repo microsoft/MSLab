@@ -50,7 +50,7 @@ This configuration will set up these virtual machines:
 - Node servers for Failover cluster using SAN
 - Node servers for Storage Spaces Direct cluster
 
-> Management machine in this LabConfig is based on Windows 10 which requires `Win10RS4_G2.vhdx` image. This VHDX can be created using `CreateParentDisk.ps1` script in the `Tools` folder. That VHDX then needs to be moved to `ParentDisks` folder.
+> Management machine in this LabConfig is based on Windows 10 which requires `Win10RS5_G2.vhdx` image. This VHDX can be created using `CreateParentDisk.ps1` script in the `Tools` folder. That VHDX then needs to be moved to `ParentDisks` folder.
 
 Internet connectivity in this lab is used as we will download additional PowerShell module in oder to configure Certification Authority and Windows Admin Center installation files.
 
