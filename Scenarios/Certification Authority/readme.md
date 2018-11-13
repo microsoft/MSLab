@@ -1,34 +1,65 @@
 <!-- TOC -->
 
 - [Certification Authority !!!WORK IN PROGRESS!!!](#certification-authority-work-in-progress)
+    - [About the lab](#about-the-lab)
+        - [Resources](#resources)
     - [LabConfig](#labconfig)
     - [Scenario](#scenario)
+        - [Install CA](#install-ca)
+        - [Configure remote management](#configure-remote-management)
+        - [Add templates](#add-templates)
+        - [Set permissions on TPM Enabled template and publish it](#set-permissions-on-tpm-enabled-template-and-publish-it)
+        - [Configure CA for TPM Enrollment](#configure-ca-for-tpm-enrollment)
+        - [Grab EK Hashes from servers](#grab-ek-hashes-from-servers)
+        - [Configure GPO for Autoenrollment and enroll certs](#configure-gpo-for-autoenrollment-and-enroll-certs)
+        - [Configure certificate for CA IIS remote management](#configure-certificate-for-ca-iis-remote-management)
 
 <!-- /TOC -->
 
 # Certification Authority !!!WORK IN PROGRESS!!!
 
+## About the lab
+
+It was some time  was thinking about some nice way to automate Certification templates and then autoenrollment of certificates. This scenario will enable automation of another scenarios that depends on Certs such as Windows Admin Center, SDN (network Controller) and others.
+
+In this scenario will be also demonstrated how to use TPM Attested certificates.
+
+### Resources
+
+https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/
+
+https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
+
+https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+
+https://www.sysadmins.lv/projects/pspki/default.aspx
+
+https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
+
 ## LabConfig
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
 
-$LabConfig.VMs += @{ VMName = 'CA'    ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; vTPM=$True }
+$LabConfig.VMs += @{ VMName = 'CA'    ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; vTPM=$True }
 
-$LabConfig.VMs += @{ VMName = 'Server1'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
-$LabConfig.VMs += @{ VMName = 'Server2'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
-$LabConfig.VMs += @{ VMName = 'Server3'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
+$LabConfig.VMs += @{ VMName = 'Server1'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
+$LabConfig.VMs += @{ VMName = 'Server2'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
+$LabConfig.VMs += @{ VMName = 'Server3'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True }
 
-$LabConfig.VMs += @{ VMName = 'ServerExt1'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
-$LabConfig.VMs += @{ VMName = 'ServerExt2'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
-$LabConfig.VMs += @{ VMName = 'ServerExt3'     ; Configuration = 'Simple'; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
+<#TBD
+$LabConfig.VMs += @{ VMName = 'ServerExt1'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
+$LabConfig.VMs += @{ VMName = 'ServerExt2'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
+$LabConfig.VMs += @{ VMName = 'ServerExt3'     ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; vTPM=$True ; Unattend="NoDjoin"}
+#>
  
 ```
 
 ## Scenario
 
-Inspired by https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/ , https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx and https://www.sysadmins.lv/blog-en/export-and-import-certificate-templates-with-powershell.aspx
+### Install CA
 
+Following steps are almost the same as published here https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/ . I just modified it a bit to fit WSLab. It will configure Certificate authority and will create config file, that prevents creating default templates. Those will be created later in the lab.
 
 ```PowerShell
 #Install Management Tools
@@ -189,21 +220,32 @@ Invoke-Command -ComputerName ca -ScriptBlock {
     & $Env:WinDir\system32\inetsrv\appcmd.exe set config /section:staticContent /-"[fileExtension='.pem']"
     & $Env:WinDir\system32\inetsrv\appcmd.exe set config /section:staticContent /+"[fileExtension='.pem',mimeType='text/plain']"
 }
+ 
+```
 
-#configure remote management (inspired by https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx )
+### Configure remote management
+
+To enable IIS remote management run following code inspired by https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
+
+```PowerShell
+#configure remote management
 Invoke-Command -ComputerName CA -ScriptBlock{
     Install-WindowsFeature  Web-Mgmt-Service
     Set-ItemProperty -Path  HKLM:\SOFTWARE\Microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1
     Set-Service -name WMSVC  -StartupType Automatic
     Start-Service WMSVC
 }
+ 
+```
 
+### Add templates
 
-#region Add templates
+Following code was inspired by https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
 
-#inspired by https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+To reverse engineer what changes were needed to make to create Template I used ADExplorer while creating snapshot of AD before and after to see what changed.
 
-#initial functions
+```PowerShell
+#region initial functions
 
 Function Get-RandomHex {
 param ([int]$Length)
@@ -270,6 +312,10 @@ Param($DisplayName,$TemplateOtherAttributes)
         New-ADObject -Path $TemplatePath -OtherAttributes $TemplateOtherAttributes -Name $DisplayName -DisplayName $DisplayName -Type pKICertificateTemplate -Server $Server
 }
 
+#endregion
+
+#region Create Templates
+
 #CreateTPMAttestedTemplate
 
 $DisplayName="Computer2016TPM"
@@ -298,6 +344,7 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
 #CreateNormalTemplate
+
 $DisplayName="Computer2016"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
@@ -324,7 +371,14 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
 #endregion
+ 
+```
 
+### Set permissions on TPM Enabled template and publish it
+
+To set permissions is PSPKI module needed. You can find more info here https://www.sysadmins.lv/projects/pspki/default.aspx
+
+```PowerShell
 # Install PSPKI module for managing Certification Authority
     Install-PackageProvider -Name NuGet -Force
     Install-Module -Name PSPKI -Force
@@ -346,7 +400,12 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
     ForEach ($CA in $CAs) {
         Set-ADObject -Identity $CA.DistinguishedName -Add @{certificateTemplates=$DisplayName} -Server $Server
     }
+ 
+```
 
+### Configure CA for TPM Enrollment
+
+```PowerShell
 #Create Certificate stores on CA
 Invoke-Command -ComputerName CA -ScriptBlock {
     New-Item -Path Cert:\LocalMachine\ -Name EKROOT
@@ -362,11 +421,16 @@ certutil.exe -setreg CA\EndorsementKeyListDirectories +"c:\EKPub"
 Invoke-Command -computername CA -scriptblock {
     Restart-Service -Name CertSvc
 }
+ 
+```
 
+### Grab EK Hashes from servers
+
+```PowerShell
 #Initialize TPMs and extract Cert info (we will do it only on one machine as all certs are the same as it's hyper-v)
-$Computers="CA","Server1","Server2"
+$Computers="CA","Server1","Server2","Server3"
 
-Invoke-Command -ComputerName "CA","Server1","Server2" -ScriptBlock {
+Invoke-Command -ComputerName "CA","Server1","Server2","Server3" -ScriptBlock {
     Initialize-TPM
 }
 
@@ -383,7 +447,12 @@ Foreach ($computer in $computers){
         }
     }
 }
+ 
+```
 
+### Configure GPO for Autoenrollment and enroll certs
+
+```PowerShell
 #Add AutoEnrollment policy
     #Download AutoEnrollGPO policy from GitHub
     Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Certification%20Authority/Resources/EAutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
@@ -394,12 +463,17 @@ Foreach ($computer in $computers){
     Import-GPO -BackupGpoName AutoEnroll -TargetName AutoEnroll -path "$env:UserProfile\Downloads\AutoEnrollGPO\"
 
     #Update GPO and enroll certs
-    $Computers="CA","Server1","Server2"
+    $Computers="CA","Server1","Server2","Server3"
     Invoke-Command -ComputerName $Computers -ScriptBlock {
         gpupdate /force
         certutil -pulse
     }
+ 
+```
 
+### Configure certificate for CA IIS remote management
+
+```PowerShell
 <#TBD
 #configure cert for remote management (different cert is needed than Root)
     Invoke-Command -ComputerName CA -ScriptBlock {
@@ -410,6 +484,4 @@ Foreach ($computer in $computers){
     }
 
 #>
-
-
 ```
