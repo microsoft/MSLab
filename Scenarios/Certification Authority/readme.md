@@ -417,7 +417,9 @@ Invoke-Command -ComputerName CA -ScriptBlock {
 }
 
 #Setup EKPUB List for EK attestation type
-certutil.exe -setreg CA\EndorsementKeyListDirectories +"c:\EKPub"
+Invoke-Command -ComputerName CA -ScriptBlock {
+    certutil.exe -setreg CA\EndorsementKeyListDirectories +"c:\EKPub"
+}
 
 #restart CA to apply above change
 Invoke-Command -computername CA -scriptblock {
@@ -457,8 +459,8 @@ Foreach ($computer in $computers){
 ```PowerShell
 #Add AutoEnrollment policy
     #Download AutoEnrollGPO policy from GitHub
-    Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Certification%20Authority/Resources/EAutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
-    Expand-Archive -Path "$env:UserProfile\Downloads\AutoEnrollGPO.zip" -DestinationPath "$env:UserProfile\Downloads\AutoEnrollGPO\"
+    Invoke-WebRequest -UseBasicParsing -Uri https://github.com/Microsoft/WSLab/raw/dev/Scenarios/Certification%20Authority/Resources/AutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
+    Expand-Archive -Path "$env:UserProfile\Downloads\AutoEnrollGPO.zip" -DestinationPath "$env:UserProfile\Downloads\AutoEnrollGPO\" -Force
 
     #create GPOs
     New-GPO -Name AutoEnroll  | New-GPLink -Target "dc=corp,dc=contoso,dc=com"
@@ -476,14 +478,12 @@ Foreach ($computer in $computers){
 ### Configure certificate for CA IIS remote management
 
 ```PowerShell
-<#TBD
 #configure cert for remote management (different cert is needed than Root)
     Invoke-Command -ComputerName CA -ScriptBlock {
         Import-Module WebAdministration
         Remove-Item -Path IIS:\SslBindings\0.0.0.0!8172
-        $CACert=Get-ChildItem -Path Cert:\LocalMachine\CA | where Subject -Like *Contoso-Root-CA* | select -first 1
+        $CACert=Get-ChildItem -Path Cert:\LocalMachine\my |where Subject -eq CN=CA.Corp.contoso.com
         New-Item -Path IIS:\SslBindings\0.0.0.0!8172 -value $CACert
     }
-
-#>
+ 
 ```
