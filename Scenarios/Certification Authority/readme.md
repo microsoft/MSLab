@@ -276,10 +276,10 @@ $DisplayName="Computer2016TPM"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
-        'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'1207959552'
         'msPKI-Enrollment-Flag' = [System.Int32]'32'
         'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-        'msPKI-Private-Key-Flag' = [System.Int32]'101061632'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101058560'
         'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
         'msPKI-RA-Signature' = [System.Int32]'0'
         'msPKI-Template-Minor-Revision' = [System.Int32]'1'
@@ -302,7 +302,7 @@ $DisplayName="Computer2016"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
-        'msPKI-Certificate-Name-Flag' = [System.Int32]'134217728'
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'1207959552'
         'msPKI-Enrollment-Flag' = [System.Int32]'32'
         'msPKI-Minimal-Key-Size' = [System.Int32]'521'
         'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
@@ -313,7 +313,7 @@ $TemplateOtherAttributes = @{
         'pKIMaxIssuingDepth' = [System.Int32]'0'
         'ObjectClass' = [System.String]'pKICertificateTemplate'
         'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
-        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')        
+        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2,Microsoft Smart Card Key Storage Provider','1,Microsoft Software Key Storage Provider')
         'pKIDefaultKeySpec' = [System.Int32]'1'
         'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
         'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
@@ -326,14 +326,81 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 #endregion
 
 # Install PSPKI module for managing Certification Authority
-Install-PackageProvider -Name NuGet -Force
-Install-Module -Name PSPKI -Force
-Import-Module PSPKI
+    Install-PackageProvider -Name NuGet -Force
+    Install-Module -Name PSPKI -Force
+    Import-Module PSPKI
 
-#Set permissions on TPM Templates
-Get-CertificateTemplate -Name "Computer2016TPM" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "Domain Computers" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
+#Set permissions on TPM Templates so all computers can autoenroll it
+    Get-CertificateTemplate -Name "Computer2016TPM" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "Domain Computers" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
-<#TBD
+#Publish Computer2016TPM Certificate
+    $DisplayName="Computer2016TPM"
+    #grab DC
+    $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
+    #grab Naming Context
+    $ConfigNC = (Get-ADRootDSE -Server $Server).configurationNamingContext
+
+    ### WARNING: Issues on all available CAs. Test in your environment.
+    $EnrollmentPath = "CN=Enrollment Services,CN=Public Key Services,CN=Services,$ConfigNC"
+    $CAs = Get-ADObject -SearchBase $EnrollmentPath -SearchScope OneLevel -Filter * -Server $Server
+    ForEach ($CA in $CAs) {
+        Set-ADObject -Identity $CA.DistinguishedName -Add @{certificateTemplates=$DisplayName} -Server $Server
+    }
+
+#Create Certificate stores on CA
+Invoke-Command -ComputerName CA -ScriptBlock {
+    New-Item -Path Cert:\LocalMachine\ -Name EKROOT
+    New-Item -Path Cert:\LocalMachine\ -Name EKCA
+    New-Item -Path c:\ -Name EKPub -Type Directory
+    New-Item -Path c:\EKPub -Name ComputersList.txt -Type File
+}
+
+#Setup EKPUB List for EK attestation type
+certutil.exe -setreg CA\EndorsementKeyListDirectories +"c:\EKPub"
+
+#restart CA to apply above change
+Invoke-Command -computername CA -scriptblock {
+    Restart-Service -Name CertSvc
+}
+
+#Initialize TPMs and extract Cert info (we will do it only on one machine as all certs are the same as it's hyper-v)
+$Computers="CA","Server1","Server2"
+
+Invoke-Command -ComputerName "CA","Server1","Server2" -ScriptBlock {
+    Initialize-TPM
+}
+
+#Generate EKPub files to CA
+Foreach ($computer in $computers){
+    $EKHash=Invoke-Command -ComputerName $computer -scriptblock {
+        Get-TpmEndorsementKeyInfo -hashalgorithm sha256
+    }
+    Invoke-Command -ComputerName CA -ScriptBlock {
+        if (-not (test-path c:\EKPub\$($using:EKHash).PublicKeyHash)){
+            new-item -Path c:\EKPub -Name $($using:EKHash).PublicKeyHash -ItemType file -force
+            #add info to cert list file
+            Add-Content -Path c:\EKPub\ComputersList.txt -Value "$($using:Computer),$($($using:EKHash).PublicKeyHash)"
+        }
+    }
+}
+
+#Add AutoEnrollment policy
+    #Download AutoEnrollGPO policy from GitHub
+    Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Certification%20Authority/Resources/EAutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
+    Expand-Archive -Path "$env:UserProfile\Downloads\AutoEnrollGPO.zip" -DestinationPath "$env:UserProfile\Downloads\AutoEnrollGPO\"
+
+    #create GPOs
+    New-GPO -Name AutoEnroll  | New-GPLink -Target "dc=corp,dc=contoso,dc=com"
+    Import-GPO -BackupGpoName AutoEnroll -TargetName AutoEnroll -path "$env:UserProfile\Downloads\AutoEnrollGPO\"
+
+    #Update GPO and enroll certs
+    $Computers="CA","Server1","Server2"
+    Invoke-Command -ComputerName $Computers -ScriptBlock {
+        gpupdate /force
+        certutil -pulse
+    }
+
+
 #configure cert for remote management (different cert is needed than Root)
     Invoke-Command -ComputerName CA -ScriptBlock {
         Import-Module WebAdministration
@@ -341,10 +408,8 @@ Get-CertificateTemplate -Name "Computer2016TPM" | Get-CertificateTemplateAcl | A
         $CACert=Get-ChildItem -Path Cert:\LocalMachine\CA | where Subject -Like *Contoso-Root-CA* | select -first 1
         New-Item -Path IIS:\SslBindings\0.0.0.0!8172 -value $CACert
     }
-#>
 
 
-#Add AutoEnrollment policy
-#Add Templates
- 
+
+
 ```
