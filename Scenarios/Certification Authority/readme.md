@@ -11,7 +11,7 @@
         - [Set permissions on TPM Enabled template and publish it](#set-permissions-on-tpm-enabled-template-and-publish-it)
         - [Configure CA for TPM Enrollment](#configure-ca-for-tpm-enrollment)
         - [Grab EK Hashes from servers](#grab-ek-hashes-from-servers)
-        - [Configure GPO for Autoenrollment and enroll certs](#configure-gpo-for-autoenrollment-and-enroll-certs)
+        - [Configure Autoenrollment and enroll certs](#configure-autoenrollment-and-enroll-certs)
         - [Configure certificate for CA IIS remote management](#configure-certificate-for-ca-iis-remote-management)
 
 <!-- /TOC -->
@@ -457,9 +457,10 @@ Foreach ($computer in $computers){
  
 ```
 
-### Configure GPO for Autoenrollment and enroll certs
+### Configure Autoenrollment and enroll certs
 
 ```PowerShell
+<# Using GPO
 #Add AutoEnrollment policy
     #Download AutoEnrollGPO policy from GitHub
     Invoke-WebRequest -UseBasicParsing -Uri https://github.com/Microsoft/WSLab/raw/dev/Scenarios/Certification%20Authority/Resources/AutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
@@ -469,10 +470,19 @@ Foreach ($computer in $computers){
     New-GPO -Name AutoEnroll  | New-GPLink -Target "dc=corp,dc=contoso,dc=com"
     Import-GPO -BackupGpoName AutoEnroll -TargetName AutoEnroll -path "$env:UserProfile\Downloads\AutoEnrollGPO\"
 
-    #Update GPO and enroll certs
     $Computers="CA","Server1","Server2","Server3"
+
+    #Update GPO and enroll certs
     Invoke-Command -ComputerName $Computers -ScriptBlock {
         gpupdate /force
+        certutil -pulse
+    }
+#>
+
+    #Set Autoenrollment policy and enroll certs
+    $Computers="CA","Server1","Server2","Server3"
+    Invoke-Command -ComputerName $Computers -ScriptBlock {
+        Set-CertificateAutoEnrollmentPolicy -StoreName MY -PolicyState Enabled -ExpirationPercentage 10 -EnableTemplateCheck -EnableMyStoreManagement -context Machine
         certutil -pulse
     }
  

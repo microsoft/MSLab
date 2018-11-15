@@ -268,14 +268,6 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 In order to use own certificate instead of default self-signed one, certificate needs to be generated before actually installing Windows Admin Center and certificate needs to be imported in Computer store of that machine. Let's do it using Autoenrollment.
 
 ```PowerShell
-#Download GPO from Certification Authority Scenario
-    Invoke-WebRequest -UseBasicParsing -Uri https://github.com/Microsoft/WSLab/raw/dev/Scenarios/Certification%20Authority/Resources/AutoEnrollGPO.zip -OutFile "$env:UserProfile\Downloads\AutoEnrollGPO.zip"
-    Expand-Archive -Path "$env:UserProfile\Downloads\AutoEnrollGPO.zip" -DestinationPath "$env:UserProfile\Downloads\AutoEnrollGPO\" -Force
-
-#create GPOs
-New-GPO -Name AutoEnroll  | New-GPLink -Target "dc=corp,dc=contoso,dc=com"
-Import-GPO -BackupGpoName AutoEnroll -TargetName AutoEnroll -path "$env:UserProfile\Downloads\AutoEnrollGPO\"
-
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
 Install-Module -Name PSPKI -Force
@@ -285,9 +277,9 @@ Import-Module PSPKI
 #Set Cert Template permission
 Get-CertificateTemplate -Name "Computer2016" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "WacGateway$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
-#Update GPO and enroll cert on WacGateway
+#Configure AutoEnrollment policy and enroll cert on WacGateway
 Invoke-Command -ComputerName WacGateway -ScriptBlock {
-    gpupdate /force
+    Set-CertificateAutoEnrollmentPolicy -StoreName MY -PolicyState Enabled -ExpirationPercentage 10 -EnableTemplateCheck -EnableMyStoreManagement -context Machine
     certutil -pulse
 }
  
