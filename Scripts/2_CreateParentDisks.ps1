@@ -270,6 +270,13 @@ If (!( $isAdmin )) {
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "`t Selected media does not contain Windows Server. Exitting."
         }
+        if ($WindowsImage.ImageName[0].contains("Server") -and $windowsimage.count -eq 2){
+            WriteInfo "`t Semi-Annual Server Media detected"
+            $SAC=$True
+        }
+        if ($SAC -and $BuildNumber -lt 17763){
+            WriteErrorAndExit "`t Only Insider Semi-Annual Channel media are accepted. Exitting."
+        }
     #Test if it's Windows Server 2016 and newer
         $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
         If ($BuildNumber -lt 14393){
@@ -336,6 +343,16 @@ If (!( $isAdmin )) {
             Edition="3" 
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
+        }
+    }elseif ($BuildNumber -ge 17744 -and $SAC){
+        $ServerVHDs += @{
+            Edition="2" 
+            VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
+            Size=30GB
+        }
+        #DCEdition fix
+        if ($LabConfig.DCEdition -gt 2){
+            $LabConfig.DCEdition=2
         }
     }elseif ($BuildNumber -ge 17744){
         #Windows Sever Insider
