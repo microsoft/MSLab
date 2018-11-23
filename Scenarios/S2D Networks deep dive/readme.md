@@ -2,7 +2,7 @@
 
 - [S2D Networks deep dive](#s2d-networks-deep-dive)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
-    - [LabConfig insider preview](#labconfig-insider-preview)
+    - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [About the lab](#about-the-lab)
     - [Prereqs](#prereqs)
     - [Little bit theory](#little-bit-theory)
@@ -32,24 +32,26 @@ $LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 
 $LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2016Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
 
 #optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
+#$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ```
 
-## LabConfig insider preview
+## Sample LabConfig for Windows Server 2019
+
+Note: Enable-ClusterS2D requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
-$LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
-$LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
-$LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
-$LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
-$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
-$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '2NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
+$LabConfig.VMs += @{ VMName = '2NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True}
+$LabConfig.VMs += @{ VMName = '4NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '4NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=4 }
+$LabConfig.VMs += @{ VMName = '6NICs1' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
+$LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB ; NestedVirt=$True ; MGMTNICs=6 }
 
 #optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
+#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ```
 

@@ -19,15 +19,15 @@ $LabConfig.VMs += @{ VMName = 'Win10' ; Configuration = 'Simple' ; ParentVHD = '
 #easiest is to run the script in DC. You can download GPOs on another machine and just file copy into dc Downloads
 
 #download GPOs and unzip
-Invoke-WebRequest -UseBasicParsing -Uri https://msdnshared.blob.core.windows.net/media/2018/10/Windows-10-1809-Security-Baseline-DRAFT.zip -OutFile "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-DRAFT.zip"
-Expand-Archive -Path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-DRAFT.zip" -DestinationPath "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-DRAFT"
+Invoke-WebRequest -UseBasicParsing -Uri https://msdnshared.blob.core.windows.net/media/2018/11/Windows-10-1809-Security-Baseline-FINAL.zip -OutFile "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL.zip"
+Expand-Archive -Path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL.zip" -DestinationPath "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL"
 
 #create GPOs
 $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
-$names=(Get-ChildItem "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-DRAFT\GP Reports").BaseName
+$names=(Get-ChildItem "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL\GP Reports").BaseName
 foreach ($name in $names) {
     New-GPO -Name $name  | New-GPLink -Target $OUPath
-    Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-DRAFT\GPOs"
+    Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL\GPOs"
 }
  
 ```

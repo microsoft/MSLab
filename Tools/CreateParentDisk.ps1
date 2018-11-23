@@ -40,7 +40,7 @@
             try{
                 Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\convert-windowsimage.ps1"
             }catch{
-            WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
+                WriteErrorAndExit "`t Failed to download convert-windowsimage.ps1!"
             }
         }
 
@@ -101,24 +101,22 @@
             $WindowsImage=Get-WindowsImage -ImagePath "$ISOMediaPath\NanoServer\NanoServer.wim"
             
             #ask for edition
-            $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
-
-            #ask for cab files
-                WriteInfoHighlighted "Please select cab packages you want to add to image. Click cancel if you want default."
-                $nanocabs=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -filter *.cab| select BaseName) | Out-GridView -OutputMode Multiple
-                if (!$nanocabs){
-                    $nanocabs="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
-                }
+            WriteInfoHighlighted "Please select Nano Server edition"
+            $Edition=($WindowsImage | Out-GridView -OutputMode Single -Title "Please select Edition").ImageName
+            if (-not ($Edition)){
+                $ISO | Dismount-DiskImage
+                WriteErrorAndExit "Edition not selected. Exitting "
+            }
            #grab Nano packages
+                $nanocabs="Microsoft-NanoServer-DSC-Package","Microsoft-NanoServer-FailoverCluster-Package","Microsoft-NanoServer-Guest-Package","Microsoft-NanoServer-Storage-Package","Microsoft-NanoServer-SCVMM-Package","Microsoft-NanoServer-Compute-Package","Microsoft-NanoServer-SCVMM-Compute-Package","Microsoft-NanoServer-SecureStartup-Package","Microsoft-NanoServer-DCB-Package","Microsoft-NanoServer-ShieldedVM-Package"
                 $NanoPackages=@()
                 foreach ($NanoPackage in $nanocabs){
                     $NanoPackages+=(Get-ChildItem -Path "$ISOMediaPath\NanoServer\Packages" -Recurse | Where-Object Name -like $NanoPackage*).FullName
                 }
-                WriteInfoHighlighted  "Following patches selected:"
-                $NanoPackages
+
            #create temp name
            $tempvhdname="Win2016NanoHV_G2.vhdx"
-    
+
         }else{
             $WindowsImage=Get-WindowsImage -ImagePath "$ISOMediaPath\sources\install.wim"
             if ($BuildNumber -lt 7600){
@@ -244,7 +242,7 @@
         
         #Create VHD
         if ($nanoserver -eq "y"){
-             Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
         }else{
             if ($msupackages.FileNames -ne $null){
                 if ($BuildNumber -le 7601){

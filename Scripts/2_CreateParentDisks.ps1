@@ -133,6 +133,11 @@ If (!( $isAdmin )) {
             $LabConfig.PullServerDC=$true
         }
 
+        If (!$LabConfig.DHCPscope){
+            $LabConfig.DHCPscope="10.0.0.0"
+        }      
+
+
     #create some built-in variables
         $DN=$null
         $LabConfig.DomainName.Split(".") | ForEach-Object {
@@ -150,6 +155,11 @@ If (!( $isAdmin )) {
 
     #Grab Installation type
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+
+    #DCHP scope
+    $DHCPscope = $LabConfig.DHCPscope
+    $ReverseDNSrecord = $DHCPscope -replace '^(\d+)\.(\d+)\.\d+\.(\d+)$','$3.$2.$1.in-addr.arpa'
+    $DHCPscope = $DHCPscope.Substring(0,$DHCPscope.Length-1) 
 
 #endregion
 
@@ -260,11 +270,19 @@ If (!( $isAdmin )) {
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "`t Selected media does not contain Windows Server. Exitting."
         }
+        if ($WindowsImage.ImageName[0].contains("Server") -and $windowsimage.count -eq 2){
+            WriteInfo "`t Semi-Annual Server Media detected"
+            $SAC=$True
+        }
     #Test if it's Windows Server 2016 and newer
         $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
         If ($BuildNumber -lt 14393){
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
+        }
+        if ($SAC -and $BuildNumber -lt 17763){
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "`t Only Insider Semi-Annual Channel media are accepted. Exitting."
         }
 
 #Grab packages
@@ -327,6 +345,16 @@ If (!( $isAdmin )) {
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
         }
+    }elseif ($BuildNumber -ge 17744 -and $SAC){
+        $ServerVHDs += @{
+            Edition="2" 
+            VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
+            Size=30GB
+        }
+        #DCEdition fix
+        if ($LabConfig.DCEdition -gt 2){
+            $LabConfig.DCEdition=2
+        }
     }elseif ($BuildNumber -ge 17744){
         #Windows Sever Insider
         $ServerVHDs += @{
@@ -340,6 +368,7 @@ If (!( $isAdmin )) {
             Size=30GB
         }
     }else{
+        $ISOServer | Dismount-DiskImage
         WriteErrorAndExit "Plese provide Windows Server 2016, 2019 or Insider greater or equal to build 17744"
     }
 
@@ -479,7 +508,11 @@ If (!( $isAdmin )) {
 
         #create VM DC
             WriteInfoHighlighted "`t Creating DC VM"
-            $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
+            if ($LabConfig.DCVMVersion){
+                $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version $LabConfig.DCVMVersion
+            }else{
+                $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
+            }
             $DC | Set-VMProcessor -Count 2
             $DC | Set-VMMemory -DynamicMemoryEnabled $true -MinimumBytes 2GB
             if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}
@@ -694,7 +727,7 @@ If (!( $isAdmin )) {
 
                     IPaddress IP
                     {
-                        IPAddress = '10.0.0.1/24'
+                        IPAddress = ($DHCPscope+"1/24")
                         AddressFamily = 'IPv4'
                         InterfaceAlias = 'Ethernet'
                     }
@@ -736,11 +769,11 @@ If (!( $isAdmin )) {
                     xDhcpServerOption MgmtScopeRouterOption
                     {
                         Ensure = 'Present'
-                        ScopeID = '10.0.0.0'
+                        ScopeID = ($DHCPscope+"0")
                         DnsDomain = $Node.DomainName
-                        DnsServerIPAddress = '10.0.0.1'
+                        DnsServerIPAddress = ($DHCPscope+"1")
                         AddressFamily = 'IPv4'
-                        Router = '10.0.0.1'
+                        Router = ($DHCPscope+"1")
                         DependsOn = "[Service]DHCPServer"
                     }
                     
@@ -757,7 +790,7 @@ If (!( $isAdmin )) {
 
                     xDnsServerADZone addReverseADZone
                     {
-                        Name = "0.0.10.in-addr.arpa"
+                        Name = $ReverseDNSrecord
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
@@ -874,7 +907,7 @@ If (!( $isAdmin )) {
             Invoke-Command -VMGuid $DC.id -Credential $cred -ErrorAction SilentlyContinue -ArgumentList $LabConfig -ScriptBlock {
                 Param($LabConfig);
                 redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
-                Add-DnsServerPrimaryZone -NetworkID "10.0.0.0/24" -ReplicationScope "Forest"
+                Add-DnsServerPrimaryZone -NetworkID ($DHCPscope+"/24") -ReplicationScope "Forest"
             } 
         #install SCVMM or its prereqs if specified so
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){

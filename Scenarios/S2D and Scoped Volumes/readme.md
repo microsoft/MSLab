@@ -1,7 +1,8 @@
 <!-- TOC -->
 
 - [S2D and Scoped Volumes](#s2d-and-scoped-volumes)
-    - [LabConfig](#labconfig)
+    - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
+    - [LabConfig Windows Server Insider](#labconfig-windows-server-insider)
     - [About the lab](#about-the-lab)
     - [Prereq](#prereq)
     - [Fault domains](#fault-domains)
@@ -13,21 +14,23 @@
 
 # S2D and Scoped Volumes
 
-## LabConfig
+## LabConfig Windows Server 2019
+
+Note: Enable-ClusterS2D requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
 
 ```PowerShell
-#Labconfig is same as insider preview. Just with 6 nodes instead of 4
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
+#Labconfig is same as default for Windows Server 2019. Just with 6 nodes instead of 4
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
-1..6 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_17744.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
+1..6 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
 #optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'WinAdminCenter' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
-
+#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
+ 
 ```
 
 ## About the lab
 
-This lab introduces new feature present in Windows Server 2019 Insider Preview called Scoped Volumes (also known as delimited volume allocation) For more info visit [docs](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/delimit-volume-allocation). 
+This lab introduces new feature present in Windows Server 2019 called Scoped Volumes (also known as delimited volume allocation) For more info visit [docs](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/delimit-volume-allocation).
 
 Run all scripts from DC
 
@@ -288,7 +291,7 @@ Looks great, so how it will look like if random 3 nodes will go down? Let's see.
 
 ```PowerShell
 #Run from Hyper-V host to turn off random 3 VMs
-Get-VM -Name *insider*S2D* | Get-Random -Count 3 | Stop-VM -TurnOff
+Get-VM -Name WSLab2019-S2D* | Get-Random -Count 3 | Stop-VM -TurnOff
  
 ```
 
@@ -304,10 +307,8 @@ And let's see what volumes survived
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesStatusPowerShellReason.png)
 
-Excellent!
+Note: There is a 50:50 chance that volumes will go offline. For explanation take a look into [S2D and Metadata deep dive scenario](/Scenarios/S2D%20and%20Metadata%20deep%20dive/). Your systems will shut one by one (with 5 minutes pause, so Health service can re-balance metadata), you will be fine
 
 After starting nodes again, storage jobs will kick in.
 
 ![](/Scenarios/S2D%20and%20Scoped%20Volumes/Screenshots/VolumesRepairing.png)
-
-
