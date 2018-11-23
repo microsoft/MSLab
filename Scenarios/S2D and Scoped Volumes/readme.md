@@ -28,17 +28,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
  
 ```
 
-## LabConfig Windows Server Insider
-
-```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider18282-'; SwitchName = 'LabSwitch'; DCEdition='3'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
-
-1..6 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_18282.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
-#optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
- 
-```
-
 ## About the lab
 
 This lab introduces new feature present in Windows Server 2019 called Scoped Volumes (also known as delimited volume allocation) For more info visit [docs](https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/delimit-volume-allocation).

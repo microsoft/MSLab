@@ -5,7 +5,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 #Or Windows Server 2019
 #1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
-#Or Windows Server Insider
+#Or Windows Server Insider (18282 DC refueses to build. Just use CreateParentDisk.ps1 in ParentDisks folder instead)
 #1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_18282.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 
 ### HELP ###
@@ -36,6 +36,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
         DHCPscope="10.0.0.0"                         # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
+        DCVMVersion="9.0"                            # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -164,6 +165,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         Example: EnableGuestServiceInterface=$true
         If True, then Guest Services integration component will be enabled on all VMs. This allows simple file copy from host to guests.
 
+    DCVMVersion
+        Example: DCVMVersion="8.0"
+        If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS. 
     #>
 #endregion
 

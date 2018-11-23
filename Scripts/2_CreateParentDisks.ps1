@@ -274,14 +274,15 @@ If (!( $isAdmin )) {
             WriteInfo "`t Semi-Annual Server Media detected"
             $SAC=$True
         }
-        if ($SAC -and $BuildNumber -lt 17763){
-            WriteErrorAndExit "`t Only Insider Semi-Annual Channel media are accepted. Exitting."
-        }
     #Test if it's Windows Server 2016 and newer
         $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
         If ($BuildNumber -lt 14393){
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
+        }
+        if ($SAC -and $BuildNumber -lt 17763){
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "`t Only Insider Semi-Annual Channel media are accepted. Exitting."
         }
 
 #Grab packages
@@ -507,7 +508,11 @@ If (!( $isAdmin )) {
 
         #create VM DC
             WriteInfoHighlighted "`t Creating DC VM"
-            $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version 8.0
+            if ($LabConfig.DCVMVersion){
+                $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2 -Version $LabConfig.DCVMVersion
+            }else{
+                $DC=New-VM -Name $DCName -VHDPath $vhdpath -MemoryStartupBytes 2GB -path $vmpath -SwitchName $Switchname -Generation 2
+            }
             $DC | Set-VMProcessor -Count 2
             $DC | Set-VMMemory -DynamicMemoryEnabled $true -MinimumBytes 2GB
             if ($LabConfig.Secureboot -eq $False) {$DC | Set-VMFirmware -EnableSecureBoot Off}

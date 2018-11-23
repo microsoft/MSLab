@@ -1,7 +1,7 @@
 <!-- TOC -->
 
 - [S2D Volumes deep dive](#s2d-volumes-deep-dive)
-    - [LabConfig](#labconfig)
+    - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
     - [About the lab](#about-the-lab)
     - [Prereq](#prereq)
     - [The lab](#the-lab)
@@ -36,20 +36,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 1..4 | % {$VMNames="4node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 8; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
 
 1..2 | % {$VMNames="2node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 8; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
-
-#optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
- 
-```
-
-## LabConfig Windows Server Insider
-
-```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLabInsider18282-'; SwitchName = 'LabSwitch'; DCEdition='3'; PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
-
-1..4 | % {$VMNames="4node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_18282.vhdx'; SSDNumber = 4; SSDSize=800GB ; HDDNumber = 8; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
-
-1..2 | % {$VMNames="2node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'WinSrvInsiderCore_18282.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 8; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
 
 #optional Win10 management machine
 #$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
