@@ -77,7 +77,12 @@ function Get-DiskPerfReport
         Add-Member -InputObject $Event -MemberType NoteProperty -Force -Name SlotNumber -Value $disk.slotnumber
     }
 
-    return $allevents |select FriendlyName,SerialNumber,MediaType,BusType,OperationalStatus,PhysicalLocation,SlotNumber,TotalIOCount,@{Label="IOCount(0-2ms)";Expression={$($_.BucketIoCount1)}},@{Label="IOCount(2-64ms)";Expression={$($_.BucketIoCount2)}},@{Label="IOCount(64ms-2s)";Expression={$($_.BucketIoCount3)}},@{Label="IOCount(2-5s)";Expression={$($_.BucketIoCount4)}},@{Label="IOCount(5s+)";Expression={$($_.BucketIoCount5)}},TimeCreated,Max*,IoCount*
+    $ReleaseID=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name ReleaseID
+    if ($ReleaseID -ge 1809){
+        return $allevents |select FriendlyName,SerialNumber,MediaType,BusType,OperationalStatus,PhysicalLocation,SlotNumber,TotalIOCount,@{Label="IOSuccessCount(0-256µs)";Expression={$($_.BucketIoSuccess1)}},@{Label="IOSuccessCount(256µs-1ms)";Expression={$($_.BucketIoSuccess2)}},@{Label="IOSuccessCount(1-4ms)";Expression={$($_.BucketIoSuccess3)}},@{Label="IOSuccessCount(4-16ms)";Expression={$($_.BucketIoSuccess4)}},@{Label="IOSuccessCount(16-64ms)";Expression={$($_.BucketIoSuccess5)}},@{Label="IOSuccessCount(64-128ms)";Expression={$($_.BucketIoSuccess6)}},@{Label="IOSuccessCount(128-256ms)";Expression={$($_.BucketIoSuccess7)}},@{Label="IOSuccessCount(256ms-2s)";Expression={$($_.BucketIoSuccess8)}},@{Label="IOSuccessCount(2-6s)";Expression={$($_.BucketIoSuccess9)}},@{Label="IOSuccessCount(6-10s)";Expression={$($_.BucketIoSuccess10)}},@{Label="IOSuccessCount(10-20s)";Expression={$($_.BucketIoSuccess11)}},@{Label="IOSuccessCount(20s+)";Expression={$($_.BucketIoSuccess12)}},TimeCreated,Max*,IoCount*
+    }else{
+        return $allevents |select FriendlyName,SerialNumber,MediaType,BusType,OperationalStatus,PhysicalLocation,SlotNumber,TotalIOCount,@{Label="IOCount(0-2ms)";Expression={$($_.BucketIoCount1)}},@{Label="IOCount(2-64ms)";Expression={$($_.BucketIoCount2)}},@{Label="IOCount(64ms-2s)";Expression={$($_.BucketIoCount3)}},@{Label="IOCount(2-5s)";Expression={$($_.BucketIoCount4)}},@{Label="IOCount(5s+)";Expression={$($_.BucketIoCount5)}},TimeCreated,Max*,IoCount*
+    }
 }
  
 ```

@@ -61,17 +61,19 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 ### Windows Server 2016
 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016)
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20) for Windows Server 2016 and [Servicing Stack Update](https://www.catalog.update.microsoft.com/Search.aspx?q=2018-05%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20(KB4132216)%20)
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20) for Windows Server 2016 and [Servicing Stack Update](http://aka.ms/2016ssu)
 
 ### or Windows Server 2019
 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019
+* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019 and [Servicing Stack Update](http://aka.ms/2019ssu)
 
 
 ### or Windows Server Insider Preview
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
+
+NOTE: In 17744 is a bug, so during deployment process DC creation takes forewer. Workaround is to just log in as corp\Administrator to DC and it magically finishes.
 
 ### Optionally you can download SCVMM 1807 files
 

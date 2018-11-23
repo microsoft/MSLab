@@ -155,7 +155,7 @@
     #vSwitch vNICs classifications
         $Classifications=@()
         $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="RDMAvNIC"                     ; NativePortProfileName="RDMAvNIC"            ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
+        $Classifications+=@{PortClassificationName="RDMAvNIC"                  ; NativePortProfileName="RDMAvNIC"               ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
         $Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
         $Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
         if ($SRIOV) {
@@ -164,11 +164,11 @@
 
     #logical networks definition
         $Networks=@()
-        $Networks+=@{LogicalNetworkName="DatacenterNetwork" ; HostGroupName=$HostGroupName ; Name="Management"  ; Description="Management VLAN" ; Subnet="10.0.0.0/24"      ; VLAN=0 ; IPAddressRangeStart="10.0.0.1"   ;IPAddressRangeEnd="10.0.0.254"           ;DNSServers="10.0.0.1"  ;Gateways="10.0.0.1"}
-        $Networks+=@{LogicalNetworkName="DatacenterNetwork" ; HostGroupName=$HostGroupName ; Name="Storage"     ; Description="SMB"             ; Subnet="172.16.1.0/24"    ; VLAN=3 ; IPAddressRangeStart="172.16.1.1" ;IPAddressRangeEnd="172.16.1.254"         ;DNSServers=""       ;Gateways=""}
+        $Networks+=@{LogicalNetworkName="DatacenterNetwork" ; HostGroupNames=$HostGroupName ; Name="Management"  ; Description="Management VLAN" ; VMNetworkName= "Management" ; VMNetworkDescription= ""  ; Subnet="10.0.0.0/24"      ; VLAN=0 ; IPAddressRangeStart="10.0.0.1"   ;IPAddressRangeEnd="10.0.0.254"           ; DNSSuffix="Corp.contoso.com" ;DNSServers="10.0.0.1"  ;Gateways="10.0.0.1"}
+        $Networks+=@{LogicalNetworkName="DatacenterNetwork" ; HostGroupNames=$HostGroupName ; Name="Storage"     ; Description="SMB"             ; VMNetworkName= "Storage"    ; VMNetworkDescription= ""  ; Subnet="172.16.1.0/24"    ; VLAN=3 ; IPAddressRangeStart="172.16.1.1" ;IPAddressRangeEnd="172.16.1.254"         ; DNSSuffix="Corp.contoso.com" ;DNSServers=""          ;Gateways=""}
         #some fake networks just for demonstration
-        $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupName=$HostGroupName ; Name="Production"  ; Description="Production VLAN" ; Subnet="192.168.1.0/24"   ; VLAN=1 ; IPAddressRangeStart="192.168.1.1"   ;IPAddressRangeEnd="192.168.1.254"     ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.1.1"}
-        $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupName=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
+        $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupNames=$HostGroupName ; Name="Production"  ; Description="Production VLAN" ; VMNetworkName= "Production" ; VMNetworkDescription= ""  ; Subnet="192.168.1.0/24"   ; VLAN=1 ; IPAddressRangeStart="192.168.1.1"   ;IPAddressRangeEnd="192.168.1.254"     ; DNSSuffix="Corp.contoso.com" ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.1.1"}
+        $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupNames=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; VMNetworkName= "DMZ"        ; VMNetworkDescription= ""  ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ; DNSSuffix="Corp.contoso.com" ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
 
         $vNICDefinitions=@()
         $vNICDefinitions+=@{NetAdapterName="SMB_1"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
@@ -225,62 +225,75 @@
 #endregion
 
 #region Configure networks
+    #create logical networks
     foreach ($NetworkName in ($Networks.LogicalNetworkName | Select-Object -Unique)){
-        
-        ## Create Logical Networks
-            $logicalNetwork = New-SCLogicalNetwork -Name $NetworkName -LogicalNetworkDefinitionIsolation $true -EnableNetworkVirtualization $false -UseGRE $false -IsPVLAN $false
-            $allHostGroups = @()
-            $allSubnetVlan = @()
-        
-            #add Subnets
-            foreach ($network in ($networks | Where-Object -Property LogicalNetworkName -EQ $NetworkName)){
-                $allSubnetVlan +=New-SCSubnetVLan -Subnet $network.Subnet -VLanID $network.VLAN
+        if (-not (Get-SCLogicalNetwork -Name $NetworkName)){
+            New-SCLogicalNetwork -Name $NetworkName -LogicalNetworkDefinitionIsolation $true -EnableNetworkVirtualization $false -UseGRE $false -IsPVLAN $false
+        }
+    }
+
+    #Create network sites
+        foreach ($Network in $Networks){
+            if (-not (Get-SCLogicalNetworkDefinition -Name $Network.Name)){
+                $logicalNetwork=Get-SCLogicalNetwork -Name $Network.LogicalNetworkName
+                $allHostGroups = @()
+                foreach ($HostGroupName in $network.HostGroupNames){
+                    $allHostGroups+=Get-SCVMHostGroup -Name $HostGroupName
+                }
+                $allSubnetVlan = @()
+                $allSubnetVlan += New-SCSubnetVLan -Subnet $network.Subnet -VLanID $network.VLAN
+                New-SCLogicalNetworkDefinition -Name $network.Name -LogicalNetwork $logicalNetwork -VMHostGroup $allHostGroups -SubnetVLan $allSubnetVlan -RunAsynchronously
             }
+        }
 
-            #add HostGroups
-            $HostGroupNames=@()
-            foreach ($network in ($networks | Where-Object -Property LogicalNetworkName -EQ $NetworkName)){
-                $HostGroupNames+=$network.HostGroupName
-            }
+    #create IP Pools
+        foreach ($Network in $Networks){
+            if ($network.IPAddressRangeStart){
+                if (-not (Get-SCStaticIPAddressPool -Name "$($network.name)_Pool")){
+                    $logicalNetwork = Get-SCLogicalNetwork -Name $network.LogicalNetworkName
+                    $logicalNetworkDefinition = Get-SCLogicalNetworkDefinition -Name $network.Name
 
-            $allHostGroups += Get-SCVMHostGroup -Name ($HostGroupNames | Select-Object -Unique)
-            $logicalNetworkDefinition=New-SCLogicalNetworkDefinition -Name "$NetworkName" -LogicalNetwork $logicalNetwork -VMHostGroup $allHostGroups -SubnetVLan $allSubnetVlan -RunAsynchronously
 
-        ##Create IP Pools
-            foreach ($network in ($networks | Where-Object -Property LogicalNetworkName -EQ $NetworkName)){
-                if ($network.IPAddressRangeStart){
-                    $allNetworkRoutes = @()
                     # Gateways
-                        $allGateways = @()
-                        if ($Network.Gateways){
-                            foreach ($gateway in $Network.Gateways){
-                                $allGateways += New-SCDefaultGateway -IPAddress $gateway -Automatic
-                            }
-                        }
-                    # DNS servers
-                    if ($Network.DNSServers){
-                        $allDnsServer = $Network.DNSServers
-                    }else{
-                        $allDnsServer=@()
+                    $allGateways = @()
+                                    if ($Network.Gateways){
+                    foreach ($gateway in $Network.Gateways){
+                        $allGateways += New-SCDefaultGateway -IPAddress $gateway -Automatic
                     }
+                }
+            
+                    # DNS servers
+                            if ($Network.DNSServers){
+                    $allDnsServer = $Network.DNSServers
+                        }else{
+                    $allDnsServer=@()
+                }
+
                     # DNS suffixes
                     $allDnsSuffixes = @()
+            
                     # WINS servers
                     $allWinsServers = @()
-                    New-SCStaticIPAddressPool -Name "$($network.Name) IP Pool" -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Network.Subnet -IPAddressRangeStart $network.IPAddressRangeStart -IPAddressRangeEnd $network.IPAddressRangeEnd -DNSServer $allDnsServer -DNSSuffix "" -DNSSearchSuffix $allDnsSuffixes -NetworkRoute $allNetworkRoutes -DefaultGateway $allGateways -RunAsynchronously
+
+                    New-SCStaticIPAddressPool -Name "$($network.Name)_Pool" -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Network.Subnet -IPAddressRangeStart $network.IPAddressRangeStart -IPAddressRangeEnd $network.IPAddressRangeEnd -DNSServer $allDnsServer -DNSSuffix $network.DNSSuffix -DNSSearchSuffix $allDnsSuffixes -NetworkRoute $allNetworkRoutes -DefaultGateway $allGateways -RunAsynchronously
                 }
             }
+        }
 
 
-        #Create Virtual Networks
-            foreach ($network in ($networks | Where-Object -Property LogicalNetworkName -EQ $NetworkName)){
-                $vmNetwork = New-SCVMNetwork -Name $network.Name -Description $network.Description -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
-                Write-Output $vmNetwork
-                $subnetVLANs = New-SCSubnetVLan -Subnet $network.Subnet -VLanID $network.VLAN
-                $vmSubnet = New-SCVMSubnet -Name $network.Name -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLANs -VMNetwork $vmNetwork
-            }
-
+    #Create VM Networks
+    foreach ($Network in $Networks){
+        if (-not (Get-SCVMNetwork -Name $network.VMNetworkName)){
+            $logicalNetwork = Get-SCLogicalNetwork -Name $network.LogicalNetworkName
+            $vmNetwork = New-SCVMNetwork -Name $network.VMNetworkName -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
+            $logicalNetworkDefinition = Get-SCLogicalNetworkDefinition -Name $Network.Name
+            $subnetVLANs = @()
+            $subnetVLANv4 = New-SCSubnetVLan -Subnet $Network.Subnet -VLanID $network.VLAN
+            $subnetVLANs += $subnetVLANv4
+            $vmSubnet = New-SCVMSubnet -Name $network.VMNetworkName -Description $network.VMNetworkDescription -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLANs -VMNetwork $vmNetwork
+        }
     }
+
 
     <#Cleanup networking if needed
         Get-SCVMNetwork | Remove-SCVMNetwork
@@ -289,15 +302,15 @@
         get-sclogicalnetworkdefinition |Remove-SCLogicalNetworkDefinition
         Get-SCLogicalNetwork | remove-sclogicalnetwork
     #>
-
 #endregion
 
 #region Cofigure virtual Switch
     #create uplink pp. Use all Logical networks
         $definition = @()
         $definition += Get-SCLogicalNetworkDefinition
-        New-SCNativeUplinkPortProfile -Name "UplinkPP" -Description "" -LogicalNetworkDefinition $definition -EnableNetworkVirtualization $false -LBFOLoadBalancingAlgorithm "HyperVPort" -LBFOTeamMode "SwitchIndependent" -RunAsynchronously
-
+        if (-not (Get-SCNativeUplinkPortProfile -Name $UplinkPPName)){
+            New-SCNativeUplinkPortProfile -Name $UplinkPPName -Description "" -LogicalNetworkDefinition $definition -EnableNetworkVirtualization $false -LBFOLoadBalancingAlgorithm "HyperVPort" -LBFOTeamMode "SwitchIndependent" -RunAsynchronously
+        }
     #create port classifications and port profiles
         foreach ($Classification in $Classifications){
             If (-not (Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName)){

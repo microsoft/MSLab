@@ -29,11 +29,11 @@ Related Microsoft Docs:
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@()}
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
-$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS4_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
+$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
  
 ```
 
-Finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2016 or [Windows Server 2019 Insider Preview](/Insider/) before proceeding. In above labconfig is Management machine that requires Win10RS4_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
+Finish [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged/) with Windows Server 2016 or Windows Server 2019 before proceeding. In above labconfig is Management machine that requires Win10RS5_G2.vhdx. You can create Win10 image with CreateParentDisk.ps1 located in Tools folder.
 
 LAB VMs
 
