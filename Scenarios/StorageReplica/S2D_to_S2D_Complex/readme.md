@@ -55,7 +55,7 @@ Note: Enable-ClusterS2D requires you to reach support to get steps to make it wo
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4';  PullServerDC=$false ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
-$LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.1.'; NetVLAN='0'; Subnet='255.255.255.0'}
+$LABConfig.AdditionalNetworksConfig += @{ NetName = 'ReplicaNet1'; NetAddress='172.16.2.'; NetVLAN='0'; Subnet='255.255.255.0'}
 
 #$LabConfig.VMs += @{ VMName = 'WAC' ; Configuration = 'Simple' ; ParentVHD = 'Win10_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True }
 
