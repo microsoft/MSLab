@@ -1,20 +1,4 @@
-<!-- TOC -->
-
-- [Scripting Windows Update (Work in progress!)](#scripting-windows-update-work-in-progress)
-    - [About the lab](#about-the-lab)
-    - [LabConfig (notice it uses both 2016 and 2019 vhdx files)](#labconfig-notice-it-uses-both-2016-and-2019-vhdx-files)
-    - [List available updates on 2016 and 2019](#list-available-updates-on-2016-and-2019)
-    - [Exploring CimInstance](#exploring-ciminstance)
-    - [List available updates on 2016 and 2019 revised](#list-available-updates-on-2016-and-2019-revised)
-    - [Apply updates on 2016 and 2019](#apply-updates-on-2016-and-2019)
-    - [Update validation](#update-validation)
-        - [Display installed updates](#display-installed-updates)
-        - [Display pending reboot on all Domain Computers](#display-pending-reboot-on-all-domain-computers)
-        - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)
-        - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
-        - [Display update level](#display-update-level)
-
-<!-- /TOC -->
+<!-- TOC -->autoauto- [Scripting Windows Update (Work in progress!)](#scripting-windows-update-work-in-progress)auto    - [About the lab](#about-the-lab)auto    - [LabConfig (notice it uses both 2016 and 2019 vhdx files)](#labconfig-notice-it-uses-both-2016-and-2019-vhdx-files)auto    - [List available updates on 2016 and 2019](#list-available-updates-on-2016-and-2019)auto    - [Exploring CimInstance](#exploring-ciminstance)auto    - [List available updates on 2016 and 2019 revised](#list-available-updates-on-2016-and-2019-revised)auto    - [Apply updates on 2016 and 2019](#apply-updates-on-2016-and-2019)auto    - [Update validation](#update-validation)auto        - [Display installed updates](#display-installed-updates)auto        - [Display pending reboot on all Domain Computers](#display-pending-reboot-on-all-domain-computers)auto        - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)auto        - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)auto        - [Display update level](#display-update-level)autoauto<!-- /TOC -->
 
 # Scripting Windows Update (Work in progress!)
 
@@ -44,7 +28,7 @@ $LabConfig.VMs += @{ VMName = '2019_2'   ; Configuration = 'Simple' ; ParentVHD 
 $servers="2016_1","2016_2"
 $Instances = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession -CimSession $servers
 $ScanResult=foreach ($instance in $instances){
-    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
 }
 $ScanResult.updates
  
@@ -58,7 +42,7 @@ If you will try the same, against 2019 servers, you will get following error.
 $servers="2019_1","2019_2"
 $Instances = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession -CimSession $servers
 $ScanResult=foreach ($instance in $instances){
-    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
 }
 $ScanResult.updates
  
@@ -111,13 +95,13 @@ As you can see on following update, the cleanup we did in WindowsUpdate instance
 $servers="2016_1","2016_2"
 $Instances = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession -CimSession $servers
 $ScanResult=foreach ($instance in $instances){
-    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
 }
 $ScanResult.updates
 
 #Invoke Scan on Windows Server 2019
 $servers="2019_1","2019_2"
-$ScanResult=Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+$ScanResult=Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1"}
 $ScanResult.updates
  
 ```
@@ -147,7 +131,7 @@ $servers="2016_1","2016_2"
 $Instances = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession -CimSession $servers
 foreach ($instance in $instances){
     #find updates
-    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
     #apply updates (if not empty)
     if ($ScanResult.Updates){
         $instance | Invoke-CimMethod -MethodName DownloadUpdates -Arguments @{Updates=$ScanResult.Updates}
@@ -165,7 +149,7 @@ $servers="2016_1","2016_2"
 Invoke-Command -ComputerName $servers -ScriptBlock {
     $Instance = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession
     #find updates
-    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
     #apply updates (if not empty)
     if ($ScanResult.Updates){
         $instance | Invoke-CimMethod -MethodName DownloadUpdates -Arguments @{Updates=$ScanResult.Updates}
@@ -183,7 +167,7 @@ $servers="2016_1","2016_2"
 Invoke-Command -ComputerName $servers -ScriptBlock {
     $Instance = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession
     #find updates
-    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+    $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
     #apply updates (if not empty)
     $CriticalUpdates= $ScanResult.updates | where MsrcSeverity -eq Critical
     if ($CriticalUpdates){
@@ -203,7 +187,7 @@ Let's run update 2019 server too
 $servers="2019_1","2019_2"
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
-    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1"}
     if ($ScanResult.Updates){
         Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
     }
