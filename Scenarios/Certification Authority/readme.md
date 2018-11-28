@@ -1,5 +1,3 @@
-<!-- TOC -->autoauto- [Certification Authority !!!WORK IN PROGRESS!!!](#certification-authority-work-in-progress)auto    - [LabConfig](#labconfig)auto    - [About the lab](#about-the-lab)auto        - [Resources](#resources)auto    - [Scenario](#scenario)auto        - [Install CA](#install-ca)auto        - [Configure remote management](#configure-remote-management)auto        - [Add templates](#add-templates)auto        - [Set permissions on TPM Enabled template and publish it](#set-permissions-on-tpm-enabled-template-and-publish-it)auto        - [Configure CA for TPM Enrollment](#configure-ca-for-tpm-enrollment)auto        - [Grab EK Hashes from servers](#grab-ek-hashes-from-servers)auto        - [Configure Autoenrollment and enroll certs](#configure-autoenrollment-and-enroll-certs)auto        - [Configure certificate for CA IIS remote management](#configure-certificate-for-ca-iis-remote-management)autoauto<!-- /TOC -->
-
 # Certification Authority !!!WORK IN PROGRESS!!!
 
 ## LabConfig
