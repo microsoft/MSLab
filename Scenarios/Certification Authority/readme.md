@@ -1,21 +1,3 @@
-<!-- TOC -->
-
-- [Certification Authority !!!WORK IN PROGRESS!!!](#certification-authority-work-in-progress)
-    - [LabConfig](#labconfig)
-    - [About the lab](#about-the-lab)
-        - [Resources](#resources)
-    - [Scenario](#scenario)
-        - [Install CA](#install-ca)
-        - [Configure remote management](#configure-remote-management)
-        - [Add templates](#add-templates)
-        - [Set permissions on TPM Enabled template and publish it](#set-permissions-on-tpm-enabled-template-and-publish-it)
-        - [Configure CA for TPM Enrollment](#configure-ca-for-tpm-enrollment)
-        - [Grab EK Hashes from servers](#grab-ek-hashes-from-servers)
-        - [Configure Autoenrollment and enroll certs](#configure-autoenrollment-and-enroll-certs)
-        - [Configure certificate for CA IIS remote management](#configure-certificate-for-ca-iis-remote-management)
-
-<!-- /TOC -->
-
 # Certification Authority !!!WORK IN PROGRESS!!!
 
 ## LabConfig
@@ -45,15 +27,39 @@ In this scenario will be also demonstrated how to use TPM Attested certificates.
 
 ### Resources
 
+Deploying ADCS in enterprise
+
 https://itpro.outsidesys.com/2017/10/28/lab-deploy-adcs-enterprise-root-ca/
+
+Enabling IIS Remote management
 
 https://mcpmag.com/articles/2014/10/21/enabling-iis-remote-management.aspx
 
+Creating Cert Template with PowerShell
+
 https://blogs.technet.microsoft.com/ashleymcglone/2017/08/29/function-to-create-certificate-template-in-active-directory-certificate-services-for-powershell-dsc-and-cms-encryption/
+
+PowerShell PKI Module
 
 https://www.sysadmins.lv/projects/pspki/default.aspx
 
+TPM Key attestation docs
+
 https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
+
+TPM attestation PCPTool
+
+http://research.microsoft.com/en-us/downloads/74c45746-24ad-4cb7-ba4b-0c6df2f92d5d/default.aspx
+
+BitLocker
+
+http://research.microsoft.com/en-us/downloads/74c45746-24ad-4cb7-ba4b-0c6df2f92d5d/default.aspx
+
+
+Cryptographyc Protocols Poster
+
+http://www.erezbenari.com/Cryptographic%20Protocols%20and%20concepts.pdf
+
 
 ## Scenario
 

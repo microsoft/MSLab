@@ -64,7 +64,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     if ($ReleaseID -eq 1607){
         #Script for Windows Server 2016
         $Instance = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession
-        $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+        $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1";OnlineScan=$true}
         if ($ScanResult.updates){
             $instance | Invoke-CimMethod -MethodName DownloadUpdates -Arguments @{Updates=$ScanResult.updates}
             $instance | Invoke-CimMethod -MethodName InstallUpdates  -Arguments @{Updates=$ScanResult.updates}
@@ -72,7 +72,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     }
     if ($ReleaseID -eq 1809){
         #Script for Windows Server 2019
-        $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+        $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0 AND AutoSelectOnWebSites=1"}
         if ($ScanResult.Updates){
             Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
         }

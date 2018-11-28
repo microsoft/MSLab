@@ -272,17 +272,14 @@ If (!( $isAdmin )) {
         }
         if ($WindowsImage.ImageName[0].contains("Server") -and $windowsimage.count -eq 2){
             WriteInfo "`t Semi-Annual Server Media detected"
-            $SAC=$True
+            $ISOServer | Dismount-DiskImage
+            WriteErrorAndExit "Please provide LTSC media. Exitting."
         }
     #Test if it's Windows Server 2016 and newer
         $BuildNumber=(Get-ItemProperty -Path "$($ServerMediaDriveLetter):\setup.exe").versioninfo.FileBuildPart
         If ($BuildNumber -lt 14393){
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
-        }
-        if ($SAC -and $BuildNumber -lt 17763){
-            $ISOServer | Dismount-DiskImage
-            WriteErrorAndExit "`t Only Insider Semi-Annual Channel media are accepted. Exitting."
         }
 
 #Grab packages
