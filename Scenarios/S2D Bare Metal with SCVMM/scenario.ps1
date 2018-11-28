@@ -218,14 +218,16 @@
         Set-SCVMMServer -AutomaticLogicalNetworkCreationEnabled $false -LogicalNetworkMatch "FirstDNSSuffixLabel" -BackupLogicalNetworkMatch "VirtualNetworkSwitchName"
 
     #Create Run As Account 
-        $runAsAccount = New-SCRunAsAccount -Credential $RunAsAccountCred -Name $RunAsAccountName -Description ""
-        Write-Output $runAsAccount
-
+        if (-not (Get-SCRunAsAccount -Name $RunAsAccountName)){
+            $runAsAccount = New-SCRunAsAccount -Credential $RunAsAccountCred -Name $RunAsAccountName -Description ""
+            Write-Output $runAsAccount
+        }
 
     #Create Djoin Account
-        
-        $runAsAccount = New-SCRunAsAccount -Credential $DomainJoinAccountCred -Name $DomainJoinAccountName -Description "" 
-        Write-Output $runAsAccount
+        if (-not (Get-SCRunAsAccount -Name $DomainJoinAccountName)){
+            $runAsAccount = New-SCRunAsAccount -Credential $DomainJoinAccountCred -Name $DomainJoinAccountName -Description "" 
+            Write-Output $runAsAccount
+        }
 #endregion
 
 #region Configure networks
