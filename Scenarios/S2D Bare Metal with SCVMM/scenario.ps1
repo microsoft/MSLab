@@ -175,6 +175,10 @@
         $vNICDefinitions+=@{NetAdapterName="SMB_2"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
         $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host management static" ;IPAddressPoolName="Management IP Pool"}
 
+    #Uplink Port Profile
+        $UplinkPPName="Seattle_PP" 
+        $UplinkPPSiteNames='Storage','Management','Production','DMZ'
+
     #ask for parent vhdx for Hyper-V Hosts and VMs
         [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
         $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
@@ -306,55 +310,53 @@
 
 #region Cofigure virtual Switch
     #create uplink pp. Use all Logical networks
-        $definition = @()
-        $definition += Get-SCLogicalNetworkDefinition
-        if (-not (Get-SCNativeUplinkPortProfile -Name $UplinkPPName)){
-            New-SCNativeUplinkPortProfile -Name $UplinkPPName -Description "" -LogicalNetworkDefinition $definition -EnableNetworkVirtualization $false -LBFOLoadBalancingAlgorithm "HyperVPort" -LBFOTeamMode "SwitchIndependent" -RunAsynchronously
+    $definition = @()
+    foreach ($UplinkPPSiteName in $UplinkPPSiteNames){
+        $definition += Get-SCLogicalNetworkDefinition -Name $uplinkppsitename
+    }
+    if (-not (Get-SCNativeUplinkPortProfile -Name $UplinkPPName)){
+        New-SCNativeUplinkPortProfile -Name $UplinkPPName -Description "" -LogicalNetworkDefinition $definition -EnableNetworkVirtualization $false -LBFOLoadBalancingAlgorithm "HyperVPort" -LBFOTeamMode "SwitchIndependent" -RunAsynchronously
+    }
+
+#create port classifications and port profiles
+    foreach ($Classification in $Classifications){
+        If (-not (Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName)){
+            New-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName -Description $Classification.Description -AllowIeeePriorityTagging $false -AllowMacAddressSpoofing $false -AllowTeaming $false -EnableDhcpGuard $false -EnableGuestIPNetworkVirtualizationUpdates $false -EnableIov $Classification.EnableIOV -EnableVrss $Classification.EnableVrss -EnableIPsecOffload $Classification.EnableIPsecOffload -EnableRouterGuard $false -EnableVmq $Classification.EnableVmq -EnableRdma $Classification.EnableRdma -MinimumBandwidthWeight "0" -RunAsynchronously
         }
-    #create port classifications and port profiles
-        foreach ($Classification in $Classifications){
-            If (-not (Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName)){
-                New-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName -Description $Classification.Description -AllowIeeePriorityTagging $false -AllowMacAddressSpoofing $false -AllowTeaming $false -EnableDhcpGuard $false -EnableGuestIPNetworkVirtualizationUpdates $false -EnableIov $Classification.EnableIOV -EnableVrss $Classification.EnableVrss -EnableIPsecOffload $Classification.EnableIPsecOffload -EnableRouterGuard $false -EnableVmq $Classification.EnableVmq -EnableRdma $Classification.EnableRdma -MinimumBandwidthWeight "0" -RunAsynchronously
-            }
-            If (-not (Get-SCPortClassification -Name $Classification.PortClassificationName)){
-                New-SCPortClassification -Name $Classification.PortClassificationName -Description $Classification.Description
-            }
+        If (-not (Get-SCPortClassification -Name $Classification.PortClassificationName)){
+            New-SCPortClassification -Name $Classification.PortClassificationName -Description $Classification.Description
         }
+    }
 
-    #Create Logical Switch
-        $virtualSwitchExtensions = @()
-        if ($SRIOV){
-            $logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "" -EnableSriov $true -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "None" -VirtualSwitchExtensions $virtualSwitchExtensions
-        }else{
-            $virtualSwitchExtensions += Get-SCVirtualSwitchExtension -Name "Microsoft Windows Filtering Platform"
-            $logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "" -EnableSriov $false -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "None" -VirtualSwitchExtensions $virtualSwitchExtensions
-        }
+#Create Logical Switch
+    $virtualSwitchExtensions = @()
+        $logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "" -EnableSriov $true -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "None" -VirtualSwitchExtensions $virtualSwitchExtensions
 
 
-    #Add virtual port classifications
-        foreach ($Classification in $Classifications){
-            # Get Network Port Classification
-            $portClassification = Get-SCPortClassification -Name  $Classification.PortClassificationName
-            # Get Hyper-V Switch Port Profile
-            $nativeProfile = Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName
-            New-SCVirtualNetworkAdapterPortProfileSet -Name $Classification.PortClassificationName -PortClassification $portClassification -LogicalSwitch $logicalSwitch -RunAsynchronously -VirtualNetworkAdapterNativePortProfile $nativeProfile
-        }
+#Add virtual port classifications
+    foreach ($Classification in $Classifications){
+        # Get Network Port Classification
+        $portClassification = Get-SCPortClassification -Name  $Classification.PortClassificationName
+        # Get Hyper-V Switch Port Profile
+        $nativeProfile = Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName
+        New-SCVirtualNetworkAdapterPortProfileSet -Name $Classification.PortClassificationName -PortClassification $portClassification -LogicalSwitch $logicalSwitch -RunAsynchronously -VirtualNetworkAdapterNativePortProfile $nativeProfile
+    }
 
-    #Set Uplink Port Profile
-        $nativeUppVar = Get-SCNativeUplinkPortProfile -Name "UplinkPP"
-        $uppSetVar = New-SCUplinkPortProfileSet -Name "UplinkPP" -LogicalSwitch $logicalSwitch -NativeUplinkPortProfile $nativeUppVar -RunAsynchronously
+#Set Uplink Port Profile
+    $nativeUppVar = Get-SCNativeUplinkPortProfile -Name $UplinkPPName
+    $uppSetVar = New-SCUplinkPortProfileSet -Name $UplinkPPName -LogicalSwitch $logicalSwitch -NativeUplinkPortProfile $nativeUppVar -RunAsynchronously
 
-    #Add virtual network adapters to switch.
+#Add virtual network adapters to switch.
 
-        foreach ($vNICDefinition in $vNICDefinitions){
-            # Get VM Network
-            $vmNetwork = Get-SCVMNetwork -Name $vNICDefinition.VMNetworkName
-            # Get VMSubnet'
-            $vmSubnet = Get-SCVMSubnet -Name $vNICDefinition.VMSubnetName
-            #Get Classification
-            $vNICPortClassification = Get-SCPortClassification  -Name $vNICDefinition.PortClassificationName
-            New-SCLogicalSwitchVirtualNetworkAdapter -Name $vNICDefinition.NetAdapterName -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $vNICDefinition.Management -InheritsAddressFromPhysicalNetworkAdapter $vNICDefinition.InheritSettings -IPv4AddressType $vNICDefinition.IPv4AddressType -IPv6AddressType "Dynamic"
-        }
+    foreach ($vNICDefinition in $vNICDefinitions){
+        # Get VM Network
+        $vmNetwork = Get-SCVMNetwork -Name $vNICDefinition.VMNetworkName
+        # Get VMSubnet'
+        $vmSubnet = Get-SCVMSubnet -Name $vNICDefinition.VMSubnetName
+       #Get Classification
+        $vNICPortClassification = Get-SCPortClassification  -Name $vNICDefinition.PortClassificationName
+        New-SCLogicalSwitchVirtualNetworkAdapter -Name $vNICDefinition.NetAdapterName -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $vNICDefinition.Management -InheritsAddressFromPhysicalNetworkAdapter $vNICDefinition.InheritSettings -IPv4AddressType $vNICDefinition.IPv4AddressType -IPv6AddressType "Dynamic"
+    }
 
 #endregion
 
