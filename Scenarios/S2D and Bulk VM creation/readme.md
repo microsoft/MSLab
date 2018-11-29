@@ -287,3 +287,13 @@ $unattend = @"
 }
  
 ```
+
+### Screenshots
+
+![](/Scenarios/S2D%20and%20Bulk%20VM%20creation/Screenshots/Cluster.png)
+
+![](/Scenarios/S2D%20and%20Bulk%20VM%20creation/Screenshots/CSV.png)
+
+![](/Scenarios/S2D%20and%20Bulk%20VM%20creation/Screenshots/StaticIP.png)
+
+![](/Scenarios/S2D%20and%20Bulk%20VM%20creation/Screenshots/StaticIPandVLAN.png)
