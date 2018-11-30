@@ -173,6 +173,8 @@ $ProgressPreference='SilentlyContinue' #for faster download
 
 ## Testing Storage Performance
 
+Run all code from DC
+
 ### Create some volumes
 
 ```PowerShell
