@@ -1,3 +1,16 @@
+<!-- TOC -->
+
+- [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
+- [Prereq](#prereq)
+- [Create "Library" and copy your new parent disk there](#create-library-and-copy-your-new-parent-disk-there)
+- [Create volumes for VMs](#create-volumes-for-vms)
+- [Create some VMs now](#create-some-vms-now)
+    - [Variables and VMs definition](#variables-and-vms-definition)
+    - [Create VMs](#create-vms)
+    - [Screenshots](#screenshots)
+
+<!-- /TOC -->
+
 ## LabConfig Windows Server 2019
 
 ```PowerShell

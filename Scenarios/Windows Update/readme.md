@@ -1,3 +1,21 @@
+<!-- TOC -->
+
+- [Scripting Windows Update (Work in progress!)](#scripting-windows-update-work-in-progress)
+    - [About the lab](#about-the-lab)
+    - [LabConfig (notice it uses both 2016 and 2019 vhdx files)](#labconfig-notice-it-uses-both-2016-and-2019-vhdx-files)
+    - [List available updates on 2016 and 2019](#list-available-updates-on-2016-and-2019)
+    - [Exploring CimInstance](#exploring-ciminstance)
+    - [List available updates on 2016 and 2019 revised](#list-available-updates-on-2016-and-2019-revised)
+    - [Apply updates on 2016 and 2019](#apply-updates-on-2016-and-2019)
+    - [Update validation](#update-validation)
+        - [Display installed updates](#display-installed-updates)
+        - [Display pending reboot on all Domain Computers](#display-pending-reboot-on-all-domain-computers)
+        - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)
+        - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
+        - [Display update level](#display-update-level)
+
+<!-- /TOC -->
+
 # Scripting Windows Update (Work in progress!)
 
 ## About the lab
