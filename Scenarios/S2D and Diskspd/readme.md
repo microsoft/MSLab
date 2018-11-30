@@ -36,7 +36,7 @@ Run first 9 regions of S2D [Hyperconverged scenario](https://raw.githubuserconte
 
 Collapse all regions with ctrl+m, select firs 9 regions and paste into elevated PowerShell (right-click)
 
-![](/Scenarios/S2D%20and%20Bulk%20Diskspd/Screenshots/Regions.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Regions.png)
 
 ## Test network performance of S2D cluster
 
@@ -150,7 +150,7 @@ $Output | Sort-Object PsComputerName, InterfaceDescription | Format-Table PsComp
  
 ```
 
-![](/Scenarios/S2D%20and%20Bulk%20Diskspd/Screenshots/NetworkResult.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/NetworkResult.png)
 
 ### Display performance in Windows Admin Center
 
@@ -169,7 +169,7 @@ $ProgressPreference='SilentlyContinue' #for faster download
  
 ```
 
-![](/Scenarios/S2D%20and%20Bulk%20Diskspd/Screenshots/ServerPerformance.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/ServerPerformance.png)
 
 ## Testing Storage Performance
 
@@ -319,6 +319,6 @@ Invoke-Command -Session $sessions -ScriptBlock {
  
 ```
 
-![](/Scenarios/S2D%20and%20Bulk%20Diskspd/Screenshots/Watch-Cluster.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Watch-Cluster.png)
 
-![](/Scenarios/S2D%20and%20Bulk%20Diskspd/Screenshots/StoragePerformance.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/StoragePerformance.png)
