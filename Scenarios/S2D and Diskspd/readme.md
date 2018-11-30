@@ -316,7 +316,7 @@ foreach ($session in $sessions){
 }
 #Start some load. You may want to modify binary file (like 10 GB instead of 1GB -c1G ...)
 Invoke-Command -Session $sessions -ScriptBlock {
-    & $env:USERPROFILE\Downloads\diskspd.exe -t8 -b4k -r4k -o1 -w30 -Suw -D -L -d180 -Rxml -c1G "c:\diskspd.bin"
+    & $env:USERPROFILE\Downloads\diskspd.exe -t8 -b4k -r4k -o1 -w30 -Suw -D -L -d180 -c1G "c:\diskspd.bin"
 }
  
 ```
