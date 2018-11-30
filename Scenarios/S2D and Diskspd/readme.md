@@ -321,4 +321,4 @@ Invoke-Command -Session $sessions -ScriptBlock {
 
 ![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Watch-Cluster.png)
 
-![](/Scenarios/S2D%20and%20Diskspd/Screenshots/StoragePerformance.png)
+![](/Scenarios/S2D%20and%20Diskspd/Screenshots/StoragePerformanceWAC.png)
