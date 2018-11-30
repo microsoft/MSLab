@@ -5,7 +5,7 @@
     - [Prereq](#prereq)
     - [Test network performance of S2D cluster](#test-network-performance-of-s2d-cluster)
         - [Copy Diskspd to nodes](#copy-diskspd-to-nodes)
-        - [Run diskspd that utilizes every node to read from another random node for 30s](#run-diskspd-that-utilizes-every-node-to-read-from-another-random-node-for-30s)
+        - [Run diskspd that tests network performance between every 2 nodes](#run-diskspd-that-tests-network-performance-between-every-2-nodes)
         - [Display performance in PowerShell](#display-performance-in-powershell)
         - [Display performance in Windows Admin Center](#display-performance-in-windows-admin-center)
     - [Testing Storage Performance](#testing-storage-performance)
@@ -34,7 +34,7 @@ $LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD 
 
 Run first 9 regions of S2D [Hyperconverged scenario](https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/S2D%20Hyperconverged/Scenario.ps1). Run all code from DC
 
-Collapse all regions with ctrl+m, select firs 9 regions and paste into elevated PowerShell (right-click)
+Collapse all regions with ctrl+m, select first 9 regions and paste into elevated PowerShell (right-click)
 
 ![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Regions.png)
 
@@ -60,7 +60,7 @@ foreach ($session in $sessions){
  
 ```
 
-### Run diskspd that utilizes every node to read from another random node for 30s
+### Run diskspd that tests network performance between every 2 nodes
 
 ```PowerShell
 $ClusterName="S2D-Cluster"
