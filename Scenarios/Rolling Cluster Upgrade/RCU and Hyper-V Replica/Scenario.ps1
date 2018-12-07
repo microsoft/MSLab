@@ -44,17 +44,23 @@ Write-host "Script started at $StartDateTime"
 
 #region install features for management (Client needs RSAT, Server/Server Core have different features)
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    $CurrentBuildNumber=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
     if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
     }elseif ($WindowsInstallationType -eq "Server Core"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Storage-Replica
-    }elseif ($WindowsInstallationType -eq "Client"){
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -lt 17763)){
         #Validate RSAT Installed
             if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
                 Write-Host "Please install RSAT, Exitting in 5s"
                 Start-Sleep 5
                 Exit
             }
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
+        #Install RSAT tools
+            Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online
+    }
+    if ($WindowsInstallationType -eq "Client"){
         #Install Hyper-V Management features
             if ((Get-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -ne "Enabled"){
                 #Install all features and then remove all except Management (fails when installing just management)
