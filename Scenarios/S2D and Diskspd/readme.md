@@ -38,6 +38,16 @@ Collapse all regions with ctrl+m, select first 9 regions and paste into elevated
 
 ![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Regions.png)
 
+Note: Enable-ClusterS2D in Windows Server 2019 requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
+
+```PowerShell
+#Sample
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Set-ItemProperty -Path "HKLM:\SYSTEM\XYZ" -Name XYZ -value 1
+}
+ 
+```
+
 ## Test network performance of S2D cluster
 
 Following test will be done with DiskSpd. This utility was downloaded already into tools.vhdx, therefore it's located on D: drive on DC. Optionally you can download it with following code

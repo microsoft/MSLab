@@ -385,52 +385,52 @@ foreach ($LogicalSwitchConfig in $LogicalSwitches.LogicalSwitches) {
 #region Prepare Hosts
 
 #region install features for management (Client needs RSAT, Server/Server Core have different features)
-Write-host "Adding RSAT Tools" -ForegroundColor Green
-$WindowsInstallationType = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-if ($WindowsInstallationType -eq "Server") {
-    Install-WindowsFeature -Name RSAT-Clustering, RSAT-Clustering-Mgmt, RSAT-Clustering-PowerShell, RSAT-Hyper-V-Tools, RSAT-Feature-Tools-BitLocker-BdeAducExt, RSAT-NetworkController
-}
-elseif ($WindowsInstallationType -eq "Server Core") {
-    Install-WindowsFeature -Name RSAT-Clustering, RSAT-Clustering-PowerShell, RSAT-Hyper-V-Tools, RSAT-NetworkController
-}
-elseif ($WindowsInstallationType -eq "Client") {
-    #Validate RSAT Installed
-    if (!((Get-HotFix).hotfixid -contains "KB2693643") ) {
-        Write-Host "Please install RSAT, Exitting in 5s"
-        Start-Sleep 5
-        Exit
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    $CurrentBuildNumber=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
+    if ($WindowsInstallationType -eq "Server"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+    }elseif ($WindowsInstallationType -eq "Server Core"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Storage-Replica
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -lt 17763)){
+        #Validate RSAT Installed
+            if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
+                Write-Host "Please install RSAT, Exitting in 5s"
+                Start-Sleep 5
+                Exit
+            }
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
+        #Install RSAT tools
+            Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online
     }
-    #Install Hyper-V Management features
-    if ((Get-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -ne "Enabled") {
-        #Install all features and then remove all except Management (fails when installing just management)
-        Enable-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-All -NoRestart
-        Disable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -NoRestart
-        $Q = Read-Host -Prompt "Restart is needed. Do you want to restart nowWhere-Object Y/N"
-        If ($Q -eq "Y") {
-            Write-Host "Restarting Computer"
-            Start-Sleep 3
-            Restart-Computer
-        }
-        else {
-            Write-Host "You did not type Y, please restart Computer. Exitting"
-            Start-Sleep 3
-            Exit
-        }
+    if ($WindowsInstallationType -eq "Client"){
+        #Install Hyper-V Management features
+            if ((Get-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -ne "Enabled"){
+                #Install all features and then remove all except Management (fails when installing just management)
+                Enable-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-All -NoRestart
+                Disable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -NoRestart
+                $Q=Read-Host -Prompt "Restart is needed. Do you want to restart now? Y/N"
+                If ($Q -eq "Y"){
+                    Write-Host "Restarting Computer"
+                    Start-Sleep 3
+                    Restart-Computer
+                }else{
+                    Write-Host "You did not type Y, please restart Computer. Exitting"
+                    Start-Sleep 3
+                    Exit
+                }
+            }elseif((get-command -Module Hyper-V) -eq $null){
+                $Q=Read-Host -Prompt "Restart is needed to load Hyper-V Management. Do you want to restart now? Y/N"
+                If ($Q -eq "Y"){
+                    Write-Host "Restarting Computer"
+                    Start-Sleep 3
+                    Restart-Computer
+                }else{
+                    Write-Host "You did not type Y, please restart Computer. Exitting"
+                    Start-Sleep 3
+                    Exit
+                }
+            }
     }
-    elseif ((get-command -Module Hyper-V) -eq $null) {
-        $Q = Read-Host -Prompt "Restart is needed to load Hyper-V Management. Do you want to restart nowWhere-Object Y/N"
-        If ($Q -eq "Y") {
-            Write-Host "Restarting Computer"
-            Start-Sleep 3
-            Restart-Computer
-        }
-        else {
-            Write-Host "You did not type Y, please restart Computer. Exitting"
-            Start-Sleep 3
-            Exit
-        }
-    }
-}
 #endregion
 
 #region Configure basic settings on servers 
