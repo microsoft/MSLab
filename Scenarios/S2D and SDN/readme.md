@@ -77,7 +77,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 ### Install and configure ADCS on the CA Server
 
-On `CA` install ADCS role, and after role installation we will create custom `CustomNCCert` template. The CA install does not follow all best practices. For more details visit Certification Authority WSLab Scenario.
+On `CA` install ADCS role, and after role installation we will create custom `NCRestEndPoint` template. The CA install does not follow all best practices. For more details visit Certification Authority WSLab Scenario.
 
 ```PowerShell
 #Create CA Policy file
@@ -215,9 +215,9 @@ Param($DisplayName,$TemplateOtherAttributes)
 
 Import-Module ActiveDirectory
 
-#Create CustomNCCert template
+#Create NCRestEndPoint template
 
-$DisplayName="CustomNCCert"
+$DisplayName="NCRestEndPoint"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
@@ -243,9 +243,9 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
 <#
-#Create CustomNCCertRSA template
+#Create NCRestEndPointRSA template
 
-$DisplayName="CustomNCCertRSA"
+$DisplayName="NCRestEndPointRSA"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131649'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
@@ -270,13 +270,13 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 #>
 
-#Create Computer2016 template
+#Create NCNodes template
 
-$DisplayName="Computer2016"
+$DisplayName="NCNodes"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
-        'msPKI-Certificate-Name-Flag' = [System.Int32]'1207959552'
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'1073741824'
         'msPKI-Enrollment-Flag' = [System.Int32]'32'
         'msPKI-Minimal-Key-Size' = [System.Int32]'521'
         'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
@@ -314,14 +314,14 @@ To set permissions is PSPKI module needed. You can find more info here https://w
     }
     Import-Module PSPKI
 
-#Set permissions on Computer2016 template
+#Set permissions on NCNodes template
     $Computers="NC1","NC2","NC3"
     foreach ($Computer in $Computers){
-        Get-CertificateTemplate -Name "Computer2016" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$Computer$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
+        Get-CertificateTemplate -Name "NCNodes" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$Computer$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
     }
 
 #Publish Certificates
-    $DisplayNames="CustomNCCert","Computer2016"
+    $DisplayNames="NCRestEndPoint","NCNodes"
     #grab DC
     $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
     #grab Naming Context
@@ -356,10 +356,10 @@ To set permissions is PSPKI module needed. You can find more info here https://w
 
 ```PowerShell
 #First set permissions, so Machine Management can enroll certificate
-    Get-CertificateTemplate -Name "CustomNCCert" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
+    Get-CertificateTemplate -Name "NCRestEndPoint" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
 
 #Generate Certificate to local machine store
-Get-Certificate -Template CustomNCCert -SubjectName "CN=ncclus.corp.contoso.com" -CertStoreLocation Cert:\LocalMachine\My
+Get-Certificate -Template NCRestEndPoint -SubjectName "CN=ncclus.corp.contoso.com" -CertStoreLocation Cert:\LocalMachine\My
 
 #Export Certificate
 $Password = "LS1setup!"
@@ -419,9 +419,17 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-WindowsFeature -Name NetworkController -IncludeManagementTools
 }
 
-$NodeObject1 = New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
-$NodeObject2 = New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
-$NodeObject3 = New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
+$NodeObject1=Invoke-Command -ComputerName NC1 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
+$NodeObject2=Invoke-Command -ComputerName NC2 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
+$NodeObject3=Invoke-Command -ComputerName NC3 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
+
+$CertPassword="LS1setup!"
+$CertPath="$env:USERPROFILE\Downloads\NCCert.pfx"
+$certificate=Import-PfxCertificate -FilePath $CertPath -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $CertPassword -Force –AsPlainText)
+
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
+Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
 
 
