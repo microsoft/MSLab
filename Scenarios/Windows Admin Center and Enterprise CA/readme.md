@@ -10,9 +10,22 @@
         - [Install RSAT on Management machine](#install-rsat-on-management-machine)
         - [Install and configure ADCS on the CA Server](#install-and-configure-adcs-on-the-ca-server)
     - [Gateway mode installation on single Windows Server](#gateway-mode-installation-on-single-windows-server)
+        - [Create Computer Template](#create-computer-template)
         - [Generate a certificate](#generate-a-certificate)
         - [Install Windows Admin Center](#install-windows-admin-center)
         - [Run Windows Admin Center](#run-windows-admin-center)
+    - [Clustered Windows Admin Center installations](#clustered-windows-admin-center-installations)
+        - [Prereq - Create custom certificate template](#prereq---create-custom-certificate-template)
+        - [Gateway mode installation on Cluster with Shared storage](#gateway-mode-installation-on-cluster-with-shared-storage)
+            - [Install Failover Cluster](#install-failover-cluster)
+            - [Grab Certificate](#grab-certificate)
+            - [Download Windows Admin Center files](#download-windows-admin-center-files)
+            - [Install Windows Admin Center on cluster](#install-windows-admin-center-on-cluster)
+        - [Gateway mode installation on Cluster with Storage Spaces Direct](#gateway-mode-installation-on-cluster-with-storage-spaces-direct)
+            - [Install Failover Cluster](#install-failover-cluster-1)
+            - [Grab Certificate](#grab-certificate-1)
+            - [Download Windows Admin Center files](#download-windows-admin-center-files-1)
+            - [Install Windows Admin Center on cluster](#install-windows-admin-center-on-cluster-1)
 
 <!-- /TOC -->
 
@@ -28,7 +41,7 @@ $LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD 
 # Certification Authority
 $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB }
 # SAN Failover cluster nodes
-1..3 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; HDDNumber = 1; HDDSize = 40GB; } }
+1..3 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
 # Storage Spaces Direct nodes
 1..3 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB;  } }
  
@@ -59,6 +72,7 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
 ## Desktop mode installation on Windows 10
 
 ```PowerShell
+$ProgressPreference='SilentlyContinue' #for faster download
 #Download Windows Admin Center to downloads
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 
@@ -74,10 +88,21 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
 
 ### Install RSAT on Management machine
 
+Run following code from Management machine or from DC
+
 First, we will install RSAT (it's necessary to work with servers remotely).
 
 ```PowerShell
-Get-WindowsCapability -Online -Name RSAT* | Add-WindowsCapability -Online
+#Detect if code is running on server or Win10 and install necessary features
+$WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+if ($WindowsInstallationType -eq "Server"){
+    Install-WindowsFeature -Name "RSAT-ADDS","RSAT-AD-PowerShell","RSAT-ADCS","RSAT-NetworkController","RSAT-Clustering","RSAT-Hyper-V-Tools"
+}elseif ($WindowsInstallationType -eq "Client"){
+    $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.NetworkController.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.CertificateServices.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+    foreach ($Capability in $Capabilities){
+        Add-WindowsCapability -Name $Capability -Online
+    }
+}
  
 ```
 
@@ -88,6 +113,8 @@ Certification Authority would be used to issue signed certificates for the Windo
 On `CA` install ADCS role, and after role installation we will create custom `Computer2019` template. The CA install does not follow all best practices. For more details visit Certification Authority WSLab Scenario.
 
 ```PowerShell
+$CAServerName="CA"
+
 #Create CA Policy file
 $Content=@"
 [Version]
@@ -113,23 +140,23 @@ LoadDefaultTemplates=0
 AlternateSignatureAlgorithm=0
 "@
 
-Invoke-Command -ComputerName CA -ScriptBlock {
+Invoke-Command -ComputerName $CAServerName -ScriptBlock {
     Set-Content -Value $using:Content -Path C:\windows\CAPolicy.inf
 }
 
 #Install ADCS
-Install-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools -ComputerName CA
+Install-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools -ComputerName $CAServerName
 
 #Enable CredSSP
 # Temporarily enable CredSSP delegation to avoid double-hop issue
-Enable-WSManCredSSP -Role "Client" -DelegateComputer CA -Force
-Invoke-Command -ComputerName CA -ScriptBlock { Enable-WSManCredSSP Server -Force }
+Enable-WSManCredSSP -Role "Client" -DelegateComputer $CAServerName -Force
+Invoke-Command -ComputerName $CAServerName -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
 
 #Install ADCS Certification Authority Role Services
-Invoke-Command -ComputerName CA -Credential $Credentials -Authentication Credssp -ScriptBlock {
+Invoke-Command -ComputerName $CAServerName -Credential $Credentials -Authentication Credssp -ScriptBlock {
     $CaProperties = @{
         CACommonName        = "Contoso-Root-CA"
         CAType              = "EnterpriseRootCA"
@@ -144,9 +171,18 @@ Invoke-Command -ComputerName CA -Credential $Credentials -Authentication Credssp
 
 # Disable CredSSP
 Disable-WSManCredSSP -Role Client
-Invoke-Command -ComputerName CA -ScriptBlock { Disable-WSManCredSSP Server }
+Invoke-Command -ComputerName $CAServerName -ScriptBlock { Disable-WSManCredSSP Server }
+ 
+```
 
-# Create and Publish Template
+## Gateway mode installation on single Windows Server
+
+### Create Computer Template
+
+```PowerShell
+# Create and Publish "Computer2016" Template
+$TemplateName = "Computer2016"
+
 #region initial functions
 
 Function Get-RandomHex {
@@ -220,7 +256,7 @@ Param($DisplayName,$TemplateOtherAttributes)
 
 #CreateTemplate
 Import-Module ActiveDirectory
-$DisplayName="Computer2016"
+$DisplayName=$TemplateName
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
@@ -247,8 +283,8 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 
 #endregion
 
-#Publish Computer2016 Certificate
-    $DisplayName="Computer2016"
+#Publish Computer2016 Template
+    $DisplayName=$TemplateName
     #grab DC
     $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
     #grab Naming Context
@@ -263,13 +299,14 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
  
 ```
 
-## Gateway mode installation on single Windows Server
-
 ### Generate a certificate
 
 In order to use own certificate instead of default self-signed one, certificate needs to be generated before actually installing Windows Admin Center and certificate needs to be imported in Computer store of that machine. Let's do it using Autoenrollment.
 
 ```PowerShell
+$GatewayServerName="WACGateway"
+$TemplateName = "Computer2016"
+
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
 Install-Module -Name PSPKI -Force
@@ -277,10 +314,10 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 Import-Module PSPKI
 
 #Set Cert Template permission
-Get-CertificateTemplate -Name "Computer2016" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "WacGateway$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
+Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$GatewayServerName$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
 #Configure AutoEnrollment policy and enroll cert on WacGateway
-Invoke-Command -ComputerName WacGateway -ScriptBlock {
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
     Set-CertificateAutoEnrollmentPolicy -StoreName MY -PolicyState Enabled -ExpirationPercentage 10 -EnableTemplateCheck -EnableMyStoreManagement -context Machine
     certutil -pulse
 }
@@ -292,18 +329,21 @@ Invoke-Command -ComputerName WacGateway -ScriptBlock {
 > **Note:** If you don't want to download installer over the Internet, copy MSI file over to virtual machine manually.
 
 ```PowerShell
+$GatewayServerName="WACGateway"
+
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+    $ProgressPreference='SilentlyContinue' #for faster download
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 }
 
 #Create PS Session
-$Session=New-PSSession -ComputerName "WacGateway"
+$Session=New-PSSession -ComputerName $GatewayServerName
 Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
 
 #Grab Certificate Thumbprint
 $Cert=Invoke-Command -Session $session -ScriptBlock {
-    Get-ChildItem -Path Cert:\LocalMachine\My\ | where Subject -eq CN=WacGateway.Corp.contoso.com
+    Get-ChildItem -Path Cert:\LocalMachine\My\ | where Subject -eq "CN=$using:GatewayServerName.Corp.contoso.com"
 }
 
 #Install Windows Admin Center
@@ -316,3 +356,401 @@ Invoke-Command -Session $session -ScriptBlock {
 ### Run Windows Admin Center
 
 After the installation on `WacGateway` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Management` virtual machine, navigate to http://wacgateway.corp.contoso.com/ and you can log in to the Windows Admin Center.
+
+## Clustered Windows Admin Center installations
+
+### Prereq - Create custom certificate template
+
+```PowerShell
+# Create and Publish Template
+$TemplateName = "WebCustomRSA"
+
+#region initial functions
+
+Function Get-RandomHex {
+param ([int]$Length)
+    $Hex = '0123456789ABCDEF'
+    [string]$Return = $null
+    For ($i=1;$i -le $length;$i++) {
+        $Return += $Hex.Substring((Get-Random -Minimum 0 -Maximum 16),1)
+    }
+    Return $Return
+}
+
+Function IsUniqueOID {
+param ($cn,$TemplateOID,$Server,$ConfigNC)
+    $Search = Get-ADObject -Server $Server `
+        -SearchBase "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC" `
+        -Filter {cn -eq $cn -and msPKI-Cert-Template-OID -eq $TemplateOID}
+    If ($Search) {$False} Else {$True}
+}
+
+Function New-TemplateOID {
+Param($Server,$ConfigNC)
+    <#
+    OID CN/Name                    [10000000-99999999].[32 hex characters]
+    OID msPKI-Cert-Template-OID    [Forest base OID].[1000000-99999999].[10000000-99999999]  <--- second number same as first number in OID name
+    #>
+    do {
+        $OID_Part_1 = Get-Random -Minimum 1000000  -Maximum 99999999
+        $OID_Part_2 = Get-Random -Minimum 10000000 -Maximum 99999999
+        $OID_Part_3 = Get-RandomHex -Length 32
+        $OID_Forest = Get-ADObject -Server $Server `
+            -Identity "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC" `
+            -Properties msPKI-Cert-Template-OID |
+            Select-Object -ExpandProperty msPKI-Cert-Template-OID
+        $msPKICertTemplateOID = "$OID_Forest.$OID_Part_1.$OID_Part_2"
+        $Name = "$OID_Part_2.$OID_Part_3"
+    } until (IsUniqueOID -cn $Name -TemplateOID $msPKICertTemplateOID -Server $Server -ConfigNC $ConfigNC)
+    Return @{
+        TemplateOID  = $msPKICertTemplateOID
+        TemplateName = $Name
+    }
+}
+
+Function New-Template {
+Param($DisplayName,$TemplateOtherAttributes)
+
+    #grab DC
+    $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
+    #grab Naming Context
+    $ConfigNC = (Get-ADRootDSE -Server $Server).configurationNamingContext
+    #Create OID
+        $OID = New-TemplateOID -Server $Server -ConfigNC $ConfigNC
+        $TemplateOIDPath = "CN=OID,CN=Public Key Services,CN=Services,$ConfigNC"
+        $OIDOtherAttributes = @{
+                'DisplayName' = $DisplayName
+                'flags' = [System.Int32]'1'
+                'msPKI-Cert-Template-OID' = $OID.TemplateOID
+        }
+        New-ADObject -Path $TemplateOIDPath -OtherAttributes $OIDOtherAttributes -Name $OID.TemplateName -Type 'msPKI-Enterprise-Oid' -Server $Server
+    #Create Template itself
+        $TemplateOtherAttributes+= @{
+            'msPKI-Cert-Template-OID' = $OID.TemplateOID
+        }
+        $TemplatePath = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$ConfigNC"
+        New-ADObject -Path $TemplatePath -OtherAttributes $TemplateOtherAttributes -Name $DisplayName -DisplayName $DisplayName -Type pKICertificateTemplate -Server $Server
+}
+
+#endregion
+
+#region Create Templates
+
+#CreateTemplate
+Import-Module ActiveDirectory
+$TemplateOtherAttributes = @{
+        'flags' = [System.Int32]'131680'
+        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'9'
+        'msPKI-Enrollment-Flag' = [System.Int32]'0'
+        'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101056656'
+        'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`RSA`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
+        'msPKI-RA-Signature' = [System.Int32]'0'
+        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
+        'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'pKIMaxIssuingDepth' = [System.Int32]'0'
+        'ObjectClass' = [System.String]'pKICertificateTemplate'
+        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15','2.5.29.7')
+        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1,Microsoft Software Key Storage Provider','2,Microsoft Platform Crypto Provider')
+        'pKIDefaultKeySpec' = [System.Int32]'1'
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+        'pKIKeyUsage' = [System.Byte[]]@('136')
+        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+        'revision' = [System.Int32]'100'
+}
+New-Template -DisplayName $TemplateName -TemplateOtherAttributes $TemplateOtherAttributes
+
+#endregion
+
+#Publish Template
+    #grab DC
+    $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
+    #grab Naming Context
+    $ConfigNC = (Get-ADRootDSE -Server $Server).configurationNamingContext
+
+    ### WARNING: Issues on all available CAs. Test in your environment.
+    $EnrollmentPath = "CN=Enrollment Services,CN=Public Key Services,CN=Services,$ConfigNC"
+    $CAs = Get-ADObject -SearchBase $EnrollmentPath -SearchScope OneLevel -Filter * -Server $Server
+    ForEach ($CA in $CAs) {
+        Set-ADObject -Identity $CA.DistinguishedName -Add @{certificateTemplates=$TemplateName} -Server $Server
+    }
+ 
+```
+
+### Gateway mode installation on Cluster with Shared storage
+
+#### Install Failover Cluster
+
+```PowerShell
+# Cluster Configuration
+$clusterName = "Wac-Cluster-SAN"
+$volumeName = "VolumeWac"
+$nodesSan = @()
+1..3 | ForEach-Object { $nodesSan += "WacSan-Node0$_" }
+
+# Install failover clustering on all nodes
+Invoke-Command -ComputerName $nodesSan -ScriptBlock { Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell" }
+
+# Form a cluster
+New-Cluster -Name $clusterName -Node $nodesSan
+
+# Ensure that DNS name of the cluster would be accessible
+Start-Sleep 5
+Clear-DnsClientCache
+
+# Set up disk witness
+    $witness_disk = get-disk -cimsession $nodesSan[0]  | where {$_.PartitionStyle -eq 'RAW' -and $_.Size -le 2GB}
+    $witness_disk  | Initialize-Disk -PartitionStyle GPT
+    Format-Volume -Partition (New-Partition -UseMaximumSize -InputObject $witness_disk) -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel witness_disk -CimSession $nodesSan[0] -Confirm:$false
+    $witness_disk | Set-Disk -IsOffline $true
+    $ClusterDisk = Get-ClusterAvailableDisk -Cluster $clusterName
+    $clusterDisk=Add-ClusterDisk -Cluster $clusterName -InputObject $ClusterDisk
+    $clusterDisk.name = "Witness Disk"
+    Set-ClusterQuorum -DiskWitness $ClusterDisk -Cluster $clusterName
+
+# Configure volume
+$csvDisks = Get-Disk -CimSession $clusterName | Where-Object { $_.PartitionStyle -eq 'RAW' -and $_.Size -gt 10GB } | Sort-Object Number
+
+$csvDisk = $csvDisks | Select -First 1
+$csvDisk | Initialize-Disk -PartitionStyle GPT
+
+Format-Volume -Partition (New-Partition -UseMaximumSize -InputObject $csvDisk ) -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel $volumeName -CimSession $clusterName -Confirm:$false
+$csvDisk | Set-Disk -IsOffline $true
+$clusterDisk = Get-ClusterAvailableDisk -Cluster $clusterName
+$clusterDisk = Add-ClusterDisk -Cluster $clusterName -InputObject $clusterDisk
+$clusterDisk.name = $volumename
+$clusterSharedVolume = Add-ClusterSharedVolume -Cluster $clusterName -InputObject $clusterDisk
+$clusterSharedVolume.Name = $volumeName
+
+# Rename the volume
+$currentPath = $clusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
+$currentVolumeName = Split-Path $currentPath -Leaf
+$fullPath = Join-Path -Path "C:\ClusterStorage\" -ChildPath $currentVolumeName
+Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
+    Rename-Item -Path $Using:fullPath -NewName $Using:volumeName -PassThru
+}
+ 
+```
+
+#### Grab Certificate
+
+```PowerShell
+$TemplateName="WebCustomRSA"
+$SubjectName="CN=wac-san.corp.contoso.com"
+$ExportPath="$env:USERPROFILE\Downloads\wac-san.pfx"
+$Password = "LS1setup!"
+
+#make sure PSPKI is installed
+    if (-not (Get-Module PSPKI)){
+        Install-PackageProvider -Name NuGet -Force
+        Install-Module -Name PSPKI -Force
+        If ((Get-ExecutionPolicy) -eq "restricted"){
+            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+        }
+        Import-Module PSPKI
+    }
+
+#First set permissions, so Machine Management can enroll certificate
+Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
+
+#Generate Certificate to local machine store
+Get-Certificate -Template $TemplateName -SubjectName $SubjectName -CertStoreLocation Cert:\LocalMachine\My
+
+#Export Certificate
+$SecurePassword = ConvertTo-SecureString -String $Password -Force –AsPlainText
+$Certificate=Get-ChildItem -Path cert:\LocalMachine\My | where-object {$_.SubjectName.Name -eq $SubjectName}
+Export-PfxCertificate -Cert $Certificate -FilePath $ExportPath -Password $SecurePassword -Verbose
+ 
+```
+
+#### Download Windows Admin Center files
+
+```PowerShell
+#Download Windows Admin Center if not present
+$Path="$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+if (-not (Test-Path -Path $Path)){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile $Path
+}
+
+#Download setup scripts
+$Path="$env:USERPROFILE\Downloads\WindowsAdminCenterHA-SetupScripts.zip"
+if (-not (Test-Path -Path $Path)){
+    Invoke-WebRequest -UseBasicParsing -Uri http://aka.ms/WACHASetupScripts -OutFile $Path
+}
+Expand-Archive -LiteralPath $Path -DestinationPath "$env:USERPROFILE\Downloads" -Force
+ 
+```
+
+#### Install Windows Admin Center on cluster
+
+```PowerShell
+$ClientAccessPoint="wac-san"
+$ClusterNode="WacSan-Node01"
+$CertificatePath="$env:USERPROFILE\Downloads\wac-san.pfx"
+ 
+#Connect to first node and copy install files
+    $nodeSession = New-PSSession –ComputerName $ClusterNode
+    Copy-Item -Path $CertificatePath -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+
+    # Temporarily enable CredSSP delegation to avoid double-hop issue
+    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+    $labAdminCredential = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+    Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNode -Force
+    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+    Invoke-Command -Credential $labAdminCredential -Authentication Credssp -ComputerName $ClusterNode -ScriptBlock {
+        $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
+        & "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint $Using:ClientAccessPoint -MsiPath "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -CertPath $Using:CertificatePath -CertPassword $certPassword
+    }
+
+    # Disable CredSSP
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Disable-WSManCredSSP Server }
+ 
+```
+
+### Gateway mode installation on Cluster with Storage Spaces Direct
+
+#### Install Failover Cluster
+
+```PowerShell
+# Cluster Configuration
+$clusterName = "Wac-Cluster-S2D"
+$volumeName = "VolumeWac"
+$nodesS2D = @()
+1..3 | ForEach-Object { $nodesS2D += "WacS2D-Node0$_" }
+
+# Install failover clustering on all nodes
+Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
+    Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
+}
+Test-Cluster –Node $nodesS2D –Include "Storage Spaces Direct", "Inventory", "Network", "System Configuration"
+New-Cluster –Name $clusterName –Node $nodesS2D –NoStorage
+
+# Ensure that DNS name of the cluster would be accessible
+Start-Sleep 5
+Clear-DnsClientCache
+
+# Set up file share witness
+$witnessName = "S2D-ClusterWitness"
+
+Invoke-Command -ComputerName "DC" -ScriptBlock {
+    New-Item -Path "C:\Shares" -Name $Using:witnessName -ItemType Directory
+
+    # Generate account list
+    $accounts = @()
+    $accounts += "Corp\$($Using:clusterName)$"
+
+    # Create file share
+    New-SmbShare -Name $Using:witnessName -Path "C:\Shares\$Using:witnessName" -FullAccess $accounts
+    (Get-SmbShare $Using:witnessName).PresetPathAcl | Set-Acl
+}
+
+Set-ClusterQuorum -Cluster $clusterName -FileShareWitness "\\DC\$($witnessName)"
+
+# Now enable the cluster. This step takes a few minutes to complete.
+Enable-ClusterS2D -CimSession $clusterName -confirm:0 -Verbose
+
+# And in last step we will create a volume where Windows Admin Center files will be stored.
+New-Volume -FriendlyName $volumeName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size 40GB -CimSession $clusterName
+
+# Rename the volume
+$clusterSharedVolume = Get-ClusterSharedVolume -Cluster $clusterName -Name "*$volumeName*"
+$currentPath = $clusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
+$currentVolumeName = Split-Path $currentPath -Leaf
+$fullPath = Join-Path -Path "C:\ClusterStorage\" -ChildPath $currentVolumeName
+
+if($fullPath -ne $currentPath){ # On Windows 2019 volume name is already as we expect
+    Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
+        Rename-Item -Path $Using:fullPath -NewName $Using:volumeName -PassThru
+    }
+}
+ 
+```
+
+#### Grab Certificate
+
+```PowerShell
+$TemplateName="WebCustomRSA"
+$SubjectName="CN=wac-s2d.corp.contoso.com"
+$ExportPath="$env:USERPROFILE\Downloads\wac-s2d.pfx"
+$Password = "LS1setup!"
+
+#make sure PSPKI is installed
+    if (-not (Get-Module PSPKI)){
+        Install-PackageProvider -Name NuGet -Force
+        Install-Module -Name PSPKI -Force
+        If ((Get-ExecutionPolicy) -eq "restricted"){
+            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+        }
+        Import-Module PSPKI
+    }
+
+#First set permissions, so Machine Management can enroll certificate
+Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
+
+#Generate Certificate to local machine store
+Get-Certificate -Template $TemplateName -SubjectName $SubjectName -CertStoreLocation Cert:\LocalMachine\My
+
+#Export Certificate
+$SecurePassword = ConvertTo-SecureString -String $Password -Force –AsPlainText
+$Certificate=Get-ChildItem -Path cert:\LocalMachine\My | where-object {$_.SubjectName.Name -eq $SubjectName}
+Export-PfxCertificate -Cert $Certificate -FilePath $ExportPath -Password $SecurePassword -Verbose
+ 
+```
+
+#### Download Windows Admin Center files
+
+```PowerShell
+#Download Windows Admin Center if not present
+$Path="$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+if (-not (Test-Path -Path $Path)){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile $Path
+}
+
+#Download setup scripts
+$Path="$env:USERPROFILE\Downloads\WindowsAdminCenterHA-SetupScripts.zip"
+if (-not (Test-Path -Path $Path)){
+    Invoke-WebRequest -UseBasicParsing -Uri http://aka.ms/WACHASetupScripts -OutFile $Path
+}
+Expand-Archive -LiteralPath $Path -DestinationPath "$env:USERPROFILE\Downloads" -Force
+ 
+```
+
+#### Install Windows Admin Center on cluster
+
+```PowerShell
+$ClientAccessPoint="wac-s2d"
+$ClusterNode="WacS2D-Node01"
+$CertificatePath="$env:USERPROFILE\Downloads\wac-s2d.pfx"
+ 
+#Connect to first node and copy install files
+    $nodeSession = New-PSSession –ComputerName $ClusterNode
+    Copy-Item -Path $CertificatePath -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+
+    # Temporarily enable CredSSP delegation to avoid double-hop issue
+    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+    $labAdminCredential = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+    Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNode -Force
+    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+    Invoke-Command -Credential $labAdminCredential -Authentication Credssp -ComputerName $ClusterNode -ScriptBlock {
+        $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
+        & "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint $Using:ClientAccessPoint -MsiPath "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -CertPath $Using:CertificatePath -CertPassword $certPassword
+    }
+
+    # Disable CredSSP
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Disable-WSManCredSSP Server }
+ 
+```
