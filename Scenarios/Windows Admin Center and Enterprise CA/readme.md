@@ -61,9 +61,9 @@ $LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD 
 # Certification Authority
 $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB }
 # SAN Failover cluster nodes
-1..3 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; HDDNumber = 1; HDDSize = 40GB; } }
+1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; HDDNumber = 1; HDDSize = 40GB; } }
 # Storage Spaces Direct nodes
-1..3 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB;  } }
+1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB;  } }
  
 ```
 
@@ -487,8 +487,7 @@ New-Template -DisplayName $TemplateName -TemplateOtherAttributes $TemplateOtherA
 # Cluster Configuration
 $clusterName = "Wac-Cluster-SAN"
 $volumeName = "VolumeWac"
-$nodesSan = @()
-1..3 | ForEach-Object { $nodesSan += "WacSan-Node0$_" }
+$nodesSan = "WacSan-Node01","WacSan-Node02"
 
 # Install failover clustering on all nodes
 Invoke-Command -ComputerName $nodesSan -ScriptBlock { Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell" }
@@ -607,7 +606,7 @@ $CertificatePath="$env:USERPROFILE\Downloads\wac-san.pfx"
     Invoke-Command -Credential $labAdminCredential -Authentication Credssp -ComputerName $ClusterNode -ScriptBlock {
         $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
         & "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint $Using:ClientAccessPoint -MsiPath "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -CertPath $Using:CertificatePath -CertPassword $certPassword
-    }
+    }-
 
     # Disable CredSSP
     Disable-WSManCredSSP -Role Client
@@ -623,8 +622,7 @@ $CertificatePath="$env:USERPROFILE\Downloads\wac-san.pfx"
 # Cluster Configuration
 $clusterName = "Wac-Cluster-S2D"
 $volumeName = "VolumeWac"
-$nodesS2D = @()
-1..3 | ForEach-Object { $nodesS2D += "WacS2D-Node0$_" }
+$nodesS2D = "WacS2D-Node01","WacS2D-Node02"
 
 # Install failover clustering on all nodes
 Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
