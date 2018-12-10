@@ -3,17 +3,17 @@
 - [Overview](#overview)
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
-    - [Windows Server 2016](#windows-server-2016)
-    - [Windows Server 2019 Insider preview](#windows-server-2019-insider-preview)
-    - [Windows 10 1803](#windows-10-1803)
+    - [Windows Server 2019](#windows-server-2019)
+    - [Windows Server Insider preview](#windows-server-insider-preview)
+    - [Windows 10 1809](#windows-10-1809)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
-    - [Windows Server 2016](#windows-server-2016-1)
-    - [Windows Server 2019 Insider preview](#windows-server-2019-insider-preview-1)
-    - [Windows 10 1803](#windows-10-1803-1)
+    - [Windows Server 2019](#windows-server-2019-1)
+    - [Windows Server Insider preview](#windows-server-insider-preview-1)
+    - [Windows 10 1809](#windows-10-1809-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
-    - [Windows Server 2016](#windows-server-2016-2)
-    - [Windows Server 2019 Insider Preview](#windows-server-2019-insider-preview)
-    - [Windows 10 1803](#windows-10-1803-2)
+    - [Windows Server 2019](#windows-server-2019-2)
+    - [Windows Server Insider Preview](#windows-server-insider-preview)
+    - [Windows 10 1809](#windows-10-1809-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
@@ -28,7 +28,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 1803 machine, as nested 1803 and insider builds does not work well on Windows Server 2016. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
+I also added Windows 10 1809 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
@@ -55,7 +55,7 @@ New-AzureRmVm `
     -SecurityGroupName "WSLabSG" `
     -PublicIpAddressName "WSLabPubIP" `
     -OpenPorts 80,3389 `
-    -ImageName Win2016Datacenter `
+    -ImageName Win2019Datacenter `
     -Size Standard_D16s_v3 `
     -Credential (Get-Credential) `
     -Verbose
@@ -66,17 +66,17 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 ```
 # Creating VM with JSON in UI
 
-## Windows Server 2016
+## Windows Server 2019
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json)
 
-## Windows Server 2019 Insider preview
+## Windows Server Insider preview
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabServerInsider.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json)
 
-## Windows 10 1803
+## Windows 10 1809
 
 **Note:** for some reason deployment fails, but everything is configured OK. Bug created [here](https://social.msdn.microsoft.com/Forums/en-US/1d5061fa-5135-4ec1-a8dc-32d63f6d261d/dsc-adding-hyperv-role-failing-on-windows-10?forum=WAVirtualMachinesforWindows)
 
@@ -89,7 +89,7 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 
 Or you can create your VM using PowerShell
 
-## Windows Server 2016
+## Windows Server 2019
 
 ```PowerShell
 #download Azure module if not installed
@@ -110,7 +110,7 @@ Login-AzureRmAccount
  
 ```
 
-## Windows Server 2019 Insider preview
+## Windows Server Insider preview
 
 ```PowerShell
 #download Azure module if not installed
@@ -132,7 +132,7 @@ Login-AzureRmAccount
 ```
 
 
-## Windows 10 1803
+## Windows 10 1809
 
 ```PowerShell
 #download Azure module if not installed
@@ -158,7 +158,7 @@ Login-AzureRmAccount
 
 To cleanup your resources, you can run following command.
 
-## Windows Server 2016
+## Windows Server 2019
 
 ```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzureRmVM -verbose #-Force
@@ -167,7 +167,7 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmR
  
 ```
 
-## Windows Server 2019 Insider Preview
+## Windows Server Insider Preview
 
 ```PowerShell
 Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRGInsider | Remove-AzureRmVM -verbose #-Force
@@ -176,7 +176,7 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRGInsider | Remove-A
  
 ```
 
-## Windows 10 1803
+## Windows 10 1809
 
 ```PowerShell
 Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzureRmVM -verbose #-Force
@@ -186,9 +186,9 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabwin10RG | Remove-Azu
 ```
 
 # Creating VM Manually
-To create VM, click on New and select Windows Server 2016 VM.
+To create VM, click on New and select Windows Server 2019 VM.
 
-**Note:** this applies to Windows Server 2016 only. Win10 machine with GUI is not available in this size.
+**Note:** this applies to Windows Server 2019 only. Win10 machine with GUI is not available in this size.
 
 ![](/Scenarios/Running%20WSLab%20in%20Azure/Screenshots/CreateVM01.png)
 
