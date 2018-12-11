@@ -213,8 +213,9 @@ Write-host "Script started at $StartDateTime"
                 foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
             }
         ##Configure QoS
-            New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445  -PriorityValue8021Action 3 -CimSession $servers
-            New-NetQosPolicy "Cluster" -NetDirectPortMatchCondition 3343 -PriorityValue8021Action 5 -CimSession $servers
+            New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+            New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $servers
+
         #Turn on Flow Control for SMB and Cluster
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
@@ -226,9 +227,9 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
         #Configure IeeePriorityTag
-            #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
-            #Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
-        
+            #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+
         #validate flow control setting
             Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerName
 
