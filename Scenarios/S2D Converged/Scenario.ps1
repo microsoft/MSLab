@@ -333,8 +333,8 @@ Write-host "Script started at $StartDateTime"
                     foreach ($server in $AllServers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
                 }
             ##Configure QoS
-                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $AllServers
-                New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $AllServers
+                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445  -PriorityValue8021Action 3 -CimSession $AllServers
+                New-NetQosPolicy "Cluster" -NetDirectPortMatchCondition 3343 -PriorityValue8021Action 5 -CimSession $AllServers
             #Turn on Flow Control for SMB and Cluster
                 Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
                 Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
