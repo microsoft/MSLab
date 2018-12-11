@@ -327,44 +327,48 @@ Write-host "Script started at $StartDateTime"
         Get-NetIPAddress -CimSession $AllServers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
 
 
-    if ($DCB -eq $True){
-        #Install DCB
-            if (!$NanoServer){
-                foreach ($server in $AllServers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
-            }
-        ##Configure QoS
-            New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $AllServers
+        if ($DCB -eq $True){
+            #Install DCB
+                if (!$NanoServer){
+                    foreach ($server in $AllServers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+                }
+            ##Configure QoS
+                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $AllServers
+                New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $AllServers
+            #Turn on Flow Control for SMB and Cluster
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
 
-        #Turn on Flow Control for SMB
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+            #Disable flow control for other traffic
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,6,7}
 
-        #Disable flow control for other traffic
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+            #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
-        #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+            #Configure IeeePriorityTag
+                #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+                #Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+            
+            #validate flow control setting
+                Invoke-Command -ComputerName $AllServers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerName
 
-        #Configure IeeePriorityTag
-            #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
-            #Invoke-Command -ComputerName $AllServers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+            #Validate DCBX setting
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
 
-        #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+            #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
-        #Create a Traffic class and give SMB Direct 30 Foreach-Object of the bandwidth minimum.  The name of the class will be "SMB"
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
-    
-        #validate flow control setting
-            Invoke-Command -ComputerName $AllServers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
-     
-        #Validate DCBX setting
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
-        
-        #validate policy
-            Invoke-Command -ComputerName $AllServers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
-    }
+            #validate policy
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-    #enable iWARP firewall rule
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+            #This value needs to match physical switch configuration. Value might vary based on your needs.
+            #If connected directly (in 2 node configuration) skip this step.
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "SMB"     -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "Cluster" -Priority 5 -BandwidthPercentage 1 -Algorithm ETS}
+        }
+
+    #enable iWARP firewall rule if requested
         if ($iWARP -eq $True){
             Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $AllServers
         }

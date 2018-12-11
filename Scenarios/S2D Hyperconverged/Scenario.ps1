@@ -317,13 +317,14 @@ Write-host "Script started at $StartDateTime"
                     foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
                 }
             ##Configure QoS
-                New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
-
-            #Turn on Flow Control for SMB
+                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $servers
+            #Turn on Flow Control for SMB and Cluster
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
 
             #Disable flow control for other traffic
-                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,6,7}
 
             #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
                 Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
@@ -333,7 +334,7 @@ Write-host "Script started at $StartDateTime"
                 #Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
             
             #validate flow control setting
-                Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
+                Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerName
 
             #Validate DCBX setting
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
@@ -344,10 +345,11 @@ Write-host "Script started at $StartDateTime"
             #validate policy
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-            #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"     -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "Cluster" -Priority 5 -BandwidthPercentage 1 -Algorithm ETS}
         }
 
     #enable iWARP firewall rule if requested
