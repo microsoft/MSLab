@@ -21,11 +21,13 @@
             - [Grab Certificate](#grab-certificate)
             - [Download Windows Admin Center files](#download-windows-admin-center-files)
             - [Install Windows Admin Center on cluster](#install-windows-admin-center-on-cluster)
+            - [Navigate to Windows Admin Center console](#navigate-to-windows-admin-center-console)
         - [Gateway mode installation on Cluster with Storage Spaces Direct](#gateway-mode-installation-on-cluster-with-storage-spaces-direct)
             - [Install Failover Cluster](#install-failover-cluster-1)
             - [Grab Certificate](#grab-certificate-1)
             - [Download Windows Admin Center files](#download-windows-admin-center-files-1)
             - [Install Windows Admin Center on cluster](#install-windows-admin-center-on-cluster-1)
+            - [Navigate to Windows Admin Center console](#navigate-to-windows-admin-center-console-1)
 
 <!-- /TOC -->
 
@@ -359,6 +361,11 @@ $Session | Remove-PSSession
 
 After the installation on `WacGateway` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Management` virtual machine, navigate to http://wacgateway.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
+```PowerShell
+start microsoft-edge:http://wacgateway.corp.contoso.com
+ 
+```
+
 ## Clustered Windows Admin Center installations
 
 ### Prereq - Create custom certificate template
@@ -690,6 +697,15 @@ if ($ClientAccessPointIP){
  
 ```
 
+#### Navigate to Windows Admin Center console
+
+Open the web browser from the `Management` virtual machine, navigate to http://wac-san.corp.contoso.com/ and you can log in to the Windows Admin Center.
+
+```PowerShell
+start microsoft-edge:http://wac-san.corp.contoso.com
+ 
+```
+
 ### Gateway mode installation on Cluster with Storage Spaces Direct
 
 #### Install Failover Cluster
@@ -900,5 +916,15 @@ if ($ClientAccessPointIP){
 }else{
     Add-ClusterGenericServiceRole -Cluster $ClusterName -ServiceName ServerManagementGateway -Name $ClientAccessPoint -CheckpointKey $HACheckpointKey
 }
+ 
+```
+
+#### Navigate to Windows Admin Center console
+
+Open the web browser from the `Management` virtual machine, navigate to http://wac-s2d.corp.contoso.com/ and you can log in to the Windows Admin Center.
+
+
+```PowerShell
+start microsoft-edge:http://wac-s2d.corp.contoso.com
  
 ```
