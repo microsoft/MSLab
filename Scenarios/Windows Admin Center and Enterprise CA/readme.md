@@ -627,18 +627,50 @@ Invoke-Command -Session $Sessions -ScriptBlock {
 }
 
 #install Windows Admin Center to each node
+$StartDate=Get-Date
 Invoke-Command -Session $sessions -ScriptBlock {
     $cert=Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)"
     Start-Process msiexec.exe -Wait -ArgumentList "/i $using:CSVPath\Temp\$using:msiname /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
 }
 
-
 #wait for some time
-Start-Sleep 30
+Start-Sleep 5
 
 #close sessions and create new
 $sessions | Remove-PSSession
 $Sessions=New-PSSession -ComputerName $ClusterNodes
+
+#wait until WAC is installed
+foreach ($session in $sessions){
+    Write-Verbose "Waiting till Windows Admin Center is Installed on $($session.ComputerName)" -Verbose
+    do{
+        Start-Sleep 3
+    }until (
+        Invoke-Command -Session $session -ScriptBlock {
+            Get-WinEvent -FilterHashtable @{"LogName"="Application";Id=1033} | where TimeCreated -gt $using:StartDate |where Message -like "*Windows Admin Center*"
+        }
+    )
+}
+
+#Check results
+$events=invoke-command -session $sessions -scriptblock {
+    $events=Get-WinEvent -FilterHashtable @{"LogName"="Application";Id=1033} | where TimeCreated -gt $using:StartDate |where Message -like "*Windows Admin Center*"
+    $msilog=@()
+    ForEach ($Event in $Events) {
+        # Convert the event to XML
+        $eventXML = [xml]$Event.ToXml()
+        # create custom object for all values
+        $msilog += [PSCustomObject]@{
+            "ProductName" = $eventxml.Event.EventData.data[0]
+            "ProductVersion" = $eventxml.Event.EventData.data[1]
+            "ProductLanguage" = $eventxml.Event.EventData.data[2]
+            "Result" = $eventxml.Event.EventData.data[3]
+            "TimeCreated" = $event.TimeCreated
+        }
+    }
+    return $msilog
+}
+$events | ft PSComputerName,Result
 
 #Stop Windows Admin Center service and set manual startup
 Invoke-Command -session $sessions {
@@ -856,11 +888,43 @@ Invoke-Command -Session $sessions -ScriptBlock {
 }
 
 #wait for some time
-Start-Sleep 30
+Start-Sleep 5
 
 #close sessions and create new
 $sessions | Remove-PSSession
 $Sessions=New-PSSession -ComputerName $ClusterNodes
+
+#wait until WAC is installed
+foreach ($session in $sessions){
+    Write-Verbose "Waiting till Windows Admin Center is Installed on $($session.ComputerName)" -Verbose
+    do{
+        Start-Sleep 3
+    }until (
+        Invoke-Command -Session $session -ScriptBlock {
+            Get-WinEvent -FilterHashtable @{"LogName"="Application";Id=1033} | where TimeCreated -gt $using:StartDate |where Message -like "*Windows Admin Center*"
+        }
+    )
+}
+
+#Check results
+$events=invoke-command -session $sessions -scriptblock {
+    $events=Get-WinEvent -FilterHashtable @{"LogName"="Application";Id=1033} | where TimeCreated -gt $using:StartDate |where Message -like "*Windows Admin Center*"
+    $msilog=@()
+    ForEach ($Event in $Events) {
+        # Convert the event to XML
+        $eventXML = [xml]$Event.ToXml()
+        # create custom object for all values
+        $msilog += [PSCustomObject]@{
+            "ProductName" = $eventxml.Event.EventData.data[0]
+            "ProductVersion" = $eventxml.Event.EventData.data[1]
+            "ProductLanguage" = $eventxml.Event.EventData.data[2]
+            "Result" = $eventxml.Event.EventData.data[3]
+            "TimeCreated" = $event.TimeCreated
+        }
+    }
+    return $msilog
+}
+$events | ft PSComputerName,Result
 
 #Stop Windows Admin Center service and set manual startup
 Invoke-Command -session $sessions {
