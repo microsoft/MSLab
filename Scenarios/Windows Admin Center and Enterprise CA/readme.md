@@ -35,7 +35,7 @@
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
 # Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
 # Single Gateway
 $LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
 # Certification Authority
@@ -55,7 +55,7 @@ Note: Enable-ClusterS2D requires you to reach support to get steps to make it wo
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
 # Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
 # Single Gateway
 $LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
 # Certification Authority
@@ -337,19 +337,21 @@ if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 }
 
-#Create PS Session
+#Create PS Session and copy install files to remote server
 $Session=New-PSSession -ComputerName $GatewayServerName
 Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
 
 #Grab Certificate Thumbprint
 $Cert=Invoke-Command -Session $session -ScriptBlock {
-    Get-ChildItem -Path Cert:\LocalMachine\My\ | where Subject -eq "CN=$using:GatewayServerName.Corp.contoso.com"
+    Get-ChildItem -Path Cert:\LocalMachine\My\ | where Subject -eq "CN=$env:ComputerName.$((Get-WmiObject win32_computersystem).Domain)"
 }
 
 #Install Windows Admin Center
 Invoke-Command -Session $session -ScriptBlock {
     Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($using:cert.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
 }
+
+$Session | Remove-PSSession
  
 ```
 
@@ -574,43 +576,117 @@ if (-not (Test-Path -Path $Path)){
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile $Path
 }
 
+<#
 #Download setup scripts
 $Path="$env:USERPROFILE\Downloads\WindowsAdminCenterHA-SetupScripts.zip"
 if (-not (Test-Path -Path $Path)){
     Invoke-WebRequest -UseBasicParsing -Uri http://aka.ms/WACHASetupScripts -OutFile $Path
 }
 Expand-Archive -LiteralPath $Path -DestinationPath "$env:USERPROFILE\Downloads" -Force
- 
+#> 
 ```
 
 #### Install Windows Admin Center on cluster
 
+Following code is reverse engineered HA Setup script just for education purposes. For production deployments please use setup script
+
 ```PowerShell
 $ClientAccessPoint="wac-san"
-$ClusterNode="WacSan-Node01"
+$ClientAccessPointIP="" #empty or something like "10.0.0.112" or even multiple "10.0.0.112","10.0.0.113"
+$ClusterName="Wac-Cluster-SAN"
 $CertificatePath="$env:USERPROFILE\Downloads\wac-san.pfx"
- 
-#Connect to first node and copy install files
-    $nodeSession = New-PSSession –ComputerName $ClusterNode
-    Copy-Item -Path $CertificatePath -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+$CertPassword="LS1setup!"
+$msipath="$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+$CSVPath="C:\ClusterStorage\VolumeWac"
 
-    # Temporarily enable CredSSP delegation to avoid double-hop issue
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $labAdminCredential = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+#generate another variables
+$ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+$Sessions=New-PSSession -ComputerName $ClusterNodes
+$CertName=$CertificatePath | Split-Path -Leaf
+$msiname=$msipath | Split-Path -Leaf
 
-    Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNode -Force
-    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Enable-WSManCredSSP Server -Force }
+#Copy certificate and MSI to CSV
+#Create Temp folder on CSV
+Invoke-Command -ComputerName $ClusterNodes[0] -ScriptBlock {New-Item -Name "Temp" -Path $using:CSVPath -ItemType Directory}
+$CertificatePath,$MSIPath | Foreach-Object {
+    foreach ($Session in $Sessions){
+        Copy-Item -Path $_ -Destination "$CSVPath\Temp\" -ToSession $Session
+    }
+}
 
-    Invoke-Command -Credential $labAdminCredential -Authentication Credssp -ComputerName $ClusterNode -ScriptBlock {
-        $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
-        & "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint $Using:ClientAccessPoint -MsiPath "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -CertPath $Using:CertificatePath -CertPassword $certPassword
-    }-
+#import cert on nodes
+Invoke-Command -Session $Sessions -ScriptBlock {
+    Import-PfxCertificate -FilePath $using:CSVPath\Temp\$using:CertName -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $using:CertPassword -Force –AsPlainText) -Verbose
+}
 
-    # Disable CredSSP
-    Disable-WSManCredSSP -Role Client
-    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Disable-WSManCredSSP Server }
+#install Windows Admin Center to each node
+Invoke-Command -Session $sessions -ScriptBlock {
+    $cert=Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)"
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $using:CSVPath\Temp\$using:msiname /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
+}
+
+
+#wait for some time
+Start-Sleep 30
+
+#close sessions and create new
+$sessions | Remove-PSSession
+$Sessions=New-PSSession -ComputerName $ClusterNodes
+
+#Stop Windows Admin Center service and set manual startup
+Invoke-Command -session $sessions {
+    Stop-Service ServerManagementGateway
+    Set-Service ServerManagementGateway -StartupType Manual
+}
+
+#Configure cluster role
+$WAC_PRODUCT_NAME = 'Windows Admin Center'
+$WAC_SETTINGS_REG_KEY = 'HKLM:\Software\Microsoft\ServerManagementGateway'
+$HA_SETTINGS_REG_KEY = "$WAC_SETTINGS_REG_KEY\Ha"
+$smePath = "$CSVPath\Server Management Experience"
+$portnumber="443"
+$HACheckpointKey="SOFTWARE\Microsoft\ServerManagementGateway\Ha"
+
+#Copy SME files to CSV
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    $uxFolder = "$using:smePath\Ux"
+    if (Test-Path $uxFolder) {
+        Remove-Item $uxFolder -Force -Recurse
+    }
+    New-Item -Path $uxFolder -ItemType Directory | Out-Null
+    Copy-Item -Path "$env:programdata\Server Management Experience\Ux" -Destination $using:smePath -Recurse -Container -Force
+}
+
+#populate registry
+Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+    $CertThumbprint = (Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)").ThumbPrint
+    $registryPath = $using:HA_SETTINGS_REG_KEY
+    $null = New-Item -Path $registryPath -Force
+    New-ItemProperty -Path $registryPath -Name IsHaEnabled -Value "true" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name StoragePath -Value $using:smePath -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name Thumbprint -Value $certThumbprint -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name Port -Value $using:PortNumber -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name ClientAccessPoint -Value $Using:ClientAccessPoint -PropertyType String -Force | Out-Null
+    $StaticAddressValue = $using:ClientAccessPointIP -join ','
+    New-ItemProperty -Path $registryPath -Name StaticAddress -Value $StaticAddressValue -PropertyType String -Force | Out-Null
+}
+
+#Grant permissions to Network Service for the UX folder
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        $uxFolder = "$using:smePath\Ux"
+        $Acl = Get-Acl $uxFolder
+        $sID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-20")
+        $Ar = New-Object  system.security.accesscontrol.filesystemaccessrule($sID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $Acl.SetAccessRule($Ar)
+        Set-Acl $uxFolder $Acl
+}
+
+#Create Cluster Role
+if ($ClientAccessPointIP){
+    Add-ClusterGenericServiceRole -Cluster $ClusterName -ServiceName ServerManagementGateway -Name $ClientAccessPoint -CheckpointKey $HACheckpointKey -StaticAddress $ClientAccessPointIP
+}else{
+    Add-ClusterGenericServiceRole -Cluster $ClusterName -ServiceName ServerManagementGateway -Name $ClientAccessPoint -CheckpointKey $HACheckpointKey
+}
  
 ```
 
@@ -628,7 +704,7 @@ $nodesS2D = "WacS2D-Node01","WacS2D-Node02"
 Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
     Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
 }
-Test-Cluster –Node $nodesS2D –Include "Storage Spaces Direct", "Inventory", "Network", "System Configuration"
+#Test-Cluster –Node $nodesS2D –Include "Storage Spaces Direct", "Inventory", "Network", "System Configuration"
 New-Cluster –Name $clusterName –Node $nodesS2D –NoStorage
 
 # Ensure that DNS name of the cluster would be accessible
@@ -659,14 +735,14 @@ Enable-ClusterS2D -CimSession $clusterName -confirm:0 -Verbose
 New-Volume -FriendlyName $volumeName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size 40GB -CimSession $clusterName
 
 # Rename the volume
-$clusterSharedVolume = Get-ClusterSharedVolume -Cluster $clusterName -Name "*$volumeName*"
+$clusterSharedVolume = Get-ClusterSharedVolume -Cluster $clusterName -Name "Cluster Virtual Disk ($volumeName)"
 $currentPath = $clusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
 $currentVolumeName = Split-Path $currentPath -Leaf
-$fullPath = Join-Path -Path "C:\ClusterStorage\" -ChildPath $currentVolumeName
+$fullPath = Join-Path -Path "C:\ClusterStorage\" -ChildPath $volumeName
 
 if($fullPath -ne $currentPath){ # On Windows 2019 volume name is already as we expect
     Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
-        Rename-Item -Path $Using:fullPath -NewName $Using:volumeName -PassThru
+        Rename-Item -Path $Using:currentPath -NewName $Using:volumeName -PassThru
     }
 }
  
@@ -713,42 +789,116 @@ if (-not (Test-Path -Path $Path)){
     Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile $Path
 }
 
+<#
 #Download setup scripts
 $Path="$env:USERPROFILE\Downloads\WindowsAdminCenterHA-SetupScripts.zip"
 if (-not (Test-Path -Path $Path)){
     Invoke-WebRequest -UseBasicParsing -Uri http://aka.ms/WACHASetupScripts -OutFile $Path
 }
 Expand-Archive -LiteralPath $Path -DestinationPath "$env:USERPROFILE\Downloads" -Force
+#>
  
 ```
 
 #### Install Windows Admin Center on cluster
 
+Following code is reverse engineered HA Setup script just for education purposes. For production deployments please use setup script
+
 ```PowerShell
 $ClientAccessPoint="wac-s2d"
-$ClusterNode="WacS2D-Node01"
+$ClientAccessPointIP="" #empty or something like "10.0.0.112" or even multiple "10.0.0.112","10.0.0.113"
+$ClusterName="Wac-Cluster-S2D"
 $CertificatePath="$env:USERPROFILE\Downloads\wac-s2d.pfx"
- 
-#Connect to first node and copy install files
-    $nodeSession = New-PSSession –ComputerName $ClusterNode
-    Copy-Item -Path $CertificatePath -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\" -ToSession $nodeSession
+$CertPassword="LS1setup!"
+$msipath="$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+$CSVPath="C:\ClusterStorage\VolumeWac"
 
-    # Temporarily enable CredSSP delegation to avoid double-hop issue
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $labAdminCredential = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+#generate another variables
+$ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+$Sessions=New-PSSession -ComputerName $ClusterNodes
+$CertName=$CertificatePath | Split-Path -Leaf
+$msiname=$msipath | Split-Path -Leaf
 
-    Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNode -Force
-    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Enable-WSManCredSSP Server -Force }
-
-    Invoke-Command -Credential $labAdminCredential -Authentication Credssp -ComputerName $ClusterNode -ScriptBlock {
-        $certPassword = ConvertTo-SecureString -String "LS1setup!" -Force -AsPlainText
-        & "$env:USERPROFILE\Downloads\Install-WindowsAdminCenterHA.ps1" -ClusterStorage "C:\ClusterStorage\VolumeWac" -ClientAccessPoint $Using:ClientAccessPoint -MsiPath "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -CertPath $Using:CertificatePath -CertPassword $certPassword
+#Copy certificate and MSI to CSV
+#Create Temp folder on CSV
+Invoke-Command -ComputerName $ClusterNodes[0] -ScriptBlock {New-Item -Name "Temp" -Path $using:CSVPath -ItemType Directory}
+$CertificatePath,$MSIPath | Foreach-Object {
+    foreach ($Session in $Sessions){
+        Copy-Item -Path $_ -Destination "$CSVPath\Temp\" -ToSession $Session
     }
+}
 
-    # Disable CredSSP
-    Disable-WSManCredSSP -Role Client
-    Invoke-Command -ComputerName $ClusterNode -ScriptBlock { Disable-WSManCredSSP Server }
+#import cert on nodes
+Invoke-Command -Session $Sessions -ScriptBlock {
+    Import-PfxCertificate -FilePath $using:CSVPath\Temp\$using:CertName -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $using:CertPassword -Force –AsPlainText) -Verbose
+}
+
+#install Windows Admin Center to each node
+Invoke-Command -Session $sessions -ScriptBlock {
+    $cert=Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)"
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $using:CSVPath\Temp\$using:msiname /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
+}
+
+#wait for some time
+Start-Sleep 30
+
+#close sessions and create new
+$sessions | Remove-PSSession
+$Sessions=New-PSSession -ComputerName $ClusterNodes
+
+#Stop Windows Admin Center service and set manual startup
+Invoke-Command -session $sessions {
+    Stop-Service ServerManagementGateway
+    Set-Service ServerManagementGateway -StartupType Manual
+}
+
+#Configure cluster role
+$WAC_PRODUCT_NAME = 'Windows Admin Center'
+$WAC_SETTINGS_REG_KEY = 'HKLM:\Software\Microsoft\ServerManagementGateway'
+$HA_SETTINGS_REG_KEY = "$WAC_SETTINGS_REG_KEY\Ha"
+$smePath = "$CSVPath\Server Management Experience"
+$portnumber="443"
+$HACheckpointKey="SOFTWARE\Microsoft\ServerManagementGateway\Ha"
+
+#Copy SME files to CSV
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    $uxFolder = "$using:smePath\Ux"
+    if (Test-Path $uxFolder) {
+        Remove-Item $uxFolder -Force -Recurse
+    }
+    New-Item -Path $uxFolder -ItemType Directory | Out-Null
+    Copy-Item -Path "$env:programdata\Server Management Experience\Ux" -Destination $using:smePath -Recurse -Container -Force
+}
+
+#populate registry
+Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+    $CertThumbprint = (Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)").ThumbPrint
+    $registryPath = $using:HA_SETTINGS_REG_KEY
+    $null = New-Item -Path $registryPath -Force
+    New-ItemProperty -Path $registryPath -Name IsHaEnabled -Value "true" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name StoragePath -Value $using:smePath -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name Thumbprint -Value $certThumbprint -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name Port -Value $using:PortNumber -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $registryPath -Name ClientAccessPoint -Value $Using:ClientAccessPoint -PropertyType String -Force | Out-Null
+    $StaticAddressValue = $using:ClientAccessPointIP -join ','
+    New-ItemProperty -Path $registryPath -Name StaticAddress -Value $StaticAddressValue -PropertyType String -Force | Out-Null
+}
+
+#Grant permissions to Network Service for the UX folder
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        $uxFolder = "$using:smePath\Ux"
+        $Acl = Get-Acl $uxFolder
+        $sID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-20")
+        $Ar = New-Object  system.security.accesscontrol.filesystemaccessrule($sID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $Acl.SetAccessRule($Ar)
+        Set-Acl $uxFolder $Acl
+}
+
+#Create Cluster Role
+if ($ClientAccessPointIP){
+    Add-ClusterGenericServiceRole -Cluster $ClusterName -ServiceName ServerManagementGateway -Name $ClientAccessPoint -CheckpointKey $HACheckpointKey -StaticAddress $ClientAccessPointIP
+}else{
+    Add-ClusterGenericServiceRole -Cluster $ClusterName -ServiceName ServerManagementGateway -Name $ClientAccessPoint -CheckpointKey $HACheckpointKey
+}
  
 ```
