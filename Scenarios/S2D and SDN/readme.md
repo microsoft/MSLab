@@ -396,6 +396,8 @@ $ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permissi
 $ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
 $LOGFileShareName="SDN_Logs"
 $LogAccessAccountName="NCLog"
+$LogAccessAccountPassword="LS1setup!"
+
 #Create ManagementSecurityGroup
 New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
 Add-ADGroupMember -Identity $ManagementSecurityGroupName -Members "Domain Admins"
@@ -419,17 +421,25 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-WindowsFeature -Name NetworkController -IncludeManagementTools
 }
 
-$NodeObject1=Invoke-Command -ComputerName NC1 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
-$NodeObject2=Invoke-Command -ComputerName NC2 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
-$NodeObject3=Invoke-Command -ComputerName NC3 -ScriptBlock {New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate (Get-ChildItem Cert:\LocalMachine\My |Where-Object {$_.Subject -like "*$env:ComputerName*"})}
+#Add Network Service permissions for Certificate store
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    takeown /f C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\*
+    cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g administrators:f
+    cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g "network service":f
+}
 
-$CertPassword="LS1setup!"
-$CertPath="$env:USERPROFILE\Downloads\NCCert.pfx"
-$certificate=Import-PfxCertificate -FilePath $CertPath -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $CertPassword -Force –AsPlainText)
+#Create Node Objects
+$NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
+$NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
+$NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
 
+#Grab certificate
+$Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}}
+
+#Install NC Cluster
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
-Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
 
 
@@ -439,7 +449,7 @@ Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3)
 #$Certificate = Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}
 $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}}
 
-$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
 $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
 Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication Kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
