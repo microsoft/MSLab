@@ -7,7 +7,8 @@
         - [Make sure management features are installed](#make-sure-management-features-are-installed)
     - [Configure Certificates](#configure-certificates)
         - [Install and configure ADCS on the CA Server](#install-and-configure-adcs-on-the-ca-server)
-        - [Set permissions on NetworkController certificate template and publish it](#set-permissions-on-networkcontroller-certificate-template-and-publish-it)
+        - [Create certificate templates](#create-certificate-templates)
+        - [Set permissions on NetworkController certificate template and Nodes Cert template and publish it](#set-permissions-on-networkcontroller-certificate-template-and-nodes-cert-template-and-publish-it)
     - [Deploy Network Controller](#deploy-network-controller)
         - [Add machine certs](#add-machine-certs)
         - [Generate and Export NCClus Certificate](#generate-and-export-ncclus-certificate)
@@ -34,7 +35,7 @@ $LabConfig.VMs += @{ VMName = 'CA' ; Configuration = 'Simple' ; ParentVHD = 'Win
 1..3 | % {$VMNames="NC"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=1}}
 
 # Management machine
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; MGMTNICs=1 }
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$true ; MGMTNICs=1 }
  
 ```
 
@@ -63,23 +64,66 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 ```PowerShell
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     if ($WindowsInstallationType -eq "Server"){
-        Install-WindowsFeature -Name "RSAT-ADDS","RSAT-AD-PowerShell","RSAT-ADCS","RSAT-NetworkController","RSAT-Clustering","RSAT-Hyper-V-Tools"
+        Install-WindowsFeature -Name "RSAT-ADDS","RSAT-AD-PowerShell","RSAT-ADCS","RSAT-NetworkController","RSAT-Clustering","RSAT-Hyper-V-Tools","Web-Mgmt-Console","Web-Scripting-Tools"
     }elseif ($WindowsInstallationType -eq "Client"){
         $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.NetworkController.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.CertificateServices.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
         foreach ($Capability in $Capabilities){
             Add-WindowsCapability -Name $Capability -Online
         }
+        #install iis management tools and Hyper-V Management
+        Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Hyper-V-All","Microsoft-Hyper-V-Tools-All","IIS-WebServerRole","IIS-WebServerManagementTools","IIS-ManagementConsole","IIS-ManagementScriptingTools" -NoRestart
+        Disable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServer","Microsoft-Hyper-V" -NoRestart
     }
  
 ```
+
+Since this is not script-able to install only subfeatures (due to nature of Enable-WindowsOptionalFeature that requires parent features enabled) Above script installs parent features and removes add IIS and Hyper-V features in Windows 10
+
+![](/Scenarios/S2D%20and%SDN/Screenshots/win10features.png)
 
 ## Configure Certificates
 
 ### Install and configure ADCS on the CA Server
 
-On `CA` install ADCS role, and after role installation we will create custom `NCRestEndPoint` template. The CA install does not follow all best practices. For more details visit Certification Authority WSLab Scenario.
+On `CA` install ADCS role, and after role installation we will create custom `NCRestEndPoint` template. Steps are the same as in Certification Authority WSLab Scenario.
 
 ```PowerShell
+$CAServer="CA"
+$CAServerFQDN="CA.corp.contoso.com"
+$CAAdminUsername="CORP\LabAdmin"
+$CAAdminPass="LS1setup!"
+$CompanyName="Contoso"
+
+#Install IIS
+Install-WindowsFeature Web-WebServer -ComputerName $CAServer -IncludeManagementTools
+
+#Create a CertData Folder and CPS Text File
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    New-Item -Path C:\inetpub\wwwroot\CertData -Type Directory
+    Write-Output "Placeholder for Certificate Policy Statement (CPS). Modify as needed by your organization." | Out-File C:\inetpub\wwwroot\CertData\cps.txt
+}
+
+#New IIS Virtual Directory
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    $vDirProperties = @{
+        Site         = "Default Web Site"
+        Name         = "CertData"
+        PhysicalPath = 'C:\inetpub\wwwroot\CertData'
+    }
+    New-WebVirtualDirectory @vDirProperties
+}
+
+#Allow IIS Directory Browsing & Double Escaping
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Set-WebConfigurationProperty -filter /system.webServer/directoryBrowse -name enabled -Value $true -PSPath "IIS:\Sites\$($vDirProperties.site)\$($vDirProperties.name)"
+    Set-WebConfigurationProperty -filter /system.webServer/Security/requestFiltering -name allowDoubleEscaping -value $true -PSPath "IIS:\Sites\$($vDirProperties.site)"
+}
+
+#New Share for the CertData Directory
+New-SmbShare -CimSession $CAServer -Name CertData -Path C:\inetpub\wwwroot\CertData -ReadAccess "Corp\domain users" -ChangeAccess "corp\cert publishers"
+#configure NTFS Permissions
+Invoke-Command -ComputerName $CAServer -ScriptBlock {(Get-SmbShare CertData).PresetPathAcl | Set-Acl}
+
 #Create CA Policy file
 $Content=@"
 [Version]
@@ -91,7 +135,7 @@ Critical=False
 
 [AllIssuancePolicy]
 OID=2.5.29.32.0
-URL=http://ca.corp.contoso.com/certdata/cps.txt
+URL=http://$CAServerFQDN/certdata/cps.txt
 
 [BasicConstraintsExtension]
 PathLength=0
@@ -105,28 +149,26 @@ LoadDefaultTemplates=0
 AlternateSignatureAlgorithm=0
 "@
 
-Invoke-Command -ComputerName CA -ScriptBlock {
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
     Set-Content -Value $using:Content -Path C:\windows\CAPolicy.inf
 }
 
 #Install ADCS
-Invoke-Command -ComputerName CA -ScriptBlock {
-    Install-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools
-}
+Install-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools -ComputerName $CAServer
 
 #Enable CredSSP
 # Temporarily enable CredSSP delegation to avoid double-hop issue
-Enable-PSRemoting #Win10 has remoting disabled by default
-Enable-WSManCredSSP -Role "Client" -DelegateComputer CA -Force
-Invoke-Command -ComputerName CA -ScriptBlock { Enable-WSManCredSSP Server -Force }
+Enable-PSRemoting -Force  #Win10 has remoting disabled by default
+Enable-WSManCredSSP -Role "Client" -DelegateComputer $CAServer -Force
+Invoke-Command -ComputerName $CAServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-$Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+$password = ConvertTo-SecureString $CAAdminPass -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ($CAAdminUsername, $password)
 
 #Install ADCS Certification Authority Role Services
-Invoke-Command -ComputerName CA -Credential $Credentials -Authentication Credssp -ScriptBlock {
+Invoke-Command -ComputerName $CAServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
     $CaProperties = @{
-        CACommonName        = "Contoso-Root-CA"
+        CACommonName        = "$($Using:CompanyName)-Root-CA"
         CAType              = "EnterpriseRootCA"
         CryptoProviderName  = "ECDSA_P256#Microsoft Software Key Storage Provider"
         HashAlgorithmName   = "SHA256"
@@ -139,8 +181,89 @@ Invoke-Command -ComputerName CA -Credential $Credentials -Authentication Credssp
 
 # Disable CredSSP
 Disable-WSManCredSSP -Role Client
-Invoke-Command -ComputerName CA -ScriptBlock { Disable-WSManCredSSP Server }
+Invoke-Command -ComputerName $CAServer -ScriptBlock { Disable-WSManCredSSP Server }
 
+#Configure Max Validity Period of Certificates Issued by this CA
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Certutil -setreg ca\ValidityPeriodUnits 5
+    Certutil -setreg ca\ValidityPeriod "Years"
+}
+
+#Configure the CRL Validity Periods
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Certutil -setreg CA\CRLPeriodUnits 6
+    Certutil -setreg CA\CRLPeriod "Days"
+    Certutil -setreg CA\CRLDeltaPeriodUnits 0
+    Certutil -setreg CA\CRLDeltaPeriod "Hours"
+    Certutil -setreg CA\CRLOverlapUnits 3
+    Certutil -setreg ca\CRLOverlapPeriod "Days"
+}
+
+#Configure the CDP Locations
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    ## Remove Existing CDP URIs
+    $CrlList = Get-CACrlDistributionPoint
+    ForEach ($Crl in $CrlList) { Remove-CACrlDistributionPoint $Crl.uri -Force }
+
+    ## Add New CDP URIs
+    Add-CACRLDistributionPoint -Uri C:\Windows\System32\CertSrv\CertEnroll\%3%8.crl -PublishToServer -PublishDeltaToServer -Force
+    Add-CACRLDistributionPoint -Uri C:\inetpub\wwwroot\CertData\%3%8.crl -PublishToServer -PublishDeltaToServer -Force
+    Add-CACRLDistributionPoint -Uri "http://$using:CAServerFQDN/certdata/%3%8.crl" -AddToCertificateCDP -AddToFreshestCrl -Force
+}
+
+#Configure the AIA Locations
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    ## Remove Existing AIA URIs
+    $AiaList = Get-CAAuthorityInformationAccess
+    ForEach ($Aia in $AiaList) { Remove-CAAuthorityInformationAccess $Aia.uri -Force }
+    ## Add New AIA URIs
+    Certutil -setreg CA\CACertPublicationURLs "1:C:\Windows\System32\CertSrv\CertEnroll\%3%4.crt"
+    Add-CAAuthorityInformationAccess -AddToCertificateAia -uri "http://$using:CAServerFQDN/certdata/%3%4.crt" -Force
+}
+
+#Restart the CA Service & Publish a New CRL
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Restart-Service certsvc
+    Start-Sleep 10
+    Certutil -crl
+}
+
+#Copy the Root Certificate File to the CertData Folder
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Copy-Item "C:\Windows\System32\Certsrv\CertEnroll\$($using:CAServerFQDN)_$($using:CompanyName)-Root-CA.crt" "C:\inetpub\wwwroot\CertData\$($using:CAServerFQDN)_$($using:CompanyName)-Root-CA.crt"
+}
+
+#Rename the Root Certificate File
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    Rename-Item "C:\inetpub\wwwroot\CertData\$($using:CAServerFQDN)_$($using:CompanyName)-Root-CA.crt" "$($using:CompanyName)-Root-CA.crt"
+}
+
+#Export the Root Certificate in PEM Format
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    $CACert=Get-ChildItem -Path Cert:\LocalMachine\CA | where Subject -Like *$($using:CompanyName)-Root-CA* | select -First 1
+    $CACert |Export-Certificate -Type CERT -FilePath C:\inetpub\wwwroot\CertData\$($using:CompanyName)-Root-CA.cer
+    Rename-Item "C:\inetpub\wwwroot\CertData\$($using:CompanyName)-Root-CA.cer" "$($using:CompanyName)-Root-CA.pem"
+}
+
+#Add mime type
+Invoke-Command -ComputerName $CAServer -ScriptBlock {
+    #& $Env:WinDir\system32\inetsrv\appcmd.exe set config /section:staticContent /-"[fileExtension='.pem']"
+    & $Env:WinDir\system32\inetsrv\appcmd.exe set config /section:staticContent /+"[fileExtension='.pem',mimeType='text/plain']"
+}
+
+#configure IIS remote management
+Invoke-Command -ComputerName $CAServer -ScriptBlock{
+    Install-WindowsFeature  Web-Mgmt-Service
+    Set-ItemProperty -Path  HKLM:\SOFTWARE\Microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1
+    Set-Service -name WMSVC  -StartupType Automatic
+    Start-Service WMSVC
+}
+ 
+```
+
+### Create certificate templates
+
+```PowerShell
 # Create and Publish Template
 #region initial functions
 
@@ -301,7 +424,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
  
 ```
 
-### Set permissions on NetworkController certificate template and publish it
+### Set permissions on NetworkController certificate template and Nodes Cert template and publish it
 
 To set permissions is PSPKI module needed. You can find more info here https://www.sysadmins.lv/projects/pspki/default.aspx
 
@@ -424,8 +547,10 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 #Add Network Service permissions for Certificate store
 Invoke-Command -ComputerName $servers -ScriptBlock {
     takeown /f C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\*
-    cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g administrators:f
-    cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g "network service":f
+    #cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g administrators:f
+    icacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /grant Administrator:F
+    #cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g "network service":f
+    icacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /grant *S-1-5-20:F
 }
 
 #Create Node Objects
@@ -440,19 +565,5 @@ $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-Item C
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
 Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
-
-
-
-########## TBD
-
-#$Certificate = Get-ChildItem -Path cert:\LocalMachine\My | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}
-#$Certificate = Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}
-$Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}}
-
-$password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
-Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication Kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
-
-Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -ServerCertificate $cert -RestIpAddress 10.0.0.112/24
  
 ```
