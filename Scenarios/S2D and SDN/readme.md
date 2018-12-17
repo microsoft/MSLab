@@ -77,7 +77,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
  
 ```
 
-Since this is not script-able to install only subfeatures (due to nature of Enable-WindowsOptionalFeature that requires parent features enabled) Above script installs parent features and removes add IIS and Hyper-V features in Windows 10
+Since this is not script-able to install only subfeatures (due to nature of Enable-WindowsOptionalFeature that requires parent features enabled) Above script installs parent features and removes add IIS and Hyper-V features in Windows 10. However to be able to use Hyper-V PowerShell/Mgmt tools you need to restart Management machine if done from PowerShell.
 
 ![](/Scenarios/S2D%20and%SDN/Screenshots/win10features.png)
 
@@ -338,8 +338,32 @@ Param($DisplayName,$TemplateOtherAttributes)
 
 Import-Module ActiveDirectory
 
-#Create NCRestEndPoint template
+#Create NCRestEndPoint template (legacy key storage provider)
 
+$DisplayName="NCRestEndPoint"
+$TemplateOtherAttributes = @{
+        'flags' = [System.Int32]'131680'
+        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'9'
+        'msPKI-Enrollment-Flag' = [System.Int32]'0'
+        'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
+        'msPKI-RA-Signature' = [System.Int32]'0'
+        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
+        'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'pKIMaxIssuingDepth' = [System.Int32]'0'
+        'ObjectClass' = [System.String]'pKICertificateTemplate'
+        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+        'pKIDefaultKeySpec' = [System.Int32]'1'
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
+        'pKIKeyUsage' = [System.Byte[]]@('160')
+        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+        'revision' = [System.Int32]'100'
+}
+New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
+
+<# Key Storage Provider, ECDH
 $DisplayName="NCRestEndPoint"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
@@ -357,34 +381,7 @@ $TemplateOtherAttributes = @{
         'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
         'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1,Microsoft Software Key Storage Provider')
         'pKIDefaultKeySpec' = [System.Int32]'1'
-        'pKIExpirationPeriod' = [System.Byte[]]@('0','128','060','072','209','203','244','255')
-        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
-        'pKIKeyUsage' = [System.Byte[]]@('136')
-        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
-        'revision' = [System.Int32]'100'
-}
-New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
-
-<#
-#Create NCRestEndPointRSA template
-
-$DisplayName="NCRestEndPointRSA"
-$TemplateOtherAttributes = @{
-        'flags' = [System.Int32]'131649'
-        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
-        'msPKI-Certificate-Name-Flag' = [System.Int32]'1'
-        'msPKI-Enrollment-Flag' = [System.Int32]'8'
-        'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
-        'msPKI-Private-Key-Flag' = [System.Int32]'16842768'
-        'msPKI-RA-Signature' = [System.Int32]'0'
-        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
-        'msPKI-Template-Schema-Version' = [System.Int32]'4'
-        'pKIMaxIssuingDepth' = [System.Int32]'0'
-        'ObjectClass' = [System.String]'pKICertificateTemplate'
-        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
-        'pKIDefaultCSPs' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1,Microsoft RSA SChannel Cryptographic Provider')
-        'pKIDefaultKeySpec' = [System.Int32]'1'
-        'pKIExpirationPeriod' = [System.Byte[]]@('0','128','060','072','209','203','244','255')
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
         'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2','1.3.6.1.4.1.311.95.1.1.1') #https://docs.microsoft.com/en-us/windows-server/networking/sdn/security/sdn-manage-certs
         'pKIKeyUsage' = [System.Byte[]]@('136')
         'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
@@ -542,15 +539,6 @@ New-SmbShare -Name $LOGFileShareName -Path "c:\Shares\$LOGFileShareName" -FullAc
 #Install NC Role
 Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-WindowsFeature -Name NetworkController -IncludeManagementTools
-}
-
-#Add Network Service permissions for Certificate store
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    takeown /f C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\*
-    #cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g administrators:f
-    icacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /grant Administrator:F
-    #cacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /e /g "network service":f
-    icacls C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\* /grant *S-1-5-20:F
 }
 
 #Create Node Objects
