@@ -70,14 +70,14 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
         foreach ($Capability in $Capabilities){
             Add-WindowsCapability -Name $Capability -Online
         }
-        #install iis management tools and Hyper-V Management
-        Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Hyper-V-All","Microsoft-Hyper-V-Tools-All","IIS-WebServerRole","IIS-WebServerManagementTools","IIS-ManagementConsole","IIS-ManagementScriptingTools" -NoRestart
-        Disable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServer","Microsoft-Hyper-V" -NoRestart
+        #install iis management tools
+        Enable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServerRole","IIS-WebServerManagementTools","IIS-ManagementConsole","IIS-ManagementScriptingTools" 
+        Disable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServer" -NoRestart
     }
  
 ```
 
-Since this is not script-able to install only subfeatures (due to nature of Enable-WindowsOptionalFeature that requires parent features enabled) Above script installs parent features and removes add IIS and Hyper-V features in Windows 10. However to be able to use Hyper-V PowerShell/Mgmt tools you need to restart Management machine if done from PowerShell.
+Since this is not script-able to install only subfeatures (due to nature of Enable-WindowsOptionalFeature that requires parent features enabled) Above script installs parent features and removes features that are not needed in Windows 10.
 
 ![](/Scenarios/S2D%20and%SDN/Screenshots/win10features.png)
 
@@ -363,7 +363,7 @@ $TemplateOtherAttributes = @{
 }
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 
-<# Key Storage Provider, ECDH
+<# Key Storage Provider, ECDH, does not work
 $DisplayName="NCRestEndPoint"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
@@ -390,8 +390,33 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 #>
 
-#Create NCNodes template
+#Create NCNodes template (Legacy provider)
 
+$DisplayName="NCNodes"
+$TemplateOtherAttributes = @{
+        'flags' = [System.Int32]'131680'
+        'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+        'msPKI-Certificate-Name-Flag' = [System.Int32]'1073741824'
+        'msPKI-Enrollment-Flag' = [System.Int32]'0'
+        'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
+        'msPKI-RA-Signature' = [System.Int32]'0'
+        'msPKI-Template-Minor-Revision' = [System.Int32]'1'
+        'msPKI-Template-Schema-Version' = [System.Int32]'4'
+        'pKIMaxIssuingDepth' = [System.Int32]'0'
+        'ObjectClass' = [System.String]'pKICertificateTemplate'
+        'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
+        'pKIDefaultKeySpec' = [System.Int32]'1'
+        'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
+        'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+        'pKIKeyUsage' = [System.Byte[]]@('136')
+        'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
+        'revision' = [System.Int32]'100'
+}
+New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
+
+
+<#Key Storage Provider, ECDH
 $DisplayName="NCNodes"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
@@ -416,6 +441,7 @@ $TemplateOtherAttributes = @{
         'revision' = [System.Int32]'100'
 }
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
+#>
 
 #endregion
  
@@ -541,17 +567,40 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-WindowsFeature -Name NetworkController -IncludeManagementTools
 }
 
-#Create Node Objects
-$NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
-$NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
-$NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
+#region Kerberos based authentication (Recommended)
+    #Create Node Objects
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
 
-#Grab certificate
-$Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-Item Cert:\LocalMachine\My | Get-ChildItem | where-object {$_.SubjectName.Name -eq "CN=ncclus.corp.contoso.com"}}
+    #Grab certificate
+    $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
 
-#Install NC Cluster
-$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-$Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
-Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
- 
+    #Install NC Cluster
+    $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
+    $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
+    Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+#endregion
+
+<# 
+#region Certificate based authentication example
+    #Create Node Objects
+    $Cert1=Invoke-Command -ComputerName "NC1" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC1.corp.contoso.com"}
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
+    $Cert2=Invoke-Command -ComputerName "NC2" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC2.corp.contoso.com"}
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
+    $Cert3=Invoke-Command -ComputerName "NC3" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC3.corp.contoso.com"}
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
+
+    #Grab Rest certificate
+    $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
+
+    #Install NC Cluster
+    $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
+    $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
+    Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+
+#>
+#endregion
+
 ```
