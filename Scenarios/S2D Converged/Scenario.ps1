@@ -136,7 +136,10 @@ Write-host "Script started at $StartDateTime"
             }
     }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
         #Install RSAT tools
-            Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online
+            $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+            foreach ($Capability in $Capabilities){
+                Add-WindowsCapability -Name $Capability -Online
+            }
     }
     if ($WindowsInstallationType -eq "Client"){
         #Install Hyper-V Management features
