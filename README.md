@@ -79,7 +79,7 @@ NOTE: In 17744 is a bug, so during deployment process DC creation takes forewer.
 
 Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) (bit outdated)
 
-* [ADK 1803](https://go.microsoft.com/fwlink/?linkid=873065) Note: you need to run setup.exe and download all files and place it to tools disk. Not just setup.exe.
+* [ADK 1809 and ADKwinPE 1809](https://docs.microsoft.com/en-us/windows-hardware/get-started/adk-install) Note: you need to run adksetup.exe and download all files and place it to tools disk. Not just setup.exe. Same applies to adkwinpesetup.exe.
 
 * [SCVMM 1801](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
 
