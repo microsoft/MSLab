@@ -175,7 +175,7 @@
                     "imageReference": {
                         "publisher": "MicrosoftWindowsDesktop",
                         "offer": "Windows-10",
-                        "sku": "RS4-Pro",
+                        "sku": "RS5-Pro",
                         "version": "latest"
                     },
                     "osDisk": {

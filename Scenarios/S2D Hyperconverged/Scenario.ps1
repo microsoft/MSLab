@@ -97,17 +97,26 @@ Write-host "Script started at $StartDateTime"
 
 #region install features for management (Client needs RSAT, Server/Server Core have different features)
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    $CurrentBuildNumber=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
     if ($WindowsInstallationType -eq "Server"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
     }elseif ($WindowsInstallationType -eq "Server Core"){
         Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Storage-Replica
-    }elseif ($WindowsInstallationType -eq "Client"){
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -lt 17763)){
         #Validate RSAT Installed
             if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
                 Write-Host "Please install RSAT, Exitting in 5s"
                 Start-Sleep 5
                 Exit
             }
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
+        #Install RSAT tools
+            $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+            foreach ($Capability in $Capabilities){
+                Add-WindowsCapability -Name $Capability -Online
+            }
+    }
+    if ($WindowsInstallationType -eq "Client"){
         #Install Hyper-V Management features
             if ((Get-WindowsOptionalFeature -online -FeatureName Microsoft-Hyper-V-Management-PowerShell).state -ne "Enabled"){
                 #Install all features and then remove all except Management (fails when installing just management)
@@ -139,7 +148,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region Configure basic settings on servers
-    #Tune HW timeout to 10 seconds (6 seconds is default) for Dell servers
+    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
@@ -311,23 +320,25 @@ Write-host "Script started at $StartDateTime"
                     foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
                 }
             ##Configure QoS
-                New-NetQosPolicy "SMB" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $servers
 
-            #Turn on Flow Control for SMB
+            #Turn on Flow Control for SMB and Cluster
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
 
             #Disable flow control for other traffic
-                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,6,7}
 
             #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
                 Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
 
             #Configure IeeePriorityTag
-                #It is not really needed. IeePriorityTag needs to be On (if you want tag your SMB, nonRDMA traffic for QoS) only for adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
-                #Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
-            
+                #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+
             #validate flow control setting
-                Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerNa
+                Invoke-Command -ComputerName $servers -ScriptBlock { Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | ft PSComputerName,Priority,Enabled -GroupBy PSComputerName
 
             #Validate DCBX setting
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
@@ -338,10 +349,11 @@ Write-host "Script started at $StartDateTime"
             #validate policy
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-            #Create a Traffic class and give SMB Direct 30% of the bandwidth minimum. The name of the class will be "SMB".
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB" -Priority 3 -BandwidthPercentage 30 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"     -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "Cluster" -Priority 5 -BandwidthPercentage 1 -Algorithm ETS}
         }
 
     #enable iWARP firewall rule if requested
