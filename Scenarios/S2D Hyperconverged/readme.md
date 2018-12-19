@@ -1,3 +1,14 @@
+<!-- TOC -->
+
+- [Scenario Description](#scenario-description)
+- [Scenario requirements](#scenario-requirements)
+- [Screenshots](#screenshots)
+    - [Howto](#howto)
+    - [Result](#result)
+- [How it looks like end-to-end (when you just paste the script).](#how-it-looks-like-end-to-end-when-you-just-paste-the-script)
+
+<!-- /TOC -->
+
 # Scenario Description
 
 * In this scenario 2-16 node S2D cluster can be created.
