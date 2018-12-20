@@ -543,6 +543,8 @@ $ClientSecurityGroupName="NCRESTClients"          #Group for users with configur
 $LOGFileShareName="SDN_Logs"
 $LogAccessAccountName="NCLog"
 $LogAccessAccountPassword="LS1setup!"
+$RestName="ncclus.corp.contoso.com"
+$RestIP="10.0.0.131"
 
 #Create ManagementSecurityGroup
 New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
