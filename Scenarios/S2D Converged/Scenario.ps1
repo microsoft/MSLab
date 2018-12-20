@@ -336,8 +336,9 @@ Write-host "Script started at $StartDateTime"
                     foreach ($server in $AllServers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
                 }
             ##Configure QoS
-                New-NetQosPolicy "SMB"     -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $AllServers
-                New-NetQosPolicy "Cluster" -Cluster                         -PriorityValue8021Action 5 -CimSession $AllServers
+                New-NetQosPolicy "SMB"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $AllServers
+                New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 5 -CimSession $AllServers
+                New-NetQosPolicy "Default"   -Default                         -PriorityValue8021Action 0 -CimSession $AllServers
 
             #Turn on Flow Control for SMB and Cluster
                 Invoke-Command -ComputerName $AllServers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
@@ -368,7 +369,7 @@ Write-host "Script started at $StartDateTime"
             #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
-                Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "SMB"     -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "SMB"     -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
                 Invoke-Command -ComputerName $AllServers -ScriptBlock {New-NetQosTrafficClass "Cluster" -Priority 5 -BandwidthPercentage 1 -Algorithm ETS}
         }
 
