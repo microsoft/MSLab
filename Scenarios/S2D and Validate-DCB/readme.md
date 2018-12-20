@@ -23,7 +23,7 @@ Invoke-WebRequest -UseBasicParsing -Uri https://github.com/Microsoft/Validate-DC
 #Unzip Validate-DCB
 Expand-Archive -Path $env:USERPROFILE\Downloads\Validate-DCB.zip -DestinationPath $env:USERPROFILE\Downloads\
 
-#Download example config that suits WSLab
+#Download example config that fits WSLab
 Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Validate-DCB/Config.ps1 -OutFile $env:USERPROFILE\Downloads\Config.ps1
  
 ```
@@ -41,7 +41,9 @@ if ($WindowsInstallationType -eq "Client"){
  
 ```
 
-## Fix NetAdapters names on S2D cluster (for example rename from vEthernet (SMB_1) to just SMB_1 as validate-dcb validate names) 
+## Fix NetAdapters names on S2D cluster
+
+For example rename from vEthernet (SMB_1) to just SMB_1 as validate-dcb validate if NetAdapter and VMNetworkAdapter names are the same.
 
 ```PowerShell
 $servers="S2D1","S2D2","S2D3","S2D4"
