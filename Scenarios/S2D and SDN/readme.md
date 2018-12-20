@@ -544,7 +544,7 @@ $LOGFileShareName="SDN_Logs"
 $LogAccessAccountName="NCLog"
 $LogAccessAccountPassword="LS1setup!"
 $RestName="ncclus.corp.contoso.com"
-$RestIP="10.0.0.131"
+$RestIP="10.0.0.131/24"
 
 #Create ManagementSecurityGroup
 New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
@@ -582,6 +582,10 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
     $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
     Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+
+    #Install NC
+    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestIpAddress $RestIP -StoreCertificate $Certificate -EnableAllLogs
+
 #endregion
 
 <# 
@@ -601,6 +605,8 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
     $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
     Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+
+    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication X509 -ServerCertificate $Certificate -RestIpAddress $RestIPAddress -RestName $RestName -ClientCertificateThumbprint $Certificate.Thumbprint
 
 #>
 #endregion
