@@ -584,7 +584,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
     #Install NC
-    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestIpAddress $RestIP -StoreCertificate $Certificate -EnableAllLogs
+    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestIpAddress $RestIP -ServerCertificate $Certificate
 
 #endregion
 
