@@ -544,7 +544,6 @@ $LOGFileShareName="SDN_Logs"
 $LogAccessAccountName="NCLog"
 $LogAccessAccountPassword="LS1setup!"
 $RestName="ncclus.corp.contoso.com"
-$RestIP="10.0.0.131/24"
 
 #Create ManagementSecurityGroup
 New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
@@ -584,7 +583,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
     #Install NC
-    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestIpAddress $RestIP -RestName $RestName -ServerCertificate $Certificate -ComputerName $Servers[0]
+    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestName $RestName -ServerCertificate $Certificate -ComputerName $Servers[0]
 
 #endregion
 
@@ -607,7 +606,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
 
     #Install NC
-    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication X509 -ServerCertificate $Certificate -RestIpAddress $RestIPAddress -RestName $RestName -ClientCertificateThumbprint $Certificate.Thumbprint -ComputerName $Servers[0]
+    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication X509 -ServerCertificate $Certificate -RestName $RestName -ClientCertificateThumbprint $Certificate.Thumbprint -ComputerName $Servers[0]
 
 #>
 #endregion
