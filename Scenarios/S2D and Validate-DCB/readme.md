@@ -10,7 +10,6 @@ Finish S2D Hyperconverged scenario. Just make sure $DCB=$true in Variables. Run 
 
 ## Download required files
 
-
 ```PowerShell
 $ProgressPreference='SilentlyContinue' #for faster download
 #configure TLS1.2 if needed
