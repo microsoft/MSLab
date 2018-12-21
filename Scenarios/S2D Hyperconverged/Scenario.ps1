@@ -620,7 +620,7 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region move NICs out of CPU 0 and to correct NUMA
+#region move VMQ out of CPU 0
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
@@ -629,11 +629,6 @@ Write-host "Script started at $StartDateTime"
             if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
                 $HT=$True
             }
-            #Calculate max processors
-            $number=[math]::log($processor.NumberOfCores-1) / [math]::log( 2 )
-            $number=[math]::Truncate($number)
-            $Maxprocessors=[math]::pow( 2, $number )
-
             $adapters=@()
             $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
 
@@ -644,8 +639,7 @@ Write-host "Script started at $StartDateTime"
                     $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
                 }
                 $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
-                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber -MaxProcessors $Maxprocessors
-                $adapter | Set-NetAdapterRss -Profile Closest
+                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
             }
         }
     }
