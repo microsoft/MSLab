@@ -914,6 +914,7 @@ If (!( $isAdmin )) {
             if ($LabConfig.InstallSCVMM -eq "Yes"){
                 WriteInfoHighlighted "Installing System Center Virtual Machine Manager and its prerequisites"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\1_SQL_Install.ps1
                     d:\scvmm\2_ADK_Install.ps1  
                     Restart-Computer    
@@ -932,6 +933,7 @@ If (!( $isAdmin )) {
 
                 Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\3_SCVMM_Install.ps1    
                 }
             }
@@ -939,6 +941,7 @@ If (!( $isAdmin )) {
             if ($LabConfig.InstallSCVMM -eq "SQL"){
                 WriteInfoHighlighted "Installing SQL"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\1_SQL_Install.ps1  
                 }
             }
@@ -946,16 +949,18 @@ If (!( $isAdmin )) {
             if ($LabConfig.InstallSCVMM -eq "ADK"){
                 WriteInfoHighlighted "Installing ADK"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\2_ADK_Install.ps1
-                }       
+                }
             }
 
             if ($LabConfig.InstallSCVMM -eq "Prereqs"){
                 WriteInfoHighlighted "Installing System Center VMM Prereqs"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\1_SQL_Install.ps1
                     d:\scvmm\2_ADK_Install.ps1
-                }  
+                }
             }
 
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
