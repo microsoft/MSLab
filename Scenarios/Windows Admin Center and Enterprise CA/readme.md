@@ -45,7 +45,7 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
 # SAN Failover cluster nodes
 1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
 # Storage Spaces Direct nodes
-1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB;  } }
+1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMNam = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
  
 ```
 
@@ -57,15 +57,15 @@ Note: Enable-ClusterS2D requires you to reach support to get steps to make it wo
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
 # Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
 # Single Gateway
 $LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
 # Certification Authority
 $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB }
 # SAN Failover cluster nodes
-1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; HDDNumber = 1; HDDSize = 40GB; } }
+1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
 # Storage Spaces Direct nodes
-1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB;  } }
+1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
  
 ```
 
@@ -98,7 +98,7 @@ First, we will install RSAT (it's necessary to work with servers remotely).
 #Detect if code is running on server or Win10 and install necessary features
 $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
 if ($WindowsInstallationType -eq "Server"){
-    Install-WindowsFeature -Name "RSAT-ADDS","RSAT-AD-PowerShell","RSAT-ADCS","RSAT-NetworkController","RSAT-Clustering","RSAT-Hyper-V-Tools"
+    Install-WindowsFeature -Name "RSAT-ADDS","RSAT-AD-PowerShell","RSAT-ADCS","RSAT-Clustering","RSAT-Hyper-V-Tools"
 }elseif ($WindowsInstallationType -eq "Client"){
     $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.NetworkController.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.CertificateServices.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
     foreach ($Capability in $Capabilities){
@@ -182,8 +182,8 @@ Invoke-Command -ComputerName $CAServerName -ScriptBlock { Disable-WSManCredSSP S
 ### Create Computer Template
 
 ```PowerShell
-# Create and Publish "Computer2016" Template
-$TemplateName = "Computer2016"
+# Create and Publish "WACGW" Template
+$TemplateName = "WACGW"
 
 #region initial functions
 
@@ -307,7 +307,7 @@ In order to use own certificate instead of default self-signed one, certificate 
 
 ```PowerShell
 $GatewayServerName="WACGateway"
-$TemplateName = "Computer2016"
+$TemplateName = "WACGW"
 
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
@@ -882,6 +882,7 @@ Invoke-Command -Session $Sessions -ScriptBlock {
 }
 
 #install Windows Admin Center to each node
+$StartDate=Get-Date
 Invoke-Command -Session $sessions -ScriptBlock {
     $cert=Get-ChildItem -Path cert:\LocalMachine\My | where Subject -eq "CN=$using:ClientAccessPoint.$((Get-WmiObject win32_computersystem).Domain)"
     Start-Process msiexec.exe -Wait -ArgumentList "/i $using:CSVPath\Temp\$using:msiname /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SME_THUMBPRINT=$($cert.Thumbprint) SSL_CERTIFICATE_OPTION=installed"
