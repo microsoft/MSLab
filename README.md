@@ -4,6 +4,7 @@
 - [Videos](#videos)
 - [HowTo](#howto)
     - [Step 1 Download required files (prerequisites)](#step-1-download-required-files-prerequisites)
+        - [Scripts](#scripts)
         - [Windows Server 2016](#windows-server-2016)
         - [or Windows Server 2019](#or-windows-server-2019)
         - [or Windows Server Insider Preview](#or-windows-server-insider-preview)
@@ -56,12 +57,14 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 ## Step 1 Download required files (prerequisites)
 
+### Scripts
+
 * [Scripts](https://github.com/Microsoft/WSLab/blob/master/scripts.zip?raw=true)
 
 ### Windows Server 2016
 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2016)
-* [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems%20) for Windows Server 2016 and [Servicing Stack Update](http://aka.ms/2016ssu)
+* [Latest Cumulative Update](https://www.catalog.update.microsoft.com/Search.aspx?q=2019%20Cumulative%20Update%20for%20Windows%20Server%202016%20for%20x64-based%20Systems) for Windows Server 2016 and [Servicing Stack Update](http://aka.ms/2016ssu)
 
 ### or Windows Server 2019
 
