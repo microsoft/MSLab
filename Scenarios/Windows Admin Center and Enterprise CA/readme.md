@@ -57,15 +57,15 @@ Note: Enable-ClusterS2D requires you to reach support to get steps to make it wo
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
 # Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True ; MGMTNICs=1}
 # Single Gateway
-$LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
+$LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; MGMTNICs=1}
 # Certification Authority
-$LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB }
+$LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB ; MGMTNICs=1}
 # SAN Failover cluster nodes
-1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
+1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB ; MGMTNICs=1 } }
 # Storage Spaces Direct nodes
-1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
+1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB ; MGMTNICs=1} }
  
 ```
 
