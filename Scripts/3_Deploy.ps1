@@ -827,7 +827,7 @@ If (!( $isAdmin )) {
             }
 
             WriteInfo "`t Detecting default vSwitch"
-            $DefaultSwitch=Get-VMSwitch -Name "Default Switch" -ErrorAction Ignore
+            $DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
             if (-not $DefaultSwitch){
                 WriteInfo "`t Default switch not present, detecting external vSwitch $ExternalSwitchName"
                 $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore

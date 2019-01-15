@@ -151,6 +151,7 @@ Install-WindowsFeature Adcs-Cert-Authority -IncludeManagementTools -ComputerName
 
 #Enable CredSSP
 # Temporarily enable CredSSP delegation to avoid double-hop issue
+Enable-PSRemoting -Force  #Win10 has remoting disabled by default
 Enable-WSManCredSSP -Role "Client" -DelegateComputer $CAServerName -Force
 Invoke-Command -ComputerName $CAServerName -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
