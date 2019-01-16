@@ -548,6 +548,7 @@ Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
 ```PowerShell
 $TemplateName="WebCustomRSA"
 $SubjectName="CN=wac-san.corp.contoso.com"
+$DNSName="wac-san.corp.contoso.com"
 $ExportPath="$env:USERPROFILE\Downloads\wac-san.pfx"
 $Password = "LS1setup!"
 
@@ -565,7 +566,7 @@ $Password = "LS1setup!"
 Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
 
 #Generate Certificate to local machine store
-Get-Certificate -Template $TemplateName -SubjectName $SubjectName -CertStoreLocation Cert:\LocalMachine\My
+Get-Certificate -Template $TemplateName -SubjectName $SubjectName -DNSName $DNSName -CertStoreLocation Cert:\LocalMachine\My
 
 #Export Certificate
 $SecurePassword = ConvertTo-SecureString -String $Password -Force –AsPlainText
@@ -802,6 +803,7 @@ if($fullPath -ne $currentPath){ # On Windows 2019 volume name is already as we e
 ```PowerShell
 $TemplateName="WebCustomRSA"
 $SubjectName="CN=wac-s2d.corp.contoso.com"
+$DNSName="wac-s2d.corp.contoso.com"
 $ExportPath="$env:USERPROFILE\Downloads\wac-s2d.pfx"
 $Password = "LS1setup!"
 
@@ -819,7 +821,7 @@ $Password = "LS1setup!"
 Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
 
 #Generate Certificate to local machine store
-Get-Certificate -Template $TemplateName -SubjectName $SubjectName -CertStoreLocation Cert:\LocalMachine\My
+Get-Certificate -Template $TemplateName -SubjectName $SubjectName -DNSName $DNSName -CertStoreLocation Cert:\LocalMachine\My
 
 #Export Certificate
 $SecurePassword = ConvertTo-SecureString -String $Password -Force –AsPlainText
