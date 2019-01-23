@@ -503,6 +503,8 @@ $nodesSan = "WacSan-Node01","WacSan-Node02"
 $result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
   Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
 }
+$result
+
 # Restart computers if needed (as 2019 requires restart after failover clustering is installed)
 $ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
 if ($ComputersToRestart){
@@ -761,6 +763,8 @@ $nodesS2D = "WacS2D-Node01","WacS2D-Node02"
 $result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
   Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
 }
+$result
+
 # Restart computers if needed (as 2019 requires restart after failover clustering is installed)
 $ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
 if ($ComputersToRestart){
