@@ -266,7 +266,7 @@ $TemplateOtherAttributes = @{
         'msPKI-Certificate-Name-Flag' = [System.Int32]'1207959552'
         'msPKI-Enrollment-Flag' = [System.Int32]'32'
         'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
-        'msPKI-Private-Key-Flag' = [System.Int32]'101056512'
+        'msPKI-Private-Key-Flag' = [System.Int32]'101056640'
         'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`RSA`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
         'msPKI-RA-Signature' = [System.Int32]'0'
         'msPKI-Template-Minor-Revision' = [System.Int32]'1'
@@ -286,7 +286,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 
 #endregion
 
-#Publish Computer2016 Template
+#Publish WACGW Template
     $DisplayName=$TemplateName
     #grab DC
     $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
@@ -500,7 +500,12 @@ $volumeName = "VolumeWac"
 $nodesSan = "WacSan-Node01","WacSan-Node02"
 
 # Install failover clustering on all nodes
-Invoke-Command -ComputerName $nodesSan -ScriptBlock { Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell" }
+$result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
+  Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
+}
+# Restart computers if needed (as 2019 requires restart after failover clustering is installed)
+$ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
+Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
 
 # Form a cluster
 New-Cluster -Name $clusterName -Node $nodesSan
@@ -751,9 +756,13 @@ $volumeName = "VolumeWac"
 $nodesS2D = "WacS2D-Node01","WacS2D-Node02"
 
 # Install failover clustering on all nodes
-Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
-    Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
+$result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
+  Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
 }
+# Restart computers if needed (as 2019 requires restart after failover clustering is installed)
+$ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
+Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+
 #Test-Cluster –Node $nodesS2D –Include "Storage Spaces Direct", "Inventory", "Network", "System Configuration"
 New-Cluster –Name $clusterName –Node $nodesS2D –NoStorage
 
