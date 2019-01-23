@@ -500,7 +500,7 @@ $volumeName = "VolumeWac"
 $nodesSan = "WacSan-Node01","WacSan-Node02"
 
 # Install failover clustering on all nodes
-$result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
+$result= Invoke-Command -ComputerName $nodesSan -ScriptBlock {
   Install-WindowsFeature -Name "Failover-Clustering", "RSAT-Clustering-PowerShell"
 }
 $result
