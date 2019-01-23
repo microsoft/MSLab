@@ -505,7 +505,9 @@ $result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
 }
 # Restart computers if needed (as 2019 requires restart after failover clustering is installed)
 $ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
-Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+if ($ComputersToRestart){
+    Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+}
 
 # Form a cluster
 New-Cluster -Name $clusterName -Node $nodesSan
@@ -761,7 +763,9 @@ $result= Invoke-Command -ComputerName $nodesS2D -ScriptBlock {
 }
 # Restart computers if needed (as 2019 requires restart after failover clustering is installed)
 $ComputersToRestart=($result |where restartneeded -ne "No").PSComputerName
-Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+if ($ComputersToRestart){
+    Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+}
 
 #Test-Cluster –Node $nodesS2D –Include "Storage Spaces Direct", "Inventory", "Network", "System Configuration"
 New-Cluster –Name $clusterName –Node $nodesS2D –NoStorage
