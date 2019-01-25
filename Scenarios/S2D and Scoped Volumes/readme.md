@@ -16,8 +16,6 @@
 
 ## LabConfig Windows Server 2019
 
-Note: Enable-ClusterS2D requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
-
 ```PowerShell
 #Labconfig is same as default for Windows Server 2019. Just with 6 nodes instead of 4
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
