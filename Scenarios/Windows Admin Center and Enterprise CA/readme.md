@@ -51,8 +51,6 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
 
 ## Sample LabConfig for Windows Server 2019
 
-Note: Enable-ClusterS2D requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
-
 ```PowerShell
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
