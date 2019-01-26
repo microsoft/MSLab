@@ -17,7 +17,6 @@
 * you can also use Nano Servers (its eating less resources). However as communicated [here](https://blogs.technet.microsoft.com/hybridcloud/2017/06/15/delivering-continuous-innovation-with-windows-server/), our focus is Core Server for physical infrastructure servers
 * Deploy script finishes in ~5 minutes. Scenario script finishes in ~37 minutes.
 * [S2D Cluster Validation Report](/Scenarios/S2D%20Hyperconverged/Screenshots/ValidationReport.zip)
-* This is just one of many scripts that I did internally for Microsoft employees. Should be used for education purposes. For real-world deployments it may differ, therefore never ever just paste the script into production! If you are looking for assistance, please ask your Technical Account Manager, or ping me at jaromirk@microsoft.com and I'll help you find PFE resource to assist you in your region.
 
 # Scenario requirements
 

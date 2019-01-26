@@ -23,12 +23,13 @@ $ReplicaNetwork="172.16.1.0"
 $TypeOfWorkload="IWFS" # IWFS or VMs = Informational Work File SHare or VMs
 #######################
 
-
 #install features for management
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Storage-Replica,RSAT-Hyper-V-Tools
 
 ##Install required roles
-foreach ($server in $servers) {Install-WindowsFeature -Name Storage-Replica,RSAT-Storage-Replica,FS-FileServer -ComputerName $server} 
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Install-WindowsFeature -Name Failover-Clustering,Storage-Replica,RSAT-Storage-Replica,FS-FileServer
+}
 
 ##restart those servers
 Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
@@ -42,50 +43,38 @@ Clear-DnsClientCache
 #Configure Witness
 foreach ($clustername in ($Cluster1Name,$Cluster2Name)){
     $WitnessName=$Clustername+"Witness"
-    Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);new-item -Path c:\Shares -Name $WitnessName -ItemType Directory} -ArgumentList $WitnessName
+    Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
     $accounts=@()
     (Get-ClusterNode -Cluster $ClusterName).Name | % {$accounts+="corp\$_$"}
     $accounts+="corp\$ClusterName$"
     $accounts+="corp\Domain Admins"
     New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
     # Set NTFS permissions 
-    Invoke-Command -ComputerName DC -ScriptBlock {param($WitnessName);(Get-SmbShare "$WitnessName").PresetPathAcl | Set-Acl} -ArgumentList $WitnessName
+    Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare "$using:WitnessName").PresetPathAcl | Set-Acl}
     #Set Quorum
     Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 }
 
 #Enable-ClusterS2D
-Enable-ClusterS2D -CimSession $Cluster1Name -confirm:0 -verbose
-Enable-ClusterS2D -CimSession $Cluster2Name -confirm:0 -verbose
-
-#register storage provider 
-Get-StorageProvider | Register-StorageSubsystem -ComputerName $Cluster1Name
-Get-StorageProvider | Register-StorageSubsystem -ComputerName $Cluster2Name
-
-#Get Pools
-$Cluster1Pool=Get-StoragePool *$Cluster1name
-$Cluster2Pool=Get-StoragePool *$Cluster2name
-
-#create volumes
-
+Enable-ClusterS2D -CimSession $Cluster1Name,$Cluster2Name -confirm:0 -verbose
 
 if ($Cluster1Servers.Count -le 3){
-    New-Volume -StoragePoolUniqueId $Cluster1Pool.UniqueId -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB
-    New-Volume -StoragePoolUniqueId $Cluster2Pool.UniqueId -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB
-    New-Volume -StoragePoolUniqueId $Cluster1Pool.UniqueId -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB
-    New-Volume -StoragePoolUniqueId $Cluster2Pool.UniqueId -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession $Cluster1Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession $Cluster2Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession $Cluster1Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames capacity -StorageTierSizes 10GB -CimSession $Cluster2Name
 }else{
-    New-Volume -StoragePoolUniqueId $Cluster1Pool.UniqueId -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1GB,9GB
-    New-Volume -StoragePoolUniqueId $Cluster2Pool.UniqueId -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1GB,9GB
-    New-Volume -StoragePoolUniqueId $Cluster1Pool.UniqueId -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames performance -StorageTierSizes 10GB
-    New-Volume -StoragePoolUniqueId $Cluster2Pool.UniqueId -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames performance -StorageTierSizes 10GB
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1GB,9GB -CimSession $Cluster1Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Data -FileSystem ReFS -AccessPath D: -StorageTierFriendlyNames performance,capacity -StorageTierSizes 1GB,9GB -CimSession $Cluster2Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames performance -StorageTierSizes 10GB -CimSession $Cluster1Name
+    New-Volume -StoragePoolFriendlyName S2D* -FriendlyName Log  -FileSystem ReFS -AccessPath E: -StorageTierFriendlyNames performance -StorageTierSizes 10GB -CimSession $Cluster2Name
 }
 
 
 Move-ClusterGroup -Cluster $Cluster1Name -Name "available storage" -Node $Cluster1Servers[0]
 Move-ClusterGroup -Cluster $Cluster2Name -Name "available storage" -Node $Cluster2Servers[0]
 
-#enable CredSSP to be able to work with NanoServer
+#enable CredSSP to be able to work remotely
 Enable-WSManCredSSP -role server -Force
 Enable-WSManCredSSP Client -DelegateComputer $Cluster1Servers[0] -Force
 
