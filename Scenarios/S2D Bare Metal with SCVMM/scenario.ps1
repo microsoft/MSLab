@@ -557,9 +557,9 @@
                 do {
                     [System.Console]::Write("Progress {0}`r", $job.Progress)
                     Start-Sleep 1
-                } until (($job.status -eq "Completed") -or ($job.status -eq "Failed"))
+                } until (($job.status -eq "Completed") -or ($job.status -eq "Failed") -or ($job.status -eq "SucceedWithInfo"))
             }
-            if ($job.status -eq "Completed"){
+            if (($job.status -eq "Completed") -or ($job.status -eq "SucceedWithInfo")){
                     Write-Output "Deployment of Host $($job.Name.Substring(41,($job.Name.Length-41))) Finished"
                 }
             if ($job.status -eq "failed"){
@@ -592,7 +592,7 @@
         $networkAdapter = @()
         # Set uplink port profile to all adapters
         $vmhost | Get-SCVMHostNetworkAdapter | ForEach-Object {
-            Set-SCVMHostNetworkAdapter -VMHostNetworkAdapter $_ -UplinkPortProfileSet (Get-SCUplinkPortProfileSet -Name "UplinkPP")
+            Set-SCVMHostNetworkAdapter -VMHostNetworkAdapter $_ -UplinkPortProfileSet (Get-SCUplinkPortProfileSet -Name $UplinkPPName)
             $networkAdapter += $_
         }
         $logicalSwitch = Get-SCLogicalSwitch -Name $vSwitchName
