@@ -277,8 +277,6 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
 
 ### Display update level
 
-Let's create a function that will create PSObject with all update information from remote machines.
-
 ```PowerShell
 $servers=(Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
 $RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
