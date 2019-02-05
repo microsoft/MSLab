@@ -280,24 +280,13 @@ Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/Windows
 Let's create a function that will create PSObject with all update information from remote machines.
 
 ```PowerShell
-$servers=(get-ADComputer -filter *).Name
-$Sessions=New-PSSession -ComputerName $servers
+$servers=(Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
 $RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
-$ComputerInfo  = foreach ($Session in $Sessions) {
-    New-Object PSObject -Property @{
-        ComputerName       = $session.ComputerName
-        BuildBranch        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildBranch}
-        BuildLab           = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name BuildLab}
-        CurrentBuildNumber = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name CurrentBuildNumber}
-        EditionID          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name EditionID}
-        InstallationType   = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name InstallationType}
-        ProductName        = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ProductName}
-        ReleaseId          = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name ReleaseId}
-        RevisionNumber     = Invoke-Command -Session $Session -ScriptBlock {Get-ItemPropertyValue -Path $using:RegistryPath -Name UBR}
-    }
+$ComputerInfo  = Invoke-Command -ComputerName $servers -ScriptBlock {
+    Get-ItemProperty -Path $using:RegistryPath
 }
-$Sessions | Remove-PSSession
-$ComputerInfo | ft ComputerName,CurrentBuildNumber,RevisionNumber
+$ComputerInfo | sort PSComputerName | ft PSComputerName,ProductName,EditionID,InstallationType,ReleaseID,UBR 
+#$ComputerInfo | Out-GridView
  
 ```
 
