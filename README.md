@@ -24,6 +24,8 @@
 
 <!-- /TOC -->
 
+[![WSLab in MVPDays](/Screenshots/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
+
 # Project Description
 
  * Deployment Automation of Windows Server labs on WS2016/Windows10 Hyper-V
