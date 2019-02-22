@@ -56,11 +56,11 @@ Restart-VM -VMName *HGS* -Type Reboot -Force -Wait -For HeartBeat
 #Install HGS on first node
 Invoke-Command -VMName *HGS1 -Credential $HGSCreds -scriptblock {
     $SafeModeAdministratorPassword = ConvertTo-SecureString -AsPlainText $using:SafeModeAdministratorPlainPassword -Force
-    Install-HgsServer -HgsDomainName $using:HGSDomainName -SafeModeAdministratorPassword $SafeModeAdministratorPassword
+    Install-HgsServer -HgsDomainName $using:HGSDomainName -SafeModeAdministratorPassword $SafeModeAdministratorPassword -Restart
 }
 
 #restart HGS1
-Restart-VM -VMName *HGS1 -Type Reboot -Force -Wait -For HeartBeat
+#Restart-VM -VMName *HGS1 -Type Reboot -Force -Wait -For HeartBeat
 
 #Set the DNS forwarder on the fabric DC so other nodes can find the new domain
 Invoke-Command -VMName *DC -Credential $FabricCreds -ScriptBlock {
@@ -70,11 +70,11 @@ Invoke-Command -VMName *DC -Credential $FabricCreds -ScriptBlock {
 #add HGS2 and HGS3
 Invoke-Command -VMName *HGS2,*HGS3 -Credential $HGSCreds -ScriptBlock {
     $SafeModeAdministratorPassword = ConvertTo-SecureString -AsPlainText $using:SafeModeAdministratorPlainPassword -Force
-    Install-HgsServer -HgsDomainName $using:HGSDomainName -HgsDomainCredential $using:HGSDomainCreds -SafeModeAdministratorPassword $SafeModeAdministratorPassword
+    Install-HgsServer -HgsDomainName $using:HGSDomainName -HgsDomainCredential $using:HGSDomainCreds -SafeModeAdministratorPassword $SafeModeAdministratorPassword -Restart
 }
 
 #restart HGS2 and HGS3
-Restart-VM -VMName *HGS2,*HGS3 -Type Reboot -Force -Wait -For HeartBeat
+#Restart-VM -VMName *HGS2,*HGS3 -Type Reboot -Force -Wait -For HeartBeat
 
 #you can create CA in Bastion forest https://docs.microsoft.com/en-us/windows-server/security/guarded-fabric-shielded-vm/guarded-fabric-obtain-certs#request-certificates-from-your-certificate-authority
 
@@ -94,8 +94,21 @@ Invoke-Command -VMName *HGS1 -Credential $HGSDomainCreds -ScriptBlock {
 }
 
 # Wait for HGS2, HGS3 to finish dcpromo
-# todo: add magic here to check for DC status
-Start-sleep 30
+do {
+    $Result=Invoke-Command -VMName *HGS2 -Credential $HGSDomainCreds -ScriptBlock {
+        Get-ADComputer -Filter * -Server HGS2
+        Start-Sleep 5
+    }
+}until($Result)
+
+$Result=$null
+do {
+    $Result=Invoke-Command -VMName *HGS3 -Credential $HGSDomainCreds -ScriptBlock {
+        Get-ADComputer -Filter * -Server HGS3
+        Start-Sleep 5
+    }
+}until($Result)
+
 
 # Join HGS2 and HGS3 to the cluster
 Invoke-Command -VMName *HGS2,*HGS3 -Credential $HGSDomainCreds -ScriptBlock {
@@ -103,7 +116,7 @@ Invoke-Command -VMName *HGS2,*HGS3 -Credential $HGSDomainCreds -ScriptBlock {
 }
 
 # Set HGS configuration to support VMs (disable IOMMU requirement)
-Invoke-Command -VMName *HGS1 -Credential $HGSCreds -ScriptBlock {
+Invoke-Command -VMName *HGS1 -Credential $HGSDomainCreds -ScriptBlock {
     Disable-HgsAttestationPolicy Hgs_IommuEnabled
 }
 
@@ -113,7 +126,7 @@ Invoke-Command -VMName *Compute1,*Compute2 -Credential $FabricCreds -ScriptBlock
 }
 
 # Restart compute nodes
-Restart-VM -Name *Compute1, *Compute2 -Type Reboot -Force
+Restart-VM -VMName *Compute1,*Compute2 -Type Reboot -Force -Wait -For HeartBeat
 
 # Wait for installation to complete
 Start-Sleep 60
@@ -137,17 +150,36 @@ Invoke-Command -VMName *Compute1, *Compute2 -Credential $FabricCreds -ScriptBloc
 }
 
 # Reboot VMs again for setting to take effect
-Restart-VM -Name *Compute1, *Compute2 -Type Reboot -Force -Wait -For IPAddress
+Restart-VM -Name *Compute1,*Compute2 -Type Reboot -Force -Wait -For HeartBeat
 
 # Collect attestation artifacts from hosts
-# todo: need some magic to copy the files to HGS
+
+$HGS1Session = New-PSSession -VMName *HGS1 -Credential $HGSDomainCreds
+$Compute1Session = New-PSSession -VMName *Compute1 -Credential $FabricCreds
+$Compute2Session = New-PSSession -VMName *Compute2 -Credential $FabricCreds
+
+#Create folder on HGS1
+Invoke-Command -Session $HGS1Session -ScriptBlock {
+    New-Item -Name AttestationData -Path c:\ -ItemType Directory
+}
+
+#Copy files
+    Copy-Item -Path "C:\attestationdata\TPM_EK_COMPUTE1.xml" -Destination $env:Temp -FromSession $Compute1Session
+    Copy-Item -Path "$env:temp\TPM_EK_COMPUTE1.xml" -Destination C:\attestationdata\ -ToSession $HGS1Session
+    Copy-Item -Path "C:\attestationdata\TPM_EK_COMPUTE2.xml" -Destination $env:Temp -FromSession $Compute2Session
+    Copy-Item -Path "$env:temp\TPM_EK_COMPUTE2.xml" -Destination C:\attestationdata\ -ToSession $HGS1Session
+    Copy-Item -Path "C:\attestationdata\TPM_Baseline_COMPUTE1.xml" -Destination $env:Temp -FromSession $Compute1Session
+    Copy-Item -Path "$env:temp\TPM_Baseline_COMPUTE1.xml" -Destination C:\attestationdata\ -ToSession $HGS1Session
+    Copy-Item -Path "C:\attestationdata\CI_POLICY_AUDIT.bin" -Destination $env:Temp -FromSession $Compute1Session
+    Copy-Item -Path "$env:temp\CI_POLICY_AUDIT.bin" -Destination C:\attestationdata\ -ToSession $HGS1Session
+
 
 # Import the attestation policies on HGS
-Invoke-Command -VMName *HGS1 -Credential $HGSCreds -ScriptBlock {
+Invoke-Command -VMName *HGS1 -Credential $HGSDomainCreds -ScriptBlock {
     # Every individual EK needs to be added
     Add-HgsAttestationTpmHost -Path C:\attestationdata\TPM_EK_COMPUTE1.xml -Force
     Add-HgsAttestationTpmHost -Path C:\attestationdata\TPM_EK_Compute2.xml -Force
-    
+
     # But only one copy of the baseline and CI policy, since they should be identical on both hosts
     Add-HgsAttestationTpmPolicy -Path C:\attestationdata\TPM_Baseline_COMPUTE1.xml -Name "Hyper-V TPM Baseline"
     Add-HgsAttestationCIPolicy -Path C:\attestationdata\CI_POLICY_AUDIT.bin -Name "AllowMicrosoft-AUDIT-CI"

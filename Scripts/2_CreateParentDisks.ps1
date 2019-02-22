@@ -135,13 +135,13 @@ If (!( $isAdmin )) {
 
         If (!$LabConfig.DHCPscope){
             $LabConfig.DHCPscope="10.0.0.0"
-        }      
+        }
 
 
     #create some built-in variables
         $DN=$null
         $LabConfig.DomainName.Split(".") | ForEach-Object {
-            $DN+="DC=$_,"   
+            $DN+="DC=$_,"
         }
         
         $LabConfig.DN=$DN.TrimEnd(",")
@@ -749,12 +749,13 @@ If (!( $isAdmin )) {
                         DependsOn = "[WindowsFeature]DHCPServer"
                     } 
 
+
                     xDhcpServerScope ManagementScope
                     {
                         Ensure = 'Present'
-                        ScopeId = '10.0.0.0'
-                        IPStartRange = '10.0.0.10'
-                        IPEndRange = '10.0.0.254'
+                        ScopeId = ($DHCPscope+"0")
+                        IPStartRange = ($DHCPscope+"10")
+                        IPEndRange = ($DHCPscope+"254")
                         Name = 'ManagementScope'
                         SubnetMask = '255.255.255.0'
                         LeaseDuration = '00:08:00'
