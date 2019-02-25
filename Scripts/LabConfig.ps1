@@ -74,7 +74,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     DomainAdminName (Mandatory)
         Additional Domain Admin.
 
-    Password (Mandatory)
+    AdminPassword (Mandatory)
         Specifies password for your lab. This password is used for domain admin, vmm account, sqlservice account and additional DomainAdmin... Define before running 2_CreateParentImages
 
     Prefix (Mandatory)
