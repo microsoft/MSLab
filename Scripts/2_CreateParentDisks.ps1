@@ -376,7 +376,8 @@ If (!( $isAdmin )) {
             WriteInfo "`t Tools.vhdx not found, will be created"
         }
 
-    #check if DC exists
+    #check if DC exists. Set explicitly to $false in case of running the script multipe times in same PS Session
+        $DCFilesExists=$False
         if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
             $DCFilesExists=$true
             WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
