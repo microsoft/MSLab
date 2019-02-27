@@ -1,0 +1,283 @@
+<!-- TOC -->
+
+- [S2D and SCVMM in large Datacenters](#s2d-and-scvmm-in-large-datacenters)
+    - [LabConfig](#labconfig)
+    - [About the lab](#about-the-lab)
+    - [Scenario script](#scenario-script)
+    - [Add Compute server to demonstrate Logical Switch creation](#add-compute-server-to-demonstrate-logical-switch-creation)
+
+<!-- /TOC -->
+
+# S2D and SCVMM in large Datacenters
+
+## LabConfig
+
+```PowerShell
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019_SCVMM-'; SwitchName = 'LabSwitch'; DCEdition='4' ; InstallSCVMM='Yes'; Internet=$false; AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
+1..2 | % { $VMNames="Compute" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple'   ; ParentVHD = 'Win2019Core_G2.vhdx'    ; MemoryStartupBytes= 2GB ; NestedVirt=$True } }
+ 
+```
+
+## About the lab
+
+Following lab demonstrates logical networks in large datacenters. In this case it demonstrates 3 datacenters, each with 2 rooms, each room with 2 aisles and 4 racks per aisle.
+
+## Scenario script
+
+```PowerShell
+#start services
+Start-Service -Name "MSSQLSERVER","SCVMMService"
+
+#Import VMM Module
+Import-Module VirtualMachineManager
+
+#connect to server
+Get-VMMServer "DC"
+
+#Disable automatic logical network creation
+Set-SCVMMServer -AutomaticLogicalNetworkCreationEnabled $false -LogicalNetworkMatch "FirstDNSSuffixLabel" -BackupLogicalNetworkMatch "VirtualNetworkSwitchName"
+
+#Datacenter definition
+$Datacenters=@()
+$Datacenters+=@{
+    DCName="Redmond"
+    ManagementIPBlockStart="10.0.0" # 1C per aisle
+    ClusterIPBlockStart="10.1.0"    # 1C per rack
+    NumberOfRoomsperDC=2
+    NumberOfAislesPerRoom=2
+    NumberOfRacksPerAisle=4
+}
+$Datacenters+=@{
+    DCName="Seattle"
+    ManagementIPBlockStart="10.2.0" # 1C per aisle
+    ClusterIPBlockStart="10.3.0"    # 1C per rack
+    NumberOfRoomsperDC=2
+    NumberOfAislesPerRoom=2
+    NumberOfRacksPerAisle=4
+}
+$Datacenters+=@{
+    DCName="London"
+    ManagementIPBlockStart="10.4.0" # 1C per aisle
+    ClusterIPBlockStart="10.5.0"    # 1C per rack
+    NumberOfRoomsperDC=2
+    NumberOfAislesPerRoom=2
+    NumberOfRacksPerAisle=4
+}
+$DNSServers="10.0.0.1","10.0.0.2" #Just an example
+$InfrastructureNetworkName="InfrastructureNetwork"
+$vSwitchName="vSwitch"
+
+#Create Host Groups
+Foreach ($Datacenter in $Datacenters){
+    $Name=$Datacenter.DCName
+    if (-not (Get-SCVMHostGroup -Name $Name)){
+        $DCParentHostGroup=New-SCVMHostGroup -Name $Name
+    }
+
+    #Create Room
+    1..$Datacenter.NumberOfRoomsPerDC | ForEach-Object {
+        if (-not (Get-SCVMHostGroup -Name "Room$_" -ParentHostGroup $DCParentHostGroup)){
+            $RoomParentHostGroup=New-SCVMHostGroup -Name "Room$_" -ParentHostGroup $DCParentHostGroup
+        }
+        #Create Aisles
+        1..$Datacenter.NumberOfAislesPerRoom | ForEach-Object {
+            if (-not (Get-SCVMHostGroup -Name "Aisle$_" -ParentHostGroup $RoomParentHostGroup)){
+                $AisleParentHostGroup=New-SCVMHostGroup -Name "Aisle$_" -ParentHostGroup $RoomParentHostGroup
+            }
+            1..$Datacenter.NumberOfRacksPerAisle | ForEach-Object {
+                if (-not (Get-SCVMHostGroup -Name "Rack$_" -ParentHostGroup $AisleParentHostGroup)){
+                    New-SCVMHostGroup -Name "Rack$_" -ParentHostGroup $AisleParentHostGroup
+                }
+            }
+        }
+    }
+}
+
+#Cleanup Host Groups
+#Get-SCVMHostGroup -ParentHostGroup (Get-SCVMHostGroup "All Hosts") | Remove-SCVMHostGroup
+
+#Create Management Logical Network
+if (-not (Get-SCLogicalNetwork -Name $InfrastructureNetworkName)){
+    New-SCLogicalNetwork -Name $InfrastructureNetworkName -LogicalNetworkDefinitionIsolation $true -EnableNetworkVirtualization $false -UseGRE $false -IsPVLAN $false
+}
+
+#Add sites,Pools and VM Networks
+    #Create Cluster Networks for each Rack
+    Foreach ($Datacenter in $Datacenters){
+        #Create Site in each Rack
+        $HostGroups=Get-SCVMHostGroup | Where-Object Path -match $Datacenter.DCName | Where-Object Path -match Rack | Sort-Object Path
+        $logicalNetwork = Get-SCLogicalNetwork -Name $InfrastructureNetworkName
+        #Start C range for ClusterIPs
+        [int]$i=$Datacenter.ClusterIPBlockStart.split(".") | Select-Object -Last 1
+        #Grab prefix for ClusterIPs
+        $Prefix=($Datacenter.ClusterIPBlockStart.split(".") | Select-Object -First 2) -join "."
+        foreach ($HostGroup in $HostGroups){
+            $subnet="$Prefix.$i.0/24"
+            $allSubnetVlan = @()
+            $allSubnetVlan += New-SCSubnetVLan -Subnet $Subnet -VLanID 1
+            $i++
+            #Generate SiteName (eg NetworkSite_Seattle_Room1_Aisle1_Rack1)
+            $SiteName="NetworkSite_"+(($HostGroup.Path.Split("\") | Select-Object -Last 4) -Join("_"))
+            #Create Site
+            $LogicalNetworkDefinition=$null
+            $LogicalNetworkDefinition=Get-SCLogicalNetworkDefinition -Name $SiteName -LogicalNetwork $logicalNetwork
+            if ($LogicalNetworkDefinition){
+                Set-SCLogicalNetworkDefinition -LogicalNetworkDefinition $logicalNetworkDefinition -name $SiteName -SubnetVLan $AllSubnetVlan -RunAsynchronously
+            }else{
+                $LogicalNetworkDefinition=New-SCLogicalNetworkDefinition -Name $SiteName -LogicalNetwork $logicalNetwork -VMHostGroup $HostGroup -SubnetVLan $AllSubnetVlan -RunAsynchronously
+            }
+            #Create IP Pool
+            $IPPoolName=$SiteName.Replace("NetworkSite_","IPPool_Cluster_")
+            $IPAddressRangeStart=$Subnet.Replace("0/24","1")
+            $IPAddressRangeEnd=$Subnet.Replace("0/24","254")
+            if (-not (Get-SCStaticIPAddressPool -Name IPPoolName)) {
+                New-SCStaticIPAddressPool -Name $IPPoolName -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Subnet -IPAddressRangeStart $IPAddressRangeStart -IPAddressRangeEnd $IPAddressRangeEnd -RunAsynchronously
+            }
+            #Create VM Network
+            $vmNetwork = New-SCVMNetwork -Name Cluster -Description $SiteName.Replace("NetworkSite_","") -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
+            $subnetVLAN = New-SCSubnetVLan -Subnet $Subnet -VLanID 1
+            New-SCVMSubnet -Name Cluster -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLAN -VMNetwork $vmNetwork -Description $SiteName.Replace("NetworkSite_","")
+        }
+    }
+    Foreach ($Datacenter in $Datacenters){
+        #Create Site in each Aisle
+        $HostGroups=Get-SCVMHostGroup | Where-Object Path -match $Datacenter.DCName | Where-Object Path -match Aisle | Where-Object Path -NotMatch Rack | Sort-Object Path
+        $logicalNetwork = Get-SCLogicalNetwork -Name $InfrastructureNetworkName
+        #Start C range for ManagementIPs
+        [int]$i=$Datacenter.ManagementIPBlockStart.split(".") | Select-Object -Last 1
+        #Grab prefix for ManagementIPs
+        $Prefix=($Datacenter.ManagementIPBlockStart.split(".") | Select-Object -First 2) -join "."
+        foreach ($HostGroup in $HostGroups){
+            $subnet="$Prefix.$i.0/24"
+            $allSubnetVlan = @()
+            $allSubnetVlan += New-SCSubnetVLan -Subnet $Subnet -VLanID 0
+            $i++
+            #Generate SiteName (eg NetworkSite_Seattle_Room1_Aisle1)
+            $SiteName="NetworkSite_"+(($HostGroup.Path.Split("\") | Select-Object -Last 3) -Join("_"))
+            #Create Site
+            $LogicalNetworkDefinition=$null
+            $LogicalNetworkDefinition=Get-SCLogicalNetworkDefinition -Name $SiteName -LogicalNetwork $logicalNetwork
+            if ($LogicalNetworkDefinition){
+                Set-SCLogicalNetworkDefinition -LogicalNetworkDefinition $logicalNetworkDefinition -name $SiteName -SubnetVLan $AllSubnetVlan -RunAsynchronously
+            }else{
+                $LogicalNetworkDefinition=New-SCLogicalNetworkDefinition -Name $SiteName -LogicalNetwork $logicalNetwork -VMHostGroup $HostGroup -SubnetVLan $AllSubnetVlan -RunAsynchronously
+            }
+            #Create IP Pool
+            $IPPoolName=$SiteName.Replace("NetworkSite_","IPPool_Management_")
+            $IPAddressRangeStart=$Subnet.Replace("0/24","1")
+            $IPAddressRangeEnd=$Subnet.Replace("0/24","254")
+            $Gateway=New-SCDefaultGateway -IPAddress $Subnet.Replace("0/24","254") -Automatic
+            if (-not (Get-SCStaticIPAddressPool -Name IPPoolName)) {
+                New-SCStaticIPAddressPool -Name $IPPoolName -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Subnet -IPAddressRangeStart $IPAddressRangeStart -IPAddressRangeEnd $IPAddressRangeEnd -DefaultGateway $Gateway -DNSServer $DNSServers -RunAsynchronously
+            }
+            #Create VM Network
+            $vmNetwork = New-SCVMNetwork -Name Management -Description $SiteName.Replace("NetworkSite_","") -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
+            $subnetVLAN = New-SCSubnetVLan -Subnet $Subnet -VLanID 0
+            New-SCVMSubnet -Name Management -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLAN -VMNetwork $vmNetwork  -Description $SiteName.Replace("NetworkSite_","")
+        }
+    }
+
+#Create Uplink port profile for each Rack that has both Management and Cluster network.
+$RackHostGroups=Get-SCVMHostGroup | Where-Object Path -match Rack
+$logicalNetwork = Get-SCLogicalNetwork -Name $InfrastructureNetworkName
+foreach ($HostGroup in $RackHostGroups){
+    $RackSiteName="NetworkSite_"+(($HostGroup.Path.Split("\") | Select-Object -Last 4) -Join("_"))
+    $AisleSiteName="NetworkSite_"+(($HostGroup.ParentHostGroup.Path.Split("\") | Select-Object -Last 3) -Join("_"))
+    $UplinkPPName=$RackSiteName.replace("NetworkSite_","UplinkPP_")
+    If (-not (Get-SCNativeUplinkPortProfile -Name $UplinkPPName)){
+        $definition  = @()
+        $definition  += Get-SCLogicalNetworkDefinition -Name $RackSiteName -LogicalNetwork $logicalNetwork
+        $definition  += Get-SCLogicalNetworkDefinition -Name $AisleSiteName -LogicalNetwork $logicalNetwork
+        New-SCNativeUplinkPortProfile -Name $UplinkPPName -Description "" -LogicalNetworkDefinition $definition -EnableNetworkVirtualization $false -LBFOLoadBalancingAlgorithm "HyperVPort" -LBFOTeamMode "SwitchIndependent" -RunAsynchronously
+    }
+}
+
+#Cleanup Sites, IP Pools and VMNetworks
+<#
+Get-SCNativeUplinkPortProfile | Remove-SCNativeUplinkPortProfile
+Get-SCVMNetwork | Remove-SCVMNetwork
+Get-SCStaticIPAddressPool | Remove-SCStaticIPAddressPool
+Get-SCLogicalNetworkDefinition | Remove-SCLogicalNetworkDefinition
+#>
+
+#Create Port Profiles for RDMA, VMQ and VMMQ
+$Classifications=@()
+$Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+$Classifications+=@{PortClassificationName="RDMAvNIC"                  ; NativePortProfileName="RDMAvNIC"               ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
+$Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+$Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+$Classifications+=@{PortClassificationName="SR-IOV"                    ; NativePortProfileName="SR-IOV Profile"         ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
+
+#create port classifications and port profiles
+foreach ($Classification in $Classifications){
+    If (-not (Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName)){
+        New-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName -Description $Classification.Description -AllowIeeePriorityTagging $false -AllowMacAddressSpoofing $false -AllowTeaming $false -EnableDhcpGuard $false -EnableGuestIPNetworkVirtualizationUpdates $false -EnableIov $Classification.EnableIOV -EnableVrss $Classification.EnableVrss -EnableIPsecOffload $Classification.EnableIPsecOffload -EnableRouterGuard $false -EnableVmq $Classification.EnableVmq -EnableRdma $Classification.EnableRdma -MinimumBandwidthWeight "0" -RunAsynchronously
+    }
+    If (-not (Get-SCPortClassification -Name $Classification.PortClassificationName)){
+        New-SCPortClassification -Name $Classification.PortClassificationName -Description $Classification.Description
+    }
+}
+
+#Create Logical Switch
+$virtualSwitchExtensions = @()
+$logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "SR-IOV Enabled vSwitch" -EnableSriov $true -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "None" -VirtualSwitchExtensions $virtualSwitchExtensions
+
+#Add virtual port classifications
+foreach ($Classification in $Classifications){
+    # Get Network Port Classification
+    $portClassification = Get-SCPortClassification -Name  $Classification.PortClassificationName
+    # Get Hyper-V Switch Port Profile
+    $nativeProfile = Get-SCVirtualNetworkAdapterNativePortProfile -Name $Classification.NativePortProfileName
+    New-SCVirtualNetworkAdapterPortProfileSet -Name $Classification.PortClassificationName -PortClassification $portClassification -LogicalSwitch $logicalSwitch -RunAsynchronously -VirtualNetworkAdapterNativePortProfile $nativeProfile
+}
+
+#Management vNIC Classification
+foreach ($UplinkPP in (Get-SCNativeUplinkPortProfile | Sort-Object -Property Name)){
+    $uppSetVar = New-SCUplinkPortProfileSet -Name $UplinkPP.Name -LogicalSwitch $logicalSwitch -NativeUplinkPortProfile $UplinkPP -RunAsynchronously
+
+    #Add Management vNIC
+    $vmNetwork=Get-SCVMNetwork -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
+    $vmSubnet= Get-SCVMSubnet  -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
+    $vNICPortClassification = Get-SCPortClassification  -Name "Host Management static"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name Management -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
+    #Add Cluster vNICs
+    $vmNetwork=Get-SCVMNetwork -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
+    $vmSubnet= Get-SCVMSubnet  -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
+    $vNICPortClassification = Get-SCPortClassification  -Name "RDMAvNIC"
+
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster1 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster2 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/HostGroups.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/LogicalNetworks.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/VMNetworks.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/PortProfiles.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/LogicalSwitch.png)
+
+## Add Compute server to demonstrate Logical Switch creation
+
+```PowerShell
+#Enable net firewall rules
+Enable-NetFirewallRule -CimSession Compute1,Compute2 -Name "WMI-RPCSS-In-TCP","WMI-WINMGMT-In-TCP","FPS-SMB-In-TCP"
+
+$SecurePwd = ConvertTo-SecureString "LS1setup!"-AsPlainText -Force
+$credential = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin",$SecurePwd)
+$HostGroup = Get-SCVMHostGroup | Where-Object Path -eq "All Hosts\Redmond\Room1\Aisle1\Rack1"
+Add-SCVMHost -ComputerName "Compute1","Compute2" -RunAsynchronously -VMHostGroup $hostGroup -Credential $credential
+ 
+```
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/HostAdded.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchBefore.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchCluster.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchMGMT.png)
