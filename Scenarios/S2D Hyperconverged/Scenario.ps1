@@ -620,8 +620,9 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region move VMQ out of CPU 0
-    if ($RealHW){
+#region move VMQ out of CPU 0. Recommended just for 2016. In 2019 are VMQs balanced using dVMMQ
+    $CurrentBuildNumber=Invoke-Command -ComputerName $ClusterName -scriptblock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
+    if ($RealHW -and $CurrentBuildNumber -eq 14393){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
         foreach ($switch in $switches){

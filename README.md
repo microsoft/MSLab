@@ -1,3 +1,5 @@
+[![WSLab in MVPDays](/Screenshots/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
+
 <!-- TOC -->
 
 - [Project Description](#project-description)
