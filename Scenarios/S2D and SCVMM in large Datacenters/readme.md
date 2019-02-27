@@ -251,13 +251,27 @@ foreach ($UplinkPP in (Get-SCNativeUplinkPortProfile | Sort-Object -Property Nam
  
 ```
 
+As you can see, host groups for each Datacenter are created (London,Redmond,Seattle). Each Datacenter has 2 Aisles (Aisle1 and Aisle2), each Aisle has 4 Racks (Rack1-4)
+
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/HostGroups.png)
+
+Each logical network contains IP ranges
 
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/LogicalNetworks.png)
 
+List of network Sites. Aisle with Management VLAN (and subnet), Rack with Cluster VLAN (and subnet)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/NetworkSites.png)
+
+List of VM Networks. It's just friendly name that is visible for vNICs, therefore just Cluster/Management. It's possible to keep long names describing infrastructure, but it might be unneccessary.
+
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/VMNetworks.png)
 
+Uplink and port profiles - notice RDMA for vNIC and UplinkPP for each rack.
+
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/PortProfiles.png)
+
+Logical switch - notice, that for each PP was profile with 2x cluster networks and one management created
 
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/LogicalSwitch.png)
 
@@ -274,10 +288,14 @@ Add-SCVMHost -ComputerName "Compute1","Compute2" -RunAsynchronously -VMHostGroup
  
 ```
 
+How Add is being added
+
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/HostAdded.png)
+
+If you decide to apply vSwitch, all networks are automatically applied depending on where the host is located (in which rack)
 
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchBefore.png)
 
-![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchCluster.png)
-
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchMGMT.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchCluster.png)
