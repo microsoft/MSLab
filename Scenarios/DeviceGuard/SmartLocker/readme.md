@@ -130,11 +130,11 @@ To create binary policy run following script. You can copy it into C:\Windows\Sy
 #create binary policy file
 ConvertFrom-CIPolicy "$env:TEMP\MyPolicy.xml" "$env:TEMP\MyPolicy.bin"
 
-#copy to Code Integrity folder
-Copy-Item "$env:TEMP\MyPolicy.bin" -Destination "C:\Windows\System32\CodeIntegrity\"
+#copy to Code Integrity folder (well known path, so if machine is just restarted, it will be applied)
+Copy-Item "$env:TEMP\MyPolicy.bin" -Destination "$env:SystemRoot\System32\CodeIntegrity\SIPolicy.p7b" -Force
 
 #update policy
-Invoke-CimMethod -Namespace root\Microsoft\Windows\CI -ClassName PS_UpdateAndCompareCIPolicy -MethodName Update -Arguments @{FilePath = "C:\Windows\System32\CodeIntegrity\MyPolicy.bin" }
+Invoke-CimMethod -Namespace root\Microsoft\Windows\CI -ClassName PS_UpdateAndCompareCIPolicy -MethodName Update -Arguments @{FilePath = "C:\Windows\System32\CodeIntegrity\SIPolicy.p7b" }
  
 #check CI status
 Get-CimInstance –ClassName Win32_DeviceGuard –Namespace root\Microsoft\Windows\DeviceGuard
