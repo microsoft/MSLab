@@ -35,9 +35,11 @@ Run all scripts from DC
     }
 
 # Install features on servers
-    Invoke-Command -computername $Servers -ScriptBlock {
+    $result=Invoke-Command -computername $Servers -ScriptBlock {
         Install-WindowsFeature -Name "Failover-Clustering","Hyper-V-PowerShell"
     }
+    $ComputersToRestart=($result | where restartneeded -eq Yes).PSComputerName
+    Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
 
 #create cluster
     New-Cluster -Name $ClusterName -Node $Servers -StaticAddress $ClusterIP

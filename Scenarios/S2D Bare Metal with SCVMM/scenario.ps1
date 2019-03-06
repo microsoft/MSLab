@@ -395,11 +395,9 @@
 #region Configure WDS
     # Configure WDS
     Install-WindowsFeature WDS -IncludeManagementTools -IncludeAllSubFeature -ComputerName $WDSServerName
-    if ($env:COMPUTERNAME -eq "DC"){
-        Invoke-Command -ComputerName $WDSServerName -ScriptBlock {
-            wdsutil /initialize-server /reminst:"C:\RemoteInstall"
-            wdsutil /start-server
-        }
+    if ($env:COMPUTERNAME -eq $WDSServerName){
+        wdsutil /initialize-server /reminst:"C:\RemoteInstall"
+        wdsutil /start-server
     }else{ #need to do credssp delegation to be able to send creds to server. Make sure the remote server is not DC.
         winrm quickconfig -force #on client is winrm not configured
         Enable-WSManCredSSP -DelegateComputer "$WDSServerName"  -Role Client -Force
