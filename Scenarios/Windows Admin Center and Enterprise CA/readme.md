@@ -45,7 +45,7 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
 # SAN Failover cluster nodes
 1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
 # Storage Spaces Direct nodes
-1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMNam = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
+1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
  
 ```
 
