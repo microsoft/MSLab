@@ -380,6 +380,8 @@ If (!( $isAdmin )) {
         if (Get-ChildItem -Path "$PSScriptRoot\LAB\DC\" -Recurse -ErrorAction SilentlyContinue){
             $DCFilesExists=$true
             WriteInfoHighlighted "Files found in $PSScriptRoot\LAB\DC\. DC Creation will be skipped"
+        }else{
+            $DCFilesExists=$false
         }
 
 #endregion
@@ -1001,26 +1003,22 @@ If (!( $isAdmin )) {
             $ISOServer | Dismount-DiskImage
         }
 
-
-        WriteInfo "`t Deleting temp dir"
-        Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
-
 #endregion
 
 #region finishing
     WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
-    WriteInfo "`t (.\Temp\ToolsVHD 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
+    WriteInfo "`t (.\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
     If ((Read-host "`t Please type Y or N") -like "*Y"){
-        WriteInfo "`t `t Cleaning unnecessary items" 
-        "$PSScriptRoot\Temp\ToolsVHD","$PSScriptRoot\Temp\DSC","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
+        WriteInfo "`t `t Cleaning unnecessary items"
+        Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse 
+        "$PSScriptRoot\Temp","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
         } 
         WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
-        
     }else{
         WriteInfo "`t You did not type Y, skipping cleanup"
     }
