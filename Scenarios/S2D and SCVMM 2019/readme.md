@@ -1,13 +1,13 @@
 <!-- TOC -->
 
-- [S2D and SCVMM 2019 (Work in Progress)](#s2d-and-scvmm-2019-work-in-progress)
+- [S2D and SCVMM 2019](#s2d-and-scvmm-2019)
     - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
     - [About the lab](#about-the-lab)
     - [Lab prerequisites](#lab-prerequisites)
     - [The lab](#the-lab)
     - [Do some neccessarities](#do-some-neccessarities)
         - [Check some prereq](#check-some-prereq)
-        - [Add run as account to connect to VMs](#add-run-as-account-to-connect-to-vms)
+        - [Add run as account to connect to infrastructure machines](#add-run-as-account-to-connect-to-infrastructure-machines)
     - [Transition networkring](#transition-networkring)
         - [Create Host Group and configure networking](#create-host-group-and-configure-networking)
         - [Add S2D Cluster](#add-s2d-cluster)
@@ -18,11 +18,12 @@
         - [Add WSUS to SCVMM](#add-wsus-to-scvmm)
         - [Add Update Baseline](#add-update-baseline)
         - [Scan for compliance](#scan-for-compliance)
+        - [Disable CAU](#disable-cau)
         - [Remediate](#remediate)
 
 <!-- /TOC -->
 
-# S2D and SCVMM 2019 (Work in Progress)
+# S2D and SCVMM 2019
 
 ## LabConfig Windows Server 2019
 
@@ -37,7 +38,7 @@ $LabConfig.VMs += @{ VMName = 'WSUS' ; Configuration = 'Simple'; ParentVHD = 'Wi
 
 ## About the lab
 
-The intention of this lab is to demonstrate transitioning from standalone S2D cluster to S2D cluster managed by SCVMM.
+The intention of this lab is to demonstrate transitioning from standalone S2D cluster to S2D cluster managed by SCVMM. It will demonstrate how to transition to Logical Switch and how to transition from Cluster-Aware Updating to updating with SCVMM.
 
 ## Lab prerequisites
 
@@ -51,8 +52,7 @@ The intention of this lab is to demonstrate transitioning from standalone S2D cl
 
 ## The lab
 
-Run all code from DC. Run all code in one powershell window.
-
+Run all code from DC. Run all code in one PowerShell windows to keep variables.
 
 ## Do some neccessarities
 
@@ -73,7 +73,7 @@ Get-VMMServer "DC"
  
 ```
 
-### Add run as account to connect to VMs
+### Add run as account to connect to infrastructure machines
 
 ```PowerShell
 $RunAsAccountName="VMM RAA"
@@ -87,7 +87,6 @@ New-SCRunAsAccount -Credential $Credentials -Name $RunAsAccountName -Description
 ## Transition networkring
 
 ### Create Host Group and configure networking
-
 
 ```PowerShell
 #region variables
@@ -261,6 +260,15 @@ New-SCRunAsAccount -Credential $Credentials -Name $RunAsAccountName -Description
  
 ```
 
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/LogicalNetworks.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/NetworkSites.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/LogicalSwitch.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/VMNetworks.png)
+
+
 ### Add S2D Cluster
 
 ```PowerShell
@@ -274,7 +282,15 @@ Add-SCVMHostCluster -Name $ClusterName -VMHostGroup $hostGroup -Reassociate $tru
  
 ```
 
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/ClusterAdded.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/ClusterAddedStorage.png)
+
 ### Convert External switch to Logical Switch
+
+Since Switch is not logical as you can see on screenshot below, let's convert it.
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/ExternalSwitch.png)
 
 ```PowerShell
 $vmHostNames="S2D1","S2D2","S2D3","S2D4"
@@ -298,6 +314,9 @@ Foreach($vmHostName in $vmHostNames){
  
 ```
 
+As you can see on screenshot below, Logical Switch was mapped, however IP Pools and Classifications are missing. Let's fix it.
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/LogicalSwitchMissingPieces.png)
 
 ### Configure vNICs IP Pool and Classification
 
@@ -326,11 +345,13 @@ foreach ($vmHostName in $vmHostNames){
  
 ```
 
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/LogicalSwitchFixeds.png)
+
 ## Transition to SCVMM based updates
 
 ### Setup WSUS server
 
-Following scripts are inspired by this article https://smsagent.blog/2014/02/07/installing-and-configuring-wsus-with-powershell/
+Following scripts are inspired by this blog https://smsagent.blog/2014/02/07/installing-and-configuring-wsus-with-powershell/
 
 ```PowerShell
 $WSUSServerName="WSUS"
@@ -405,7 +426,11 @@ Add-SCUpdateServer -ComputerName $WSUSServerName -Credential $credential -TCPPor
  
 ```
 
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/WSUSinSCVMM.png)
+
 ### Add Update Baseline 
+
+Add Update baseline and assign it to SeattleDC host group. The powershell code will select only Windows Server 2019 LTSC updates.
 
 ```PowerShell
 $VMHostGroupName="SeattleDC"
@@ -414,7 +439,6 @@ $Date=Get-Date
 $2digitsDay  ="{0:D2}" -f $date.Day
 $2digitsMonth="{0:D2}" -f $date.Month
 $BaselineName="$($Date.Year)-$2DigitsMonth-$2DigitsDay Windows Server 2019 Updates+Security updates"
-
 
 if (-not (Get-SCBaseline -Name $BaselineName -ErrorAction SilentlyContinue)){
     $baseline = New-SCBaseline -Name $BaselineName -Description ""
@@ -426,9 +450,34 @@ if (-not (Get-SCBaseline -Name $BaselineName -ErrorAction SilentlyContinue)){
  
 ```
 
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/UpdateBaseline.png)
+
 ### Scan for compliance
 
 ```PowerShell
+$vmHostNames="S2D1","S2D2","S2D3","S2D4"
+foreach ($vmHostName in $vmHostNames){
+    $VMHost = Get-SCVMHost -ComputerName $vmHostName
+    $Compliance = Get-SCComplianceStatus -VMMManagedComputer $VMHost.ManagedComputer
+    foreach($Bsc in $Compliance.BaselineLevelComplianceStatus){
+        Start-SCComplianceScan -VMMManagedComputer $VMHost.ManagedComputer -Baseline $Bsc.Baseline
+    }
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/Compliance-NonCompliant1.png)
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/Compliance-NonCompliant2.png)
+
+### Disable CAU
+
+Since we will use SCVMM, it's no longer needed.
+
+```PowerShell
+$ClusterName="S2D-Cluster"
+
+Disable-CauClusterRole -ClusterName $ClusterName -Force
  
 ```
 
@@ -447,3 +496,5 @@ foreach ($vmHostName in $vmHostNames){
 Start-SCUpdateRemediation -JobGroup $JobGUID -StartNow -UseLiveMigration -VMHostCluster $cluster
  
 ```
+
+![](/Scenarios/S2D%20and%20SCVMM%202019/Screenshots/RemediationInProgress.png)
