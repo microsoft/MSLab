@@ -332,8 +332,11 @@
 
 #Create Logical Switch
     $virtualSwitchExtensions = @()
+    if ($SRIOV){
         $logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "" -EnableSriov $true -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "None" -VirtualSwitchExtensions $virtualSwitchExtensions
-
+    }else{
+        $logicalSwitch = New-SCLogicalSwitch -Name $vSwitchName -Description "" -EnableSriov $true -SwitchUplinkMode "EmbeddedTeam" -MinimumBandwidthMode "Absolute" -VirtualSwitchExtensions $virtualSwitchExtensions
+    }
 
 #Add virtual port classifications
     foreach ($Classification in $Classifications){

@@ -27,7 +27,7 @@ $LabConfig.VMs += @{ VMName = 'S2D1NewOS' ; Configuration = 'Simple'   ; ParentV
 ```
 **Deploy.ps1 result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/Deploy.ps1_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/Deploy.ps1_result.png)
 
 # One node OS failure simulation
 
@@ -43,12 +43,12 @@ Stop-VM -VMName WSLab-s2d1 -TurnOff
 
 **Result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/TurnOff_S2D1_result.png)
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/result_turnoff_s2d1_cluadmin.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/TurnOff_S2D1_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/result_turnoff_s2d1_cluadmin.png)
 
 **you can also notice disks missing**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/missing_disks_in_pool.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/missing_disks_in_pool.png)
 
 As we are simulating OS failure, we will "reinstall" OS by just replacing OS vhd with vhd from S2D1NewOS VM.
 
@@ -63,13 +63,13 @@ Start-vm -VMName WSLab-s2d1
 
 **Result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/OS_replaced_s2d1_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/OS_replaced_s2d1_result.png)
 
 Run first 4 regions of s2d Hyper-Converged script again to configure basic settings and networking on S2D1NewOS machine. Just add line $servers="S2D1NewOS" between regions to let only new server configure
 
 **Regions to run to configure S2D1NewOS machine**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/regions_to_run.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/regions_to_run.png)
 
 After node is configured, you can add it to cluster and remove the old one by running following commands
 
@@ -81,7 +81,7 @@ Remove-ClusterNode -Cluster s2d-cluster -Name S2D1 -Force
 
 **Result: Notice all disks are now healthy**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/pool_healthy_again.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/pool_healthy_again.png)
 
 The last step would be to modify fault domain xml (as we used it)
 
@@ -104,7 +104,7 @@ Set-ClusterFaultDomainXML -XML $xml -CimSession s2d-cluster
 ```
 
 **Result**
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/OS_failure_recovery_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/OS_failure_recovery_result.png)
 
 # All nodes OS failure simulation
 
@@ -138,7 +138,7 @@ foreach ($VMName in $VMNames){
 
 **Result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/NewOS_in_s2d_nodes.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/NewOS_in_s2d_nodes.png)
 
 Lets make this interesting. Because some Donkey mixed all disks lets reconnect it randomly to VMs :D
 
@@ -165,7 +165,7 @@ Start-VM -VMName $VMNames
 
 **Mixed disks result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/mixed_disks_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/mixed_disks_result.png)
 
 Modify following values in LabConfig to create brand new cluster out of brand new OS.
 
@@ -178,13 +178,13 @@ $CAURoleName="S2D-Clus1-CAU"
 
 **Modified LabConfig region in Scenario script**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/modified_labconfig_region.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/modified_labconfig_region.png)
 
 Continue with scenario. Run all regions, until enabling S2D (Labconfig->Create Fault Domains)
 
 **Regions to run**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/regions_to_run_allnodes.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/regions_to_run_allnodes.png)
 
 Now, after cluster is created, all is configured, you can enable-clusters2d. It will recognize drives and bring volumes online. Even I lost 2 disks somewhere when I was writing the scripts (notice only 46 disks were found)
 
@@ -195,8 +195,8 @@ Enable-ClusterS2D -CimSession S2D-Cluster1 -confirm:0 -Verbose
 
 **Result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/enable-clusterS2D_newcluster_result.png)
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/Cluster_disks_in_new_cluster.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/enable-clusterS2D_newcluster_result.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/Cluster_disks_in_new_cluster.png)
 
 As you can see, volume paths and names are bit messed up. So let's make this right with following PowerShell script
 
@@ -245,8 +245,8 @@ Start-Sleep 20
 
 **Result**
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/cluster_disks_fixed.png)
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/VMs_restored.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/cluster_disks_fixed.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/VMs_restored.png)
 
 The very last step would be to optimize volumes to regain resiliency (as we mixed all devices)
 
@@ -255,7 +255,7 @@ Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePo
  
 ```
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalance.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/rebalance.png)
 
 To check job you can display it with following piece of script
 
@@ -275,4 +275,4 @@ if ($jobs){
  
 ```
 
-![](/Scenarios/S2D%20Disaster%20recovery/Screenshots/rebalancejob.png)
+![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/rebalancejob.png)

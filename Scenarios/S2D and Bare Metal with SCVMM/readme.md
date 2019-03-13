@@ -60,13 +60,13 @@ $LabConfig.VMs += @{ VMName = 'WDS' ; Configuration = 'Simple' ; ParentVHD = 'Wi
 
 Since script is bit long, all regions are described below without code snippets. All code is in scenario.ps1
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/RegionsInISE.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/RegionsInISE.png)
 
 ## region check prerequisites
 
 This region just checks if VMM console is installed and also if RSAT components are present. It is valid for Server/ServerCore/Client. If VMM console is not installed, it will ask for setup.exe and install it for you. 
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMMConsoleResult.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VMMConsoleResult.png)
 
 ## region Variables
 
@@ -76,43 +76,43 @@ Script will ask you for credentials. Just provide your LabAdmin creds (it's for 
 
 Script will also ask you for VHD. Just provide Core server VHD from your ParentDisks (copy it to tools disk before hydration as instructed in Tip 2)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/CredRequest.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/CredRequest.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VHDRequest.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VHDRequest.png)
 
 ## region basic SCVMM Configuration
 
 For some reason VMM service does not start, so its started if not running. Also some basic settings are configured like HostGroup, RunAsAccounts...
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/AutoCreationLogicalNetworks.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/AutoCreationLogicalNetworks.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/RunAsAccounts.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/RunAsAccounts.png)
 
 ## region Configure networks
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalNetworks.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalNetworks.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMNetworks.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VMNetworks.png)
 
 ## region Configure Virtual Switch
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchvPorts.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchvPorts.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchUplinks.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/LogicalSwitchUplinks.png)
 
 ## region Configure Physical Computer Profile
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfile.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfile.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfileDetails.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/PhysicalComputerProfileDetails.png)
 
 ## region Configure WDS
 
 Note: following warnings are expected
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/WDSWarning.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/WDSWarning.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/WDS.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/WDS.png)
 
 ## region Run from Hyper-V Host to create new VMs
 
@@ -126,28 +126,28 @@ This region can be easily modified to use it with real hardware. In virtual envi
 
 To initiate deployment, just reboot S2D VMs on host after script will create deployment jobs
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentJobs.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentJobs.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress1.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentInProgress1.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentFinished.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/DeploymentFinished.png)
 
 ## region Apply vSwitch
 
 can take forever. Just wait. And validate all was deployed OK as on following screenshot. It sometimes does not apply vSwitch on first node.
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VirtualSwitches.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VirtualSwitches.png)
 
 
 ## region Configure Networking (classic approach)
 
 In this part will script configure best practices (pNIC to vNIC mapping, static IP addresses, DCB ...). All steps are done with native (nonVMM) commandlets.
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICDynamic.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICDynamic.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICStatic.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/MgmtNICStatic.png)
 
 ## region Configure Cluster and S2D (classic approach)
 
@@ -159,18 +159,18 @@ For all best practices review [S2D Hyperconverged scenario](/Scenarios/S2D%20Hyp
 
 Here will be some volumes created using native PowerShell commands, and then renamed.
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesPowerShell.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesPowerShell.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesList.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VolumesList.png)
 
 ## region Create some dummy VMs (3 per each CSV disk)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/VMs.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/VMs.png)
 
 ## region add storage provider to VMM
 
 In this part we will just add pool and volume management to VMM
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/ClassificationsAndPools.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/ClassificationsAndPools.png)
 
-![](/Scenarios/S2D%20Bare%20Metal%20with%20SCVMM/Screenshots/StorageClassification.png)
+![](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/Screenshots/StorageClassification.png)

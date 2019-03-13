@@ -127,7 +127,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch
  
 ```
 
-![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/IOVEnabledNotWorking.png)
+![](/Scenarios/S2D%20and%20Networks%20deep%20dive/Screenshots/IOVEnabledNotWorking.png)
 
 The next step would be to configure load balancing algorithm. By default in Windows Server 2016 is Dynamic, while in Server 2019 is HyperVPort. The recommendation for S2D environment would be HyperVPort. Following script will configure HyperVPort on Windows Server 2016 only.
 
@@ -282,6 +282,8 @@ Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -Compu
 
 I did not see this configuration in the field much, but let's cover it too, to demonstrate LBFO teaming and creating SETSwitch without vNICs in ManagementOS.
 
+LBFO is still supported, but we **don't recommend it since future is SET**. Consider this scenario to as example for Academic discussion :). 
+
 So the first step would be to create LBFO team out of first 2 network adapters. In this example it's easy as DHCP is enabled in the management network. In real world environments LBFO teaming is bit more complicated as it does not inherit network configuration from teamed adapter. I also see, that customers sometimes prefer LACP.
 
 ```PowerShell
@@ -352,10 +354,10 @@ Invoke-Command -ComputerName $servers -scriptblock {
 
 Note: as IP of server is changed, you may see reconnection during script execution. It's sometimes necessary to flushDNS as you can see on screenshot below.
 
-![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/flushdns.png)
+![](/Scenarios/S2D%20and%20Networks%20deep%20dive/Screenshots/flushdns.png)
 
 ## Wrap Up
 
 As you can see, we demonstrated different ways to achieve the same. Different customers, different approaches. There is no single answer to the problem, you always need to consider all options and based on pros and cons choose the one that suits you and your environment.
 
-![](/Scenarios/S2D%20Networks%20deep%20dive/Screenshots/NICsServerManager.png)
+![](/Scenarios/S2D%20and%20Networks%20deep%20dive/Screenshots/NICsServerManager.png)
