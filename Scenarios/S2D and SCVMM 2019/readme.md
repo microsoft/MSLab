@@ -4,7 +4,6 @@
     - [LabConfig Windows Server 2019](#labconfig-windows-server-2019)
     - [About the lab](#about-the-lab)
     - [Lab prerequisites](#lab-prerequisites)
-    - [The lab](#the-lab)
     - [Do some neccessarities](#do-some-neccessarities)
         - [Check some prereq](#check-some-prereq)
         - [Add run as account to connect to infrastructure machines](#add-run-as-account-to-connect-to-infrastructure-machines)
@@ -49,8 +48,6 @@ The intention of this lab is to demonstrate transitioning from standalone S2D cl
 * you need to deploy [S2D Hyperconverged Scenario](/Scenarios/S2D%20Hyperconverged/) as prerequisite.
 
 * The lab is inspired (and shares some code) with [S2D and Bare Metal with SCVMM](/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM/)]
-
-## The lab
 
 Run all code from DC. Run all code in one PowerShell windows to keep variables.
 
