@@ -152,13 +152,15 @@
         $DCB=$False
         $iWARP=$False
 
-    #vSwitch vNICs classifications
+    #vSwitch vNICs and vmNICs classifications
         $Classifications=@()
-        $Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="RDMAvNIC"                  ; NativePortProfileName="RDMAvNIC"               ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
-        $Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation" ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$false ; EnableRdma=$true}
+        $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vmNIC VMMQ"               ; NativePortProfileName="vmNIC VMMQ"               ; Description="Classification for VMMQ enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+
         if ($SRIOV) {
+            $Classifications+=@{PortClassificationName="vmNIC RDMA"               ; NativePortProfileName="vmNIC RDMA"               ; Description="Classification for RDMA enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$true}
             $Classifications+=@{PortClassificationName="SR-IOV"   ; NativePortProfileName="SR-IOV Profile"                      ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
         }
 
@@ -171,9 +173,9 @@
         $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupNames=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; VMNetworkName= "DMZ"        ; VMNetworkDescription= ""  ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ; DNSSuffix="Corp.contoso.com" ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
 
         $vNICDefinitions=@()
-        $vNICDefinitions+=@{NetAdapterName="SMB_1"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
-        $vNICDefinitions+=@{NetAdapterName="SMB_2"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="RDMAvNIC"                  ;IPAddressPoolName="Storage IP Pool"}
-        $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host management static" ;IPAddressPoolName="Management IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB01" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB02" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="Mgmt"  ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host Management absolute" ;IPAddressPoolName="Management IP Pool"}
 
     #Uplink Port Profile
         $UplinkPPName="Seattle_PP" 
@@ -705,7 +707,7 @@
         #validate policy
             Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-        #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+        #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
         #This value needs to match physical switch configuration. Value might vary based on your needs.
         #If connected directly (in 2 node configuration) skip this step.
             Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}

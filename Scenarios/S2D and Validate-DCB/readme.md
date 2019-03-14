@@ -42,7 +42,7 @@ if ($WindowsInstallationType -eq "Client"){
 
 ## Fix NetAdapters names on S2D cluster
 
-For example rename from vEthernet (SMB_1) to just SMB_1 as validate-dcb validate if NetAdapter and VMNetworkAdapter names are the same.
+For example rename from vEthernet (SMB01) to just SMB01 as validate-dcb validate if NetAdapter and VMNetworkAdapter names are the same.
 
 ```PowerShell
 $servers="S2D1","S2D2","S2D3","S2D4"
