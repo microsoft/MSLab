@@ -172,11 +172,12 @@ Get-SCLogicalNetworkDefinition | Remove-SCLogicalNetworkDefinition
 
 #Create Port Profiles for RDMA, VMQ and VMMQ
 $Classifications=@()
-$Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="RDMAvNIC"                  ; NativePortProfileName="RDMAvNIC"               ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
-$Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="SR-IOV"                    ; NativePortProfileName="SR-IOV Profile"         ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
+$Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation" ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+$Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$false ; EnableRdma=$true}
+$Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+$Classifications+=@{PortClassificationName="vmNIC VMMQ"               ; NativePortProfileName="vmNIC VMMQ"               ; Description="Classification for VMMQ enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
+$Classifications+=@{PortClassificationName="vmNIC RDMA"               ; NativePortProfileName="vmNIC RDMA"               ; Description="Classification for RDMA enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$true}
+$Classifications+=@{PortClassificationName="SR-IOV"                   ; NativePortProfileName="SR-IOV Profile"           ; Description=""                                                        ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$false; EnableVmq=$false ; EnableRdma=$false}
 
 #create port classifications and port profiles
 foreach ($Classification in $Classifications){
@@ -208,13 +209,13 @@ foreach ($UplinkPP in (Get-SCNativeUplinkPortProfile | Sort-Object -Property Nam
     #Add Management vNIC
     $vmNetwork=Get-SCVMNetwork -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
     $vmSubnet= Get-SCVMSubnet  -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
-    $vNICPortClassification = Get-SCPortClassification  -Name "Host Management static"
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Management -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
-    #Add Cluster vNICs
+    $vNICPortClassification = Get-SCPortClassification  -Name "Host Management absolute"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name Mgmt -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
+    #Add SMB vNICs
     $vmNetwork=Get-SCVMNetwork -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
     $vmSubnet= Get-SCVMSubnet  -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
-    $vNICPortClassification = Get-SCPortClassification  -Name "RDMAvNIC"
+    $vNICPortClassification = Get-SCPortClassification  -Name "vNIC RDMA"
 
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster1 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster2 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name SMB01 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name SMB02 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
 }

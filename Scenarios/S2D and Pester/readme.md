@@ -116,7 +116,7 @@ For simplicity let's change VLAN on SMB1 adapter on machine S2D1 to 2 (s2d hyper
 ```PowerShell
 #introduce misconfiguration on S2D1
 Invoke-Command -computername S2D1 -ScriptBlock {
-    Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_1 -VlanId 2 -Access -ManagementOS
+    Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId 2 -Access -ManagementOS
 }
  
 ```

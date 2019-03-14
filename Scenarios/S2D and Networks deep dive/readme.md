@@ -146,9 +146,9 @@ The next step would be to configure vNICs. When SET switch is created, it will c
 ```PowerShell
 $servers="2NICs1","2NICs2"
 #Configure vNICs
-Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $servers
-Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $servers
-Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -CimSession $servers
+Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Mgmt -ComputerName $servers
+Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName SETSwitch -CimSession $servers
+Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName SETSwitch -CimSession $servers
  
 ```
 
@@ -160,9 +160,9 @@ $IP=1
 $servers="2NICs1","2NICs2"
 $servers | foreach-object {
     #configure IP Addresses
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
     $IP++
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
     $IP++
 }
  
@@ -173,13 +173,13 @@ To configure SMB NICs to use VLAN use following script
 ```PowerShell
 $StorVLAN=1
 $servers="2NICs1","2NICs2"
-Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_1 -VlanId $StorVLAN -Access -ManagementOS -CimSession $servers
+Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN -Access -ManagementOS -CimSession $servers
 
-Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_2 -VlanId $StorVLAN -Access -ManagementOS -CimSession $servers
+Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN -Access -ManagementOS -CimSession $servers
 
 #Restart each host vNIC adapter so that the Vlan is active.
-Restart-NetAdapter "vEthernet (SMB_1)" -CimSession $servers
-Restart-NetAdapter "vEthernet (SMB_2)" -CimSession $servers
+Restart-NetAdapter "vEthernet (SMB01)" -CimSession $servers
+Restart-NetAdapter "vEthernet (SMB02)" -CimSession $servers
  
 ```
 
@@ -188,13 +188,13 @@ Enable RDMA on SMB vNICs and map vNICS to pNICs
 ```PowerShell
 $servers="2NICs1","2NICs2"
 #enable RDMA
-Enable-NetAdapterRDMA "vEthernet (SMB_1)","vEthernet (SMB_2)" -CimSession $servers
+Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $servers
 
 #map each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
 Invoke-Command -ComputerName $servers -ScriptBlock {
     $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
-    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
-    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
 }
  
 ```
@@ -216,7 +216,7 @@ $servers="2NICs1","2NICs2"
 
 ## Traditional networking
 
-With traditional networking, let's pick 2 last adapters and let's rename it to SMB_1 and SMB_2.
+With traditional networking, let's pick 2 last adapters and let's rename it to SMB01 and SMB02.
 
 ```PowerShell
 $servers="4NICs1","4NICs2"
@@ -224,14 +224,14 @@ foreach ($server in $servers){
     $number=1
     $SMBNics=get-netadapter -CimSession $server | sort name  | select -Last 2
     foreach ($SMBNIC in $SMBNics) {
-        $SMBNic | Rename-NetAdapter -NewName "SMB_$number"
+        $SMBNic | Rename-NetAdapter -NewName "SMB0$number"
         $number++
     }
 }
  
 ```
 
-The next step would be to configure static IP addresses on SMB_1 and SMB_2 adapters.
+The next step would be to configure static IP addresses on SMB01 and SMB02 adapters.
 
 ```PowerShell
 $StorNet="172.16.1."
@@ -239,9 +239,9 @@ $IP=5
 $servers="4NICs1","4NICs2"
 $servers | foreach-object {
     #configure IP Addresses
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_1" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
     $IP++
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_2" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
     $IP++
 }
  
@@ -252,12 +252,12 @@ It is also convenient to configure VLAN. To do so, run following command
 ```PowerShell
 $StorVLAN=1
 $servers="4NICs1","4NICs2"
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_1 -CimSession $servers -confirm:0
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_2 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB01 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB02 -CimSession $servers -confirm:0
 
 #Restart each host vNIC adapter so that the Vlan is active.
-Restart-NetAdapter "SMB_1" -CimSession $servers
-Restart-NetAdapter "SMB_2" -CimSession $servers
+Restart-NetAdapter "SMB01" -CimSession $servers
+Restart-NetAdapter "SMB02" -CimSession $servers
  
 ```
 
@@ -274,7 +274,7 @@ Invoke-Command -ComputerName $servers -scriptblock {
     }
 }
 #Rename management vNIC
-Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $servers
+Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Mgmt -ComputerName $servers
  
 ```
 
@@ -312,7 +312,7 @@ foreach ($server in $servers){
     $number=1
     $SMBNics=get-netadapter -CimSession $server | where name -like "Ethernet*" | sort name  | select -Last 2
     foreach ($SMBNIC in $SMBNics) {
-        $SMBNic | Rename-NetAdapter -NewName "SMB_$number"
+        $SMBNic | Rename-NetAdapter -NewName "SMB0$number"
         $number++
     }
 }
@@ -321,19 +321,19 @@ $StorNet="172.16.1."
 $IP=9
 $servers | foreach-object {
     #configure IP Addresses
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_1" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
     $IP++
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB_2" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
     $IP++
 }
 
 $StorVLAN=1
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_1 -CimSession $servers -confirm:0
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB_2 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB01 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB02 -CimSession $servers -confirm:0
 
 #Restart each host vNIC adapter so that the Vlan is active.
-Restart-NetAdapter "SMB_1" -CimSession $servers
-Restart-NetAdapter "SMB_2" -CimSession $servers
+Restart-NetAdapter "SMB01" -CimSession $servers
+Restart-NetAdapter "SMB02" -CimSession $servers
  
 ```
 
