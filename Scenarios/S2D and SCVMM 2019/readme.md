@@ -93,12 +93,12 @@ New-SCRunAsAccount -Credential $Credentials -Name $RunAsAccountName -Description
 
     #vSwitch vNICs and vmNICs classifications
         $Classifications=@()
-        $Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation (Windows Server 2016 or later)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs (Mode 2)"                                         ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
-        $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                                                  ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vNIC mgmt" ; NativePortProfileName="vNIC mgmt" ; Description="Classification for mgmt vNIC"                   ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vNIC RDMA" ; NativePortProfileName="vNIC RDMA" ; Description="Classification for RDMA enabled vNICs (Mode 2)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
+        $Classifications+=@{PortClassificationName="vmNIC VMQ" ; NativePortProfileName="vmNIC VMQ" ; Description="Classification for VMQ enabled vmNICs"          ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
         
         if ($SRIOV) {
-            $Classifications+=@{PortClassificationName="vmNIC SR-IOV"         ; NativePortProfileName="vmNIC SR-IOV"             ; Description="Classification for SR-IOV enabled vmNICs"                                               ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+            $Classifications+=@{PortClassificationName="vmNIC SR-IOV" ; NativePortProfileName="vmNIC SR-IOV" ; Description="Classification for SR-IOV enabled vmNICs" ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
         }
 
     #logical networks definition
@@ -112,7 +112,7 @@ New-SCRunAsAccount -Credential $Credentials -Name $RunAsAccountName -Description
         $vNICDefinitions=@()
         $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
         $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="Mgmt"       ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host management absolute" ;IPAddressPoolName="Management_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="Mgmt"       ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
 
     #Uplink Port Profile
         $UplinkPPName="Seattle_PP" 
@@ -323,7 +323,7 @@ As you can see on screenshot below, Logical Switch was mapped, however IP Pools 
     $vNICDefinitions=@()
     $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
     $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
-    $vNICDefinitions+=@{NetAdapterName="Mgmt" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host management absolute" ;IPAddressPoolName="Management_IPPool"}
+    $vNICDefinitions+=@{NetAdapterName="Mgmt" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
 
 foreach ($vmHostName in $vmHostNames){
     $vmHost = Get-SCVMHost -ComputerName $vmHostName
