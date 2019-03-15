@@ -171,9 +171,9 @@
         $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupNames=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; VMNetworkName= "DMZ"        ; VMNetworkDescription= ""  ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ; DNSSuffix="Corp.contoso.com" ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
 
         $vNICDefinitions=@()
-        $vNICDefinitions+=@{NetAdapterName="SMB01" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="SMB02" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="Mgmt"  ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt"   ;IPAddressPoolName="Management_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB01" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"    ;PortClassificationName="vNIC RDMA" ;IPAddressPoolName="Storage_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB02" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"    ;PortClassificationName="vNIC RDMA" ;IPAddressPoolName="Storage_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="Mgmt"  ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management" ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
 
     #Uplink Port Profile
         $UplinkPPName="Seattle_PP" 
