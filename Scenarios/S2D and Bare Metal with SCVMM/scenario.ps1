@@ -159,7 +159,7 @@
         $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                                                  ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
         
         if ($SRIOV) {
-            $Classifications+=@{PortClassificationName="SR-IOV"               ; NativePortProfileName="SR-IOV Profile"           ; Description=""                                                                                       ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$false ; EnableVmq=$false ; EnableRdma=$false}
+            $Classifications+=@{PortClassificationName="vmNIC SR-IOV"         ; NativePortProfileName="vmNIC SR-IOV"             ; Description="Classification for SR-IOV enabled vmNICs"                                               ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
         }
 
     #logical networks definition
