@@ -426,9 +426,9 @@
 
 #region Run from Hyper-V Host to create new VMs
     #some variables
-    $LabPrefix="WSLabSCVMM-"
+    $LabPrefix="WSLab17763.316VMM-"
     $vSwitchName="$($LabPrefix)LabSwitch"
-    $VMsPath="E:\WSLab_14393.2007_SCVMM\LAB\VMs"
+    $VMsPath="E:\WSLab17763.316VMM\LAB\VMs"
     $VMNames="S2D1","S2D2","S2D3","S2D4"
     $NumberOfHDDs=12
     $SizeOfHDD=4TB
