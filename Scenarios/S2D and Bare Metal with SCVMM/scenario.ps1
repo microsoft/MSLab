@@ -173,9 +173,9 @@
         $Networks+=@{LogicalNetworkName="VMs Network"       ; HostGroupNames=$HostGroupName ; Name="DMZ"         ; Description="DMZ VLAN"        ; VMNetworkName= "DMZ"        ; VMNetworkDescription= ""  ; Subnet="192.168.2.0/24"   ; VLAN=2 ; IPAddressRangeStart="192.168.2.1"   ;IPAddressRangeEnd="192.168.2.254"     ; DNSSuffix="Corp.contoso.com" ;DNSServers=("10.0.0.11","10.0.0.10")  ;Gateways="192.168.2.1"}
 
         $vNICDefinitions=@()
-        $vNICDefinitions+=@{NetAdapterName="SMB01" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage IP Pool"}
-        $vNICDefinitions+=@{NetAdapterName="SMB02" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage IP Pool"}
-        $vNICDefinitions+=@{NetAdapterName="Mgmt"  ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host Management absolute" ;IPAddressPoolName="Management IP Pool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB01" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB02" ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="Storage"    ; VMSubnetName="Storage"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="Storage_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="Mgmt"  ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="Host Management absolute"   ;IPAddressPoolName="Management_IPPool"}
 
     #Uplink Port Profile
         $UplinkPPName="Seattle_PP" 
@@ -257,7 +257,7 @@
     #create IP Pools
         foreach ($Network in $Networks){
             if ($network.IPAddressRangeStart){
-                if (-not (Get-SCStaticIPAddressPool -Name "$($network.name)_Pool")){
+                if (-not (Get-SCStaticIPAddressPool -Name "$($network.name)_IPPool")){
                     $logicalNetwork = Get-SCLogicalNetwork -Name $network.LogicalNetworkName
                     $logicalNetworkDefinition = Get-SCLogicalNetworkDefinition -Name $network.Name
 
@@ -283,7 +283,7 @@
                     # WINS servers
                     $allWinsServers = @()
 
-                    New-SCStaticIPAddressPool -Name "$($network.Name)_Pool" -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Network.Subnet -IPAddressRangeStart $network.IPAddressRangeStart -IPAddressRangeEnd $network.IPAddressRangeEnd -DNSServer $allDnsServer -DNSSuffix $network.DNSSuffix -DNSSearchSuffix $allDnsSuffixes -NetworkRoute $allNetworkRoutes -DefaultGateway $allGateways -RunAsynchronously
+                    New-SCStaticIPAddressPool -Name "$($network.Name)_IPPool" -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Network.Subnet -IPAddressRangeStart $network.IPAddressRangeStart -IPAddressRangeEnd $network.IPAddressRangeEnd -DNSServer $allDnsServer -DNSSuffix $network.DNSSuffix -DNSSearchSuffix $allDnsSuffixes -NetworkRoute $allNetworkRoutes -DefaultGateway $allGateways -RunAsynchronously
                 }
             }
         }
