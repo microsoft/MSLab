@@ -176,10 +176,10 @@ Get-SCLogicalNetworkDefinition | Remove-SCLogicalNetworkDefinition
 #Create Port Profiles for RDMA, VMQ
     #vSwitch vNICs classifications
     $Classifications=@()
-    $Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation (Windows Server 2016 or later)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
-    $Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs (Mode 2)"                                         ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
-    $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                                                  ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
-    $Classifications+=@{PortClassificationName="vmNIC SR-IOV"             ; NativePortProfileName="vmNIC SR-IOV"             ; Description="Classification for SR-IOV enabled vmNICs"                                               ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+    $Classifications+=@{PortClassificationName="vNIC mgmt"    ; NativePortProfileName="vNIC mgmt"    ; Description="Classification for mgmt vNIC"                   ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+    $Classifications+=@{PortClassificationName="vNIC RDMA"    ; NativePortProfileName="vNIC RDMA"    ; Description="Classification for RDMA enabled vNICs (Mode 2)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
+    $Classifications+=@{PortClassificationName="vmNIC VMQ"    ; NativePortProfileName="vmNIC VMQ"    ; Description="Classification for VMQ enabled vmNICs"          ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+    $Classifications+=@{PortClassificationName="vmNIC SR-IOV" ; NativePortProfileName="vmNIC SR-IOV" ; Description="Classification for SR-IOV enabled vmNICs"       ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
 
 #create port classifications and port profiles
 foreach ($Classification in $Classifications){
