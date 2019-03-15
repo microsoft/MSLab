@@ -154,14 +154,12 @@
 
     #vSwitch vNICs and vmNICs classifications
         $Classifications=@()
-        $Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation" ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$false ; EnableRdma=$true}
-        $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                   ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
-        $Classifications+=@{PortClassificationName="vmNIC VMMQ"               ; NativePortProfileName="vmNIC VMMQ"               ; Description="Classification for VMMQ enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$false}
-
+        $Classifications+=@{PortClassificationName="Host Management absolute" ; NativePortProfileName="Host management absolute" ; Description="Classification for Mgmt vNICs with absolute reservation (Windows Server 2016 or later)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+        $Classifications+=@{PortClassificationName="vNIC RDMA"                ; NativePortProfileName="vNIC RDMA"                ; Description="Classification for RDMA enabled vNICs (Mode 2)"                                         ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
+        $Classifications+=@{PortClassificationName="vmNIC VMQ"                ; NativePortProfileName="vmNIC VMQ"                ; Description="Classification for VMQ enabled vmNICs"                                                  ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+        
         if ($SRIOV) {
-            $Classifications+=@{PortClassificationName="vmNIC RDMA"               ; NativePortProfileName="vmNIC RDMA"               ; Description="Classification for RDMA enabled vmNICs"                  ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true ; EnableVmq=$true  ; EnableRdma=$true}
-            $Classifications+=@{PortClassificationName="SR-IOV"   ; NativePortProfileName="SR-IOV Profile"                      ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
+            $Classifications+=@{PortClassificationName="SR-IOV"               ; NativePortProfileName="SR-IOV Profile"           ; Description=""                                                                                       ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$false ; EnableVmq=$false ; EnableRdma=$false}
         }
 
     #logical networks definition
