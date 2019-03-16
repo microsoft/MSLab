@@ -125,7 +125,7 @@ Invoke-Command -ComputerName 2nodeCluster -scriptblock {New-Volume -FriendlyName
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/SimplestCommand.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/SimplestCommand.png)
 
 As you can see, the above command is creating 1TB CSV. Let's take a look what other parameters are there with command Get-VirtualDisk. You may ask, why not get-volume? Why Virtual disk? It's because originally (in 2012 days), volume was created with new-virtualdisk command and then it was needed to format it, add to CSV and then rename mountpoint. We will get back to this.
 
@@ -136,7 +136,7 @@ Get-VirtualDisk -CimSession 2nodeCluster -FriendlyName MyVolume
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk.png)
 
 You can notice, that information presented with this command is much better than it used to be in Windows Server 2016 as [showprettyvolume](https://blogs.technet.microsoft.com/filecab/2016/08/29/deep-dive-volumes-in-spaces-direct/) is now built-in.
 
@@ -149,7 +149,7 @@ Get-VirtualDisk -CimSession 2nodeCluster -FriendlyName MyVolume | fl *
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk1.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk1.png)
 
 Notice few attributes, that defines resiliency: 
 * NumberOfDatacopies (2=2-way Mirror, 3=3-way Mirror)
@@ -179,7 +179,7 @@ Get-VirtualDisk -CimSession 4nodeCluster -FriendlyName MyVolume | get-physicaldi
 
 That's not good! You can see, that volume spans all disks - both HDDs and SSDs.
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk2.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk2.png)
 
 So for most cases, just new-volume works great. But to be sure, you should use commands like this
 
@@ -190,7 +190,7 @@ New-Volume -StoragePoolFriendlyName S2D* -FriendlyName MyVolumeSSDs -FileSystem 
 
 As you can see, this Virtual disk is using SSDs only.
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk3.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk3.png)
 
 ## Tiers
 
@@ -224,7 +224,7 @@ Get-StorageTier -CimSession 4nodecluster
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/StorageTiers.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/StorageTiers.png)
 
 ### Creating volumes with tiers
 
@@ -304,9 +304,9 @@ get-storagetier -CimSession 2nodecluster,4nodecluster
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk4.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetVirtualDisk4.png)
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/GetStorageTier.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/GetStorageTier.png)
 
 ## Resizing volumes
 
@@ -323,7 +323,7 @@ Get-VirtualDisk -CimSession 4nodecluster -FriendlyName MyVolumeSSDs
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/Resize.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/Resize.png)
 
 The second step is to resize partition
 
@@ -352,7 +352,7 @@ Get-VirtualDisk -CimSession 4nodecluster -FriendlyName MAP | Get-StorageTier
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/ResizingTiers1.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/ResizingTiers1.png)
 
 Let's resize MyVolume1 first
 
@@ -369,7 +369,7 @@ $Partition | Resize-Partition -Size ($Partition | Get-PartitionSupportedSize).Si
 $VirtualDisk | Get-Disk | Get-Partition | Where PartitionNumber -Eq 2
  
 ```
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/ResizingTiers2.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/ResizingTiers2.png)
 
 And now let's resize MAP
 
@@ -391,7 +391,7 @@ $VirtualDisk | Get-Disk | Get-Partition | Where PartitionNumber -Eq 2
  
 ```
 
-![](/Scenarios/S2D%20Volumes%20deep%20dive/Screenshots/ResizingTiers3.png)
+![](/Scenarios/S2D%20and%20Volumes%20deep%20dive/Screenshots/ResizingTiers3.png)
 
 ## Bonus - Creating virtual disk old style
 

@@ -281,10 +281,10 @@ Logical switch - notice, that for each PP was profile with 2x cluster networks a
 #Enable net firewall rules
 Enable-NetFirewallRule -CimSession Compute1,Compute2 -Name "WMI-RPCSS-In-TCP","WMI-WINMGMT-In-TCP","FPS-SMB-In-TCP"
 
-$SecurePwd = ConvertTo-SecureString "LS1setup!"-AsPlainText -Force
+$SecurePwd = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin",$SecurePwd)
 $HostGroup = Get-SCVMHostGroup | Where-Object Path -eq "All Hosts\Redmond\Room1\Aisle1\Rack1"
-Add-SCVMHost -ComputerName "Compute1","Compute2" -RunAsynchronously -VMHostGroup $hostGroup -Credential $credential
+"Compute1","Compute2" | Foreach-Object {Add-SCVMHost -ComputerName $_ -RunAsynchronously -VMHostGroup $hostGroup -Credential $credential}
  
 ```
 
@@ -298,4 +298,4 @@ If you decide to apply vSwitch, all networks are automatically applied depending
 
 ![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchMGMT.png)
 
-![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchCluster.png)
+![](/Scenarios/S2D%20and%20SCVMM%20in%20large%20Datacenters/Screenshots/vSwitchSMB.png)
