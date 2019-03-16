@@ -211,7 +211,7 @@ foreach ($UplinkPP in (Get-SCNativeUplinkPortProfile | Sort-Object -Property Nam
     #Add Management vNIC
     $vmNetwork=Get-SCVMNetwork -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
     $vmSubnet= Get-SCVMSubnet  -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
-    $vNICPortClassification = Get-SCPortClassification  -Name "Host Management absolute"
+    $vNICPortClassification = Get-SCPortClassification  -Name "vNIC mgmt"
     New-SCLogicalSwitchVirtualNetworkAdapter -Name Mgmt -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
     #Add SMB vNICs
     $vmNetwork=Get-SCVMNetwork -Name Storage | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
