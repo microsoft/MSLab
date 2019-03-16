@@ -1,6 +1,9 @@
 #start services
 Start-Service -Name "MSSQLSERVER","SCVMMService"
 
+#Import VMM Module
+Import-Module VirtualMachineManager
+
 #connect to server
 Get-VMMServer "DC"
 
@@ -12,7 +15,7 @@ $Datacenters=@()
 $Datacenters+=@{
     DCName="Redmond"
     ManagementIPBlockStart="10.0.0" # 1C per aisle
-    ClusterIPBlockStart="10.1.0"    # 1C per rack
+    StorageIPBlockStart="10.1.0"    # 1C per rack
     NumberOfRoomsperDC=2
     NumberOfAislesPerRoom=2
     NumberOfRacksPerAisle=4
@@ -20,7 +23,7 @@ $Datacenters+=@{
 $Datacenters+=@{
     DCName="Seattle"
     ManagementIPBlockStart="10.2.0" # 1C per aisle
-    ClusterIPBlockStart="10.3.0"    # 1C per rack
+    StorageIPBlockStart="10.3.0"    # 1C per rack
     NumberOfRoomsperDC=2
     NumberOfAislesPerRoom=2
     NumberOfRacksPerAisle=4
@@ -28,14 +31,14 @@ $Datacenters+=@{
 $Datacenters+=@{
     DCName="London"
     ManagementIPBlockStart="10.4.0" # 1C per aisle
-    ClusterIPBlockStart="10.5.0"    # 1C per rack
+    StorageIPBlockStart="10.5.0"    # 1C per rack
     NumberOfRoomsperDC=2
     NumberOfAislesPerRoom=2
     NumberOfRacksPerAisle=4
 }
 $DNSServers="10.0.0.1","10.0.0.2" #Just an example
 $InfrastructureNetworkName="InfrastructureNetwork"
-$vSwitchName="vSwitch"
+$vSwitchName="SETSwitch"
 
 #Create Host Groups
 Foreach ($Datacenter in $Datacenters){
@@ -72,15 +75,15 @@ if (-not (Get-SCLogicalNetwork -Name $InfrastructureNetworkName)){
 }
 
 #Add sites,Pools and VM Networks
-    #Create Cluster Networks for each Rack
+    #Create Storage Networks for each Rack
     Foreach ($Datacenter in $Datacenters){
         #Create Site in each Rack
         $HostGroups=Get-SCVMHostGroup | Where-Object Path -match $Datacenter.DCName | Where-Object Path -match Rack | Sort-Object Path
         $logicalNetwork = Get-SCLogicalNetwork -Name $InfrastructureNetworkName
-        #Start C range for ClusterIPs
-        [int]$i=$Datacenter.ClusterIPBlockStart.split(".") | Select-Object -Last 1
-        #Grab prefix for ClusterIPs
-        $Prefix=($Datacenter.ClusterIPBlockStart.split(".") | Select-Object -First 2) -join "."
+        #Start C range for StorageIPs
+        [int]$i=$Datacenter.StorageIPBlockStart.split(".") | Select-Object -Last 1
+        #Grab prefix for StorageIPs
+        $Prefix=($Datacenter.StorageIPBlockStart.split(".") | Select-Object -First 2) -join "."
         foreach ($HostGroup in $HostGroups){
             $subnet="$Prefix.$i.0/24"
             $allSubnetVlan = @()
@@ -97,16 +100,16 @@ if (-not (Get-SCLogicalNetwork -Name $InfrastructureNetworkName)){
                 $LogicalNetworkDefinition=New-SCLogicalNetworkDefinition -Name $SiteName -LogicalNetwork $logicalNetwork -VMHostGroup $HostGroup -SubnetVLan $AllSubnetVlan -RunAsynchronously
             }
             #Create IP Pool
-            $IPPoolName=$SiteName.Replace("NetworkSite_","IPPool_Cluster_")
+            $IPPoolName=$SiteName.Replace("NetworkSite_","IPPool_Storage_")
             $IPAddressRangeStart=$Subnet.Replace("0/24","1")
             $IPAddressRangeEnd=$Subnet.Replace("0/24","254")
             if (-not (Get-SCStaticIPAddressPool -Name IPPoolName)) {
                 New-SCStaticIPAddressPool -Name $IPPoolName -LogicalNetworkDefinition $logicalNetworkDefinition -Subnet $Subnet -IPAddressRangeStart $IPAddressRangeStart -IPAddressRangeEnd $IPAddressRangeEnd -RunAsynchronously
             }
             #Create VM Network
-            $vmNetwork = New-SCVMNetwork -Name Cluster -Description $SiteName.Replace("NetworkSite_","") -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
+            $vmNetwork = New-SCVMNetwork -Name Storage -Description $SiteName.Replace("NetworkSite_","") -LogicalNetwork $logicalNetwork -IsolationType "VLANNetwork"
             $subnetVLAN = New-SCSubnetVLan -Subnet $Subnet -VLanID 1
-            New-SCVMSubnet -Name Cluster -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLAN -VMNetwork $vmNetwork -Description $SiteName.Replace("NetworkSite_","")
+            New-SCVMSubnet -Name Storage -LogicalNetworkDefinition $logicalNetworkDefinition -SubnetVLan $subnetVLAN -VMNetwork $vmNetwork -Description $SiteName.Replace("NetworkSite_","")
         }
     }
     Foreach ($Datacenter in $Datacenters){
@@ -147,7 +150,7 @@ if (-not (Get-SCLogicalNetwork -Name $InfrastructureNetworkName)){
         }
     }
 
-#Create Uplink port profile for each Rack that has both Management and Cluster network.
+#Create Uplink port profile for each Rack that has both Management and Storage network.
 $RackHostGroups=Get-SCVMHostGroup | Where-Object Path -match Rack
 $logicalNetwork = Get-SCLogicalNetwork -Name $InfrastructureNetworkName
 foreach ($HostGroup in $RackHostGroups){
@@ -170,13 +173,13 @@ Get-SCStaticIPAddressPool | Remove-SCStaticIPAddressPool
 Get-SCLogicalNetworkDefinition | Remove-SCLogicalNetworkDefinition
 #>
 
-#Create Port Profiles for RDMA, VMQ and VMMQ
-$Classifications=@()
-$Classifications+=@{PortClassificationName="Host Management static"    ; NativePortProfileName="Host management static" ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="RDMAvNIC"                  ; NativePortProfileName="RDMAvNIC"               ; Description="Classification for RDMA enabed vNICs" ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$true}
-$Classifications+=@{PortClassificationName="vNIC VMQ"                  ; NativePortProfileName="vNIC VMQ"               ; Description=""                                     ; EnableIov=$false ; EnableVrss=$false ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="vNIC vRSS"                 ; NativePortProfileName="vNIC vRSS"              ; Description=""                                     ; EnableIov=$false ; EnableVrss=$true  ;EnableIPsecOffload=$true  ;EnableVmq=$true  ;EnableRdma=$false}
-$Classifications+=@{PortClassificationName="SR-IOV"                    ; NativePortProfileName="SR-IOV Profile"         ; Description=""                                     ; EnableIov=$true  ; EnableVrss=$false ;EnableIPsecOffload=$false ;EnableVmq=$false ;EnableRdma=$false}
+#Create Port Profiles for RDMA, VMQ
+    #vSwitch vNICs classifications
+    $Classifications=@()
+    $Classifications+=@{PortClassificationName="vNIC mgmt"    ; NativePortProfileName="vNIC mgmt"    ; Description="Classification for mgmt vNIC"                   ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+    $Classifications+=@{PortClassificationName="vNIC RDMA"    ; NativePortProfileName="vNIC RDMA"    ; Description="Classification for RDMA enabled vNICs (Mode 2)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
+    $Classifications+=@{PortClassificationName="vmNIC VMQ"    ; NativePortProfileName="vmNIC VMQ"    ; Description="Classification for VMQ enabled vmNICs"          ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+    $Classifications+=@{PortClassificationName="vmNIC SR-IOV" ; NativePortProfileName="vmNIC SR-IOV" ; Description="Classification for SR-IOV enabled vmNICs"       ; EnableIov=$true  ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
 
 #create port classifications and port profiles
 foreach ($Classification in $Classifications){
@@ -208,13 +211,13 @@ foreach ($UplinkPP in (Get-SCNativeUplinkPortProfile | Sort-Object -Property Nam
     #Add Management vNIC
     $vmNetwork=Get-SCVMNetwork -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
     $vmSubnet= Get-SCVMSubnet  -Name Management | Where-Object Description -eq (($uppSetVar.name.replace("UplinkPP_","").split("_") | Select-Object -SkipLast 1) -join "_")
-    $vNICPortClassification = Get-SCPortClassification  -Name "Host Management static"
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Management -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
-    #Add Cluster vNICs
-    $vmNetwork=Get-SCVMNetwork -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
-    $vmSubnet= Get-SCVMSubnet  -Name Cluster | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
-    $vNICPortClassification = Get-SCPortClassification  -Name "RDMAvNIC"
+    $vNICPortClassification = Get-SCPortClassification  -Name "vNIC mgmt"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name Mgmt -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $true -InheritsAddressFromPhysicalNetworkAdapter $True -IPv4AddressType "Dynamic" -IPv6AddressType "Dynamic"
+    #Add SMB vNICs
+    $vmNetwork=Get-SCVMNetwork -Name Storage | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
+    $vmSubnet= Get-SCVMSubnet  -Name Storage | Where-Object Description -eq ($uppSetVar.name.replace("UplinkPP_",""))
+    $vNICPortClassification = Get-SCPortClassification  -Name "vNIC RDMA"
 
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster1 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
-    New-SCLogicalSwitchVirtualNetworkAdapter -Name Cluster2 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name SMB01 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
+    New-SCLogicalSwitchVirtualNetworkAdapter -Name SMB02 -PortClassification $vNICPortClassification -UplinkPortProfileSet $uppSetVar -RunAsynchronously -VMNetwork $vmNetwork -VMSubnet $vmSubnet -IsUsedForHostManagement $false -InheritsAddressFromPhysicalNetworkAdapter $false -IPv4AddressType "Static" -IPv6AddressType "Dynamic"
 }

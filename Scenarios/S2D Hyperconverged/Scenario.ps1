@@ -257,14 +257,14 @@ Write-host "Script started at $StartDateTime"
 
         $Servers | ForEach-Object {
             #Configure vNICs
-            Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Management -ComputerName $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB_1 -SwitchName SETSwitch -CimSession $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB_2 -SwitchName SETSwitch -Cimsession $_
+            Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Mgmt -ComputerName $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName SETSwitch -CimSession $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName SETSwitch -Cimsession $_
 
             #configure IP Addresses
-            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_1)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
             $IP++
-            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB_2)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
             $IP++
         }
 
@@ -272,21 +272,21 @@ Write-host "Script started at $StartDateTime"
         Clear-DnsClientCache
 
         #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_1 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB_2 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
 
         #Restart each host vNIC adapter so that the Vlan is active.
-            Restart-NetAdapter "vEthernet (SMB_1)" -CimSession $Servers 
-            Restart-NetAdapter "vEthernet (SMB_2)" -CimSession $Servers
+            Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
+            Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
 
         #Enable RDMA on the host vNIC adapters
-            Enable-NetAdapterRDMA "vEthernet (SMB_1)","vEthernet (SMB_2)" -CimSession $Servers
+            Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
 
         #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
             Invoke-Command -ComputerName $servers -ScriptBlock {
                     $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
-                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_1" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
-                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB_2" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
 
         #Disable NetBIOS on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
@@ -350,7 +350,7 @@ Write-host "Script started at $StartDateTime"
             #validate policy
                 Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
 
-            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+            #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
