@@ -106,15 +106,7 @@ Get-PhysicalDisk -CimSession 2nodecluster |ft FriendlyName,Size,Description
 
 ## Exploring Pool Metadata
 
-In following PowerShell example notice -HasMetadata Parameter. This is new in Windows Server 2019. As you can see, number of metadata disks depends on size of the cluster
-
-| Number of Fault domains (Nodes) | Number of Metadata Disks |
-|:-------------------------------:| :-----------------------:|
-|2                                |6                         |
-|3                                |6                         |
-|4                                |8                         |
-|5                                |5                         |
-|6                                |5                         |
+In following PowerShell example notice -HasMetadata Parameter. This is new in Windows Server 2019. As you can see, number of disks with Metadata depends on size of the cluster
 
 ```PowerShell
 #display pool metadata
@@ -125,6 +117,14 @@ foreach ($ClusterName in ($Clusters.Name | select -Unique)){
 ```
 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolMetadata.png)
+
+| Number of Nodes (Fault domains) | Number of disks with Metadata |
+|:-------------------------------:| :----------------------------:|
+|2                                |6                              |
+|3                                |6                              |
+|4                                |8                              |
+|5                                |5                              |
+|6                                |5                              |
 
 In 6 node cluster are metadata located on node 1,3,4,5,6. So in case you loose random half nodes, there is 50% chance going offline. Let's give it a try by turning off nodes 4,5,6 at one moment in Hyper-V manager to simulate failure.
 
@@ -160,13 +160,13 @@ foreach ($ClusterName in ($Clusters.Name | select -Unique)){
 
 You can see, that same numbers applies to virtual disks too.
 
-| Number of Nodes (Fault domains) | Number of Metadata Disks |
-|:-------------------------------:| :-----------------------:|
-|2                                |6                         |
-|3                                |6                         |
-|4                                |8                         |
-|5                                |5                         |
-|6                                |5                         |
+| Number of Nodes (Fault domains) | Number of disks with Metadata |
+|:-------------------------------:| :----------------------------:|
+|2                                |6                              |
+|3                                |6                              |
+|4                                |8                              |
+|5                                |5                              |
+|6                                |5                              |
 
 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/VirtualDisksMetadata.png)
