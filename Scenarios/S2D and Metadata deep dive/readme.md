@@ -220,6 +220,7 @@ Get-VirtualDisk -FriendlyName 4Scopes -CimSession 6nodecluster | Get-PhysicalDis
 
 Pool metadata will be rebuilt once Health Service will kick in (in approx 5 minutes
 )
+
 ```PowerShell
 #Display pool metadata
 Get-StoragePool -CimSession 6nodecluster | Get-PhysicalDisk -HasMetadata -CimSession 6nodecluster | Sort-Object Description |format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
