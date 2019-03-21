@@ -10,7 +10,7 @@
         - [Windows Server 2016](#windows-server-2016)
         - [or Windows Server 2019](#or-windows-server-2019)
         - [or Windows Server Insider Preview](#or-windows-server-insider-preview)
-        - [Optionally you can download SCVMM 1807 files](#optionally-you-can-download-scvmm-1807-files)
+        - [Optionally you can download SCVMM 2019 files](#optionally-you-can-download-scvmm-2019-files)
     - [Step 2 Create folder and Unzip scripts there](#step-2-create-folder-and-unzip-scripts-there)
     - [Step 3 (Optional) Check the LabConfig.ps1](#step-3-optional-check-the-labconfigps1)
     - [Step 4 Right-click and run with PowerShell 1_Prereq.ps1](#step-4-right-click-and-run-with-powershell-1_prereqps1)
@@ -80,17 +80,15 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 NOTE: In 17744 is a bug, so during deployment process DC creation takes forewer. Workaround is to just log in as corp\Administrator to DC and it magically finishes.
 
-### Optionally you can download SCVMM 1807 files
+### Optionally you can download SCVMM 2019 files
 
 Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2omSY?list=PLf9T7wfY_JD2UpjLXoYNcnu4rc1JSPfqE) (bit outdated)
 
 * [ADK 1809 and ADKwinPE 1809](https://docs.microsoft.com/en-us/windows-hardware/get-started/adk-install) Note: you need to run adksetup.exe and download all files and place it to tools disk. Not just setup.exe. Same applies to adkwinpesetup.exe.
 
-* [SCVMM 1801](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
+* [SCVMM 2019](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
 
 * [SQL 2017](https://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2017-rtm)
-
-* [SCVMM 1807 Updates](https://support.microsoft.com/en-us/help/4135364/system-center-virtual-machine-manager-version-1807) - [Server](http://download.windowsupdate.com/d/msdownload/update/software/updt/2018/07/kb4135364_vmmserver_amd64_62bb3f73faa19849ae3d4418477a8247e862ad0d.cab) and [Admin Console](http://download.windowsupdate.com/c/msdownload/update/software/updt/2018/07/kb4135365_adminconsole_amd64_ab2fd20910f00a3f640eab2d6c686e65a5e73374.cab) Note: extract MSPs from CABs
 
 ## Step 2 Create folder and Unzip scripts there
 
@@ -223,7 +221,7 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 
 * DISM does not work on Cluster Shared Volumes
 * When waiting on DC to come online, the script throws some red errors. It's by design, nothing to worry about.
-* DISM sometimes throws errors on NTFS volumes also. Just build the lab again in different folder.
+* DISM sometimes throws errors. Just build the lab again in different folder.
 * sometimes if all machines are started at once, some are not domain joined. Just cleanup and deploy again.
 
 # So what is it good for?
