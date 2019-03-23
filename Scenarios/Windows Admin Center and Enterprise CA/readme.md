@@ -28,6 +28,9 @@
             - [Download Windows Admin Center files](#download-windows-admin-center-files-1)
             - [Install Windows Admin Center on cluster](#install-windows-admin-center-on-cluster-1)
             - [Navigate to Windows Admin Center console](#navigate-to-windows-admin-center-console-1)
+    - [Operate Windows Admin Center](#operate-windows-admin-center)
+        - [Generate list of computers to import](#generate-list-of-computers-to-import)
+        - [Configure Resource-Based constrained delegation](#configure-resource-based-constrained-delegation)
 
 <!-- /TOC -->
 
@@ -1009,5 +1012,29 @@ Open the web browser from the `Management` virtual machine, navigate to http://w
 
 ```PowerShell
 start microsoft-edge:http://wac-s2d.corp.contoso.com
+ 
+```
+
+## Operate Windows Admin Center
+
+### Generate list of computers to import
+
+```PowerShell
+#generate Servers list into Downloads
+(Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name | Out-GridView -OutputMode Multiple | Out-File "$env:userprofile\Downloads\Servers.txt"
+ 
+```
+
+### Configure Resource-Based constrained delegation
+
+```PowerShell
+$gateway = "WACGateway" # Machine where Windows Admin Center is installed
+$gatewayObject = Get-ADComputer -Identity $gateway
+$nodes = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name | Out-GridView -OutputMode Multiple # Machines that you want to manage
+
+foreach ($Node in $Nodes){
+    $nodeObject = Get-ADComputer -Identity $node
+    Set-ADComputer -Identity $nodeObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
  
 ```

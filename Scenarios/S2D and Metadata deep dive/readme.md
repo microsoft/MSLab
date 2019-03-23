@@ -3,12 +3,13 @@
 ## LabConfig
 
 ```PowerShell
-#Labconfig is almost the same as default. Just with 6 nodes instead of 4
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$false ;AdditionalNetworksConfig=@(); VMs=@()}
 
-1..6 | % {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
-#optional Win10 management machine
-#$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True }
+1..2 | % {$VMNames="2node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
+1..3 | % {$VMNames="3node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
+1..4 | % {$VMNames="4node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
+1..5 | % {$VMNames="5node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
+1..6 | % {$VMNames="6node"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=512MB }}
  
 ```
 
@@ -16,15 +17,22 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 This lab talks about Pool and Virtual Disks (S2D Volumes) metadata. It demonstrates how to display metadata and what different metadata configurations exist.
 
-Run all scripts from DC
+Run all scripts from DC. Run all code in same PowerShell window to keep variable $Clusters.
+
+VMs will consume ~20GB RAM.
+
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/ListOfVMs.png)
 
 ## Prereq
 
 ```PowerShell
-# LabConfig
-    $Servers=1..6 | % {"S2D$_"}
-    $ClusterName="S2D-Cluster"
-    $ClusterIP="10.0.0.111"
+# variables
+    $Clusters=@()
+    $Clusters+=@{Nodes=1..2 | % {"2node$_"} ; Name="2nodeCluster" ; IP="10.0.0.112" }
+    $Clusters+=@{Nodes=1..3 | % {"3node$_"} ; Name="3nodeCluster" ; IP="10.0.0.113" }
+    $Clusters+=@{Nodes=1..4 | % {"4node$_"} ; Name="4nodeCluster" ; IP="10.0.0.114" }
+    $Clusters+=@{Nodes=1..5 | % {"5node$_"} ; Name="5nodeCluster" ; IP="10.0.0.115" }
+    $Clusters+=@{Nodes=1..6 | % {"6node$_"} ; Name="6nodeCluster" ; IP="10.0.0.116" }
 
 # Install features for management
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
@@ -35,44 +43,38 @@ Run all scripts from DC
     }
 
 # Install features on servers
-    $result=Invoke-Command -computername $Servers -ScriptBlock {
+    Invoke-Command -computername $Clusters.nodes -ScriptBlock {
         Install-WindowsFeature -Name "Failover-Clustering","Hyper-V-PowerShell"
     }
-    $ComputersToRestart=($result | where restartneeded -eq Yes).PSComputerName
-    Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
 
-#create cluster
-    New-Cluster -Name $ClusterName -Node $Servers -StaticAddress $ClusterIP
-    Start-Sleep 5
-    Clear-DNSClientCache
+#restart all servers since failover clustering in 2019 requires reboot
+    Restart-Computer -ComputerName $Clusters.nodes -Protocol WSMan -Wait -For PowerShell
+
+#create clusters
+    foreach ($Cluster in $Clusters){
+        New-Cluster -Name $cluster.Name -Node $Cluster.Nodes -StaticAddress $cluster.IP
+        Start-Sleep 5
+        Clear-DNSClientCache
+    }
 
 #add file share witness
-    #Create new directory
-        $WitnessName=$ClusterName+"Witness"
-        Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
-        $accounts=@()
-        $accounts+="corp\$($ClusterName)$"
-        $accounts+="corp\Domain Admins"
-        New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
-    #Set NTFS permissions
-        Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
-    #Set Quorum
-        Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+     foreach ($Cluster in $Clusters){
+        $ClusterName=$Cluster.Name
+        #Create new directory
+            $WitnessName=$ClusterName+"Witness"
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+            $accounts=@()
+            $accounts+="corp\$($ClusterName)$"
+            $accounts+="corp\Domain Admins"
+            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+        #Set NTFS permissions
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+        #Set Quorum
+            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+     }
 
 #Enable S2D
-    Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
-
-#Create some scoped volumes
-    $FaultDomains = Get-StorageFaultDomain -Type StorageScaleUnit -CimSession S2D-Cluster| Sort FriendlyName
-    #Create 3 scopes volume -should not be used for prod as you want 4 scopes (with 3 scopes, 2 scopes lost = volume offline)
-    New-Volume -FriendlyName "3Scopes" -Size 1TB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 3) -CimSession S2D-Cluster -StoragePoolFriendlyName S2D*
-    #Create 4 scopes volume
-    New-Volume -FriendlyName "4Scopes" -Size 1TB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 4) -CimSession S2D-Cluster -StoragePoolFriendlyName S2D*
-    #Create 5 scopes volume (does not make sense for this scenario, just for demoing)
-    New-Volume -FriendlyName "5Scopes" -Size 1TB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 5) -CimSession S2D-Cluster -StoragePoolFriendlyName S2D*
-
-#Create Mirror volume
-    New-Volume -FriendlyName "Mirror" -Size 1TB -CimSession S2D-Cluster -StoragePoolFriendlyName S2D*
+    Enable-ClusterS2D -CimSession $Clusters.Name -Verbose -Confirm:0
  
 ```
 
@@ -81,35 +83,50 @@ Run all scripts from DC
 With following script we can use PhysicalDisk description attribute to host owner node name.
 
 ```PowerShell
-$ClusterName="S2D-Cluster"
+#Add host owner node name into PhysicalDisk description
+foreach ($ClusterName in ($Clusters.Name | select -Unique)){
+    #grab StorageNodes
+    $StorageNodes=Get-StorageSubSystem -CimSession $clusterName -FriendlyName Clus* | Get-StorageNode
 
-#grab StorageNodes
-$StorageNodes=Get-StorageSubSystem -CimSession $clusterName -FriendlyName Clus* | Get-StorageNode
-
-#add owner node name to description
-foreach ($StorageNode in $StorageNodes){$StorageNode | Get-PhysicalDisk -PhysicallyConnected -CimSession $StorageNode.Name | Set-PhysicalDisk -Description $StorageNode.Name -CimSession $StorageNode.Name}
- 
-#display disks
-Get-PhysicalDisk -CimSession $ClusterName | format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+    #add owner node name to description
+    foreach ($StorageNode in $StorageNodes){$StorageNode | Get-PhysicalDisk -PhysicallyConnected -CimSession $StorageNode.Name | Set-PhysicalDisk -Description $StorageNode.Name -CimSession $StorageNode.Name}
+}
  
 ```
 
-![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/DiskOwners.png)
+You can then easily view where are the disks located
+
+```PowerShell
+#Display physical disks in 2nodecluster
+Get-PhysicalDisk -CimSession 2nodecluster |ft FriendlyName,Size,Description
+ 
+```
+
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PhysicalDisks.png)
 
 ## Exploring Pool Metadata
 
-In following PowerShell example notice -HasMetadata Parameter. This is new in Windows Server 2019. As you can see, pool is using 5 metadata disks.
+In following PowerShell example notice -HasMetadata Parameter. This is new in Windows Server 2019. As you can see, number of disks with Metadata depends on size of the cluster
 
 ```PowerShell
-$ClusterName="S2D-Cluster"
 #display pool metadata
-Get-StoragePool -CimSession $ClusterName | Get-PhysicalDisk -HasMetadata -CimSession $ClusterName | Sort-Object Description |format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+foreach ($ClusterName in ($Clusters.Name | select -Unique)){
+    Get-StoragePool -CimSession $ClusterName | Get-PhysicalDisk -HasMetadata -CimSession $ClusterName | Sort-Object Description |format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+}
  
 ```
 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolMetadata.png)
 
-In this case located on nodes 1,2,3,4,5. So in case you loose random half nodes, there is 50% chance going offline. Let's give it a try by turning off nodes 1,2,3 at one moment in Hyper-V to simulate failure.
+| Number of Nodes (Fault domains) | Number of disks with Metadata |
+|:-------------------------------:| :----------------------------:|
+|2                                |6                              |
+|3                                |6                              |
+|4                                |8                              |
+|5                                |5                              |
+|6                                |5                              |
+
+In 6 node cluster are metadata located on node 1,3,4,5,6. So in case you loose random half nodes, there is 50% chance going offline. Let's give it a try by turning off nodes 4,5,6 at one moment in Hyper-V manager to simulate failure.
 
 As you can see, Pool is offline with message in EventLog saying, that pool does not have quorum of healthy disk. This is expected, as you lost 3 out of 5 metadata disk in one moment. If those failures did not happen in one moment, Health Service would redistribute metadata to another drives every 5 minutes.
 
@@ -117,52 +134,103 @@ As you can see, Pool is offline with message in EventLog saying, that pool does 
 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolDownMessage.png)
 
-OK, this was fun, just don't try it in prod :)
+OK, this was fun, just don't try it in production :)
 
-Turn on nodes 1,2,3 now.
+Turn on nodes 4,5,6 now. You also need to make Pool manually online.
 
-## Exploring Virtual disks metadata
+```PowerShell
+#make Cluster Pool online
+Get-ClusterResource -Cluster 6nodecluster -Name "*pool*" | Start-ClusterResource
+ 
+```
+## Exploring Volumes disks metadata
 
 Let's explore virtual disks now with following PowerShell
 
 ```PowerShell
-$ClusterName="S2D-Cluster"
-#display virtual disk metadata
-$virtualdisks=Get-VirtualDisk -CimSession $ClusterName | sort FriendlyName
-foreach ($virtualdisk in $virtualdisks){
-    $virtualdisk.FriendlyName
-    $virtualdisk | Get-PhysicalDisk -HasMetadata -CimSession $ClusterName | Sort-Object Description | Format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+#Create Volume on each cluster
+Invoke-Command -ComputerName ($Clusters.Name | select -Unique) -ScriptBlock {New-Volume -FriendlyName MyVolume -Size 100GB}
+
+#Display volumes metadata
+foreach ($ClusterName in ($Clusters.Name | select -Unique)){
+    Get-VirtualDisk -FriendlyName MyVolume -CimSession $ClusterName | Get-PhysicalDisk -HasMetadata -CimSession $ClusterName | Sort-Object Description | Format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
 }
  
 ```
 
-You can see following info
+You can see, that same numbers applies to virtual disks too.
 
-| Virtual Disk Type | Number of Metadata Disks |
-|:-----------------:| :-----------------------:|
-|Mirror             |5                         |
-|3 Scopes           |6                         |
-|4 Scopes           |8                         |
-|5+ Scopes          |5                         |
+| Number of Nodes (Fault domains) | Number of disks with Metadata |
+|:-------------------------------:| :----------------------------:|
+|2                                |6                              |
+|3                                |6                              |
+|4                                |8                              |
+|5                                |5                              |
+|6                                |5                              |
+
 
 ![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/VirtualDisksMetadata.png)
 
-## Exploring quorum
+## Exploring Scoped Volumes disks metadata
 
-To illustrate resiliency let's try to bring down half of 4 scopes metadata disks by turning off node S2D1 and S2D2
+Let's now create few scoped volumes on 6 node cluster. We will use 2-6 scopes. Only 4 scopes makes sense for production, but we will use it for demonstration only.
 
-As you can see, Virtual Disks are online while on 4Scopes volume are half of metadata disks lost. In this case, FileShare witness is global witness for both cluster and Pool/Volume quorum therefore quorum was maintained. You can also see, that virtual disks Metadata are already moved on below screenshot (was not on s2d6 on Mirror and PerfHistory volume). Health Service will do rebalance for you in approx 5 minutes
+```Powershell
+$FaultDomains = Get-StorageFaultDomain -Type StorageScaleUnit -CimSession 6nodecluster | Sort FriendlyName
+New-Volume -FriendlyName "2Scopes" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 2) -CimSession 6nodecluster -StoragePoolFriendlyName S2D*  -NumberOfDataCopies 2
+New-Volume -FriendlyName "3Scopes" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 3) -CimSession 6nodecluster -StoragePoolFriendlyName S2D*
+New-Volume -FriendlyName "4Scopes" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 4) -CimSession 6nodecluster -StoragePoolFriendlyName S2D*
+New-Volume -FriendlyName "5Scopes" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 5) -CimSession 6nodecluster -StoragePoolFriendlyName S2D*
+New-Volume -FriendlyName "6Scopes" -Size 100GB -StorageFaultDomainsToUse ($FaultDomains | Get-Random -Count 6) -CimSession 6nodecluster -StoragePoolFriendlyName S2D*
+ 
+```
 
-![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/VDisksOnline.png)
+And as you can see, same math applies to scoped volumes (no wonder as it respects fault domains)
 
-![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/VirtualDisksMetadata2NodesDown.png)
+```PowerShell
+$Friendlynames=2..6 | % {"$($_)Scopes"} #sorry, I was too lazy to type it over and over
+foreach ($friendlyName in $FriendlyNames){
+    Write-Host -Object "$FriendlyName" -ForeGroundColor Cyan
+    Get-VirtualDisk -FriendlyName $FriendlyName -CimSession 6nodecluster | Get-PhysicalDisk -HasMetadata -CimSession 6nodecluster | Sort-Object Description | Format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+}
+ 
+```
 
-You can also notice that Pool metadata disks are rebalanced. If cluster had more nodes, all metadata disks would be placed on healthy nodes.
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/ScopedVirtualDisksMetadata.png)
 
-Before Rebalance:
 
-![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolBeforeRebalance.png)
+## Exploring quorum and metadata rebalance
 
-After Rebalance:
+To illustrate quorun and metadata rebalance let's try to bring down half of 4 scopes metadata disks by turning off node 6node1 and 6node3. Votes are distributed on the same disks where metadata sits. The pictures would be same for 4 node cluster except there would not be a place to rebuild. 
 
-![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolAfterRebalance.png)
+As you can see, Virtual Disks are online while on 4Scopes volume are half of metadata disks lost. In this case, FileShare witness is global witness for both cluster and Pool/Volume quorum therefore quorum was maintained. This is also the reason you should use FileShare witness or Cloud witness every time.
+
+Volume metadata will not be rebuilt since metadata will stick to fault domains (since it's scoped to node 1,3,4,6)
+
+### 4 scopes Volume metadata
+
+```PowerShell
+Get-VirtualDisk -FriendlyName 4Scopes -CimSession 6nodecluster | ft FriendlyName,OperationalStatus,HealthStatus
+Get-VirtualDisk -FriendlyName 4Scopes -CimSession 6nodecluster | Get-PhysicalDisk -HasMetadata -CimSession 6nodecluster | Sort-Object Description | Format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+ 
+```
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/VirtualDiskMetadataFailedNodes.png)
+
+### Pool metadata
+
+Pool metadata will be rebuilt once Health Service will kick in (in approx 5 minutes
+)
+
+```PowerShell
+#Display pool metadata
+Get-StoragePool -CimSession 6nodecluster | Get-PhysicalDisk -HasMetadata -CimSession 6nodecluster | Sort-Object Description |format-table DeviceId,FriendlyName,SerialNumber,MediaType,Description
+ 
+```
+
+Right after failure
+
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolMetadataBefore.png)
+
+After rebuild
+
+![](/Scenarios/S2D%20and%20Metadata%20deep%20dive/Screenshots/PoolMetadataAfter.png)
