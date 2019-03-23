@@ -71,6 +71,8 @@ Run following script to configure necessary. Note: it's way simplified (no netwo
         Install-WindowsFeature -Name "Failover-Clustering","Hyper-V-PowerShell"
     }
 
+#restart all servers since failover clustering in 2019 requires reboot
+    Restart-Computer -ComputerName $Clusters.nodes -Protocol WSMan -Wait -For PowerShell
 #create cluster
     foreach ($Cluster in $Clusters){
         New-Cluster -Name $cluster.Name -Node $Cluster.Nodes -StaticAddress $cluster.IP
