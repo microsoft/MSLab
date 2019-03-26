@@ -1,7 +1,7 @@
 
 <!-- TOC -->
 
-- [S2D and Cluster Sets !!! WORK IN PROGRESS !!!](#s2d-and-cluster-sets--work-in-progress-)
+- [S2D and Cluster Sets](#s2d-and-cluster-sets)
     - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
@@ -12,10 +12,14 @@
         - [Enable Live migration with kerberos authentication](#enable-live-migration-with-kerberos-authentication)
         - [add Management cluster computer account to each node local Administrators group](#add-management-cluster-computer-account-to-each-node-local-administrators-group)
         - [Register all existing VMs](#register-all-existing-vms)
+        - [Create fault domains](#create-fault-domains)
+        - [Create Availability Set](#create-availability-set)
+        - [Add Availability Set to existing VMs](#add-availability-set-to-existing-vms)
+        - [Identify node to create VM](#identify-node-to-create-vm)
 
 <!-- /TOC -->
 
-# S2D and Cluster Sets !!! WORK IN PROGRESS !!!
+# S2D and Cluster Sets
 
 ## Sample LabConfig for Windows Server 2019
 
@@ -183,6 +187,8 @@ $ClusterNodes=1..3 | % {"Mgmt$_"}
 Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
     Install-WindowsFeature -Name "Failover-Clustering"
 }
+#in Windows Server 2019, installing Failover Clustering requires reboot
+Restart-Computer -ComputerName $ClusterNodes -Protocol WSMan -Wait -For PowerShell
 New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
  
 ```
@@ -376,3 +382,55 @@ Get-ClusterSetMember -CimSession $ClusterSet | Register-ClusterSetVM -RegisterAl
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/RegisterVMsResult.png)
 
+### Create fault domains
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+New-ClusterSetFaultDomain -Name FD1 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER1,CLUSTER2 -Description "This is my first fault domain"
+New-ClusterSetFaultDomain -Name FD2 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER3 -Description "This is my second fault domain"
+#You can add additional member to fault domain with Add-ClusterSetFaultDomainMember
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetFDs.png)
+
+### Create Availability Set
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$AvailabilitySetName="MyAvailabilitySet"
+$FaultDomainNames=(Get-ClusterSetFaultDomain -CimSession $clusterset).FDName
+New-ClusterSetAvailabilitySet -Name $AvailabilitySetName -FdType Logical -CimSession $ClusterSet -ParticipantName $FaultDomainNames
+#You can add additional fault domain with Add-ClusterSetParticipantToAvailabilitySet
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetAS.png)
+
+### Add Availability Set to existing VMs
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$AvailabilitySetName="MyAvailabilitySet"
+Get-ClusterSetVM -CimSession $clusterset | Set-ClusterSetVm -AvailabilitySetName $AvailabilitySetName
+ 
+#Display VMs
+Get-ClusterSetVM -CimSession $clusterset
+Get-ClusterSetVM -CimSession $clusterset |ft VMName,AvailabilitySet,FaultDomain,UpdateDomain
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMsInAvailabilitySet.png)
+
+### Identify node to create VM
+
+```PowerShell
+# Identify the optimal node to create a new virtual machine
+$ClusterSet="MyClusterSet"
+$memoryinMB=1GB
+$vpcount = 1
+$AS = Get-ClusterSetAvailabilitySet -CimSession $ClusterSet
+Get-ClusterSetOptimalNodeForVM -CimSession $ClusterSet -VMMemory $memoryinMB -VMVirtualCoreCount $vpcount -VMCpuReservation 10 -AvailabilitySet $AS
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/OptimalNode.png)
