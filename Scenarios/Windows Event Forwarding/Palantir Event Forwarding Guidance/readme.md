@@ -23,6 +23,7 @@
 Scenario inspired by [Palantir Windows Event Forwarding Guidance](https://github.com/palantir/windows-event-forwarding). It will demonstrate most complex WEF scenario with separate logs for each subscription.
 
 Other resources: [Creating custom windows event forwarding logs](https://blogs.technet.microsoft.com/russellt/2016/05/18/creating-custom-windows-event-forwarding-logs/)
+
 ## LabConfig Windows Server 2016
 
 ```PowerShell
