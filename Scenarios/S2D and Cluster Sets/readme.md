@@ -16,6 +16,7 @@
         - [Create Availability Set](#create-availability-set)
         - [Add Availability Set to existing VMs](#add-availability-set-to-existing-vms)
         - [Identify node to create VM](#identify-node-to-create-vm)
+        - [Move VMs around](#move-vms-around)
 
 <!-- /TOC -->
 
@@ -42,7 +43,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 Run following code to create 3 HyperConverged clusters. Note: it's way simplified (no networking, no best practices, no CAU, ...). Run this code from DC. Cluster will ask for vhd. You can provide nanoserver VHD as it is small.
 
 ```PowerShell
-#Labconfig
+#Variables
     #clusterconfig
     $Clusters=@()
     $Clusters+=@{Nodes="1-S2D1","1-S2D2" ; Name="Cluster1" ; IP="10.0.0.211" ; Volumenames="CL1Mirror1","CL1Mirror2" ; VolumeSize=2TB}
@@ -293,8 +294,10 @@ foreach ($VM in $VMs){
     $ClusterSetNodes=Get-ClusterSetNode -CimSession $ClusterSet
     foreach ($ClusterSetNode in $ClusterSetNodes){
         $VMs=Get-VM -CimSession $ClusterSetNode.Name
-        $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
-        $VMs | Start-VM
+        if ($VMs){
+            $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
+            $VMs | Start-VM
+        }
     }
  
 ```
@@ -389,6 +392,7 @@ $ClusterSet="MyClusterSet"
 New-ClusterSetFaultDomain -Name FD1 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER1,CLUSTER2 -Description "This is my first fault domain"
 New-ClusterSetFaultDomain -Name FD2 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER3 -Description "This is my second fault domain"
 #You can add additional member to fault domain with Add-ClusterSetFaultDomainMember
+ 
 ```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetFDs.png)
@@ -434,3 +438,24 @@ Get-ClusterSetOptimalNodeForVM -CimSession $ClusterSet -VMMemory $memoryinMB -VM
 ```
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/OptimalNode.png)
+
+
+### Move VMs around
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$VMName="Cluster1_VM1"
+#$VMName=(Get-ClusterSetVM -CimSession $ClusterSet | Out-GridView -OutputMode Single).VMName
+$DestinationNode="3-S2D1"
+#$DestinationNode=(Get-ClusterSetNode -CimSession $clusterset | Out-GridView -OutputMode Single).Name
+Move-ClusterSetVM -CimSession $ClusterSet -VMName $VMName -MoveType Live -Node $DestinationNode
+ 
+```
+
+Before move
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/BeforeMove.png)
+
+After move
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/AfterMove.png)
