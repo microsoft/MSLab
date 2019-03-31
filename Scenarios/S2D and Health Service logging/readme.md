@@ -4,7 +4,15 @@
     - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [About the lab](#about-the-lab)
     - [Prerequisites](#prerequisites)
-        - [The Lab](#the-lab)
+    - [The Lab](#the-lab)
+        - [Create custom log on Collector Server](#create-custom-log-on-collector-server)
+        - [Enable Health Service Logging](#enable-health-service-logging)
+        - [Configure event subscription](#configure-event-subscription)
+        - [Validate subscription on collector server](#validate-subscription-on-collector-server)
+        - [Configure Collector server address on member servers](#configure-collector-server-address-on-member-servers)
+        - [Check if servers are registered with Collector](#check-if-servers-are-registered-with-collector)
+        - [Resize/Move log if needed](#resizemove-log-if-needed)
+        - [Enjoy logs redirected to collector](#enjoy-logs-redirected-to-collector)
 
 <!-- /TOC -->
 
@@ -300,6 +308,7 @@ $Query=@"
 <QueryList>
   <Query Id="0">
     <Select Path="Microsoft-Windows-Health/Operational">*</Select>
+    <Select Path="Security">*[System[Provider[@Name='Microsoft-Windows-Health'] and (EventID=8465)]]</Select>
   </Query>
 </QueryList>
 "@
@@ -446,9 +455,33 @@ Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
 
 ![](/Scenarios/S2D%20and%20Health%20Service%20logging/Screenshots/SubscribedServers.png)
 
+### Resize/Move log if needed
+
+In case you want to increase log size or move it somewhere else, you can do it with wewutil
+
+```PowerShell
+$CollectorServerName="Collector"
+$Path="C:\Logs"
+$MaxSize=1GB
+$LogName="S2D-HealthServiceLog"
+
+Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+    #Create log folder if not exist
+    If (-not (Test-Path $using:Path)){
+        New-Item -Path $using:Path -Type Directory
+    }
+    #set max size
+    wevtutil set-log $using:LogName /MaxSize:$($Using:MaxSize)
+    #set location
+    wevtutil set-log $using:LogName /LogFileName:"$($Using:Path)\$using:LogName.evtx"
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20Health%20Service%20logging/Screenshots/ConfiguredLog.png)
+
 ### Enjoy logs redirected to collector
 
 Shutdown some server and wait for at least 5 minutes for health service to kick in. You should see logs on collector server
-
 
 ![](/Scenarios/S2D%20and%20Health%20Service%20logging/Screenshots/RedirectedLogs.png)
