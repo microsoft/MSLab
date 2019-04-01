@@ -490,7 +490,10 @@ Shutdown some server and wait for at least 5 minutes for health service to kick 
 ### Grab logs with PowerShell
 
 ```PowerShell
-$events=Get-WinEvent -ComputerName $CollectorServerName -LogName S2D-HealthServiceLog
+$CollectorServerName="Collector"
+$LogName="S2D-HealthServiceLog"
+
+$events=Get-WinEvent -ComputerName $CollectorServerName -LogName $LogName
 ForEach ($Event in $Events) {
     # Convert the event to XML
     $eventXML = [xml]$Event.ToXml()
