@@ -13,6 +13,7 @@
         - [Check if servers are registered with Collector](#check-if-servers-are-registered-with-collector)
         - [Resize/Move log if needed](#resizemove-log-if-needed)
         - [Enjoy logs redirected to collector](#enjoy-logs-redirected-to-collector)
+        - [Grab logs with PowerShell](#grab-logs-with-powershell)
 
 <!-- /TOC -->
 
@@ -485,3 +486,23 @@ Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
 Shutdown some server and wait for at least 5 minutes for health service to kick in. You should see logs on collector server
 
 ![](/Scenarios/S2D%20and%20Health%20Service%20logging/Screenshots/RedirectedLogs.png)
+
+### Grab logs with PowerShell
+
+```PowerShell
+$events=Get-WinEvent -ComputerName $CollectorServerName -LogName S2D-HealthServiceLog
+ForEach ($Event in $Events) {
+    # Convert the event to XML
+    $eventXML = [xml]$Event.ToXml()
+    # create custom object for all values
+    for ($i=0; $i -lt $eventXML.Event.EventData.Data.Count; $i++) {            
+        # Append these as object properties            
+        Add-Member -InputObject $Event -MemberType NoteProperty -Force -Name  $eventXML.Event.EventData.Data[$i].name -Value $eventXML.Event.EventData.Data[$i].'#text'
+                        
+    }
+}
+$events | Select-Object * | Out-GridView
+ 
+```
+
+![](/Scenarios/S2D%20and%20Health%20Service%20logging/Screenshots/Events.png)
