@@ -28,7 +28,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         DefaultOUName="Workshop";                    # (Optional) If set, custom OU for all machines and account will be used. If not specified, default "Workshop" is created
         AllowedVLANs="1-10";                         # (Optional) Sets the list of VLANs that can be used on Management vNICs. If not specified, default "1-10" is set.
         Internet=$false;                             # (Optional) If $true, it will add external vSwitch and configure NAT in DC to provide internet (Logic explained below)
-        SkipHostDnsAsForwarder=$true;                # (Optional) If $true, local DNS servers won't be used as DNS forwarders in DC
+        UseHostDnsAsForwarder=$false;                # (Optional) If $true, local DNS servers will be used as DNS forwarders in DC
         CustomDnsForwarders=@("8.8.8.8","1.1.1.1");  # (Optional) If configured, script will use those servers as DNS fordwarders in DC (Defaults to 8.8.8.8 and 1.1.1.1)
         PullServerDC=$true;                          # (Optional) If $false, then DSC Pull Server will not be configured on DC
         ServerISOFolder="";                          # (Optional) If configured, script will use ISO located in this folder for Windows Server hydration (if more ISOs are present, then out-grid view is called)
@@ -129,8 +129,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
             If more vSwitches exists, you will be prompted for what to use.
         It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
 
-    SkipHostDnsAsForwarder (Optional)
-        If $true, local DNS servers won't be used as DNS forwarders in DC when Internet is enabled. 
+    UseHostDnsAsForwarder (Optional)
+        If $true, local DNS servers will be used as DNS forwarders in DC when Internet is enabled. 
         By default local host's DNS servers will be used as forwarders.
 
     CustomDnsForwarders (Optional)

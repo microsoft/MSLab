@@ -158,8 +158,11 @@
                     17763 {
                         "Win2019Core_G2.vhdx"
                     }
+                    18362 {
+                        "WinServer1903_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 17763 -or $BuildNumber -eq 17744){
+                if ($BuildNumber -gt 18362){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
                 }
             }elseif($Edition -like "*Server*"){
@@ -183,7 +186,7 @@
                         "Win2019_G2.vhdx"
                     }
                 }
-                if ($BuildNumber -GT 17763 -or $BuildNumber -eq 17744){
+                if ($BuildNumber -GT 17763){
                     $tempvhdname="WinSrvInsider_$BuildNumber.vhdx"
                 }
             }else{
@@ -224,8 +227,11 @@
                     17763 {
                         "Win10RS5_G2.vhdx"
                     }
+                    18362 {
+                        "Win1019H1_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 17763 -or $BuildNumber -eq 17744){
+                if ($BuildNumber -GT 18362){
                     $tempvhdname="Win10Insider_$BuildNumber.vhdx"
                 }
             }

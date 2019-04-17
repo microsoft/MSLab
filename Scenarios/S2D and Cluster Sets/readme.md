@@ -1,7 +1,7 @@
 
 <!-- TOC -->
 
-- [S2D and Cluster Sets !!! WORK IN PROGRESS !!!](#s2d-and-cluster-sets--work-in-progress-)
+- [S2D and Cluster Sets](#s2d-and-cluster-sets)
     - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [Prerequisites](#prerequisites)
     - [About the lab](#about-the-lab)
@@ -12,10 +12,15 @@
         - [Enable Live migration with kerberos authentication](#enable-live-migration-with-kerberos-authentication)
         - [add Management cluster computer account to each node local Administrators group](#add-management-cluster-computer-account-to-each-node-local-administrators-group)
         - [Register all existing VMs](#register-all-existing-vms)
+        - [Create fault domains](#create-fault-domains)
+        - [Create Availability Set](#create-availability-set)
+        - [Add Availability Set to existing VMs](#add-availability-set-to-existing-vms)
+        - [Identify node to create VM](#identify-node-to-create-vm)
+        - [Move VMs around](#move-vms-around)
 
 <!-- /TOC -->
 
-# S2D and Cluster Sets !!! WORK IN PROGRESS !!!
+# S2D and Cluster Sets
 
 ## Sample LabConfig for Windows Server 2019
 
@@ -38,7 +43,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 Run following code to create 3 HyperConverged clusters. Note: it's way simplified (no networking, no best practices, no CAU, ...). Run this code from DC. Cluster will ask for vhd. You can provide nanoserver VHD as it is small.
 
 ```PowerShell
-#Labconfig
+#Variables
     #clusterconfig
     $Clusters=@()
     $Clusters+=@{Nodes="1-S2D1","1-S2D2" ; Name="Cluster1" ; IP="10.0.0.211" ; Volumenames="CL1Mirror1","CL1Mirror2" ; VolumeSize=2TB}
@@ -183,6 +188,8 @@ $ClusterNodes=1..3 | % {"Mgmt$_"}
 Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
     Install-WindowsFeature -Name "Failover-Clustering"
 }
+#in Windows Server 2019, installing Failover Clustering requires reboot
+Restart-Computer -ComputerName $ClusterNodes -Protocol WSMan -Wait -For PowerShell
 New-Cluster -Name $ClusterName -Node $ClusterNodes -StaticAddress $ClusterIP
  
 ```
@@ -287,8 +294,10 @@ foreach ($VM in $VMs){
     $ClusterSetNodes=Get-ClusterSetNode -CimSession $ClusterSet
     foreach ($ClusterSetNode in $ClusterSetNodes){
         $VMs=Get-VM -CimSession $ClusterSetNode.Name
-        $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
-        $VMs | Start-VM
+        if ($VMs){
+            $VMs.Name | ForEach-Object {Add-ClusterVirtualMachineRole -VMName $_ -Cluster $ClusterSetNode.Member}
+            $VMs | Start-VM
+        }
     }
  
 ```
@@ -376,3 +385,77 @@ Get-ClusterSetMember -CimSession $ClusterSet | Register-ClusterSetVM -RegisterAl
 
 ![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/RegisterVMsResult.png)
 
+### Create fault domains
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+New-ClusterSetFaultDomain -Name FD1 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER1,CLUSTER2 -Description "This is my first fault domain"
+New-ClusterSetFaultDomain -Name FD2 -FdType Logical -CimSession $ClusterSet -MemberCluster CLUSTER3 -Description "This is my second fault domain"
+#You can add additional member to fault domain with Add-ClusterSetFaultDomainMember
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetFDs.png)
+
+### Create Availability Set
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$AvailabilitySetName="MyAvailabilitySet"
+$FaultDomainNames=(Get-ClusterSetFaultDomain -CimSession $clusterset).FDName
+New-ClusterSetAvailabilitySet -Name $AvailabilitySetName -FdType Logical -CimSession $ClusterSet -ParticipantName $FaultDomainNames
+#You can add additional fault domain with Add-ClusterSetParticipantToAvailabilitySet
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/ClusterSetAS.png)
+
+### Add Availability Set to existing VMs
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$AvailabilitySetName="MyAvailabilitySet"
+Get-ClusterSetVM -CimSession $clusterset | Set-ClusterSetVm -AvailabilitySetName $AvailabilitySetName
+ 
+#Display VMs
+Get-ClusterSetVM -CimSession $clusterset
+Get-ClusterSetVM -CimSession $clusterset |ft VMName,AvailabilitySet,FaultDomain,UpdateDomain
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/VMsInAvailabilitySet.png)
+
+### Identify node to create VM
+
+```PowerShell
+# Identify the optimal node to create a new virtual machine
+$ClusterSet="MyClusterSet"
+$memoryinMB=1GB
+$vpcount = 1
+$AS = Get-ClusterSetAvailabilitySet -CimSession $ClusterSet
+Get-ClusterSetOptimalNodeForVM -CimSession $ClusterSet -VMMemory $memoryinMB -VMVirtualCoreCount $vpcount -VMCpuReservation 10 -AvailabilitySet $AS
+ 
+```
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/OptimalNode.png)
+
+
+### Move VMs around
+
+```PowerShell
+$ClusterSet="MyClusterSet"
+$VMName="Cluster1_VM1"
+#$VMName=(Get-ClusterSetVM -CimSession $ClusterSet | Out-GridView -OutputMode Single).VMName
+$DestinationNode="3-S2D1"
+#$DestinationNode=(Get-ClusterSetNode -CimSession $clusterset | Out-GridView -OutputMode Single).Name
+Move-ClusterSetVM -CimSession $ClusterSet -VMName $VMName -MoveType Live -Node $DestinationNode
+ 
+```
+
+Before move
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/BeforeMove.png)
+
+After move
+
+![](/Scenarios/S2D%20and%20Cluster%20Sets/Screenshots/AfterMove.png)
