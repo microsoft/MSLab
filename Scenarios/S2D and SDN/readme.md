@@ -49,16 +49,6 @@ Collapse all regions with ctrl+m, select first 9 regions and paste into elevated
 
 ![](/Scenarios/S2D%20and%20Diskspd/Screenshots/Regions.png)
 
-Note: Enable-ClusterS2D in Windows Server 2019 requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019. You will need similar info for SDN.
-
-```PowerShell
-#Sample
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    Set-ItemProperty -Path "HKLM:\SYSTEM\XYZ" -Name XYZ -value 1
-}
- 
-```
-
 ### Make sure management features are installed
 
 ```PowerShell

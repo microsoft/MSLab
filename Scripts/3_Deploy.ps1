@@ -1082,7 +1082,7 @@ If (!( $isAdmin )) {
 
                 $DNSServers=@()
 
-                if(!$LabConfig.SkipHostDnsAsForwarder){
+                if($LabConfig.UseHostDnsAsForwarder){
                     WriteInfoHighlighted "`t Requesting DNS settings from Host"
                     if($internetSwitch.Name -eq "Default Switch"){
                         # Host's IP of Default Switch acts also as DNS resolver

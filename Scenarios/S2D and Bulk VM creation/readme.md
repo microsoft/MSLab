@@ -75,16 +75,6 @@ Copy some core server VHD into tools.vhdx.
  
 ```
 
-Note: Enable-ClusterS2D in Windows Server 2019 requires you to reach support to get steps to make it work on 2019 RTM as WSSD programme will be officially launched starting 2019.
-
-```PowerShell
-#Sample
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    Set-ItemProperty -Path "HKLM:\SYSTEM\XYZ" -Name XYZ -value 1
-}
- 
-```
-
 ## Create "Library" and copy your new parent disk there
 
 ```PowerShell
