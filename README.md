@@ -39,9 +39,6 @@
 
  * Check [this](https://github.com/Microsoft/WSLab/tree/master/Scenarios) page for end to end scenarios!
 
- * Want to try Windows Server insider builds? Check [this](https://github.com/Microsoft/WSLab/tree/master/Insider) page
-
-
 # Videos
 
 Note: Some videos may be a bit outdated as there is continuous innovation going on in the scripts.
@@ -78,7 +75,7 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
 
-NOTE: In 17744 is a bug, so during deployment process DC creation takes forewer. Workaround is to just log in as corp\Administrator to DC and it magically finishes.
+NOTE: There is no LTSC available yet. In 17744 was a bug, so during deployment process DC creation takes forewer. Workaround is to just log in as corp\Administrator to DC and it magically finishes.
 
 ### Optionally you can download SCVMM 2019 files
 
