@@ -621,6 +621,7 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region move VMQ out of CPU 0 and set correct BaseProcessorNumber based on NUMA for every pNIC in external vSwitch.
+#more info: https://techcommunity.microsoft.com/t5/Networking-Blog/Synthetic-Accelerations-in-a-Nutshell-Windows-Server-2012/ba-p/447792
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
