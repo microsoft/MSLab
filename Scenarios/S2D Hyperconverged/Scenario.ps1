@@ -620,9 +620,8 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region move VMQ out of CPU 0. Recommended just for 2016. In 2019 are VMQs balanced using dVMMQ
-    $CurrentBuildNumber=Invoke-Command -ComputerName $ClusterName -scriptblock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
-    if ($RealHW -and $CurrentBuildNumber -eq 14393){
+#region move VMQ out of CPU 0 and set correct BaseProcessorNumber based on NUMA for every pNIC in external vSwitch.
+    if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
         foreach ($switch in $switches){
@@ -632,12 +631,14 @@ Write-host "Script started at $StartDateTime"
             }
             $adapters=@()
             $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
-
             foreach ($adapter in $adapters){
-                if($HT){
-                    $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+2
-                }else{
-                    $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+                $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors
+                if ($adapter.NumaNode -eq 0){
+                    if($HT){
+                        $BaseProcessorNumber=$BaseProcessorNumber+2
+                    }else{
+                        $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+                    }
                 }
                 $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
                 $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
