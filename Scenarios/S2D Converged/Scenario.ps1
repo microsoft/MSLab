@@ -585,30 +585,32 @@ Write-host "Script started at $StartDateTime"
         Get-SmbDelegation -SmbServer $SOFSHAName
 #endregion
 
-#region move VMQ out of CPU 0. Recommended just for 2016. In 2019 are VMQs balanced using dVMMQ
-$CurrentBuildNumber=Invoke-Command -ComputerName $ComputeClusterName -scriptblock {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber}
-if ($RealHW -and $CurrentBuildNumber -eq 14393){
-    $Switches=Get-VMSwitch -CimSession $AllServers -SwitchType External
+#region move VMQ out of CPU 0 and set correct BaseProcessorNumber based on NUMA for every pNIC in external vSwitch.
+#more info: https://techcommunity.microsoft.com/t5/Networking-Blog/Synthetic-Accelerations-in-a-Nutshell-Windows-Server-2012/ba-p/447792
+    if ($RealHW){
+        $Switches=Get-VMSwitch -CimSession $AllServers -SwitchType External
 
-    foreach ($switch in $switches){
-        $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
-        if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
-            $HT=$True
-        }
-        $adapters=@()
-        $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
-
-        foreach ($adapter in $adapters){
-            if($HT){
-                $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+2
-            }else{
-                $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+        foreach ($switch in $switches){
+            $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
+            if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
+                $HT=$True
             }
-            $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
-            $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
+            $adapters=@()
+            $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
+            foreach ($adapter in $adapters){
+                $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors
+                if ($adapter.NumaNode -eq 0){
+                    if($HT){
+                        $BaseProcessorNumber=$BaseProcessorNumber+2
+                    }else{
+                        $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+                    }
+                }
+                $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
+                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
+            }
         }
     }
-}
 #endregion
 
 #region activate High Performance Power plan
