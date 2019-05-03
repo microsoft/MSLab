@@ -321,15 +321,14 @@ Write-host "Script started at $StartDateTime"
                 }
             ##Configure QoS
                 New-NetQosPolicy "SMB"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
-                New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 5 -CimSession $servers
+                New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
                 New-NetQosPolicy "Default"   -Default                         -PriorityValue8021Action 0 -CimSession $servers
 
-            #Turn on Flow Control for SMB and Cluster
+            #Turn on Flow Control for SMB
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
-                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
 
-            #Disable flow control for other traffic
-                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,6,7}
+            #Disable flow control for other traffic than 3 (pause frames should go only from prio 3)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
 
             #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
                 Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
