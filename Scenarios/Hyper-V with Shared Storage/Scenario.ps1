@@ -249,7 +249,7 @@ Write-host "Script started at $StartDateTime"
         #This value needs to match physical switch configuration. Value might vary based on your needs.
         #If connected directly (in 2 node configuration) skip this step.
             Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 5 -BandwidthPercentage 1 -Algorithm ETS}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 7 -BandwidthPercentage 1 -Algorithm ETS}
     }
 
     #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
