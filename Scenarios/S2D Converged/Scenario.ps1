@@ -88,6 +88,9 @@ Write-host "Script started at $StartDateTime"
     #Nano server? its just faster with Nano. Nano will be soon out of support
         $NanoServer=$False
 
+    #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+        $SMBBandwidthLimits=$true
+
     #Additional Features in S2D Cluster
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
@@ -319,7 +322,6 @@ Write-host "Script started at $StartDateTime"
             Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
         }
 
-
     #verify mapping
         Get-VMNetworkAdapterTeamMapping -CimSession $AllServers -ManagementOS | ft ComputerName,NetAdapterName,ParentAdapter 
     #Verify that the VlanID is set
@@ -464,6 +466,16 @@ Write-host "Script started at $StartDateTime"
             }
         #set Live Migration to SMB on compute nodes
             Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $ComputeNodes
+        #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+            if ($SMBBandwidthLimits){
+                #install feature
+                Invoke-Command -ComputerName $S2DNodes -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"} 
+                #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+                $Adapters=(Get-VMSwitch -CimSession $S2DNodes[0]).NetAdapterInterfaceDescriptions
+                $BytesPerSecond=((Get-NetAdapter -CimSession $S2DNodes[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+                Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $S2DNodes
+            }
+
 #endregion
 
 #region configure Cluster-Aware-Updating
