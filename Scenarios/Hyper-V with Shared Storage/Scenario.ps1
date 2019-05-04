@@ -25,7 +25,7 @@ Write-host "Script started at $StartDateTime"
 
     #RDMA? Actually "RDMA" based design. If false, traditional converged design is deployed
         $RDMA=$false
-    
+
     #DCB?
         $DCB=$False #$true for ROCE, $false for iWARP
 
@@ -36,7 +36,10 @@ Write-host "Script started at $StartDateTime"
         $Net2VLAN=2 #VLAN for LiveMigration network (traditional)
     #StartIP
         $IP=1
-    
+
+    #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+    $SMBBandwidthLimits=$true
+
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
@@ -327,6 +330,15 @@ Write-host "Script started at $StartDateTime"
         #set Live Migration to SMB on Hyper-V hosts
             Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $Servers
 
+        #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+            if ($SMBBandwidthLimits){
+                #install feature
+                Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+                #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+                $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+                $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+                Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+            }
     }
 
 #endregion

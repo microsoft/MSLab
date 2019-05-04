@@ -751,8 +751,16 @@
         Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -ne "SMB"}).ID))
         #Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
         foreach ($Server in $servers){
-        Get-VMHost -ComputerName $Server | Set-VMHost -MigrationPerformanceOption UseSmbTransport
+            Get-VMHost -ComputerName $Server | Set-VMHost -MigrationPerformanceOption UseSmbTransport
         }
+    #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+        #install feature
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+        #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+        $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+        $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+        Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+
 
     #set CSV Cache
         #(Get-Cluster $ClusterName).BlockCacheSize = 10240 
