@@ -304,7 +304,7 @@ If (!( $isAdmin )) {
                 WriteInfo "`t $($ServerPackages.filenames)"
             }
             $files=@()
-            foreach ($Filename in $filenames){$files+=Get-ChildItem -Path $filename}
+            foreach ($Filename in $ServerPackages.filenames){$files+=Get-ChildItem -Path $filename}
             #sort by size (to apply Servicing Stack Update first)
             $serverpackages=($files |Sort-Object -Descending -Property Lenght).Fullname
         }
