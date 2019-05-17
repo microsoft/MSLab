@@ -88,6 +88,13 @@
             WriteInfoHighlighted "No msu was selected..."
         }
 
+        #sort packages by size (to apply Servicing Stack Update first)
+        if ($msupackages.Filenames){
+            $files=@()
+            foreach ($Filename in $msupackages.FileNames){$files+=Get-ChildItem -Path $filename}
+            $packages=($files |Sort-Object -Descending -Property Lenght).Fullname
+        }
+
     #endregion
 
     #region do the job
@@ -248,13 +255,13 @@
         
         #Create VHD
         if ($nanoserver -eq "y"){
-                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($msupackages.FileNames+$NanoPackages)
+                Convert-WindowsImage -SourcePath "$ISOMediaPath\NanoServer\NanoServer.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package ($packages+$NanoPackages)
         }else{
-            if ($msupackages.FileNames -ne $null){
+            if ($packages){
                 if ($BuildNumber -le 7601){
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout BIOS -Package $msupackages.FileNames
+                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout BIOS -Package $packages
                 }else{
-                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $msupackages.FileNames
+                    Convert-WindowsImage -SourcePath "$ISOMediaPath\sources\install.wim" -Edition $Edition -VHDPath "$PSScriptRoot\$vhdname" -SizeBytes $size -VHDFormat VHDX -DiskLayout UEFI -Package $packages
                 }
             }else{
                 if ($BuildNumber -le 7601){
