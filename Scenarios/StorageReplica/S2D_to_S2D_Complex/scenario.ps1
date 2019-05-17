@@ -77,6 +77,9 @@ Write-host "Script started at $StartDateTime"
     #Nano server?
         $NanoServer=$false
 
+    #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+        $SMBBandwidthLimits=$true
+
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$true #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
@@ -296,15 +299,14 @@ Write-host "Script started at $StartDateTime"
             }
         ##Configure QoS
             New-NetQosPolicy "SMB"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
-            New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 5 -CimSession $servers
+            New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
             New-NetQosPolicy "Default"   -Default                         -PriorityValue8021Action 0 -CimSession $servers
 
-        #Turn on Flow Control for SMB and Cluster
+        #Turn on Flow Control for SMB
             Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
-            Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 5}
 
-        #Disable flow control for other traffic
-            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,6,7}
+        #Disable flow control for other traffic than 3 (pause frames should go only from prio 3)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
 
         #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
@@ -329,7 +331,7 @@ Write-host "Script started at $StartDateTime"
         #This value needs to match physical switch configuration. Value might vary based on your needs.
         #If connected directly (in 2 node configuration) skip this step.
             Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 5 -BandwidthPercentage 1  -Algorithm ETS}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 7 -BandwidthPercentage 1  -Algorithm ETS}
     }
 
     #enable iWARP firewall rule if requested
@@ -394,6 +396,16 @@ foreach ($Cluster in $clusters){
 
     #Configure LM to use SMB
     Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+
+    #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+        if ($SMBBandwidthLimits){
+            #install feature
+            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+            #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+            $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+            $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+            Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+        }
 #endregion
 
 #region configure Cluster-Aware-Updating
