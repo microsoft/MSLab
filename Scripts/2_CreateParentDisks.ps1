@@ -286,7 +286,7 @@ If (!( $isAdmin )) {
     #grab server packages
         if ($LabConfig.ServerISOFolder){
             if ($LabConfig.ServerMSUsFolder){
-                $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue | Sort-Object -Descending -Property Lenght).FullName
+                $packages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue | Sort-Object -Descending -Property Lenght).FullName
             }
         }elseif($WindowsInstallationType -eq "Server Core"){
             WriteInfoHighlighted "Server Core detected, MSU folder not specified. Skipping MSU prompt"
@@ -294,19 +294,19 @@ If (!( $isAdmin )) {
             #ask for MSU patches
             WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-            $ServerPackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            $msupackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                 Multiselect = $true;
                 Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
             }
-            $ServerPackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
-            If($ServerPackages.ShowDialog() -eq "OK"){
+            $msupackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            If($msupackages.ShowDialog() -eq "OK"){
                 WriteInfoHighlighted  "Following patches selected:"
-                WriteInfo "`t $($ServerPackages.filenames)"
+                WriteInfo "`t $($msupackages.filenames)"
             }
             $files=@()
-            foreach ($Filename in $ServerPackages.filenames){$files+=Get-ChildItem -Path $filename}
+            foreach ($Filename in $msupackages.filenames){$files+=Get-ChildItem -Path $filename}
             #sort by size (to apply Servicing Stack Update first)
-            $serverpackages=($files |Sort-Object -Descending -Property Lenght).Fullname
+            $packages=($files |Sort-Object -Descending -Property Lenght).Fullname
         }
 
 #endregion
@@ -421,8 +421,8 @@ If (!( $isAdmin )) {
                         WriteErrorAndExit "$($ServerMediaDriveLetter):\sources\install.wim not found. Can you try different Server media?"
                     }
 
-                    if ($serverpackages){
-                        Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $serverpackages
+                    if ($packages){
+                        Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $packages
                     }else{
                         Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
                     }
@@ -439,8 +439,8 @@ If (!( $isAdmin )) {
                         }
                     #create parent disks
                         WriteInfo "`t Creating Server Parent $($ServerVHD.VHDName)"
-                        if ($serverpackages){
-                            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$serverpackages)
+                        if ($packages){
+                            Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package ($NanoPackages+$packages)
                         }else{
                             Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\NanoServer\NanoServer.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI -Package $NanoPackages
                         }
@@ -496,8 +496,8 @@ If (!( $isAdmin )) {
             }else{
                 #Create Parent VHD
                 WriteInfoHighlighted "`t Creating VHD for DC"
-                if ($serverpackages){
-                    Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $Serverpackages
+                if ($packages){
+                    Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI -package $packages
                 }else{
                     Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $LabConfig.DCEdition -VHDPath $vhdpath -SizeBytes 60GB -VHDFormat VHDX -DiskLayout UEFI
                 }
