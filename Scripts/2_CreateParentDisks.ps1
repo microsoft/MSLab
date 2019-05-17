@@ -286,7 +286,7 @@ If (!( $isAdmin )) {
     #grab server packages
         if ($LabConfig.ServerISOFolder){
             if ($LabConfig.ServerMSUsFolder){
-                $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue).FullName | Sort-Object
+                $serverpackages = (Get-ChildItem -Path $LabConfig.ServerMSUsFolder -Recurse -Include '*.msu' -ErrorAction SilentlyContinue | Sort-Object -Descending -Property Lenght).FullName
             }
         }elseif($WindowsInstallationType -eq "Server Core"){
             WriteInfoHighlighted "Server Core detected, MSU folder not specified. Skipping MSU prompt"
@@ -303,8 +303,10 @@ If (!( $isAdmin )) {
                 WriteInfoHighlighted  "Following patches selected:"
                 WriteInfo "`t $($ServerPackages.filenames)"
             }
-
-            $serverpackages=$serverpackages.FileNames | Sort-Object
+            $files=@()
+            foreach ($Filename in $filenames){$files+=Get-ChildItem -Path $filename}
+            #sort by size (to apply Servicing Stack Update first)
+            $serverpackages=($files |Sort-Object -Descending -Property Lenght).Fullname
         }
 
 #endregion
