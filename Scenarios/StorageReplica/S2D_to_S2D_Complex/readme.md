@@ -125,6 +125,9 @@ To flip data1 to Site1, following script will shut down VMs on volume data1 and 
             Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
             Get-VM -Id $VM.id | Remove-VM -force
             Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse
+            #Flush caches as you dont want to corrupt files after you did copy it
+            Get-Volume | where filesystemtype -like csvfs* | Write-FileSystemCache
+            Get-Volume | where filesystemtype -like csvfs* | Write-VolumeCache
             Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
         }
     }
@@ -180,6 +183,9 @@ To flip it back, we will use the very same script as above, but with different v
             Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
             Get-VM -Id $VM.id | Remove-VM -force
             Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse
+            #Flush caches as you dont want to corrupt files after you did copy it
+            Get-Volume | where filesystemtype -like csvfs* | Write-FileSystemCache
+            Get-Volume | where filesystemtype -like csvfs* | Write-VolumeCache
             Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
         }
     }
@@ -310,6 +316,9 @@ The next step would be to cleanup machines on first site. This is necesarry, bec
             Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
             Get-VM -Id $VM.id | Remove-VM -force
             Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse
+            #Flush caches as you dont want to corrupt files after you did copy it
+            Get-Volume | where filesystemtype -like csvfs* | Write-FileSystemCache
+            Get-Volume | where filesystemtype -like csvfs* | Write-VolumeCache
             Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
         }
     }
@@ -356,6 +365,9 @@ To flip replication, you can use script for planned failover (following example 
             Copy-Item -Path "$($VM.Path)\Virtual Machines" -Destination "$($VM.Path)\Virtual Machines Bak" -recurse
             Get-VM -Id $VM.id | Remove-VM -force
             Copy-Item -Path "$($VM.Path)\Virtual Machines Bak\*" -Destination "$($VM.Path)\Virtual Machines" -recurse
+            #Flush caches as you dont want to corrupt files after you did copy it
+            Get-Volume | where filesystemtype -like csvfs* | Write-FileSystemCache
+            Get-Volume | where filesystemtype -like csvfs* | Write-VolumeCache
             Remove-Item -Path "$($VM.Path)\Virtual Machines Bak" -recurse
         }
     }
