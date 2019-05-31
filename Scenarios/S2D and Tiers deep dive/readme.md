@@ -222,7 +222,7 @@ Get-StorageTier -CimSession 2T2NodeClus |ft FriendlyName,MediaType,ResiliencySet
  
 ```
 
-OK, so on 2Tiers 2Node cluster where we do have HDDs only, 2 tiers were created. One is Capacity (this is here for compatibility with 2016 naming) and MirrorOnHDD (new naming in 2016). Notice NumberOfDataCopies (2way mirror) and PhysicalDiskRedundancy (ability to tolerate 1 fault). Fault domain awareness means, that copies are distributed across StorageScaleUnit (because it can be server and attached local jbod with storage, not just server). Columns are automatically calculated (depending how many nodes/disks in each node you have, number will be assigned once virtual disk is created). Number of groups is there for Parity.
+OK, so on 2Tiers 2Node cluster where we do have HDDs only, 2 tiers were created. One is Capacity (this is here for compatibility with Windows Server 2016 naming) and MirrorOnHDD (new naming in Windows Server 2019). Notice NumberOfDataCopies (2way mirror) and PhysicalDiskRedundancy (ability to tolerate 1 fault). Fault domain awareness means, that copies are distributed across StorageScaleUnit (because it can be server and attached local jbod with storage, not just server). Columns are automatically calculated (depending how many nodes/disks in each node you have, number will be assigned once virtual disk is created). Number of groups is there for Parity.
 
 You can also notice, that Tiers are created after Enable-ClusterS2D was run. It dynamically created only those tiers, that matches the mediatype present in systems.
 
