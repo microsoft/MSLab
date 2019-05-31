@@ -323,7 +323,6 @@ foreach ($ClusterName in $ClusterNames){
     $NumberOfNodes=(Get-ClusterNode -Cluster $ClusterName).Count
     $MediaTypes=(Get-PhysicalDisk -CimSession $ClusterName |where mediatype -ne Unspecified | where usage -ne Journal).MediaType | Select-Object -Unique
     $ClusterFunctionalLevel=(Get-Cluster -Name $ClusterName).ClusterFunctionalLevel
-    $PoolFaultDomainAwarenessDefault=(Get-StoragePool -CimSession $ClusterName -FriendlyName "s2d on $ClusterName").FaultDomainAwarenessDefault
 
     Foreach ($MediaType in $MediaTypes){
         if ($NumberOfNodes -eq 2) {
