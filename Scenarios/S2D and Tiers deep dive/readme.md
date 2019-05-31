@@ -107,22 +107,23 @@ Run all scripts from DC or Management machine.
      }
 #>
 
-#Enable S2D and configure mediatype to simulate 3 tier system (all 800GB disks)
-    foreach ($cluster in $Clusters.Name){
-        Enable-ClusterS2D -CimSession $Cluster -Verbose -Confirm:0
-        if ($Cluster -like "3T*"){
-            invoke-command -computername $Cluster -scriptblock {
-                get-physicaldisk | where size -eq 800GB | set-physicaldisk -mediatype SSD
-            }
-        }
-    }
-<#or with SCM
+#Enable S2D and configure mediatype to simulate 3 tier system with SCM (all 800GB disks are SCM, all 4T are SSDs). It's unreal! it just demonstrates SCM Names
    foreach ($cluster in $Clusters.Name){
         Enable-ClusterS2D -CimSession $Cluster -Verbose -Confirm:0
         if ($Cluster -like "3T*"){
             invoke-command -computername $Cluster -scriptblock {
                 get-physicaldisk | where size -eq 800GB | set-physicaldisk -mediatype SCM
                 get-physicaldisk | where size -eq 4TB | set-physicaldisk -mediatype SSD
+            }
+        }
+    }
+
+<#or with just SSDs (all 800GB disks)
+    foreach ($cluster in $Clusters.Name){
+        Enable-ClusterS2D -CimSession $Cluster -Verbose -Confirm:0
+        if ($Cluster -like "3T*"){
+            invoke-command -computername $Cluster -scriptblock {
+                get-physicaldisk | where size -eq 800GB | set-physicaldisk -mediatype SSD
             }
         }
     }
