@@ -359,3 +359,7 @@ foreach ($ClusterName in $ClusterNames){
         }
     }
 }
+
+Result of above script (after all tiers were wiped with Get-StorageTier | Remove-StorageTier)
+
+![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/Tiers08.png)
