@@ -5,6 +5,8 @@
 - [S2D and Tiers deep dive](#s2d-and-tiers-deep-dive)
     - [LabConfig](#labconfig)
     - [About the lab](#about-the-lab)
+        - [VMs](#vms)
+        - [Memory Consumed](#memory-consumed)
     - [The Lab](#the-lab)
         - [Prereq](#prereq)
         - [Optional prereq: Install Windows Admin Center](#optional-prereq-install-windows-admin-center)
@@ -44,7 +46,17 @@ Lab simulates 2Tier and 3Tier systems (actually we are not able to simuate cache
 
 All setting up mediatype is done just for lab purposes. You will never need it (and you should never use it) in real systems! Even combination of SCM and SSD where both tiers are capacity devices is very unlikely. As I said, it's here just for educational purposes.
 
-Run all scripts from DC or Management machine. 
+Run all scripts from DC or Management machine.
+
+### VMs
+
+![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/VMs.png)
+
+### Memory Consumed
+
+Entire lab consumes ~20GB of RAM (including 2 optional machines for Windows Admin Center)
+
+![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/VMs_Memory.png)
 
 ## The Lab
 
@@ -191,7 +203,7 @@ Notice, that Certificate is not trusted
 
 ![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/WAC_Cert02.png)
 
-To import S2D clusters to Windows Admin Center, you can generate textfile like this
+To import S2D clusters to Windows Admin Center, you can generate text file like in following example
 
 ```PowerShell
 #Generate text file for S2D clusters import to
@@ -246,7 +258,7 @@ Let's display those "2016" tiers first.
 
 ```PowerShell
 $Clusters=(Get-Cluster -Domain $env:userdomain | where S2DEnabled -eq 1).Name
-Get-StorageTier -CimSession $Clusters |where friendlyname -eq capacity|Sort-Object PSComputerName |ft PSComputerName,FriendlyName,MediaType,ResiliencySettingName,NumberOfDataCopies,PhysicalDiskRedundancy,FaultDomainAwareness,ColumnIsolation,NumberOfGroups,NumberOfColumns
+Get-StorageTier -CimSession $Clusters |where friendlyname -eq capacity |Sort-Object PSComputerName |ft PSComputerName,FriendlyName,MediaType,ResiliencySettingName,NumberOfDataCopies,PhysicalDiskRedundancy,FaultDomainAwareness,ColumnIsolation,NumberOfGroups,NumberOfColumns
  
 ```
 
@@ -258,11 +270,23 @@ As you can see, on 2 and 3 node clusters are Capacity tiers Mirror, but in 4 nod
 
 It's again confusing. Performance tier in 2 tier systems is in 4 node cluster only. In 3 tier systems it's the faster one, also available on 2 and 3 node systems
 
+```PowerShell
+$Clusters=(Get-Cluster -Domain $env:userdomain | where S2DEnabled -eq 1).Name
+Get-StorageTier -CimSession $Clusters |where friendlyname -eq performance |Sort-Object PSComputerName |ft PSComputerName,FriendlyName,MediaType,ResiliencySettingName,NumberOfDataCopies,PhysicalDiskRedundancy,FaultDomainAwareness,ColumnIsolation,NumberOfGroups,NumberOfColumns
+ 
+```
+
 ![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/Tiers05.png)
 
 #### Mirror Tiers
 
 As you can see, new 2019 tiers are much more easy to understand. You can find there MirrorOnHDD, MirrorOnSSD and MirrorOnSCM. In 2 node systems is different NumberOfCopies and PhysicalDiskRedundancy.
+
+```PowerShell
+$Clusters=(Get-Cluster -Domain $env:userdomain | where S2DEnabled -eq 1).Name
+Get-StorageTier -CimSession $Clusters |where friendlyname -like mirror* |Sort-Object PSComputerName |ft PSComputerName,FriendlyName,MediaType,ResiliencySettingName,NumberOfDataCopies,PhysicalDiskRedundancy,FaultDomainAwareness,ColumnIsolation,NumberOfGroups,NumberOfColumns
+ 
+```
 
 ![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/Tiers06.png)
 
@@ -270,11 +294,17 @@ As you can see, new 2019 tiers are much more easy to understand. You can find th
 
 Parity tiers are created only on 4+ nodes systems. THere is one exception - Nested resiliency for 2 node systems. But it's not (yet) created automatically.
 
+```PowerShell
+$Clusters=(Get-Cluster -Domain $env:userdomain | where S2DEnabled -eq 1).Name
+Get-StorageTier -CimSession $Clusters |where friendlyname -like parity* |Sort-Object PSComputerName |ft PSComputerName,FriendlyName,MediaType,ResiliencySettingName,NumberOfDataCopies,PhysicalDiskRedundancy,FaultDomainAwareness,ColumnIsolation,NumberOfGroups,NumberOfColumns
+ 
+```
+
 ![](/Scenarios/S2D%20and%20Tiers%20deep%20dive/Screenshots/Tiers07.png)
 
 #### Summary Table
 
-Following tables are summarizing all possible tiers that can be created on 2019 systems (without the confusing ones)
+Following tables are summarizing all possible tiers that are/can be created in Windows Server 2019 (without the confusing ones)
 
 **NumberOfNodes: 2**
 
