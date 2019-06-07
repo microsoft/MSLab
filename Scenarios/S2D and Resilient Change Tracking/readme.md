@@ -1,25 +1,38 @@
 <!-- TOC -->
 
-- [S2D and Resilient Change Tracking (Work in progress!)](#s2d-and-resilient-change-tracking-work-in-progress)
+- [S2D and Resilient Change Tracking](#s2d-and-resilient-change-tracking)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
     - [Prereq](#prereq)
     - [The lab: Backup VMs to another CSV](#the-lab-backup-vms-to-another-csv)
         - [Prepare PowerShell module](#prepare-powershell-module)
         - [Perform full backup](#perform-full-backup)
-        - [Perform incremental backup](#perform-incremental-backup)
-    - [Todo: Work with checkpoints and reference points](#todo-work-with-checkpoints-and-reference-points)
-    - [Todo: Backup VMs to file share](#todo-backup-vms-to-file-share)
+            - [Create checkpoint and export VM](#create-checkpoint-and-export-vm)
+            - [Remove Checkpoint](#remove-checkpoint)
+        - [Playing with Reference Points](#playing-with-reference-points)
+            - [Perform full backup while preserving reference point](#perform-full-backup-while-preserving-reference-point)
+            - [Perform incremental backup](#perform-incremental-backup)
+            - [Perform Full backup again, but remove all reference points first](#perform-full-backup-again-but-remove-all-reference-points-first)
+            - [Just cleanup all reference points](#just-cleanup-all-reference-points)
+            - [Remove all subfolders in clusterstorage\MyBackupVolume](#remove-all-subfolders-in-clusterstorage\mybackupvolume)
+        - [Let's try end-to-end scenario](#lets-try-end-to-end-scenario)
+            - [Backup VM (create full if not full, create diff if full exist)](#backup-vm-create-full-if-not-full-create-diff-if-full-exist)
+            - [Delete both VMs](#delete-both-vms)
+            - [Restore VM from differential checkpoint](#restore-vm-from-differential-checkpoint)
 
 <!-- /TOC -->
 
-# S2D and Resilient Change Tracking (Work in progress!)
+# S2D and Resilient Change Tracking
 
 ## About the lab
 
-In this lab you will learn how to backup VMs using Resilient Change Tracking. More information in this session from 2019 https://channel9.msdn.com/Events/TechEd/Europe/2014/CDP-B318 and also in original scripts https://www.powershellgallery.com/packages/xHyper-VBackup/1.0.3 published by Taylor Brown.
+In this lab you will learn how to backup VMs using Resilient Change Tracking. More information in this session from 2014 https://channel9.msdn.com/Events/TechEd/Europe/2014/CDP-B318 and also in original scripts https://www.powershellgallery.com/packages/xHyper-VBackup/1.0.3 published by Taylor Brown.
 
-Original scripts were modified by [@vladimirmach](https://twitter.com/vladimirmach) as there were minor bugs and he published it under his github repo https://github.com/machv/xhyper-vbackup
+It's just POC. Use on prod with caution! You should use backup solutions such as DPM that are using RCT. You can use this just to learn about RCT and how to work with checkpoints/referencepoints
+
+Why I think this feature is cool? Imagine if you would Storage Replicate your backup volume to another location, wouldn't it be a perfect DR solution? Ultimately all can be scripted.
+
+Original scripts were modified by [@vladimirmach](https://twitter.com/vladimirmach) as there were minor [bugs](https://github.com/machv/xhyper-vbackup/commits/master) and he published it under his [github repo](https://github.com/machv/xhyper-vbackup)
 
 ## LabConfig
 
@@ -29,9 +42,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 #S2D Cluster
 $LABConfig.VMs += @{ VMName = "S2D1" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True }
 $LABConfig.VMs += @{ VMName = "S2D2" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 4; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$True }
-
-#Backup destination
-$LabConfig.VMs += @{ VMName = 'BackupDest'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; AddToolsVHD = $True }
 
 #Optional management machine
 #$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win1019H1_G2.vhdx'; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
@@ -134,7 +144,7 @@ Install-WindowsFeature -Name "Hyper-V-PowerShell","RSAT-Clustering-PowerShell","
 Invoke-WebRequest -Uri https://github.com/machv/xhyper-vbackup/archive/master.zip -UseBasicParsing -OutFile $env:USERPROFILE\Downloads\xhyper-vbackup-master.zip
 
 #Copy module to cluster nodes
-$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name #Select failover cluster
+$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single -Title "Select failover cluster where xHyper-VBackup will be copied").Name #Select failover cluster
 $Servers=(Get-ClusterNode -Cluster $CLusterName).Name
 
 $Sessions=New-PSSession -ComputerName $Servers
@@ -148,44 +158,84 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
     #Remove-Item -Path C:\Windows\System32\WindowsPowerShell\v1.0\Modules\xhyper-vbackup-master -Force
     #Remove-Item -Path C:\Windows\System32\WindowsPowerShell\v1.0\Modules\xhyper-vbackup -Force
     Expand-Archive -Path $env:USERPROFILE\Downloads\xhyper-vbackup-master.zip -DestinationPath C:\Windows\System32\WindowsPowerShell\v1.0\Modules\ -Force
+    #remove leftovers
     Rename-Item -Path C:\Windows\System32\WindowsPowerShell\v1.0\Modules\xhyper-vbackup-master -NewName xhyper-vbackup
     Remove-Item -Path $env:USERPROFILE\Downloads\xhyper-vbackup-master.zip
 }
  
 ```
 
-### Perform full backup
+Once powerShell module is installed, on remote nodes will be following commands available.
 
 ```PowerShell
-$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name #Select failover cluster
-$Servers=(Get-ClusterNode -Cluster $CLusterName).Name
-#Choose VM for Backup
-$VMsToBackup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple
-$Destination="c:\clusterstorage\MyBackupVolume\Full"
-#backup chosen VMs
-foreach ($VM in $VMsToBackup){
-    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
-        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel CrashConsistent
-        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name) -BackupCheckpoint $checkpoint
-    }
-}
-
+Invoke-Command -ComputerName s2d1 -ScriptBlock {Get-Command -Module xHyper-VBackup}
+ 
 ```
 
-### Perform incremental backup
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/xhyper-vbackup01.png)
+
+
+### Perform full backup
+
+#### Create checkpoint and export VM
+
+Following script will create backup checkpoint and copies it into remote destination. It will let you select cluster and VM. For VM, choose VM01. Keep same powershell window open for all tasks to keep variables.
+
+Note: since consistency level is applicationconsistent, you need to wait till VMs are booted into OS.
 
 ```PowerShell
-#Create incremental backup
-#Choose VM for Backup
-$VMsToBackup=hyper-v\Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple
-$Destination="c:\clusterstorage\MyBackupVolume\Diff"
+$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single -Title "Select failover cluster").Name #Select failover cluster
+$Servers=(Get-ClusterNode -Cluster $CLusterName).Name
+#Choose VM for Backup (Choose VM01)
+$VMsToBackup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple -Title "Choose VM for Backup (Choose VM01)"
+$Destination="c:\clusterstorage\MyBackupVolume\"
 #backup chosen VMs
 foreach ($VM in $VMsToBackup){
     Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
-        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel CrashConsistent
-        $referencePoint = Get-VmReferencePoints -VmName $using:vm.Name
-        # Exports differential backup of the machine 
-        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name) -BackupCheckpoint $checkpoint -ReferencePoint $referencePoint
+        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel ApplicationConsistent #or CrashConsistent
+        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Full-$($checkpoint.CreationTime) -BackupCheckpoint $checkpoint
+    }
+}
+ 
+```
+
+The backup checkpoint was created and it was exported to another CSV as specified in example above.
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/VM01Checkpoint.png)
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/VM01BackupCheckpointInGUI.png)
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/ExportedVM01Posh.png)
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/ExportedVM01Explorer.png)
+
+
+#### Remove Checkpoint
+
+Since you don't want to have checkpoint on your machine, you can remove it with following command. Notice, that in GUI is Export only since this is recovery checkpoint.
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/VM01ExportOnly.png)
+
+```PowerShell
+Get-VMCheckpoint -VMName VM01 -CimSession $Servers | Remove-VMCheckpoint
+ 
+```
+
+### Playing with Reference Points
+
+Above example is not very convenient as you would have to do full backups all the time. It's bit easier to perform full backup, and instead of removing checkpoint, you want to keep reference point, so if you do backup again, you can do incremetal backup
+
+#### Perform full backup while preserving reference point
+
+```PowerShell
+#Choose VM for Backup (Choose VM01)
+$VMsToBackup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple -Title "Choose VM for Backup (Choose VM01)"
+$Destination="c:\clusterstorage\MyBackupVolume\"
+#backup chosen VMs
+foreach ($VM in $VMsToBackup){
+    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
+        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel ApplicationConsistent #or CrashConsistent
+        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Full-$($checkpoint.CreationTime) -BackupCheckpoint $checkpoint
         # Removes backup snapshot and converts it as reference point for future incremental backups
         Convert-VmBackupCheckpoint -BackupCheckpoint $checkpoint
     }
@@ -193,6 +243,192 @@ foreach ($VM in $VMsToBackup){
  
 ```
 
-## Todo: Work with checkpoints and reference points
+#### Perform incremental backup
 
-## Todo: Backup VMs to file share
+```PowerShell
+#Choose VM for Backup (Choose VM01 again)
+$VMsToBackup=hyper-v\Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple -Title "Choose VM for Backup (Choose VM01)"
+$Destination="c:\clusterstorage\MyBackupVolume\"
+#backup chosen VMs
+foreach ($VM in $VMsToBackup){
+    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
+        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel ApplicationConsistent #or CrashConsistent
+        $referencePoints = Get-VmReferencePoints -VmName $using:vm.Name
+        $lastreferencepoint=Get-VmReferencePoints -vmname $using:vm.Name | sort Res* |select -Last 1
+        $lastreferencepointID=($lastreferencepoint.ResilientChangeTrackingIdentifiers).split(":") | select -Last 1
+        # Exports differential backup of the machine 
+        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Diff-$lastreferencepointID -BackupCheckpoint $checkpoint -ReferencePoint $lastreferencepoint
+        # Removes backup snapshot and converts it as reference point for future incremental backups
+        Convert-VmBackupCheckpoint -BackupCheckpoint $checkpoint
+    }
+}
+ 
+```
+
+#### Perform Full backup again, but remove all reference points first
+
+```PowerShell
+#Choose VM for Backup (Choose VM01)
+$VMsToBackup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple
+$Destination="c:\clusterstorage\MyBackupVolume\"
+#backup chosen VMs
+foreach ($VM in $VMsToBackup){
+    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
+        $refs=Get-VmReferencePoints -VmName $using:vm.Name
+        foreach ($ref in $refs){Remove-VmReferencePoint -ReferencePoint $ref}
+        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel ApplicationConsistent #or CrashConsistent
+        Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Full-$($checkpoint.CreationTime) -BackupCheckpoint $checkpoint
+        # Removes backup snapshot and converts it as reference point for future incremental backups
+        Convert-VmBackupCheckpoint -BackupCheckpoint $checkpoint
+    }
+}
+ 
+```
+
+As you can see, we have now multiple full backups and one diff (sorted by data modified). Script generated the filenames, but you can modify it as you wish.
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/VM01ExportOnly.png)
+
+#### Just cleanup all reference points
+
+```PowerShell
+#Choose VM for cleanup (Choose VM01)
+$VMsToCleanup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple "Choose VM for cleanup ref points (Choose VM01)"
+#cleanup chosen VMs
+foreach ($VM in $VMsToCleanup){
+    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
+        $refs=Get-VmReferencePoints -VmName $using:vm.Name
+        foreach ($ref in $refs){Remove-VmReferencePoint -ReferencePoint $ref}
+    }
+}
+ 
+```
+
+#### Remove all subfolders in clusterstorage\MyBackupVolume
+
+```PowerShell
+Remove-Item -Path \\s2d-cluster\clusterstorage$\MyBackupVolume\* -Recurse
+ 
+```
+
+### Let's try end-to-end scenario
+
+#### Backup VM (create full if not full, create diff if full exist)
+
+Run below code multiple times just to create multiple checkpoints. Backup both VM01 and VM02.
+
+```PowerShell
+$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name #Select failover cluster
+$Servers=(Get-ClusterNode -Cluster $CLusterName).Name
+#Choose CSV where to backup (Choose MyBackupVolume)
+$Destination=(Invoke-Command -ComputerName $ClusterName -scriptblock {Get-ChildItem -Path "c:\clusterstorage\" | Select Name,FullName} | Out-GridView -OutputMode Single -Title "Choose CSV where to backup (Choose MyBackupVolume)").FullName
+#Choose VM for Backup (Choose both VM01 and VM02)
+$VMsToBackup=Get-VM -CimSession $Servers | Out-GridView -OutputMode Multiple -Title "Choose VM for Backup (Choose both VM01 and VM02)"
+
+#backup chosen VMs
+foreach ($VM in $VMsToBackup){
+    Invoke-Command -ComputerName $vm.ComputerName -ScriptBlock {
+        $referencePoints = Get-VmReferencePoints -VmName $using:vm.Name
+        $checkpoint = New-VmBackupCheckpoint -VmName $using:vm.Name -ConsistencyLevel ApplicationConsistent #or CrashConsistent
+        if ($referencePoints){
+            #perform diff
+            $referencePoints = Get-VmReferencePoints -VmName $using:vm.Name
+            $lastreferencepoint=Get-VmReferencePoints -vmname $using:vm.Name | sort Res* |select -Last 1
+            $lastreferencepointID=($lastreferencepoint.ResilientChangeTrackingIdentifiers).split(":") | select -Last 1
+            Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Diff-$lastreferencepointID -BackupCheckpoint $checkpoint -ReferencePoint $lastreferencepoint
+        }else{
+            #perform full
+            Export-VMBackupCheckpoint -VmName $using:vm.Name -DestinationPath $using:destination\$($using:vm.name)\Full-$($checkpoint.CreationTime) -BackupCheckpoint $checkpoint
+        }
+        Convert-VmBackupCheckpoint -BackupCheckpoint $checkpoint
+    }
+}
+ 
+```
+
+As you can see, each VM has multiple diff backups as I ran above script multiple times.
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/Backups02.png)
+
+VM01 starts with diff-00000005 since we were playing wiht backup checkpoints before
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/Backups03.png)
+
+#### Delete both VMs
+
+```PowerShell
+$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name #Select failover cluster
+
+#select VMs to delete (select both VM01 and VM02)
+$VMGroups=Get-ClusterGroup -Cluster $clustername | where grouptype -like Virt* | Out-GridView -OutputMode Multiple -Title "select VMs to delete (select both VM01 and VM02)"
+foreach ($VMGroup in $VMGroups){
+    #remove cluster resource group
+    $OwnerNode=$VMGroup.OwnerNode.Name
+    $VMGroup | Remove-ClusterGroup -RemoveResources -Force
+    $VM=Get-VM -Cimsession $OwnerNode -Name $vmgroup.name
+    $vm | Stop-VM -Force -TurnOff
+    $vm | remove-VM -Force
+    Invoke-Command -ComputerName $ownernode -ScriptBlock {Remove-Item -Path $using:VM.Path -Recurse -Force}
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/AllVMsDeleted.png)
+
+#### Restore VM from differential checkpoint
+
+```PowerShell
+$Clustername=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single -Title "Select Failover Cluster").Name #Select failover cluster
+
+$BackupCSV=(Invoke-Command -ComputerName $ClusterName -scriptblock {Get-ChildItem -Path "c:\clusterstorage\" | Select Name,FullName} | Out-GridView -OutputMode Single -Title "Select CSV where backups are located (MyBackupVolume)").Name
+$RestoreCSV=(Invoke-Command -ComputerName $ClusterName -scriptblock {Get-ChildItem -Path "c:\clusterstorage\" | Select Name,FullName} | Out-GridView -OutputMode Single -Title "Select CSV where backups will be restored (MyVolume)").Name
+
+$VMsToRestore=(Invoke-Command -ComputerName $clusterName -scriptblock {Get-ChildItem -Path c:\ClusterStorage\$using:BackupCSV | select Name,FullName } | Out-GridView -OutputMode Multiple -Title "Select VM to restore (Both VM01 and VM02)").Name
+
+foreach ($VMToRestore in $VMsToRestore){
+    $CheckpointToRestore=(Invoke-Command -ComputerName $clustername -scriptblock {Get-ChildItem -Path c:\clusterstorage\$using:backupcsv\$using:VMToRestore | Select Name,FullName }| Out-GridView -OutputMode Multiple -Title "Select checkpoint to restore (random diff-xxxxxxx)").FullName
+
+    #Copy selected checkpoint to destination
+    Invoke-Command -computername $ClusterName -ScriptBlock {
+        New-Item "c:\ClusterStorage\$using:RestoreCSV\$using:VMToRestore" -ItemType Directory
+        Copy-Item -Path "$using:CheckpointToRestore\*" -Destination "c:\ClusterStorage\$using:RestoreCSV\$using:VMToRestore" -Recurse 
+    }
+
+    #Copy remaining vhds
+    Invoke-Command -computername $clustername -scriptblock {
+        $AVHDXs=get-childitem -Path "c:\ClusterStorage\$using:RestoreCSV\$using:VMToRestore\Virtual Hard Disks" | where extension -eq .avhdx
+        $allfiles=get-childitem -path c:\ClusterStorage\$using:BackupCSV\$using:VMToRestore -recurse
+        foreach ($avhdx in $avhdxs){
+            $vhd=get-vhd -Path $avhdx.FullName
+            do {
+                if ($vhd.parentpath){
+                    $Parent=($vhd.ParentPath) | split-Path -leaf
+                    #find avhdx in BackupCSV\VMName
+                    $ParentFile=($allfiles | where Name -eq $Parent).FullName
+                    Copy-Item -path $parentfile -destination "c:\ClusterStorage\$using:RestoreCSV\$using:VMToRestore\Virtual Hard Disks"
+                    $vhd=get-vhd -path $parentfile
+                }else{
+                    $quit=$true
+                }
+            }until(
+                $quit -eq $true
+            )
+        }
+    }
+
+    #import VM
+    Invoke-Command -ComputerName $clustername -scriptblock {
+        $configfile=(Get-ChildItem -Path "c:\ClusterStorage\$using:RestoreCSV\$using:VMToRestore\Virtual Machines" | where extension -eq .vmcx).fullname
+        Import-VM -Path $configfile
+    }
+
+    #add to cluster
+    Add-ClusterVirtualMachineRole -VMName $VMToRestore -Cluster $ClusterName
+    
+    #Start VM
+    Start-VM -Name $VMToRestore -CimSession $clustername
+}
+ 
+```
+
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/AllVMsRestored.png)
