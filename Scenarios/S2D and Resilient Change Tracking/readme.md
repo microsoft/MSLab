@@ -287,7 +287,7 @@ foreach ($VM in $VMsToBackup){
 
 As you can see, we have now multiple full backups and one diff (sorted by data modified). Script generated the filenames, but you can modify it as you wish.
 
-![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/Backup01.png)
+![](/Scenarios/S2D%20and%20Resilient%20Change%20Tracking/Screenshots/Backups01.png)
 
 #### Just cleanup all reference points
 
