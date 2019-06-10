@@ -92,7 +92,7 @@
         if ($msupackages.Filenames){
             $files=@()
             foreach ($Filename in $msupackages.FileNames){$files+=Get-ChildItem -Path $filename}
-            $packages=($files |Sort-Object -Descending -Property Lenght).Fullname
+            $packages=($files |Sort-Object -Property Length).Fullname
         }
 
     #endregion
