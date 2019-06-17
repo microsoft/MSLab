@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [Scripting Windows Update (Work in progress!)](#scripting-windows-update-work-in-progress)
+- [Scripting Windows Update](#scripting-windows-update)
     - [About the lab](#about-the-lab)
     - [LabConfig (notice it uses both 2016 and 2019 vhdx files)](#labconfig-notice-it-uses-both-2016-and-2019-vhdx-files)
     - [List available updates on 2016 and 2019](#list-available-updates-on-2016-and-2019)
@@ -13,10 +13,11 @@
         - [Display Last Installation Date on all Domain Computers](#display-last-installation-date-on-all-domain-computers)
         - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
         - [Display update level](#display-update-level)
+        - [Check if servers are up-to-date](#check-if-servers-are-up-to-date)
 
 <!-- /TOC -->
 
-# Scripting Windows Update (Work in progress!)
+# Scripting Windows Update
 
 ## About the lab
 
@@ -289,3 +290,53 @@ $ComputerInfo | sort PSComputerName | ft PSComputerName,ProductName,EditionID,In
 ```
 
 ![](/Scenarios/Windows%20Update/Screenshots/UpdateLevels.png)
+
+### Check if servers are up-to-date
+
+First grab latest available patches from Windows 10 update history web page. This piece of code will create hash table with latest UBR.
+
+```PowerShell
+$versions=@()
+$versions+=@{ReleaseID=1903;URI="https://support.microsoft.com/en-us/help/4498140"}
+$versions+=@{ReleaseID=1809;URI="https://support.microsoft.com/en-us/help/4464619"}
+$versions+=@{ReleaseID=1803;URI="https://support.microsoft.com/en-us/help/4099479"}
+$versions+=@{ReleaseID=1709;URI="https://support.microsoft.com/en-us/help/4043454"}
+$versions+=@{ReleaseID=1703;URI="https://support.microsoft.com/en-us/help/4018124"}
+$versions+=@{ReleaseID=1607;URI="https://support.microsoft.com/en-us/help/4000825"}
+foreach ($version in $versions){
+    $web=Invoke-WebRequest -Uri $version.uri -UseBasicParsing
+    $startstring='        "releaseVersion": "OS Build '
+    $start=$web.content.IndexOf($startstring)
+    $start=$start+$startstring.Length
+    $result=$web.content.Substring($start,10).TrimEnd('"').split(".")
+    $version.CurrentBuild=$result[0]
+    $version.UBR=$result[1]
+}
+ 
+```
+
+Let's compare it with our servers
+
+```PowerShell
+$servers=(Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
+$RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+$ComputersInfo  = Invoke-Command -ComputerName $servers -ScriptBlock {
+    Get-ItemProperty -Path $using:RegistryPath
+}
+
+Foreach ($ComputerInfo in $computersinfo){
+    $latestUBR=($versions | where ReleaseID -eq $computerinfo.releaseid).UBR
+    if ($latestUBR -gt $computerInfo){
+        $ComputerInfo | Add-Member -MemberType NoteProperty -Name IsUpToDate -Value $false
+        $ComputerInfo | Add-Member -MemberType NoteProperty -Name LatestUBR -Value $LatestUBR
+    }else{
+        $ComputerInfo | Add-Member -MemberType NoteProperty -Name IsUpToDate -Value $true
+        $ComputerInfo | Add-Member -MemberType NoteProperty -Name LatestUBR -Value $LatestUBR
+    }
+}
+
+$ComputersInfo | ft PSComputerName,IsUpToDate,UBR,LatestUBR
+ 
+```
+
+![](/Scenarios/Windows%20Update/Screenshots/UpdateLevelsUpToDate.png)
