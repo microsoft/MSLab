@@ -12,31 +12,46 @@ Write-host "Script started at $StartDateTime"
         $ServersNamePrefix="S2D"
     #generate servernames (based number of nodes and serversnameprefix)
         $Servers=1..$numberofnodes | ForEach-Object {"$ServersNamePrefix$_"}
+        #alternatively you can just do $Servers="S2D1","S2D2","S2D3","S2D4". The result is the same
+
     #Cluster Name
         $ClusterName="S2D-Cluster"
 
     #Cluster-Aware-Updating role name
         $CAURoleName="S2D-Clus-CAU"
 
+    #Witness type
+        $WitnessType="FileShare" #or Cloud
+        #if cloud then configure following (use your own, these are just examples)
+        <#
+        $CloudWitnessStorageAccountName="MyStorageAccountName"
+        $CloudWitnessStorageKey="qi8QB/VSHHiA9lSvz1kEIEt0JxIucPL3l99nRHhkp+n1Lpabu4Ydi7Ih192A4VW42vccIgUnrXxxxxxxxxxxxx=="
+        $CloudWitnessEndpoint="core.windows.net“
+        #>
+
     #Disable CSV Balancer
         $DisableCSVBalancer=$False
+
+    #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
+        $WindowsUpdate=$false
 
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
         $StorNet="172.16.1."
         $StorVLAN=1
-        $SRIOV=$false #Deploy SR-IOV enabled switch
-    #start IP
+        $SRIOV=$true #Deploy SR-IOV enabled switch (best practice is to enable if possible)
+
+    #start IP for storage network
         $IP=1
 
     #Real hardware?
         $RealHW=$False #will configure VMQ not to use CPU 0 if $True, configures power plan
-        $DellHW=$False #include Dell recommendation to increase HW timeout to 10s
+        $DellHW=$False #include Dell recommendation to increase HW timeout to 10s becayse of their Hitachi HDDs. May be already obsolete.
 
     #IncreaseHW Timeout for virtual environments to 30s? https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm
         $VirtualEnvironment=$true
 
-    #PFC?
+    #Configure dcb? (more info at http://aka.ms/ConvergedRDMA)
         $DCB=$False #$true for ROCE, $false for iWARP
 
     #iWARP?
@@ -47,9 +62,6 @@ Write-host "Script started at $StartDateTime"
 
     #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
         $NumberOfDisks=$numberofnodes
-
-    #Nano server?
-        $NanoServer=$False
 
     #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
         $SMBBandwidthLimits=$true
@@ -64,6 +76,9 @@ Write-host "Script started at $StartDateTime"
     #CVE-2017-5754 cannot be used to attack across a hardware virtualized boundary. It can only be used to read memory in kernel mode from user mode. It is not a strict requirement to set this registry value on the host if no untrusted code is running and no untrusted users are able to logon to the host.
         $MeltdownMitigationEnable=$false
 
+    #Enable Microarchitectural Data Sampling Mitigation? https://support.microsoft.com/en-us/help/4072698/windows-server-speculative-execution-side-channel-vulnerabilities-prot
+        $MicroarchitecturalDataSamplingMitigation=$false
+
     #Enable speculative store bypass mitigation? https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in , https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/ADV180012
         $SpeculativeStoreBypassMitigation=$false
 
@@ -73,14 +88,14 @@ Write-host "Script started at $StartDateTime"
     #Configure Core scheduler on Windows Server 2016? https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/manage/manage-hyper-v-scheduler-types#configuring-the-hypervisor-scheduler-type-on-windows-server-2016-hyper-v
         $CoreScheduler=$True
 
-        #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
+    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
         $MemoryDump="Active"
 
     #real VMs? If true, script will create real VMs on mirror disks from vhd you will provide during the deployment. The most convenient is to provide NanoServer
         $realVMs=$false
         $NumberOfRealVMs=2 #number of VMs on each mirror disk
 
-    #ask for parent VHDx
+    #ask for parent VHDx if real VMs will be created
         if ($realVMs){
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
             $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
@@ -150,8 +165,35 @@ Write-host "Script started at $StartDateTime"
     }
 #endregion
 
+#region Update all servers (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
+    if ($WindowsUpdate){
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $releaseid=(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name ReleaseId).ReleaseID
+            if ($releaseid -eq 1607){
+                $Instance = New-CimInstance -Namespace root/Microsoft/Windows/WindowsUpdate -ClassName MSFT_WUOperationsSession
+                #find updates
+                $ScanResult=$instance | Invoke-CimMethod -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true}
+                #apply updates (if not empty)
+                $CriticalUpdates= $ScanResult.updates | Where-Object MsrcSeverity -eq Critical
+                if ($CriticalUpdates){
+                    $instance | Invoke-CimMethod -MethodName DownloadUpdates -Arguments @{Updates=[ciminstance[]]$CriticalUpdates}
+                    $instance | Invoke-CimMethod -MethodName InstallUpdates  -Arguments @{Updates=[ciminstance[]]$CriticalUpdates}
+                }
+            }else{
+                #Grab updates
+                $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+                #apply updates (if not empty)
+                if ($ScanResult.Updates){
+                    Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
+                }
+            }
+        }
+    }
+
+#endregion
+
 #region Configure basic settings on servers
-    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers
+    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers (may be obsolete as it applies to Dell 730xd with Hitachi HDDs)
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
@@ -192,6 +234,23 @@ Write-host "Script started at $StartDateTime"
             }
         }
 
+    #enable Microarchitectural Data Sampling mitigation
+        if ($MicroarchitecturalDataSamplingMitigation){
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                #Detect HT
+                $processor=Get-WmiObject win32_processor | Select-Object -First 1
+                if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
+                    $HT=$True
+                }
+                if ($HT -eq $True){
+                    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 72
+                }else{
+                    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8264
+                }
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+            }
+        }
+
     #Configure MinVmVersionForCpuBasedMitigations (only needed if you are running VM versions prior 8.0)
         if ($ConfigurePCIDMinVersion){
             Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -218,32 +277,30 @@ Write-host "Script started at $StartDateTime"
     }
 
     #install roles and features
-        if (!$NanoServer){
-            #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
-            Invoke-Command -ComputerName $servers -ScriptBlock {
-                $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
-                if ($result.ExitCode -eq "failed"){
-                    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
-                }
+        #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+            if ($result.ExitCode -eq "failed"){
+                Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
             }
-
-            #define features
-            $features="Failover-Clustering","Hyper-V-PowerShell"
-            if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
-            if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
-            if ($Deduplication){$features+="FS-Data-Deduplication"}
-            if ($SystemInsights){$features+="System-Insights","RSAT-System-Insights"}
-
-            #install features
-            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
-            #restart and wait for computers
-            Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
-            Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
         }
+
+        #define features
+        $features="Failover-Clustering","Hyper-V-PowerShell"
+        if ($Bitlocker){$Features+="Bitlocker","RSAT-Feature-Tools-BitLocker"}
+        if ($StorageReplica){$Features+="Storage-Replica","RSAT-Storage-Replica"}
+        if ($Deduplication){$features+="FS-Data-Deduplication"}
+        if ($SystemInsights){$features+="System-Insights","RSAT-System-Insights"}
+
+        #install features
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+        #restart and wait for computers
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
 #endregion
 
-#region configure Networking
+#region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA )
     #Create Virtual Switches and Virtual Adapters
         if ($SRIOV){
             Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
@@ -350,7 +407,7 @@ Write-host "Script started at $StartDateTime"
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
             #validate policy
-                Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | where enabled -eq true} | Sort-Object PSComputerName
+                Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
 
             #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
@@ -376,16 +433,18 @@ Write-host "Script started at $StartDateTime"
     Start-Sleep 5
     Clear-DnsClientCache
 
-    #Configure CSV Cache
-    if ($RealHW){
-        #10GB might be a good starting point. Needs tuning depending on workload
-        (Get-Cluster $ClusterName).BlockCacheSize = 10240
-    }else{
-        #Starting 1709 is block cache 512. For virtual environments it does not make sense
-        (Get-Cluster $ClusterName).BlockCacheSize = 0
-    }
+    #Configure CSV Cache (value is in MB)
+        if (Get-PhysicalDisk -cimsession $servers | Where-Object bustype -eq SCM){
+            #disable CSV cache if SCM storage is used
+            (Get-Cluster $ClusterName).BlockCacheSize = 0
+        }elseif ((Invoke-Command -ComputerName $ClusterName -ScriptBlock {(get-wmiobject win32_computersystem).Model}) -eq "Virtual Machine"){
+            #disable CSV cache for virtual environments
+            (Get-Cluster $ClusterName).BlockCacheSize = 0
+        }
 
-    #ConfigureWitness on DC
+    #ConfigureWitness
+    if ($WitnessType -eq "FileShare"){
+        ##Configure Witness on DC
         #Create new directory
             $WitnessName=$Clustername+"Witness"
             Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
@@ -397,7 +456,9 @@ Write-host "Script started at $StartDateTime"
             Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
         #Set Quorum
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
-
+    }elseif($WitnessType -eq $Cloud){
+        Set-ClusterQuorum -Cluster $ClusterName -CloudWitness -AccountName $CloudWitnessStorageAccountName -AccessKey $CloudWitnessStorageKey -Endpoint $CloudWitnessEndpoint 
+    }
     #Disable CSV Balancer
         if ($DisableCSVBalancer){
             (Get-Cluster $ClusterName).CsvBalancer = 0
@@ -438,7 +499,7 @@ Write-host "Script started at $StartDateTime"
     }
 #endregion
 
-#region Create Fault Domains https://technet.microsoft.com/en-us/library/mt703153.aspx
+#region Create Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
 
 #just some examples for Rack/Chassis fault domains.
     if ($numberofnodes -eq 4){
@@ -604,16 +665,57 @@ Write-host "Script started at $StartDateTime"
 
 #endregion
 
-#region Create Volumes (it also depends what mix of devices you have. This example is valid for One or two tiers)
+#region add missing tiers (effective just for 2 node 2019 or 2016 servers)
+    $StorageTiers=Get-StorageTier -CimSession $ClusterName
+    $NumberOfNodes=(Get-ClusterNode -Cluster $ClusterName).Count
+    $MediaTypes=(Get-PhysicalDisk -CimSession $ClusterName |where mediatype -ne Unspecified | Where-Object usage -ne Journal).MediaType | Select-Object -Unique
+    $ClusterFunctionalLevel=(Get-Cluster -Name $ClusterName).ClusterFunctionalLevel
+
+    Foreach ($MediaType in $MediaTypes){
+        if ($NumberOfNodes -eq 2) {
+            #Create Mirror Tiers
+                if (-not ($StorageTiers | Where-Object FriendlyName -eq "MirrorOn$MediaType")){
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+                }
+
+            if ($ClusterFunctionalLevel -ge 10){
+                #Create NestedMirror Tiers
+                    if (-not ($StorageTiers | Where-Object FriendlyName -eq "NestedMirrorOn$MediaType")){
+                        New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "NestedMirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 4
+                    }
+                #Create NestedParity Tiers
+                    if (-not ($StorageTiers | Where-Object FriendlyName -eq "NestedParityOn$MediaType")){
+                        New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "NestedParityOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Parity -NumberOfDataCopies 2 -PhysicalDiskRedundancy 1 -NumberOfGroups 1 -ColumnIsolation PhysicalDisk
+                    }
+            }
+        }elseif($NumberOfNodes -eq 3){
+            #Create Mirror Tiers
+                if (-not ($StorageTiers | Where-Object FriendlyName -eq "MirrorOn$MediaType")){
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 3
+                }
+        }elseif($NumberOfNodes -ge 4){
+            #Create Mirror Tiers
+                if (-not ($StorageTiers | Where-Object FriendlyName -eq "MirrorOn$MediaType")){
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+                }
+            #Create Parity Tiers
+                if (-not ($StorageTiers | Where-Object FriendlyName -eq "ParityOn$MediaType")){
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "ParityOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Parity
+                }
+        }
+    }
+#endregion
+
+#region Create Volumes. It also depends what mix of devices you have. This example is valid for One or two tiers with HDDs. For more info https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive
  
     if ($numberofnodes -le 3){
         1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD" -StorageTierSizes 2TB -CimSession $ClusterName
             }
     }else{
         1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance,capacity -StorageTierSizes 2TB,8TB -CimSession $ClusterName
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_                  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames performance          -StorageTierSizes 2TB     -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD","ParityOnHDD" -StorageTierSizes 2TB,8TB -CimSession $ClusterName
+                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_                  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD"               -StorageTierSizes 2TB     -CimSession $ClusterName
             }
     }
 
@@ -639,7 +741,7 @@ Write-host "Script started at $StartDateTime"
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
         foreach ($switch in $switches){
-            $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select -First 1
+            $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select-Object -First 1
             if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
                 $HT=$True
             }
@@ -665,13 +767,13 @@ Write-host "Script started at $StartDateTime"
     if ($RealHW){
         <#Cim method for nano servers
         #show enabled power plan
-            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | Where-Object isactive -eq $true | ft PSComputerName,ElementName
         #Grab instances of power plans
-            $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where Elementname -eq "High performance"
+            $instances=Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | Where-Object Elementname -eq "High performance"
         #activate plan
             foreach ($instance in $instances) {Invoke-CimMethod -InputObject $instance -MethodName Activate}
         #show enabled power plan
-            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | where isactive -eq $true | ft PSComputerName,ElementName
+            Get-CimInstance -Name root\cimv2\power -Class win32_PowerPlan -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | Where-Object isactive -eq $true | ft PSComputerName,ElementName
         #>
         #set high performance
             Invoke-Command -ComputerName $servers -ScriptBlock {powercfg /SetActive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c}
@@ -683,7 +785,7 @@ Write-host "Script started at $StartDateTime"
 #region Create some dummy VMs (3 per each CSV disk)
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
     if ($realVMs -and $VHDPath){
-        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | where name -NotLike *parity*).Name
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object name -NotLike *parity*).Name
         foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
             $CSV=$CSV.TrimEnd(")")
