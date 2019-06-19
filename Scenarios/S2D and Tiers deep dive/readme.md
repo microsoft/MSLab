@@ -358,7 +358,7 @@ foreach ($ClusterName in $ClusterNames){
         if ($NumberOfNodes -eq 2) {
             #Create Mirror Tiers
                 if (-not ($StorageTiers | where FriendlyName -eq "MirrorOn$MediaType")){
-                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType -ResiliencySettingName Mirror -NumberOfDataCopies 2
                 }
 
             if ($ClusterFunctionalLevel -ge 10){
@@ -374,16 +374,16 @@ foreach ($ClusterName in $ClusterNames){
         }elseif($NumberOfNodes -eq 3){
             #Create Mirror Tiers
                 if (-not ($StorageTiers | where FriendlyName -eq "MirrorOn$MediaType")){
-                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 3
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType -ResiliencySettingName Mirror -NumberOfDataCopies 3
                 }
         }elseif($NumberOfNodes -ge 4){
             #Create Mirror Tiers
                 if (-not ($StorageTiers | where FriendlyName -eq "MirrorOn$MediaType")){
-                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType -ResiliencySettingName Mirror -NumberOfDataCopies 3
                 }
             #Create Parity Tiers
                 if (-not ($StorageTiers | where FriendlyName -eq "ParityOn$MediaType")){
-                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "ParityOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Parity
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "ParityOn$MediaType" -MediaType $MediaType -ResiliencySettingName Parity
                 }
         }
     }
