@@ -15,9 +15,6 @@ $SharedSSClusterName="SSS-Cluster"
 $S2DClusterName="S2D-Cluster"
 $SRClusterName="SR-Cluster"
 
-#Nano server?
-$nano=$true
-
 #ask for parent vhdx
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
     $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
@@ -36,12 +33,10 @@ $nano=$true
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Storage-Replica,RSAT-Hyper-V-Tools
 
 #install failover clustering and Storage Replica
-    if ($Nano -eq $false){
-        Invoke-Command -ComputerName $allservers -ScriptBlock {Install-WindowsFeature -Name "Failover-Clustering","Data-Center-Bridging","Hyper-V","Hyper-V-PowerShell"}
-        #restart and wait for computers
-        Restart-Computer -ComputerName $Allservers -Protocol WSMan -Wait -For PowerShell
-        Start-Sleep 20 #Failsafe
-    }
+    Invoke-Command -ComputerName $allservers -ScriptBlock {Install-WindowsFeature -Name "Failover-Clustering","Data-Center-Bridging","Hyper-V","Hyper-V-PowerShell"}
+    #restart and wait for computers
+    Restart-Computer -ComputerName $Allservers -Protocol WSMan -Wait -For PowerShell
+    Start-Sleep 20 #Failsafe
 
 #Create clusters
     New-Cluster -Name $SANClusterName -Node $SANServers 
@@ -54,25 +49,22 @@ $nano=$true
     Enable-ClusterS2D -CimSession $S2DClusterName -Confirm:0 -Verbose
 
 #configure volumes on "SAN" based Hyper-V
-    $CSV_disks    = get-disk -cimsession $SANClusterName | where {$_.PartitionStyle -eq 'RAW' -and $_.Size -gt 10GB} | sort number
+    $CSV_disks = get-disk -cimsession $SANClusterName | where {$_.PartitionStyle -eq 'RAW' -and $_.Size -gt 10GB} | sort number
 
     #NTFS
         $CSV_disk=$CSV_disks[0]
         $volumename="NTFS"
-        $CSV_disk      | Initialize-Disk -PartitionStyle GPT
+        $CSV_disk | Initialize-Disk -PartitionStyle GPT
         Format-Volume -Partition (New-Partition -UseMaximumSize -InputObject $CSV_disk ) -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel $volumename -CimSession $SANClusterName -Confirm:$false
-        $CSV_disk     | set-disk -IsOffline $true
+        $CSV_disk | set-disk -IsOffline $true
         $ClusterDisk = Get-ClusterAvailableDisk -Cluster $SANClusterName
         $clusterDisk=Add-ClusterDisk -Cluster $SANClusterName -InputObject $ClusterDisk
         $clusterDisk.name = $volumename
         $ClusterSharedVolume = Add-ClusterSharedVolume -Cluster $SANClusterName -InputObject $ClusterDisk
         $ClusterSharedVolume.Name = $volumename
         $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
-        $path=$path.Substring($path.LastIndexOf("\")+1)
-        $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
-            param($fullpath,$volumename);
-            Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
+            Rename-Item -Path $using:path -NewName $using:volumename -PassThru
         }
 
     #REFS
@@ -87,14 +79,11 @@ $nano=$true
         $ClusterSharedVolume = Add-ClusterSharedVolume -Cluster $SANClusterName -InputObject $ClusterDisk
         $ClusterSharedVolume.Name = $volumename
         $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
-        $path=$path.Substring($path.LastIndexOf("\")+1)
-        $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$volumename -ScriptBlock {
-            param($fullpath,$volumename);
-            Rename-Item -Path $FullPath -NewName $volumename -PassThru
+        Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ScriptBlock {
+            Rename-Item -Path $using:path -NewName $using:volumename -PassThru
         }
 
-#create vDisks on Shared Spaces
+#create vDisks on Shared Spaces (just to demo creating volumes using registered storage subsystem)
     Get-StorageProvider | Register-StorageSubsystem -ComputerName $SharedSSClusterName
     $phydisk=Get-PhysicalDisk | where CanPool -eq $True
     $pool=New-StoragePool -FriendlyName  $SharedSSClusterName"Pool" -PhysicalDisks $phydisk -StorageSubSystemFriendlyName *$SharedSSClusterName
@@ -106,21 +95,23 @@ $nano=$true
     New-Volume -StoragePoolFriendlyName $SharedSSClusterName"Pool" -FriendlyName NTFS -FileSystem CSVFS_NTFS -StorageTierFriendlyNames HDDTier -StorageTierSizes 2TB
     New-Volume -StoragePoolFriendlyName $SharedSSClusterName"Pool" -FriendlyName REFS -FileSystem CSVFS_REFS -StorageTierFriendlyNames SSDTier -StorageTierSizes 200GB
 
-    #Rename CSV paths
-        Get-ClusterSharedVolume -Cluster $SharedSSClusterName | % {
-            $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-            $newname=$_.name.Substring(22,$_.name.Length-23)
-            Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $SharedSSClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+    #Rename CSV paths (not needed for 2019)
+        $CSVs=Get-ClusterSharedVolume -Cluster $SharedSSClusterName
+        foreach ($CSV in $CSVs){
+            $volumepath=$CSV.sharedvolumeinfo.friendlyvolumename
+            $newname=$csv.name.Replace("Cluster Virtual Disk (","").Replace(")","")
+            Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $SharedSSClusterName -Name $CSV.Name).ownernode -ScriptBlock {Rename-Item -Path $volumepath -NewName $newname} -ErrorAction SilentlyContinue
         }
 
 #Create vDisks on S2D
-    New-Volume -StoragePoolFriendlyName "S2D on $S2DClusterName" -FriendlyName ReFS -FileSystem CSVFS_ReFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $S2DClusterName
-    New-Volume -StoragePoolFriendlyName "S2D on $S2DClusterName" -FriendlyName NTFS -FileSystem CSVFS_NTFS -StorageTierFriendlyNames Capacity -StorageTierSizes 2TB -CimSession $S2DClusterName
-    #Rename CSV paths
-        Get-ClusterSharedVolume -Cluster $S2DClusterName | % {
-            $volumepath=$_.sharedvolumeinfo.friendlyvolumename
-            $newname=$_.name.Substring(22,$_.name.Length-23)
-            Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $S2DClusterName -Name $_.Name).ownernode -ScriptBlock {param($volumepath,$newname); Rename-Item -Path $volumepath -NewName $newname} -ArgumentList $volumepath,$newname -ErrorAction SilentlyContinue
+    New-Volume -StoragePoolFriendlyName "S2D on $S2DClusterName" -FriendlyName ReFS -FileSystem CSVFS_ReFS -StorageTierFriendlyNames MirrorOnHDD -StorageTierSizes 2TB -CimSession $S2DClusterName
+    New-Volume -StoragePoolFriendlyName "S2D on $S2DClusterName" -FriendlyName NTFS -FileSystem CSVFS_NTFS -StorageTierFriendlyNames MirrorOnHDD -StorageTierSizes 2TB -CimSession $S2DClusterName
+    #Rename CSV paths (not needed for 2019)
+        $CSVs=Get-ClusterSharedVolume -Cluster $S2DClusterName
+        foreach ($CSV in $CSVs){
+            $volumepath=$CSV.sharedvolumeinfo.friendlyvolumename
+            $newname=$csv.name.Replace("Cluster Virtual Disk (","").Replace(")","")
+            Invoke-Command -ComputerName (Get-ClusterSharedVolume -Cluster $S2DClusterName -Name $CSV.Name).ownernode -ScriptBlock {Rename-Item -Path $volumepath -NewName $newname} -ErrorAction SilentlyContinue
         }
 
 #Configure SR on SRServers
@@ -148,62 +139,126 @@ $nano=$true
     #get Cluster Fault domain XML to validate configuration
         Get-ClusterFaultDomainXML -CimSession $SRClusterName
 
-    #Configure Storage (ErrorAction SilentlyContinue is there just to hide message about error configuring failover clustering for volume. Its expected)
-        new-volume -DiskNumber 1 -FriendlyName Log  -FileSystem NTFS -AccessPath L: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
-        new-volume -DiskNumber 2 -FriendlyName ReFS -FileSystem ReFS -AccessPath R: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
-        new-volume -DiskNumber 3 -FriendlyName NTFS -FileSystem NTFS -AccessPath N: -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
+    ## Note: GroupID is not used. It can be used if multiple Data disks are present in each site.
+    $diskconfig=@()
+    $diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="NTFS" ; Site="Site1"   ; PrimarySite="Site1"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Source"      }
+    $diskconfig+=@{DiskNumber=2 ; FriendlyName="ReFS"  ; FileSystem="REFS" ; Site="Site1"   ; PrimarySite="Site1"   ; Role="Data" ; GroupID=1 ; RGName="Data1Source"      ; CSVFolderName="ReFS"}
+    $diskconfig+=@{DiskNumber=3 ; FriendlyName="NTFS"  ; FileSystem="NTFS" ; Site="Site1"   ; PrimarySite="Site1"   ; Role="Data" ; GroupID=1 ; RGName="Data1Source"      ; CSVFolderName="NTFS"}
+    $diskconfig+=@{DiskNumber=1 ; FriendlyName="Log1"  ; FileSystem="NTFS" ; Site="Site2"   ; PrimarySite="Site1"   ; Role="Log"  ; GroupID=1 ; RGName="Data1Destination" }
+    $diskconfig+=@{DiskNumber=2 ; FriendlyName="ReFS"  ; FileSystem="REFS" ; Site="Site2"   ; PrimarySite="Site1"   ; Role="Data" ; GroupID=1 ; RGName="Data1Destination" }
+    $diskconfig+=@{DiskNumber=3 ; FriendlyName="NTFS"  ; FileSystem="NTFS" ; Site="Site2"   ; PrimarySite="Site1"   ; Role="Data" ; GroupID=1 ; RGName="Data1Destination" }
 
 
-        new-volume -DiskNumber 1 -FriendlyName Log  -FileSystem NTFS -AccessPath L: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
-        new-volume -DiskNumber 2 -FriendlyName ReFS -FileSystem ReFS -AccessPath R: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
-        new-volume -DiskNumber 3 -FriendlyName NTFS -FileSystem NTFS -AccessPath N: -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
+    #region format disks
+    foreach ($disk in $diskconfig){
+        if ($Disk.site -eq "Site1"){
+            New-Volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -CimSession $SRServersSite1[0] -ErrorAction SilentlyContinue
+        }
+        if ($Disk.site -eq "Site2") {
+            New-Volume -DiskNumber $disk.DiskNumber -FriendlyName $disk.FriendlyName -FileSystem $disk.FileSystem -CimSession $SRServersSite2[0] -ErrorAction SilentlyContinue
+        }
+    }
 
-    #Add disks to CSV
-        function Add-DiskToCSV ($ClusterName,$FileSystemLabel,$ClusterNodeName)
-        {
-            $DiskResources = Get-ClusterResource -Cluster $ClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
-            foreach ($DiskResource in $DiskResources){
-                $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
-                if (Get-Disk -CimSession $ClusterNodeName | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume | where filesystemlabel -eq $FileSystemLabel){
-                    $ClusterDiskName=$DiskResource.name
-                }
-            }
-            $ClusterDisk=Get-ClusterResource -Cluster $ClusterName -name $ClusterDiskName
-            $ClusterSharedVolume = Add-ClusterSharedVolume -Cluster $ClusterName -InputObject $ClusterDisk
-            $ClusterSharedVolume.Name = $FileSystemLabel
-            $path=$ClusterSharedVolume.SharedVolumeInfo.FriendlyVolumeName
-            $path=$path.Substring($path.LastIndexOf("\")+1)
-            $FullPath = Join-Path -Path "c:\ClusterStorage\" -ChildPath $Path
-            Invoke-Command -ComputerName $ClusterSharedVolume.OwnerNode -ArgumentList $fullpath,$FileSystemLabel -ScriptBlock {
-                param($fullpath,$FileSystemLabel);
-                Rename-Item -Path $FullPath -NewName $FileSystemLabel -PassThru
-            }
+    #list storage and add paths to Diskconfig variable
+    #List available disks for replication on Node $SRServersSite1[0] and add path to diskconfig
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
+
+    $DiskResources = Get-ClusterResource -Cluster $SRClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+    foreach ($DiskResource in $DiskResources){
+        $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+        $disk=Get-Disk -CimSession $SRServersSite1[0] | where Guid -eq $DiskGuidValue.Value
+        $volume=$disk | Get-Partition | Get-Volume
+        #add path to diskconfig
+        ($diskconfig | where Site -eq Site1 | where DiskNumber -eq $disk.Number).Path=$volume.Path
+        #list volume
+        $volume |Select-Object @{N="Name"; E={$DiskResource.Name}}, @{N="Status"; E={$DiskResource.State}}, DriveLetter, Path, FileSystemLabel, Size, SizeRemaining | FT -AutoSize
+    }
+
+    #List available disks for replication on Node $SRServersSite2[0]
+        Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
+        $DiskResources = Get-ClusterResource -Cluster $SRClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+        foreach ($DiskResource in $DiskResources){
+            $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+            $disk=Get-Disk -CimSession $SRServersSite2[0] | where Guid -eq $DiskGuidValue.Value
+            $volume=$disk | Get-Partition | Get-Volume
+            #add path to diskconfig
+            ($diskconfig | where Site -eq Site2 | where DiskNumber -eq $disk.Number).Path=$volume.Path
+            #list volume
+            $volume |Select-Object @{N="Name"; E={$DiskResource.Name}}, @{N="Status"; E={$DiskResource.State}}, DriveLetter, Path, FileSystemLabel, Size, SizeRemaining | FT -AutoSize
         }
 
-        #move group AvailableStorage to site 1 server 1
-            Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
-        #add to CSV in Site1
-            Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel ReFS -ClusterNodeName $SRServersSite1[0]
-            Add-DiskToCSV -ClusterName $SRClusterName -FileSystemLabel NTFS -ClusterNodeName $SRServersSite1[0]
-            Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
+    #move group back
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
 
-    #Configure SR
-        New-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceVolumeName "C:\ClusterStorage\ReFS" -SourceLogVolumeName l: -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationVolumeName R: -DestinationLogVolumeName L:
-        Set-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName Site1RG -SourceAddVolumePartnership "C:\ClusterStorage\NTFS" -DestinationComputerName $SRServersSite2[0] -DestinationRGName Site2RG -DestinationAddVolumePartnership N:
+    #rename cluster disk resources for easier identification in Site1
+    $DiskResources = Get-ClusterResource -Cluster $SRClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+    foreach ($DiskResource in $DiskResources){
+        $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+        $filesystemlabel=(Get-Disk -CimSession $SRServersSite1[0] | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume).FilesystemLabel
+            $DiskResource.name="$($filesystemlabel)_Site1"
+    }
+
+    #move available disks group to Site2
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
+
+    #rename cluster disk resources for easier identification in Site2
+    $DiskResources = Get-ClusterResource -Cluster $SRClusterName | Where-Object { $_.ResourceType -eq 'Physical Disk' -and $_.State -eq 'Online' }
+    foreach ($DiskResource in $DiskResources){
+        $DiskGuidValue = $DiskResource | Get-ClusterParameter DiskIdGuid
+        $filesystemlabel=(Get-Disk -CimSession $SRServersSite2[0] | where { $_.Guid -eq $DiskGuidValue.Value } | Get-Partition | Get-Volume).FilesystemLabel
+            $DiskResource.name="$($filesystemlabel)_Site2"
+    }
+
+    #move available disks group to Site1 again
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
+
+    #Add Data disks to CSVs
+    #add disk from site1
+    $CSVConfigs=$diskconfig | where site -eq Site1 | where CSVFoldername #grab CSV name from diskconfig for site1
+    Foreach ($CSVConfig in $CSVConfigs){
+        $CSV=Get-ClusterResource -Cluster $SRClusterName -name "$($CSVConfig.FriendlyName)_Site1" | Add-ClusterSharedVolume
+        #rename csv
+        Invoke-Command -ComputerName $CSV.OwnerNode -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
+    }
+
+    #move available disks group to Site2
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite2[0]
+
+    #add data 2 to CSV
+    $CSVConfigs=$diskconfig | where site -eq Site2 | where CSVFoldername #grab CSV name from diskconfig for site1
+    Foreach ($CSVConfig in $CSVConfigs){
+        $CSV=Get-ClusterResource -Cluster $SRClusterName -name "$($CSVConfig.FriendlyName)_Site2" | Add-ClusterSharedVolume
+        #rename csv to Data2
+        Invoke-Command -ComputerName $CSV.OwnerNode  -ScriptBlock {Rename-Item -Path $using:csv.SharedVolumeInfo.friendlyvolumename -NewName $using:CSVConfig.CSVFolderName}
+    }
+
+    #move group back
+    Move-ClusterGroup -Cluster $SRClusterName -Name "available storage" -Node $SRServersSite1[0]
+
+    #enable replication from Site1
+    $Sourcelog=        $diskconfig  | where site -eq Site1  | where role -eq log  | where PrimarySite -eq Site1
+    $Sourcedata=       $diskconfig  | where site -eq Site1  | where role -eq data | where PrimarySite -eq Site1 | select -First 1
+    $Destinationlog =  $diskconfig  | where site -eq Site2  | where role -eq log  | where PrimarySite -eq Site1
+    $Destinationdata = $diskconfig  | where site -eq Site2  | where role -eq data | where PrimarySite -eq Site1 | select -First 1
+    New-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName $SourceData.RGName -SourceVolumeName "C:\ClusterStorage\$($sourceData.CSVFolderName)" -SourceLogVolumeName $sourcelog.Path -DestinationComputerName $SRServersSite2[0] -DestinationRGName $DestinationData.RGName -DestinationVolumeName $destinationdata.Path -DestinationLogVolumeName $destinationlog.Path
+    #add additional CSV to partnership
+    $SourceDataDiskToAdd      = $diskconfig  | where site -eq Site1  | where role -eq data | where PrimarySite -eq Site1 | select -Skip 1
+    $DestinationDataDiskToAdd = $diskconfig  | where site -eq Site2  | where role -eq data | where PrimarySite -eq Site1 | select -Skip 1
+    Set-SRPartnership -SourceComputerName $SRServersSite1[0] -SourceRGName $SourceDataDiskToAdd.RGName -SourceAddVolumePartnership "C:\ClusterStorage\$($SourceDataDiskToAdd.CSVFolderName)" -DestinationComputerName $SRServersSite2[0] -DestinationRGName $DestinationDataDiskToAdd.RGName -DestinationAddVolumePartnership $DestinationDataDiskToAdd.Path
 
     #Wait until synced
-        do{
-            $r=(Get-SRGroup -CimSession $SRServersSite2[0] -Name Site2RG).replicas
-            if ($r.NumOfBytesRemaining -ne 0){ 
-                [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
-                Start-Sleep 5
-            }
-        }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
-        Write-Output "Replica Status: "$r.replicationstatus
-    
+    do{
+        $r=(Get-SRGroup -CimSession $SRServersSite2[0] -Name $DestinationData.RGName).replicas
+        if ($r.NumOfBytesRemaining -ne 0){ 
+            [System.Console]::Write("Number of remaining Gbytes {0}`r", $r.NumOfBytesRemaining/1GB)
+            Start-Sleep 5
+        }
+    }until($r.ReplicationStatus -eq 'ContinuouslyReplicating')
+    Write-Output "Replica Status: "$r.replicationstatus
+
     #move CSVs to node 2 in Site1
-        Move-ClusterSharedVolume -Name "ReFS" -Node $SRServersSite1[1] -Cluster $SRClusterName
-        Move-ClusterSharedVolume -Name "NTFS" -Node $SRServersSite1[1] -Cluster $SRClusterName
+    Move-ClusterSharedVolume -Name "ReFS_Site1" -Node $SRServersSite1[1] -Cluster $SRClusterName
+    Move-ClusterSharedVolume -Name "NTFS_Site1" -Node $SRServersSite1[1] -Cluster $SRClusterName
 
 #Create VMs
     #Function to create VM
@@ -225,38 +280,8 @@ $nano=$true
     Create-CustomVM -ClusterName $SRClusterName -VolumeName ReFS -VMName ReFS -VHDPath $VHDPath
     Create-CustomVM -ClusterName $SRClusterName -VolumeName NTFS -VMName NTFS -VHDPath $VHDPath
 
-#enable perf rules
-    If ($nano){
-        New-NetFirewallRule -CimSession $allservers `
-            -Action Allow `
-            -Name "PerfLogsAlerts-DCOM-In-TCP" `
-            -DisplayName "Performance Logs and Alerts (DCOM-In)" `
-            -Description "Inbound rule for Performance Logs and Alerts to allow remote DCOM activation. [TCP-135]" `
-            -Enabled True `
-            -Direction Inbound `
-            -Program "%systemroot%\system32\svchost.exe" `
-            -Protocol TCP `
-            -LocalPort 135 `
-            -Profile Any `
-            -Group "Performance Logs and Alerts" `
-            -RemoteAddress Any
-
-        New-NetFirewallRule -cimsession $allservers `
-            -Action Allow `
-            -Name "PerfLogsAlerts-PLASrv-In-TCP" `
-            -DisplayName "Performance Logs and Alerts (TCP-In)" `
-            -Description "Inbound rule for Performance Logs and Alerts traffic. [TCP-In]" `
-            -Enabled True `
-            -Direction Inbound `
-            -Program "%systemroot%\system32\plasrv.exe" `
-            -Profile Any `
-            -Group "Performance Logs and Alerts" `
-            -Protocol TCP `
-            -RemoteAddress Any
-    }else{
-        Enable-NetFirewallRule -Name "PerfLogsAlerts*" -CimSession $allservers
-    }
-
+#enable perfmon rule
+    Enable-NetFirewallRule -Name "PerfLogsAlerts*" -CimSession $allservers
 
 #Display CSV volume state
 
