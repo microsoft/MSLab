@@ -696,7 +696,7 @@ Write-host "Script started at $StartDateTime"
         }elseif($NumberOfNodes -ge 4){
             #Create Mirror Tiers
                 if (-not ($StorageTiers | Where-Object FriendlyName -eq "MirrorOn$MediaType")){
-                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+                    New-StorageTier -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName "MirrorOn$MediaType" -MediaType $MediaType  -ResiliencySettingName Mirror -NumberOfDataCopies 3
                 }
             #Create Parity Tiers
                 if (-not ($StorageTiers | Where-Object FriendlyName -eq "ParityOn$MediaType")){
