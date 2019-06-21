@@ -163,7 +163,7 @@ Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$en
 #Install Windows Admin Center to WacGateway
 $GatewayServerName="WacGateway"
 #increase MaxEnvelopeSize to transfer msi
-Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 2048}
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 #Create PS Session and copy install files to remote server
 $Session=New-PSSession -ComputerName $GatewayServerName
 Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
