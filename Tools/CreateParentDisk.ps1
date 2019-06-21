@@ -153,9 +153,6 @@
                     14393 {
                         "Win2016Core_G2.vhdx"
                     }
-                    14393 {
-                        "Win2016Core_G2.vhdx"
-                    }
                     16299 {
                         "WinServer1709_G2.vhdx"
                     }
@@ -171,6 +168,18 @@
                 }
                 if ($BuildNumber -gt 18362){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
+                }
+            }elseif($Edition -eq "Hyper-V Server"){
+                $tempvhdname = switch ($BuildNumber){
+                    9600 {
+                        "HVServer2012R2_G2.vhdx"
+                    }
+                    14393 {
+                        "HVServer2016_G2.vhdx"
+                    }
+                    17763 {
+                        "HVServer2019_G2.vhdx"
+                    }
                 }
             }elseif($Edition -like "*Server*"){
                 $tempvhdname = switch ($BuildNumber){
@@ -215,9 +224,6 @@
                     }
                     10586 {
                         "Win10TH2_G2.vhdx"
-                    }
-                    14393 {
-                        "Win10RS1_G2.vhdx"
                     }
                     14393 {
                         "Win10RS1_G2.vhdx"
