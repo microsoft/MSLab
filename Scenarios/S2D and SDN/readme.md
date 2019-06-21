@@ -1,9 +1,9 @@
 <!-- TOC -->
 
 - [S2D and SDN](#s2d-and-sdn)
-    - [LabConfig for Windows Server 2019 !!! WORK IN PROGRESS !!!](#labconfig-for-windows-server-2019--work-in-progress-)
+    - [LabConfig for Windows Server 2019](#labconfig-for-windows-server-2019)
     - [Prereq](#prereq)
-    - [Finish S2D HC scenario](#finish-s2d-hc-scenario)
+    - [Finish S2D HC scenario (if you want working s2d cluster)](#finish-s2d-hc-scenario-if-you-want-working-s2d-cluster)
         - [Make sure management features are installed](#make-sure-management-features-are-installed)
     - [Configure Certificates](#configure-certificates)
         - [Install and configure ADCS on the CA Server](#install-and-configure-adcs-on-the-ca-server)
@@ -14,12 +14,13 @@
         - [Generate and Export NCClus Certificate](#generate-and-export-ncclus-certificate)
         - [Add Cert to network controller nodes](#add-cert-to-network-controller-nodes)
         - [Install NC](#install-nc)
+        - [Install Windows Admin Center in GW Mode](#install-windows-admin-center-in-gw-mode)
 
 <!-- /TOC -->
 
 # S2D and SDN
 
-## LabConfig for Windows Server 2019 !!! WORK IN PROGRESS !!!
+## LabConfig for Windows Server 2019
 
 ```PowerShell
 #Labconfig is same as default for Windows Server 2019, just with nested virtualization and 4GB for startup memory
@@ -34,14 +35,17 @@ $LabConfig.VMs += @{ VMName = 'CA' ; Configuration = 'Simple' ; ParentVHD = 'Win
 #SDN Cluster
 1..3 | % {$VMNames="NC"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=1}}
 
-# Management machine
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$true ; MGMTNICs=1 }
+# Optional Management machine
+#$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win1019H1_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$true ; MGMTNICs=1 }
+
+# WAC GW machine
+$LabConfig.VMs += @{ VMName = 'WACGW'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; MGMTNICs=1 }
  
 ```
 
 ## Prereq
 
-## Finish S2D HC scenario
+## Finish S2D HC scenario (if you want working s2d cluster)
 
 Run first 9 regions of S2D [Hyperconverged scenario](https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/S2D%20Hyperconverged/Scenario.ps1). Run all code from DC
 
@@ -530,10 +534,12 @@ Invoke-Command -Session $Sessions -ScriptBlock {
 $Servers="NC1","NC2","NC3"
 $ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permission to configure Network Controller
 $ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
-$LOGFileShareName="SDN_Logs"
-$LogAccessAccountName="NCLog"
-$LogAccessAccountPassword="LS1setup!"
 $RestName="ncclus.corp.contoso.com"
+
+#grab credentials
+#$admincreds=get-credential corp\LabAdmin
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$admincreds = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin", $password)
 
 #Create ManagementSecurityGroup
 New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
@@ -543,62 +549,59 @@ Add-ADGroupMember -Identity $ManagementSecurityGroupName -Members "Domain Admins
 New-ADGroup -Name $ClientSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
 Add-ADGroupMember -Identity $ClientSecurityGroupName -Members "Domain Admins"
 
-#Create account for log access
-New-ADUser -Name $LogAccessAccountName -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
-
-#Create file share for logs
-Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:LOGFileShareName -ItemType Directory}
-$accounts=@()
-$accounts+="corp\$LogAccessAccountName"
-New-SmbShare -Name $LOGFileShareName -Path "c:\Shares\$LOGFileShareName" -FullAccess $accounts -CimSession DC
-
-
-#Install NC Role
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    Install-WindowsFeature -Name NetworkController -IncludeManagementTools
+#Download and import SDN express module
+#Download SDN Express Module
+Invoke-WebRequest -Uri https://github.com/microsoft/SDN/raw/master/SDNExpress/scripts/SDNExpressModule.psm1 -UseBasicParsing -OutFile $env:USERPROFILE\Downloads\SDNExpressModule.psm1
+#set execution policy
+if ((Get-ExecutionPolicy) -eq "Restricted"){
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 }
+#import SDN Express Module
+Import-Module $env:USERPROFILE\Downloads\SDNExpressModule.psm1
+#list available commands
+#Get-Command -Module SDNExpressModule
 
-#region Kerberos based authentication (Recommended)
-    #Create Node Objects
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
+#Make sure NC powershell is installed as SDN Express module uses some commands
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    if ($WindowsInstallationType -eq "Server"){
+        Install-WindowsFeature -Name "RSAT-NetworkController"
+    }elseif ($WindowsInstallationType -eq "Client"){
+        Add-WindowsCapability -Name "Rsat.NetworkController.Tools~~~~0.0.1.0" -Online
+    }
 
-    #Grab certificate
-    $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
+#Install NC using SDN express module
+New-SDNExpressNetworkController -ComputerNames $Servers -RESTName $RestName -ManagementSecurityGroupName $ManagementSecurityGroupName -ClientSecurityGroupName $ClientSecurityGroupName -Credential $admincreds
+ 
+```
 
-    #Install NC Cluster
-    $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
-    $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
-    Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication kerberos -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
+### Install Windows Admin Center in GW Mode
 
-    #Install NC
-    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication Kerberos -ClientSecurityGroup $ClientSecurityGroupName -RestName $RestName -ServerCertificate $Certificate -ComputerName $Servers[0]
+```PowerShell
+#Download Edge Dev
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2069324&Channel=Dev&language=en-us&Consent=1" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe"
+#Install Edge Dev
+Start-Process -FilePath "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe" -Wait
 
-#endregion
+#Download and install Windows Admin Center
+Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 
-<# 
-#region Certificate based authentication example
-    #Create Node Objects
-    $Cert1=Invoke-Command -ComputerName "NC1" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC1.corp.contoso.com"}
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
-    $Cert2=Invoke-Command -ComputerName "NC2" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC2.corp.contoso.com"}
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
-    $Cert3=Invoke-Command -ComputerName "NC3" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC3.corp.contoso.com"}
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
-
-    #Grab Rest certificate
-    $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
-
-    #Install NC Cluster
-    $password = ConvertTo-SecureString $LogAccessAccountPassword -AsPlainText -Force
-    $Cred = New-Object System.Management.Automation.PSCredential ("CORP\$LogAccessAccountName", $password)
-    Install-NetworkControllerCluster -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClusterAuthentication X509 -ManagementSecurityGroup $ManagementSecurityGroupName -DiagnosticLogLocation "\\DC\$LOGFileShareName" -LogLocationCredential $cred -CredentialEncryptionCertificate $Certificate
-
-    #Install NC
-    Install-NetworkController -Node @($NodeObject1,$NodeObject2,$NodeObject3) -ClientAuthentication X509 -ServerCertificate $Certificate -RestName $RestName -ClientCertificateThumbprint $Certificate.Thumbprint -ComputerName $Servers[0]
-
-#>
-#endregion
-
+#Install Windows Admin Center to WacGW
+$GatewayServerName="WacGW"
+#increase MaxEnvelopeSize to transfer msi
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+#Create PS Session and copy install files to remote server
+$Session=New-PSSession -ComputerName $GatewayServerName
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v waclog.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+}
+#Configure kerberos delegation so WAC will not ask for credentials
+$gateway = "WacGW" # Machine where Windows Admin Center is installed
+$nodes = Get-ADComputer -Filter * -SearchBase "ou=workshop,DC=corp,dc=contoso,DC=com"
+$gatewayObject = Get-ADComputer -Identity $gateway
+foreach ($node in $nodes){
+    Set-ADComputer -Identity $node -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+ 
 ```
