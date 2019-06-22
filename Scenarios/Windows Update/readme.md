@@ -14,6 +14,7 @@
         - [Display Last Scan Success Date on all Domain Computers](#display-last-scan-success-date-on-all-domain-computers)
         - [Display update level](#display-update-level)
         - [Check if servers are up-to-date](#check-if-servers-are-up-to-date)
+        - [Grab info about all CUs from web](#grab-info-about-all-cus-from-web)
 
 <!-- /TOC -->
 
@@ -340,3 +341,30 @@ $ComputersInfo | ft PSComputerName,IsUpToDate,UBR,LatestUBR
 ```
 
 ![](/Scenarios/Windows%20Update/Screenshots/UpdateLevelsUpToDate.png)
+
+### Grab info about all CUs from web
+
+This code was written by [@vladimirmach](https://twitter.com/vladimirmach) and it will parse all updates from Windows Update History webpage.
+
+```PowerShell
+$versions=@()
+$versions+=@{ReleaseID=1903;URI="https://support.microsoft.com/en-us/help/4498140"}
+$versions+=@{ReleaseID=1809;URI="https://support.microsoft.com/en-us/help/4464619"}
+$versions+=@{ReleaseID=1803;URI="https://support.microsoft.com/en-us/help/4099479"}
+$versions+=@{ReleaseID=1709;URI="https://support.microsoft.com/en-us/help/4043454"}
+$versions+=@{ReleaseID=1703;URI="https://support.microsoft.com/en-us/help/4018124"}
+$versions+=@{ReleaseID=1607;URI="https://support.microsoft.com/en-us/help/4000825"}
+
+$Jsons=@()
+foreach ($version in $versions){
+    $version = @{ReleaseID=1607;URI="https://support.microsoft.com/en-us/help/4000825"}
+    $web = Invoke-WebRequest -Uri $version.uri -UseBasicParsing
+    $match = [Regex]::Match($web.Content, "(?smi)microsoft.support.prefetchedArticle = \(function\(\) \{\s*return \{ '[^']+' : (.*)\}\r\n\}\)\(\)"); 
+    $jsons += $match.Groups[1].Value | ConvertFrom-Json
+}
+
+$jsons.releasenoterelationship.minorversions | Out-GridView
+ 
+```
+
+![](/Scenarios/Windows%20Update/Screenshots/AllUpdatesFromWeb.png)
