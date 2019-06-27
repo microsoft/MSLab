@@ -1,25 +1,33 @@
 <!-- TOC -->
 
 - [S2D and SDN](#s2d-and-sdn)
-    - [LabConfig for Windows Server 2019 !!! WORK IN PROGRESS !!!](#labconfig-for-windows-server-2019--work-in-progress-)
+    - [LabConfig for Windows Server 2019](#labconfig-for-windows-server-2019)
     - [Prereq](#prereq)
-    - [Finish S2D HC scenario](#finish-s2d-hc-scenario)
+    - [Finish S2D HC scenario (if you want working s2d cluster)](#finish-s2d-hc-scenario-if-you-want-working-s2d-cluster)
         - [Make sure management features are installed](#make-sure-management-features-are-installed)
-    - [Configure Certificates](#configure-certificates)
+    - [Configure CA and add certification Templates](#configure-ca-and-add-certification-templates)
         - [Install and configure ADCS on the CA Server](#install-and-configure-adcs-on-the-ca-server)
         - [Create certificate templates](#create-certificate-templates)
+    - [Configure prerequisites on SDN infrastructure](#configure-prerequisites-on-sdn-infrastructure)
         - [Set permissions on NetworkController certificate template and Nodes Cert template and publish it](#set-permissions-on-networkcontroller-certificate-template-and-nodes-cert-template-and-publish-it)
-    - [Deploy Network Controller](#deploy-network-controller)
-        - [Add machine certs](#add-machine-certs)
+        - [Add machine certs (for cert trust only)](#add-machine-certs-for-cert-trust-only)
         - [Generate and Export NCClus Certificate](#generate-and-export-ncclus-certificate)
         - [Add Cert to network controller nodes](#add-cert-to-network-controller-nodes)
-        - [Install NC](#install-nc)
+        - [Configure IP addesses for infrastructure](#configure-ip-addesses-for-infrastructure)
+    - [Install SDN Infarstructure manually](#install-sdn-infarstructure-manually)
+        - [Instal NC Cluster](#instal-nc-cluster)
+        - [Add Hyper-V hosts](#add-hyper-v-hosts)
+        - [Add SLB Muxes](#add-slb-muxes)
+        - [Add Gateways](#add-gateways)
+    - [or Install SDN infrastructure with SDN Express](#or-install-sdn-infrastructure-with-sdn-express)
+        - [Configure NC](#configure-nc)
+    - [Install Windows Admin Center in GW Mode](#install-windows-admin-center-in-gw-mode)
 
 <!-- /TOC -->
 
 # S2D and SDN
 
-## LabConfig for Windows Server 2019 !!! WORK IN PROGRESS !!!
+## LabConfig for Windows Server 2019
 
 ```PowerShell
 #Labconfig is same as default for Windows Server 2019, just with nested virtualization and 4GB for startup memory
@@ -31,17 +39,26 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 #Certification Authority
 $LabConfig.VMs += @{ VMName = 'CA' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; MGMTNICs=1 }
 
-#SDN Cluster
-1..3 | % {$VMNames="NC"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=1}}
+#NC Cluster
+1..3 | % {$VMNames="NC0"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=1}}
 
-# Management machine
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$true ; MGMTNICs=1 }
+#GWs
+1..2 | % {$VMNames="GW0"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=3}}
+
+#GSBLMUXes
+1..2 | % {$VMNames="SLBMUX0"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx';MemoryStartupBytes= 1GB ; MGMTNICs=3}}
+
+# Optional Management machine
+#$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win1019H1_G2.vhdx' ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$true ; MGMTNICs=1 }
+
+# WAC GW machine
+$LabConfig.VMs += @{ VMName = 'WACGW'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; MGMTNICs=1 }
  
 ```
 
 ## Prereq
 
-## Finish S2D HC scenario
+## Finish S2D HC scenario (if you want working s2d cluster)
 
 Run first 9 regions of S2D [Hyperconverged scenario](https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/S2D%20Hyperconverged/Scenario.ps1). Run all code from DC
 
@@ -71,7 +88,7 @@ Since this is not script-able to install only subfeatures (due to nature of Enab
 
 ![](/Scenarios/S2D%20and%SDN/Screenshots/win10features.png)
 
-## Configure Certificates
+## Configure CA and add certification Templates
 
 ### Install and configure ADCS on the CA Server
 
@@ -380,9 +397,9 @@ $TemplateOtherAttributes = @{
 New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAttributes
 #>
 
-#Create NCNodes template (Legacy provider)
+#Create SDNInfra template (Legacy provider)
 
-$DisplayName="NCNodes"
+$DisplayName="SDNInfra"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
@@ -407,7 +424,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 
 
 <#Key Storage Provider, ECDH
-$DisplayName="NCNodes"
+$DisplayName="SDNInfra"
 $TemplateOtherAttributes = @{
         'flags' = [System.Int32]'131680'
         'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
@@ -437,6 +454,8 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
  
 ```
 
+## Configure prerequisites on SDN infrastructure
+
 ### Set permissions on NetworkController certificate template and Nodes Cert template and publish it
 
 To set permissions is PSPKI module needed. You can find more info here https://www.sysadmins.lv/projects/pspki/default.aspx
@@ -450,14 +469,18 @@ To set permissions is PSPKI module needed. You can find more info here https://w
     }
     Import-Module PSPKI
 
-#Set permissions on NCNodes template
-    $Computers="NC1","NC2","NC3"
+#Set permissions on SDNInfra template (for cert trust only)
+    $Computers=@()
+    $Computers+=1..3 | % {"S2D$_"}
+    $Computers+=1..3 | % {"NC0$_"}
+    $Computers+=1..2 | % {"SLBMUX0$_"}
+    $Computers+=1..2 | % {"GW0$_"}
     foreach ($Computer in $Computers){
-        Get-CertificateTemplate -Name "NCNodes" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$Computer$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
+        Get-CertificateTemplate -Name "SDNInfra" | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$Computer$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
     }
 
 #Publish Certificates
-    $DisplayNames="NCRestEndPoint","NCNodes"
+    $DisplayNames="NCRestEndPoint","SDNInfra"
     #grab DC
     $Server = (Get-ADDomainController -Discover -ForceDiscover -Writable).HostName[0]
     #grab Naming Context
@@ -474,19 +497,25 @@ To set permissions is PSPKI module needed. You can find more info here https://w
  
 ```
 
-## Deploy Network Controller
-
-### Add machine certs
+### Add machine certs (for cert trust only)
 
 ```PowerShell
     #Set Autoenrollment policy and enroll certs
-    $Computers="NC1","NC2","NC3"
+    $Computers=@()
+    $Computers+=1..3 | % {"S2D$_"}
+    $Computers+=1..3 | % {"NC0$_"}
+    $Computers+=1..2 | % {"SLBMUX0$_"}
+    $Computers+=1..2 | % {"GW0$_"}
     Invoke-Command -ComputerName $Computers -ScriptBlock {
         Set-CertificateAutoEnrollmentPolicy -StoreName MY -PolicyState Enabled -ExpirationPercentage 10 -EnableTemplateCheck -EnableMyStoreManagement -context Machine
         certutil -pulse
     }
  
 ```
+
+Just make sure certs were issued. If not, just repeat this step
+
+![](/Scenarios/S2D%20and%SDN/Screenshots/IssuedCerts.png)
 
 ### Generate and Export NCClus Certificate
 
@@ -509,7 +538,7 @@ Export-PfxCertificate -Cert $Certificate -FilePath $env:USERPROFILE\Downloads\NC
 
 ```PowerShell
 #Copy certificate to remote servers
-$Computers="NC1","NC2","NC3"
+$Computers="NC01","NC02","NC03"
 $sessions=New-PSSession -ComputerName $computers
 foreach ($Session in $sessions){
     Copy-Item -Path $env:USERPROFILE\Downloads\NCCert.pfx -Destination $env:USERPROFILE\Downloads\NCCert.pfx -ToSession $session
@@ -524,10 +553,69 @@ Invoke-Command -Session $Sessions -ScriptBlock {
  
 ```
 
-### Install NC
+### Configure IP addesses for infrastructure
+
+The IP ranges were inspired with [this table](https://docs.microsoft.com/en-us/windows-server/networking/sdn/plan/plan-a-software-defined-network-infrastructure#sample-network-topology) from official documentation.
+
+The needed networks are nicely shown in docs [here](https://docs.microsoft.com/en-us/windows-server/networking/sdn/plan/plan-a-software-defined-network-infrastructure#sample-network-topology)
 
 ```PowerShell
-$Servers="NC1","NC2","NC3"
+#Network definition
+$HNVProvider=@{Network="10.10.56.";Mask="23";VLAN=5;Gateway="10.10.56.1";StartIP=5}
+$Transit=@{Network="10.10.10.";Mask="24";VLAN=6;Gateway="10.10.10.1";StartIP=2}
+
+#Add adapters to S2D cluster nodes
+$ClusterName="S2D-Cluster"
+$ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+$SwitchName="SETSwitch"
+foreach ($ClusterNode in $ClusterNodes){
+    ##Add HNV adapter
+        Add-VMNetworkAdapter -ManagementOS -SwitchName $SwitchName -Name "HNV" -CimSession $ClusterNode
+        #configure VLAN
+        Set-VMNetworkAdapterVlan -VMNetworkAdapterName "HNV" -VlanId $HNVProvider.VLAN -Access -ManagementOS -CimSession $ClusterNode
+        Restart-NetAdapter "vEthernet (HNV)" -CimSession $ClusterNode
+        #add IP
+        New-NetIPAddress -IPAddress "$($HNVProvider.Network)$($HNVProvider.StartIP)" -InterfaceAlias "vEthernet (HNV)" -PrefixLength $HNVProvider.Mask -DefaultGateway $HNVProvider.Gateway -CimSession $ClusterNode
+        #increase StartIP
+        $HNVProvider.StartIP++
+    ##Add Transit adapter
+        Add-VMNetworkAdapter -ManagementOS -SwitchName $SwitchName -Name "Transit" -CimSession $ClusterNode
+        #configure VLAN
+        Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Transit" -VlanId $Transit.VLAN -Access -ManagementOS -CimSession $ClusterNode
+        Restart-NetAdapter "vEthernet (Transit)" -CimSession $ClusterNode
+        #add IP
+        New-NetIPAddress -IPAddress "$($Transit.Network)$($Transit.StartIP)" -InterfaceAlias "vEthernet (Transit)" -PrefixLength $Transit.Mask -DefaultGateway $Transit.Gateway -CimSession $ClusterNode
+        #increase StartIP
+        $Transit.StartIP++
+}
+
+#Configure adapters on SLBMuxes and GWs
+    $Computers="SLBMUX01","SLBMUX02","GW01","GW02"
+    foreach ($Computer in $Computers){
+        $adapters=Get-NetAdapter -CimSession $Computer |Sort-Object MacAddress
+        ##Configure HNV adapter
+            $adapters | Select-Object -Skip 1 | Select-Object -First 1 | Rename-NetAdapter -NewName "HNV"
+            Set-NetAdapter -VlanID $HNVProvider.VLAN -Name "HNV" -CimSession $Computer -confirm:0
+            Restart-NetAdapter -Name "HNV" -CimSession $Computer
+            New-NetIPAddress -IPAddress "$($HNVProvider.Network)$($HNVProvider.StartIP)" -InterfaceAlias "HNV" -PrefixLength $HNVProvider.Mask -DefaultGateway $HNVProvider.Gateway -CimSession $Computer
+            #increase StartIP
+            $HNVProvider.StartIP++
+        ##Configure Transit adapter
+            $adapters | Select-Object -Skip 2 | Select-Object -First 1 | Rename-NetAdapter -NewName "Transit"
+            Set-NetAdapter -VlanID $Transit.VLAN -Name "Transit" -CimSession $Computer -confirm:0
+            Restart-NetAdapter -Name "Transit" -CimSession $Computer
+            New-NetIPAddress -IPAddress "$($Transit.Network)$($Transit.StartIP)" -InterfaceAlias "Transit" -PrefixLength $Transit.Mask -DefaultGateway $Transit.Gateway -CimSession $Computer
+            #increase StartIP
+            $Transit.StartIP++
+    }
+```
+
+## Install SDN Infarstructure manually
+
+### Instal NC Cluster
+
+```PowerShell
+$Servers="NC01","NC02","NC03"
 $ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permission to configure Network Controller
 $ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
 $LOGFileShareName="SDN_Logs"
@@ -560,9 +648,9 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 #region Kerberos based authentication (Recommended)
     #Create Node Objects
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC01" -Server "NC01.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC02" -Server "NC02.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC03" -Server "NC03.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
 
     #Grab certificate
     $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
@@ -580,12 +668,12 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 <# 
 #region Certificate based authentication example
     #Create Node Objects
-    $Cert1=Invoke-Command -ComputerName "NC1" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC1.corp.contoso.com"}
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
-    $Cert2=Invoke-Command -ComputerName "NC2" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC2.corp.contoso.com"}
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
-    $Cert3=Invoke-Command -ComputerName "NC3" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC3.corp.contoso.com"}
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
+    $Cert1=Invoke-Command -ComputerName "NC01" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC01.corp.contoso.com"}
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC01" -Server "NC01.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
+    $Cert2=Invoke-Command -ComputerName "NC02" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC02.corp.contoso.com"}
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC02" -Server "NC02.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
+    $Cert3=Invoke-Command -ComputerName "NC03" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC03.corp.contoso.com"}
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC03" -Server "NC03.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
 
     #Grab Rest certificate
     $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
@@ -601,4 +689,90 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 #>
 #endregion
 
+```
+
+### Add Hyper-V hosts
+
+### Add SLB Muxes
+
+### Add Gateways
+
+## or Install SDN infrastructure with SDN Express
+
+### Configure NC
+
+```PowerShell
+$Servers="NC01","NC02","NC03"
+$ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permission to configure Network Controller
+$ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
+$RestName="ncclus.corp.contoso.com"
+
+#grab credentials
+#$admincreds=get-credential corp\LabAdmin
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$admincreds = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin", $password)
+
+#Create ManagementSecurityGroup
+New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
+Add-ADGroupMember -Identity $ManagementSecurityGroupName -Members "Domain Admins"
+
+#Create NCRestClients group
+New-ADGroup -Name $ClientSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
+Add-ADGroupMember -Identity $ClientSecurityGroupName -Members "Domain Admins"
+
+#Download and import SDN express module
+#Download SDN Express Module
+Invoke-WebRequest -Uri https://github.com/microsoft/SDN/raw/master/SDNExpress/scripts/SDNExpressModule.psm1 -UseBasicParsing -OutFile $env:USERPROFILE\Downloads\SDNExpressModule.psm1
+#set execution policy
+if ((Get-ExecutionPolicy) -eq "Restricted"){
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
+}
+#import SDN Express Module
+Import-Module $env:USERPROFILE\Downloads\SDNExpressModule.psm1
+#list available commands
+#Get-Command -Module SDNExpressModule
+
+#Make sure NC powershell is installed as SDN Express module uses some commands
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    if ($WindowsInstallationType -eq "Server"){
+        Install-WindowsFeature -Name "RSAT-NetworkController"
+    }elseif ($WindowsInstallationType -eq "Client"){
+        Add-WindowsCapability -Name "Rsat.NetworkController.Tools~~~~0.0.1.0" -Online
+    }
+
+#Install NC using SDN express module
+New-SDNExpressNetworkController -ComputerNames $Servers -RESTName $RestName -ManagementSecurityGroupName $ManagementSecurityGroupName -ClientSecurityGroupName $ClientSecurityGroupName -Credential $admincreds
+
+```
+
+## Install Windows Admin Center in GW Mode
+
+```PowerShell
+#Download Edge Dev
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2069324&Channel=Dev&language=en-us&Consent=1" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe"
+#Install Edge Dev
+Start-Process -FilePath "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe" -Wait
+
+#Download and install Windows Admin Center
+Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+
+#Install Windows Admin Center to WacGW
+$GatewayServerName="WacGW"
+#increase MaxEnvelopeSize to transfer msi
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+#Create PS Session and copy install files to remote server
+$Session=New-PSSession -ComputerName $GatewayServerName
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v waclog.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+}
+#Configure kerberos delegation so WAC will not ask for credentials
+$gateway = "WacGW" # Machine where Windows Admin Center is installed
+$nodes = Get-ADComputer -Filter * -SearchBase "ou=workshop,DC=corp,dc=contoso,DC=com"
+$gatewayObject = Get-ADComputer -Identity $gateway
+foreach ($node in $nodes){
+    Set-ADComputer -Identity $node -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+ 
 ```
