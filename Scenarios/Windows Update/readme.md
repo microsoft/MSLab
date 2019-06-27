@@ -357,7 +357,6 @@ $versions+=@{ReleaseID=1607;URI="https://support.microsoft.com/en-us/help/400082
 
 $Jsons=@()
 foreach ($version in $versions){
-    $version = @{ReleaseID=1607;URI="https://support.microsoft.com/en-us/help/4000825"}
     $web = Invoke-WebRequest -Uri $version.uri -UseBasicParsing
     $match = [Regex]::Match($web.Content, "(?smi)microsoft.support.prefetchedArticle = \(function\(\) \{\s*return \{ '[^']+' : (.*)\}\r\n\}\)\(\)"); 
     $jsons += $match.Groups[1].Value | ConvertFrom-Json
