@@ -10,7 +10,7 @@
         - [Create certificate templates](#create-certificate-templates)
     - [Configure prerequisites on SDN infrastructure](#configure-prerequisites-on-sdn-infrastructure)
         - [Set permissions on NetworkController certificate template and Nodes Cert template and publish it](#set-permissions-on-networkcontroller-certificate-template-and-nodes-cert-template-and-publish-it)
-        - [Add machine certs](#add-machine-certs)
+        - [Add machine certs (for cert trust only)](#add-machine-certs-for-cert-trust-only)
         - [Generate and Export NCClus Certificate](#generate-and-export-ncclus-certificate)
         - [Add Cert to network controller nodes](#add-cert-to-network-controller-nodes)
         - [Configure IP addesses for infrastructure](#configure-ip-addesses-for-infrastructure)
@@ -469,7 +469,7 @@ To set permissions is PSPKI module needed. You can find more info here https://w
     }
     Import-Module PSPKI
 
-#Set permissions on SDNInfra template
+#Set permissions on SDNInfra template (for cert trust only)
     $Computers=@()
     $Computers+=1..3 | % {"S2D$_"}
     $Computers+=1..3 | % {"NC0$_"}
@@ -497,7 +497,7 @@ To set permissions is PSPKI module needed. You can find more info here https://w
  
 ```
 
-### Add machine certs
+### Add machine certs (for cert trust only)
 
 ```PowerShell
     #Set Autoenrollment policy and enroll certs
@@ -598,13 +598,14 @@ foreach ($ClusterNode in $ClusterNodes){
             Set-NetAdapter -VlanID $HNVProvider.VLAN -Name "HNV" -CimSession $Computer -confirm:0
             Restart-NetAdapter -Name "HNV" -CimSession $Computer
             New-NetIPAddress -IPAddress "$($HNVProvider.Network)$($HNVProvider.StartIP)" -InterfaceAlias "HNV" -PrefixLength $HNVProvider.Mask -DefaultGateway $HNVProvider.Gateway -CimSession $Computer
-                    #increase StartIP
+            #increase StartIP
             $HNVProvider.StartIP++
         ##Configure Transit adapter
             $adapters | Select-Object -Skip 2 | Select-Object -First 1 | Rename-NetAdapter -NewName "Transit"
             Set-NetAdapter -VlanID $Transit.VLAN -Name "Transit" -CimSession $Computer -confirm:0
             Restart-NetAdapter -Name "Transit" -CimSession $Computer
             New-NetIPAddress -IPAddress "$($Transit.Network)$($Transit.StartIP)" -InterfaceAlias "Transit" -PrefixLength $Transit.Mask -DefaultGateway $Transit.Gateway -CimSession $Computer
+            #increase StartIP
             $Transit.StartIP++
     }
 ```
@@ -614,7 +615,7 @@ foreach ($ClusterNode in $ClusterNodes){
 ### Instal NC Cluster
 
 ```PowerShell
-$Servers="NC1","NC2","NC3"
+$Servers="NC01","NC02","NC03"
 $ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permission to configure Network Controller
 $ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
 $LOGFileShareName="SDN_Logs"
@@ -647,9 +648,9 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 #region Kerberos based authentication (Recommended)
     #Create Node Objects
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC01" -Server "NC01.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet"
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC02" -Server "NC02.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet"
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC03" -Server "NC03.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet"
 
     #Grab certificate
     $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
@@ -667,12 +668,12 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 <# 
 #region Certificate based authentication example
     #Create Node Objects
-    $Cert1=Invoke-Command -ComputerName "NC1" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC1.corp.contoso.com"}
-    $NodeObject1=New-NetworkControllerNodeObject -Name "NC1" -Server "NC1.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
-    $Cert2=Invoke-Command -ComputerName "NC2" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC2.corp.contoso.com"}
-    $NodeObject2=New-NetworkControllerNodeObject -Name "NC2" -Server "NC2.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
-    $Cert3=Invoke-Command -ComputerName "NC3" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC3.corp.contoso.com"}
-    $NodeObject3=New-NetworkControllerNodeObject -Name "NC3" -Server "NC3.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
+    $Cert1=Invoke-Command -ComputerName "NC01" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC01.corp.contoso.com"}
+    $NodeObject1=New-NetworkControllerNodeObject -Name "NC01" -Server "NC01.corp.contoso.com" -FaultDomain "fd:/rack1/host1" -RestInterface "Ethernet" -NodeCertificate $Cert1
+    $Cert2=Invoke-Command -ComputerName "NC02" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC02.corp.contoso.com"}
+    $NodeObject2=New-NetworkControllerNodeObject -Name "NC02" -Server "NC02.corp.contoso.com" -FaultDomain "fd:/rack2/host2" -RestInterface "Ethernet" -NodeCertificate $Cert2
+    $Cert3=Invoke-Command -ComputerName "NC03" -ScriptBlock {Get-ChildItem cert:\LocalMachine\My | where Subject -eq "CN=NC03.corp.contoso.com"}
+    $NodeObject3=New-NetworkControllerNodeObject -Name "NC03" -Server "NC03.corp.contoso.com" -FaultDomain "fd:/rack3/host3" -RestInterface "Ethernet" -NodeCertificate $Cert3
 
     #Grab Rest certificate
     $Certificate = Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My | where Subject -eq "CN=ncclus.corp.contoso.com"}
