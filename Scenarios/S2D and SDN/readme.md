@@ -16,12 +16,26 @@
         - [Configure IP addesses for infrastructure](#configure-ip-addesses-for-infrastructure)
     - [Install SDN Infarstructure manually](#install-sdn-infarstructure-manually)
         - [Instal NC Cluster](#instal-nc-cluster)
-        - [Add Hyper-V hosts](#add-hyper-v-hosts)
-        - [Add SLB Muxes](#add-slb-muxes)
-        - [Add Gateways](#add-gateways)
-    - [or Install SDN infrastructure with SDN Express](#or-install-sdn-infrastructure-with-sdn-express)
-        - [Configure NC](#configure-nc)
-    - [Install Windows Admin Center in GW Mode](#install-windows-admin-center-in-gw-mode)
+        - [Add Virtual Network Manager Configuration](#add-virtual-network-manager-configuration)
+- [grab credentials](#grab-credentials)
+- [$admincreds=get-credential corp\LabAdmin](#admincredsget-credential-corp\labadmin)
+- [Create ManagementSecurityGroup](#create-managementsecuritygroup)
+- [Create NCRestClients group](#create-ncrestclients-group)
+- [Download and import SDN express module](#download-and-import-sdn-express-module)
+- [Download SDN Express Module](#download-sdn-express-module)
+- [set execution policy](#set-execution-policy)
+- [import SDN Express Module](#import-sdn-express-module)
+- [list available commands](#list-available-commands)
+- [Get-Command -Module SDNExpressModule](#get-command--module-sdnexpressmodule)
+- [Make sure NC powershell is installed as SDN Express module uses some commands](#make-sure-nc-powershell-is-installed-as-sdn-express-module-uses-some-commands)
+- [Install NC using SDN express module](#install-nc-using-sdn-express-module)
+- [Download Edge Dev](#download-edge-dev)
+- [Install Edge Dev](#install-edge-dev)
+- [Download and install Windows Admin Center](#download-and-install-windows-admin-center)
+- [Install Windows Admin Center to WacGW](#install-windows-admin-center-to-wacgw)
+- [increase MaxEnvelopeSize to transfer msi](#increase-maxenvelopesize-to-transfer-msi)
+- [Create PS Session and copy install files to remote server](#create-ps-session-and-copy-install-files-to-remote-server)
+- [Configure kerberos delegation so WAC will not ask for credentials](#configure-kerberos-delegation-so-wac-will-not-ask-for-credentials)
 
 <!-- /TOC -->
 
@@ -638,6 +652,7 @@ New-ADUser -Name $LogAccessAccountName -AccountPassword  (ConvertTo-SecureString
 Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:LOGFileShareName -ItemType Directory}
 $accounts=@()
 $accounts+="corp\$LogAccessAccountName"
+$accounts+="corp\LabAdmin"
 New-SmbShare -Name $LOGFileShareName -Path "c:\Shares\$LOGFileShareName" -FullAccess $accounts -CimSession DC
 
 
@@ -691,9 +706,28 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 ```
 
+### Add Virtual Network Manager Configuration
+
+```PowerShell
+    $RestName="ncclus.corp.contoso.com"
+    $MacAddressPoolStart = "00-11-22-00-01-00" #make sure you use dashes and capitals
+    $MacAddressPoolEnd   = "00-11-22-00-01-FF"
+    $uri = "https://$RestName"
+
+    $MacPoolProperties = new-object Microsoft.Windows.NetworkController.MacPoolProperties
+    $MacPoolProperties.StartMacAddress = $MacAddressPoolStart
+    $MacPoolProperties.EndMacAddress = $MacAddressPoolEnd
+    $MacPoolObject = New-NetworkControllerMacPool -connectionuri $uri -ResourceId "DefaultMacPool" -properties $MacPoolProperties -Force
+
 ### Add Hyper-V hosts
 
+```PowerShell
+
+```
+
+
 ### Add SLB Muxes
+
 
 ### Add Gateways
 

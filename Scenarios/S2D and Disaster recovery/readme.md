@@ -140,7 +140,9 @@ foreach ($VMName in $VMNames){
 
 ![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/NewOS_in_s2d_nodes.png)
 
-Lets make this interesting. Because some Donkey mixed all disks lets reconnect it randomly to VMs :D
+Lets make this interesting. Because some Donkey mixed all disks lets reconnect it randomly to VMs :D. 
+
+Note: this is not good idea as to keep fault domain resiliency you must keep disks in same fault domains (nodes). Mixing just demonstrates, that data will be still readable.
 
 ```PowerShell
 #run from host to mix Disks
@@ -248,7 +250,7 @@ Start-Sleep 20
 ![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/cluster_disks_fixed.png)
 ![](/Scenarios/S2D%20and%20Disaster%20recovery/Screenshots/VMs_restored.png)
 
-The very last step would be to optimize volumes to regain resiliency (as we mixed all devices)
+The very last step you can optimize volumes (as we mixed all devices). This will not rellocate slabs, just rellocate data. It's needed to recreate volumes to regain resilinecy.
 
 ```PowerShell
 Get-StoragePool -CimSession s2d-cluster1 -FriendlyName s2d* | Optimize-StoragePool
