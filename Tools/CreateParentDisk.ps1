@@ -134,6 +134,10 @@
             }
             #ask for edition
             $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
+            if (-not ($Edition)){
+                $ISO | Dismount-DiskImage
+                WriteErrorAndExit "Edition not selected. Exitting "
+            }
 
             #Generate vhdx name
             if ($Edition -like "*Server*Core*"){
@@ -169,8 +173,11 @@
                 if ($BuildNumber -gt 18362){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
                 }
-            }elseif($Edition -eq "Hyper-V Server"){
+            }elseif($Edition -like "Hyper-V*"){
                 $tempvhdname = switch ($BuildNumber){
+                    9200 {
+                        "HVServer2012_G2.vhdx"
+                    }
                     9600 {
                         "HVServer2012R2_G2.vhdx"
                     }
