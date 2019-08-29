@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [S2D and SDN](#s2d-and-sdn)
+- [S2D and SDN (Work in progress!)](#s2d-and-sdn-work-in-progress)
     - [LabConfig for Windows Server 2019](#labconfig-for-windows-server-2019)
     - [Prereq](#prereq)
     - [Finish S2D HC scenario (if you want working s2d cluster)](#finish-s2d-hc-scenario-if-you-want-working-s2d-cluster)
@@ -39,7 +39,7 @@
 
 <!-- /TOC -->
 
-# S2D and SDN
+# S2D and SDN (Work in progress!)
 
 ## LabConfig for Windows Server 2019
 
