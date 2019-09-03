@@ -4,6 +4,8 @@
 
 This lab is just a quick way how to deploy secguide policies on Win10. It will just download, extract and import policies from https://blogs.technet.microsoft.com/secguide/2018/04/30/security-baseline-for-windows-10-april-2018-update-v1803-final/
 
+Note: if applying into RS5 VMs running in Hyper-V, you should disable secure system setting. If not, VMs might not boot. If this happens, simply opt out of VBS using Set-VMSecurity -VirtualizationBasedSecurityOptOut $true 
+
 ## LabConfig
 
 ```PowerShell
