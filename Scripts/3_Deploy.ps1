@@ -914,7 +914,15 @@ If (!( $isAdmin )) {
         #import DC
             WriteInfoHighlighted "Looking for DC to be imported"
             get-childitem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
-                $DC=Import-VM -Path $_.FullName
+                # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
+                $vm = Get-VM -Id $_.BaseName
+                if($vm) {
+                    $directory = $_.Directory.FullName.replace("\Virtual Machines", "")
+                    $DC = Import-VM -Path $_.FullName -GenerateNewId -Copy -VirtualMachinePath $directory -VhdDestinationPath "$directory\Virtual Hard Disks"
+                    WriteInfo "`t Virtual Machine $($DC.Name) registered with a new VM ID $($DC.Id)"
+                } else {
+                    $DC = Import-VM -Path $_.FullName
+                }
             }
             if ($DC -eq $null){
                     WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
