@@ -129,7 +129,7 @@ If (!( $isAdmin )) {
             #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
                 $zipfile= "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
                 $zipoutput="$PSScriptRoot\LAB\DC\"
-                Microsoft.PowerShell.Archive\Expand-Archive -Path $zipfile -DestinationPath $zipoutput
+                Microsoft.PowerShell.Archive\Expand-Archive -Path $zipfile -DestinationPath $zipoutput -Force
 
             #finishing    
                 WriteSuccess "Job Done! Press enter to continue ..."
