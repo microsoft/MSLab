@@ -925,7 +925,7 @@ If (!( $isAdmin )) {
             $dcCandidates = [array](Get-ChildItem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')})
             $dcCandidates | ForEach-Object -Process {
                 # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
-                $vm = Get-VM -Id $_.BaseName
+                $vm = Get-VM -Id $_.BaseName -ErrorAction SilentlyContinue
                 if($vm -and $dcCandidates.Length -eq 1) { # allow duplicating of the DC VM only if it is the only one VM in lab folder (as if more than one exists, probably just labprefix was changed after the deployment)
                     WriteWarning "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID. (Is this a copied lab folder?)"
                     if ((Read-Host "`t Do you want to continue with the import? (type Y or N)") -eq "Y") {
