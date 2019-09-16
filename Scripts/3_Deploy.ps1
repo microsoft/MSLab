@@ -20,6 +20,10 @@ If (!( $isAdmin )) {
         Write-Host $message -ForegroundColor Green
     }
 
+    function WriteWarning($message) {
+        Write-Host $message -ForegroundColor Yellow
+    }
+
     function WriteError($message){
         Write-Host $message -ForegroundColor Red
     }
@@ -910,16 +914,31 @@ If (!( $isAdmin )) {
 
 #region Import DC (if not already present) or just grab it and start
 
+    $dcCandidate = (get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)
+    if($dcCandidate -and !$dcCandidate.ConfigurationLocation.StartsWith($LabFolder)) {
+        WriteErrorAndExit "DC with name $($labconfig.prefix+"DC") already exists on this system in the different lab folder [$($dcCandidate.ConfigurationLocation)]..."
+    }
+
     if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
         #import DC
             WriteInfoHighlighted "Looking for DC to be imported"
-            get-childitem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')} | ForEach-Object -Process {
-                $DC=Import-VM -Path $_.FullName
+            $dcCandidates = [array](Get-ChildItem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')})
+            $dcCandidates | ForEach-Object -Process {
+                # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
+                $vm = Get-VM -Id $_.BaseName -ErrorAction SilentlyContinue
+                if($vm -and $dcCandidates.Length -eq 1) { # allow duplicating of the DC VM only if it is the only one VM in lab folder (as if more than one exists, probably just labprefix was changed after the deployment)
+                    WriteWarning "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID (is this a copied lab folder?) -> this DC VM will be registered with new VM ID."
+                    $directory = $_.Directory.FullName.replace("\Virtual Machines", "")
+                    $DC = Import-VM -Path $_.FullName -GenerateNewId -Copy -VirtualMachinePath $directory -VhdDestinationPath "$directory\Virtual Hard Disks"
+                    WriteInfo "`t Virtual Machine $($DC.Name) registered with a new VM ID $($DC.Id)"
+                } else {
+                    $DC = Import-VM -Path $_.FullName
+                }
             }
             if ($DC -eq $null){
                     WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
             }else{
-            WriteInfo "`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
+                WriteInfo "`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
             }
 
         #create checkpoint to be able to return to consistent state when cleaned with cleanup.ps1
@@ -1168,6 +1187,11 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
         foreach ($VMConfig in $LABConfig.VMs.GetEnumerator()){
             if (!(Get-VM -Name "$($labconfig.prefix)$($VMConfig.vmname)" -ErrorAction SilentlyContinue)){
+                # Ensure that Configuration is set and use Simple as default
+                if(-not $VMConfig.configuration) {
+                    $VMConfig.configuration = "Simple"
+                }
+                
                 #create VM with Shared configuration
                     if ($VMConfig.configuration -eq 'Shared'){
                         #create disks (if not already created)
