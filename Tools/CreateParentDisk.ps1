@@ -208,8 +208,11 @@
                     17763 {
                         "Win2019_G2.vhdx"
                     }
+                    18362 {
+                        "WinServer1903_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 17763){
+                if ($BuildNumber -GT 18362){
                     $tempvhdname="WinSrvInsider_$BuildNumber.vhdx"
                 }
             }else{
