@@ -1,17 +1,31 @@
+<!-- TOC -->
+
+- [Exploring SpeculationControlSettings](#exploring-speculationcontrolsettings)
+    - [About Scenario](#about-scenario)
+        - [Links](#links)
+    - [LabConfig](#labconfig)
+    - [The lab](#the-lab)
+        - [Option 1: Install PowerShell module and export script](#option-1-install-powershell-module-and-export-script)
+        - [Option 2: Import PowerShell function from github and export script](#option-2-import-powershell-function-from-github-and-export-script)
+        - [Explore the results](#explore-the-results)
+        - [Enable mitigations (BTIWindowsSupportEnabled) for CVE-2017-5715 (Spectre Variant 2) and CVE-2017-5754 (Meltdown)](#enable-mitigations-btiwindowssupportenabled-for-cve-2017-5715-spectre-variant-2-and-cve-2017-5754-meltdown)
+        - [Enable All mitigations (including SSBDWindowsSupportEnabledSystemWide)](#enable-all-mitigations-including-ssbdwindowssupportenabledsystemwide)
+
+<!-- /TOC -->
+
 # Exploring SpeculationControlSettings
 
 ## About Scenario
 
 This scenario will explain how to query SpeculationControl settings from multiple remote computers and will explain different options enabled by default on fully patched Hyper-V VM.
 
+Multiple servers and multiple clients are in the lab just to demonstrate running script at scale.
+
 ### Links
 
 * [GitHub project](https://github.com/Microsoft/SpeculationControl)
-
 * [Understanding script output](https://support.microsoft.com/en-us/help/4074629/understanding-the-output-of-get-speculationcontrolsettings-powershell)
-
 * [PowerShell Gallery](https://www.powershellgallery.com/packages/SpeculationControl/)
-
 * [How to configure settings](https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in)
 
 ## LabConfig
@@ -150,7 +164,7 @@ $output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -A
 ![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled02.png)
 
 
-### Enable All mitigations (SSBDWindowsSupportEnabledSystemWide)
+### Enable All mitigations (including SSBDWindowsSupportEnabledSystemWide)
 
 ```PowerShell
 $ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
