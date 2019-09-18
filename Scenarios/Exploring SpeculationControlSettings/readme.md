@@ -10,6 +10,7 @@
         - [Explore the results](#explore-the-results)
         - [Enable mitigations (BTIWindowsSupportEnabled) for CVE-2017-5715 (Spectre Variant 2) and CVE-2017-5754 (Meltdown)](#enable-mitigations-btiwindowssupportenabled-for-cve-2017-5715-spectre-variant-2-and-cve-2017-5754-meltdown)
         - [Enable All mitigations (including SSBDWindowsSupportEnabledSystemWide)](#enable-all-mitigations-including-ssbdwindowssupportenabledsystemwide)
+        - [Query all relevant information from servers](#query-all-relevant-information-from-servers)
 
 <!-- /TOC -->
 
@@ -198,3 +199,36 @@ $output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -A
 ```
 
 ![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled03.png)
+
+
+### Query all relevant information from servers
+
+Sometimes you need all information available from multiple clients. Such as Windows version, Update level and what mitigations are available. Let's collect it.
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+$output1=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+$output2 = Invoke-Command -ComputerName $ComputerNames -ScriptBlock {
+    Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+}
+ 
+#merge data
+$properties=$output2 |get-member | where-object membertype -eq Noteproperty
+foreach ($out in $output1){
+    # Iterate through each property and add it to output1 
+    For ($i=0; $i -lt $properties.count; $i++) {
+        # Append these as object properties
+        Add-Member -InputObject $out -MemberType NoteProperty -Force -Name $properties[$i].name -Value ($output2 | where PSComputerName -eq $out.PSComputerName).($properties[$i].name)
+    }
+}
+ 
+```
+
+And now let's display all relevant information 
+
+```PowerShell
+$output1 | Select-Object PSComputerName,*windowssupportenabled*,ProductName,InstallationType,ReleaseID,UBR | Format-Table -AutoSize
+ 
+```
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/AllInfoConsolidated01.png)
