@@ -182,5 +182,3 @@ $output=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\D
 $output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -AutoSize
  
 ```
-
-![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled03.png)
