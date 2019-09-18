@@ -1,7 +1,8 @@
 # Exploring SpeculationControlSettings
 
 ## About Scenario
-This scenario will explain how to query SpeculationControl settings from multiple remote computers and will explain different options
+
+This scenario will explain how to query SpeculationControl settings from multiple remote computers and will explain different options enabled by default on fully patched Hyper-V VM.
 
 ### Links
 
@@ -15,10 +16,13 @@ This scenario will explain how to query SpeculationControl settings from multipl
 
 ## LabConfig
 
+Prereq: generate 19H1 Windows 10 VHD with CreateParentDisk.ps1 located in ParentDisks folder.
+
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
 
-1..4 | % { $VMNames="Server" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB } }
+1..3 | % { $VMNames="Server" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MemoryStartupBytes= 512MB } }
+1..3 | % { $VMNames="Client" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Simple' ; ParentVHD = 'Win1019H1_G2.vhdx' ; MemoryStartupBytes= 1GB ; DisableWCF=$true ; EnableWinRM=$true } }
  
 ```
 
@@ -42,16 +46,20 @@ $script=$script.tostring().replace('[switch]$Quiet','[switch]$Quiet = $true')
 $script | Out-File -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
 
 #run script against multiple servers
-$Servers="Server1","Server2","Server3","Server4" 
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
 #or if you are lazy to type, you can just create variable like this:
-#$Servers=1..4 | % {"Server$_"}
-$output=Invoke-Command -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1 -ComputerName $Servers
+<#
+$ComputerNames=@()
+$ComputerNames+=(1..3 | % {"Server$_"})
+$ComputerNames+=(1..3 |%{"Client$_"})
+#>
+$output=Invoke-Command -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1 -ComputerName $ComputerNames
 
 #to display output you can out it to Out-GridView
 $output | Out-GridView
 
 #or to CSV
-$output | Export-CSV
+$output | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlScriptOutput.csv -Delimiter ";" -NoTypeInformation
  
 ```
 
@@ -75,13 +83,104 @@ Add-Content -Value "Get-SpeculationControlSettings -Quiet" -Path $env:USERPROFIL
 & $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
 
 #and now against list of servers
-$Servers=1..4 | % {"Server$_"}
-$output=Invoke-Command -ComputerName $servers -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+$output=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
 
-#to display output you can out it to Out-GridView
+#to display output you can send it to Out-GridView
 $output | Out-GridView
 
 #or to CSV
-$output | Export-CSV
+$output | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlScriptOutput.csv -Delimiter ";" -NoTypeInformation
  
 ```
+
+Example output in VM with Core scheduler enabled on Host (Windows 10 19H1)
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/SpeculationControlOutputOnVM.png)
+
+### Explore the results
+
+Since both options generate SpeculationControlScript that can be run remotely with Invoke-Command, let's start with querying informatin to $output variable
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+$output=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+ 
+```
+
+To display if features are enabled in Windows or not, you can run following script:
+
+```PowerShell
+$output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -AutoSize
+ 
+```
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled01.png)
+
+As you can see, BTIWindowsSupportEnabled is automatically enabled on Windows Client (CVE-2017-5715 - branch target injection), while on Windows Server it's disabled. On both Server and Client are Microarchitectural Data Sampling enabled (CVE-2018-11091,CVE-2018-12126,CVE-2018-12127,CVE-2018-12130). However its enabled only if on Host is Core Scheduler enabled. SSBDWindowsSupportEnabledSystemWide (CVE-2018-3639 - speculative store bypass) is disabled.
+
+
+
+
+### Enable mitigations (BTIWindowsSupportEnabled) for CVE-2017-5715 (Spectre Variant 2) and CVE-2017-5754 (Meltdown)
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3"
+Invoke-Command -ComputerName $ComputerNames -ScriptBlock {
+    reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverride /t REG_DWORD /d 0 /f
+
+    reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v FeatureSettingsOverrideMask /t REG_DWORD /d 3 /f
+}
+
+#restart computers
+Restart-Computer -ComputerName $ComputerNames -Wait -For PowerShell -Protocol WSMan
+ 
+```
+
+Validate
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+$output=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+
+$output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -AutoSize
+ 
+```
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled02.png)
+
+
+### Enable All mitigations (SSBDWindowsSupportEnabledSystemWide)
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+Invoke-Command -ComputerName $ComputerNames -ScriptBlock {
+    #Detect HT
+    $processor=Get-WmiObject win32_processor | Select-Object -First 1
+    if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
+        $HT=$True
+    }
+    if ($HT -eq $True){
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 72
+    }else{
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverride -value 8264
+    }
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name FeatureSettingsOverrideMask -value 3
+}
+
+#restart servers
+Restart-Computer -ComputerName $ComputerNames -Wait -For PowerShell -Protocol WSMan
+ 
+```
+
+Validate
+
+```PowerShell
+$ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
+$output=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+
+$output | Select-Object PSComputerName,*windowssupportenabled* | Format-Table -AutoSize
+ 
+```
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/WindowsSupportEnabled03.png)
