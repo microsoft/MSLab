@@ -3,6 +3,16 @@
 ## About Scenario
 This scenario will explain how to query SpeculationControl settings from multiple remote computers and will explain different options
 
+### Links
+
+* [GitHub project](https://github.com/Microsoft/SpeculationControl)
+
+* [Understanding script output](https://support.microsoft.com/en-us/help/4074629/understanding-the-output-of-get-speculationcontrolsettings-powershell)
+
+* [PowerShell Gallery](https://www.powershellgallery.com/packages/SpeculationControl/)
+
+* [How to configure settings](https://support.microsoft.com/en-us/help/4073119/protect-against-speculative-execution-side-channel-vulnerabilities-in)
+
 ## LabConfig
 
 ```PowerShell
@@ -45,10 +55,33 @@ $output | Export-CSV
  
 ```
 
+### Option 2: Import PowerShell function from github and export script
 
+Sometimes you dont want to install modules to servers, therefore we can download script with function directly from GitHub.
 
-
+```PowerShell
 $content=(Invoke-WebRequest -Uri https://raw.githubusercontent.com/microsoft/SpeculationControl/master/SpeculationControl.psm1 -UseBasicParsing).Content
 
-$content | Out-File -FilePath $env:USERPROFILE\Downloads\Get-SpeculationControlSettings.ps1
+#remove signature
+$content=$content.substring(0,$content.IndexOf("# SIG # Begin signature block"))
+
+#save it as file
+$content | Out-File -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1 -Force
+
+#since in script is just a function, let's add there a line that will execute the function
+Add-Content -Value "Get-SpeculationControlSettings -Quiet" -Path $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+
+#and now we are able to execute it locally
+& $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+
+#and now against list of servers
+$Servers=1..4 | % {"Server$_"}
+$output=Invoke-Command -ComputerName $servers -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+
+#to display output you can out it to Out-GridView
+$output | Out-GridView
+
+#or to CSV
+$output | Export-CSV
+ 
 ```
