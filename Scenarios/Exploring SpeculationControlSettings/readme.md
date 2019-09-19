@@ -207,15 +207,15 @@ Sometimes you need all information available from multiple clients. Such as Wind
 
 ```PowerShell
 $ComputerNames="Server1","Server2","Server3","Client1","Client2","Client3"
-$output1=Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+$output1 = Invoke-Command -ComputerName $ComputerNames -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
 $output2 = Invoke-Command -ComputerName $ComputerNames -ScriptBlock {
     Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
 }
- 
+
 #merge data
-$properties=$output2 |get-member | where-object membertype -eq Noteproperty
 foreach ($out in $output1){
-    # Iterate through each property and add it to output1 
+    # Iterate through each property and add it to output1
+    $properties=(($output2 | where PSComputerName -eq $out.PSComputerName) | get-member | where-object membertype -eq Noteproperty)
     For ($i=0; $i -lt $properties.count; $i++) {
         # Append these as object properties
         Add-Member -InputObject $out -MemberType NoteProperty -Force -Name $properties[$i].name -Value ($output2 | where PSComputerName -eq $out.PSComputerName).($properties[$i].name)
@@ -232,3 +232,69 @@ $output1 | Select-Object PSComputerName,*windowssupportenabled*,ProductName,Inst
 ```
 
 ![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/AllInfoConsolidated01.png)
+
+It's also possible to read more data from remote servers such as Make and Model. It's also worth filtering servers that are not alive.
+
+```PowerShell
+$Computers="Server1","Server2","Server3","Server4","Client1","Client2","Client3"
+
+#Create PS object
+$ComputerObjects = foreach ($Computer in $Computers) {
+        New-Object PSObject -Property @{
+            PSComputerName=$computer 
+        }
+}
+
+#test if servers are alive
+foreach($ComputerObject in $ComputerObjects){
+    $test=[bool](Test-WSMan -ComputerName $ComputerObject.PSComputerName -ErrorAction SilentlyContinue)
+    if ($test){
+         Add-Member -InputObject $ComputerObject -MemberType NoteProperty -Force -Name "Alive" -Value $true
+    }else{
+         Add-Member -InputObject $ComputerObject -MemberType NoteProperty -Force -Name "Alive" -Value $false    
+    }
+}
+
+#collect information from servers
+$output1 = Invoke-Command -ComputerName ($ComputerObjects | where Alive -eq $true).PSComputerName -FilePath $env:USERPROFILE\Downloads\SpeculationControlScript.ps1
+$output2 = Invoke-Command -ComputerName ($ComputerObjects | where Alive -eq $true).PSComputerName -ScriptBlock {
+    Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+}
+$output3 = Invoke-Command -ComputerName ($ComputerObjects | where Alive -eq $true).PSComputerName {
+    Get-WmiObject win32_computersystem | Select Manufacturer,Model
+}
+
+#create function to add properties
+function MergeICMInfo ($InputObject,$OutputObject){
+    foreach ($out in $OutputObject){
+        # Iterate through each property and add it to output
+        $properties=(($InputObject | where PSComputerName -eq $out.PSComputerName) | get-member -ErrorAction SilentlyContinue | where-object membertype -eq Noteproperty)
+        For ($i=0; $i -lt $properties.count; $i++) {
+            # Append these as object properties
+            Add-Member -InputObject $out -MemberType NoteProperty -Force -Name $properties[$i].name -Value ($InputObject | where PSComputerName -eq $out.PSComputerName).($properties[$i].name)
+        }
+    }
+}
+
+#add info to PSObject
+MergeICMInfo -InputObject $output1 -OutputObject $ComputerObjects
+MergeICMInfo -InputObject $output2 -OutputObject $ComputerObjects
+MergeICMInfo -InputObject $output3 -OutputObject $ComputerObjects
+
+```
+
+Display all info
+
+```PowerShell
+#output info to Out-Gridview
+$ComputerObjects | Select-Object select PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Out-GridView
+
+#or into CSV
+$ComputerObjects | Select-Object select PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlExport.csv -Delimiter ";" -NoTypeInformation
+
+#or all info into CSV
+$ComputerObjects | Select-Object * | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlExportFull.csv -Delimiter ";" -NoTypeInformation
+ 
+```
+
+![](/Scenarios/Exploring%20SpeculationControlSettings/Screenshots/AllInfoConsolidated02.png)
