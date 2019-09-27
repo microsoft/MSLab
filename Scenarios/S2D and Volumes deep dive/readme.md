@@ -404,8 +404,8 @@ Let's first create virtual disk. Notice, I'm using full storagepoolfriendlyname.
 ```PowerShell
 $ClusterName="4NodeCluster"
 $vDiskName="MirrorAcceleratedParity"
-$performancetier=get-storagetier -cimsession "4NodeCluster" -friendlyname Performance
-$capacitytier=get-storagetier -cimsession "4NodeCluster" -friendlyname Capacity
+$performancetier=get-storagetier -cimsession $ClusterName -friendlyname Performance
+$capacitytier=get-storagetier -cimsession $ClusterName -friendlyname Capacity
 $virtualDisk = New-VirtualDisk -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $vDiskName -StorageTiers $performancetier,$capacitytier -StorageTierSizes 0.5TB,4TB -CimSession $ClusterName
  
 ```
@@ -414,6 +414,9 @@ Since it was virtual disk only, it was not formatted. So you needed to create pa
 
 ```PowerShell
 $virtualDisk | get-disk | New-Partition -UseMaximumSize
+#move to owner node otherwise it will fail initializing volume
+$ownernode=(Get-ClusterGroup -Cluster $clustername "Cluster Group").OwnerNode.Name
+Get-ClusterGroup -Cluster $clustername -Name "Available storage" | Move-ClusterGroup -Node $ownernode
 Get-ClusterResource -Cluster $ClusterName -Name "Cluster Virtual Disk ($vDiskName)" | Suspend-ClusterResource
 $virtualdisk | Get-Disk | Get-Partition | get-volume | Initialize-Volume -FileSystem REFS -AllocationUnitSize 4KB -NewFileSystemLabel $vdiskname -confirm:$False
 Get-ClusterResource -Cluster $ClusterName -Name "Cluster Virtual Disk ($vDiskName)" | Resume-ClusterResource
@@ -426,9 +429,8 @@ Thanks to Cosmos Darwin and his team, in 2019 there is no need to rename CSV pat
 ```PowerShell
 $CSV=Get-ClusterSharedVolume -Cluster $ClusterName -Name "Cluster Virtual Disk ($vDiskName)"
 $volumepath=$CSV.sharedvolumeinfo.friendlyvolumename
-$newname=$CSV.name.Substring(22,$CSV.name.Length-23)
 $CSV_Owner=(Get-ClusterSharedVolume -Cluster $ClusterName -Name $CSV.Name).ownernode
-Invoke-Command -ComputerName $CSV_Owner -ScriptBlock {Rename-Item -Path $using:volumepath -NewName $using:newname} -ErrorAction SilentlyContinue
+Invoke-Command -ComputerName $CSV_Owner -ScriptBlock {Rename-Item -Path $using:volumepath -NewName $using:vDiskName} -ErrorAction SilentlyContinue
  
 ```
 
