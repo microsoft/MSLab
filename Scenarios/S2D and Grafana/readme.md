@@ -85,12 +85,14 @@ The next code will configure InfluxDB have database in ProgramFiles folder (or a
 
 ```PowerShell
 $GrafanaServerName="Grafana"
-$GrafanaDBPath="C:/InfluxDB/" #but consider separate Tier1 disk (like "D:/InfluxDB/")
+$GrafanaDBPath="C:\InfluxDB\" #path for DB and conf. But consider separate Tier1 disk (like "D:\InfluxDB\")
+$GrafanaDBPathForeSlash=$GrafanaDBPath.Replace("\","/")
+
 #replace path for database
 Invoke-command -computername $GrafanaServerName -scriptblock {
     $content=Get-Content -Path $env:ProgramFiles\InfluxDB\InfluxDB.conf
-    $content=$content.Replace("/var/lib/influxdb/",$using:GrafanaDBPath)
-    Set-Content -Value $Content -Path $env:ProgramFiles\InfluxDB\InfluxDB.conf -Encoding UTF8
+    $content=$content.Replace("/var/lib/influxdb/",$using:GrafanaDBPathForeSlash)
+    Set-Content -Value $Content -Path $using:GrafanaDBPath\InfluxDB.conf -Encoding UTF8
 }
 
 #Create folders for DB
@@ -203,13 +205,14 @@ Following script will run Grafana and InfluxDB as a service
 
 ```PowerShell
 $GrafanaServerName="Grafana"
+$GrafanaConfigPath="C:\InfluxDB\influxdb.conf"
 #Run Grafana and InfluxDB as system service
 Invoke-command -computername $GrafanaServerName -scriptblock {
     #install as service
     Start-Process -FilePath nssm.exe -ArgumentList "install Grafana ""$env:ProgramFiles\Grafana\bin\grafana-server.exe""" -Wait
     Start-Service Grafana
     Start-Process -FilePath nssm.exe -ArgumentList "install InfluxDB ""$env:ProgramFiles\InfluxDB\influxd.exe""" -Wait
-    Start-Process -FilePath nssm.exe -ArgumentList "set InfluxDB AppParameters -config $('"""""""')$env:ProgramFiles\InfluxDB\influxdb.conf$('"""""""')" -Wait
+    Start-Process -FilePath nssm.exe -ArgumentList "set InfluxDB AppParameters -config $('"""""""')$using:GrafanaConfigPath$('"""""""')" -Wait
     Start-Service InfluxDB
 
     #remove
