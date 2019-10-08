@@ -105,6 +105,27 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
  
 ```
 
+Following script will run Grafana and InfluxDB as a service
+
+```PowerShell
+$GrafanaServerName="Grafana"
+$GrafanaConfigPath="C:\InfluxDB\influxdb.conf"
+#Run Grafana and InfluxDB as system service
+Invoke-command -computername $GrafanaServerName -scriptblock {
+    #install as service
+    Start-Process -FilePath nssm.exe -ArgumentList "install Grafana ""$env:ProgramFiles\Grafana\bin\grafana-server.exe""" -Wait
+    Start-Service Grafana
+    Start-Process -FilePath nssm.exe -ArgumentList "install InfluxDB ""$env:ProgramFiles\InfluxDB\influxd.exe""" -Wait
+    Start-Process -FilePath nssm.exe -ArgumentList "set InfluxDB AppParameters -config $('"""""""')$using:GrafanaConfigPath$('"""""""')" -Wait
+    Start-Service InfluxDB
+
+    #remove
+    #Start-Process -FilePath nssm.exe -ArgumentList "remove Grafana confirm" -Wait
+    #Start-Process -FilePath nssm.exe -ArgumentList "remove InfluxDB confirm" -Wait
+}
+ 
+```
+
 And now it's about a time to configure LDAP authentication for Grafana
 
 ```PowerShell
@@ -201,27 +222,6 @@ And now it's about a time to configure LDAP authentication for Grafana
  
 ```
 
-Following script will run Grafana and InfluxDB as a service
-
-```PowerShell
-$GrafanaServerName="Grafana"
-$GrafanaConfigPath="C:\InfluxDB\influxdb.conf"
-#Run Grafana and InfluxDB as system service
-Invoke-command -computername $GrafanaServerName -scriptblock {
-    #install as service
-    Start-Process -FilePath nssm.exe -ArgumentList "install Grafana ""$env:ProgramFiles\Grafana\bin\grafana-server.exe""" -Wait
-    Start-Service Grafana
-    Start-Process -FilePath nssm.exe -ArgumentList "install InfluxDB ""$env:ProgramFiles\InfluxDB\influxd.exe""" -Wait
-    Start-Process -FilePath nssm.exe -ArgumentList "set InfluxDB AppParameters -config $('"""""""')$using:GrafanaConfigPath$('"""""""')" -Wait
-    Start-Service InfluxDB
-
-    #remove
-    #Start-Process -FilePath nssm.exe -ArgumentList "remove Grafana confirm" -Wait
-    #Start-Process -FilePath nssm.exe -ArgumentList "remove InfluxDB confirm" -Wait
-}
- 
-```
-
 Next PowerShell block will create firewall rules for Grafana and incoming data from telegraf agents.
 
 ```PowerShell
@@ -311,7 +311,7 @@ invoke-command -session $sessions -scriptblock {
  
 ```
 
-Once all is set, you can navigate to http://grafana:3000 and login with admin/admin credentials. Optionally install Edge Dev
+Once all is set, you can navigate to http://grafana:3000 and login with LabAdmin/LS1Setup credentials. Optionally install Edge Dev
 
 ```PowerShell
 #Download Edge Dev
