@@ -151,7 +151,7 @@ And now it's about a time to configure LDAP authentication for Grafana
     $GrafanaLDAPuserpwd = $Grafana_LDAPuserpwd
     $GrafanaBaseDomain = (Get-ADDomain).DistinguishedName
     $GrafanaAdmins = (Get-ADGroup $Grafana_AdminsGroupName).DistinguishedName
-    Invoke-command -computername $grafanaServer -scriptblock {
+    Invoke-command -computername $GrafanaServerName -scriptblock {
         Stop-Service -Name Grafana
             #region Configure LDAP authentication in Grafane server config file
                 #Load Grafana Server config file - LDAP to be anabled there
