@@ -88,19 +88,19 @@ $GrafanaServerName="Grafana"
 $GrafanaDBPath="C:\InfluxDB\" #path for DB and conf. But consider separate Tier1 disk (like "D:\InfluxDB\")
 $GrafanaDBPathForeSlash=$GrafanaDBPath.Replace("\","/")
 
-#replace path for database
-Invoke-command -computername $GrafanaServerName -scriptblock {
-    $content=Get-Content -Path $env:ProgramFiles\InfluxDB\InfluxDB.conf
-    $content=$content.Replace("/var/lib/influxdb/",$using:GrafanaDBPathForeSlash)
-    Set-Content -Value $Content -Path $using:GrafanaDBPath\InfluxDB.conf -Encoding UTF8
-}
-
 #Create folders for DB
 Invoke-command -computername $GrafanaServerName -scriptblock {   
     if (-not(Test-Path -Path $using:GrafanaDBPath)){New-Item -Path $using:GrafanaDBPath -ItemType Directory}
     "data","meta","wal" | Foreach-Object {
         New-Item -Type Directory -Path $using:GrafanaDBPath -Name $_
     }
+}
+ 
+#replace path for database and copy config to DB folder
+Invoke-command -computername $GrafanaServerName -scriptblock {
+    $content=Get-Content -Path $env:ProgramFiles\InfluxDB\InfluxDB.conf
+    $content=$content.Replace("/var/lib/influxdb/",$using:GrafanaDBPathForeSlash)
+    Set-Content -Value $Content -Path $using:GrafanaDBPath\InfluxDB.conf -Encoding UTF8
 }
  
 ```
