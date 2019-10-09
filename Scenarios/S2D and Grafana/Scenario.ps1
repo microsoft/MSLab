@@ -316,6 +316,7 @@
     #download telegraf configuration from WSLab Github and configure grafana URL
     $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
     $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
+    $posh=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1
     $config=$config.content.replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL) #| Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
     <#
     #reuse default telegraf config and replace server name in config
@@ -334,10 +335,11 @@
         foreach ($session in $sessions){
             Copy-Item -Path "$env:temp\Telegraf" -Destination "$env:ProgramFiles" -tosession $session -recurse -force
         }
-        #replace telegraf conf
+        #replace telegraf conf and drop posh script
         Invoke-command -Session $sessions -ScriptBlock {
             $config=$using:config
             $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
+            $posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
         }
         #install telegraf
         invoke-command -session $sessions -scriptblock {
