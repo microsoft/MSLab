@@ -23,6 +23,29 @@
 
 #endregion
 
+#region install management tools
+    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
+    $CurrentBuildNumber=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
+    if ($WindowsInstallationType -eq "Server"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-AD-PowerShell
+    }elseif ($WindowsInstallationType -eq "Server Core"){
+        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-AD-PowerShell
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -lt 17763)){
+        #Validate RSAT Installed
+            if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
+                Write-Host "Please install RSAT, Exitting in 5s"
+                Start-Sleep 5
+                Exit
+            }
+    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
+        #Install RSAT tools
+            $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+            foreach ($Capability in $Capabilities){
+                Add-WindowsCapability -Name $Capability -Online
+            }
+    }
+#endregion
+
 #region download required files to downloads folder
     $ProgressPreference='SilentlyContinue' #for faster download
     #influxDB and telegraph
@@ -287,9 +310,6 @@
 
 #region push telegraf agent to nodes
 
-    #increase MaxEnvelopeSize to transfer foles
-    Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
-
     #expand telegraf
     Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
 
@@ -306,11 +326,16 @@
 
     foreach ($Cluster in $Clusters){
         $servers=(Get-ClusterNode -Cluster $Cluster).Name
+        #increase MaxEnvelopeSize to transfer foles
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
         #create sessions
         $sessions=New-PSSession -ComputerName $servers
         #copy telegraf
         foreach ($session in $sessions){
             Copy-Item -Path "$env:temp\Telegraf" -Destination "$env:ProgramFiles" -tosession $session -recurse -force
+        }
+        #replace telegraf conf
+        Invoke-command -Session $sessions -ScriptBlock {
             $config=$using:config
             $config.content.replace("# clustername = ","clustername = $using:Cluster") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
         }
