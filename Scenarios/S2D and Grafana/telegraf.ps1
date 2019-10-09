@@ -61,3 +61,7 @@ Send-JsonOverTcp 127.0.0.1 8096 "$statusclust"
 $qos = Get-StorageQoSVolume | Select-Object @{ Label = "Mountpoint" ; Expression = { (($_.Mountpoint.split("\\"))[2])}},IOPS,Latency,Bandwidth | ConvertTo-Json
 
 Send-JsonOverTcp 127.0.0.1 8097 "$qos"
+
+$qosvm = Get-StorageQosFlow |Select-Object InitiatorName, @{Expression={$_.InitiatorNodeName.Substring(0,$_.InitiatorNodeName.IndexOf('.'))};Label="InitiatorNodeName"},StorageNodeIOPs | ConvertTo-Json
+
+Send-JsonOverTcp 127.0.0.1 8098 "$qosvm"
