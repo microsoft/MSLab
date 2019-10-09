@@ -18,7 +18,7 @@
     $InfluxDBAuthorizedServers="DC",$GrafanaServerName,"S2D1","S2D2","S2D3","S2D4"
 
     #telegraf - monitored servers
-    $clusters=@("S2DCluster")
+    $clusters=@("S2D-Cluster")
     #$clusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1).Name
 
 #endregion
