@@ -17,6 +17,9 @@
     $IPSecServers="DC",$GrafanaServerName,$InfluxDBServerName,"S2D1","S2D2","S2D3","S2D4"
     $InfluxDBAuthorizedServers="DC",$GrafanaServerName,"S2D1","S2D2","S2D3","S2D4"
 
+    #telegraf - monitored servers
+    $clusters=@("S2DCluster")
+    #$clusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1).Name
 
 #endregion
 
@@ -284,37 +287,39 @@
 
 #region push telegraf agent to nodes
 
-#increase MaxEnvelopeSize to transfer foles
-Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+    #increase MaxEnvelopeSize to transfer foles
+    Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 
-#create sessions
-$sessions=New-PSSession -ComputerName $servers
+    #expand telegraf
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
 
-#expand telegraf
-Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
+    #download telegraf configuration from WSLab Github and configure grafana URL
+    $GrafanaServerURL="http://grafana.corp.contoso.com:8086"
+    $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
+    $config=$config.content.replace("PlaceGrafanaURLHere",$GrafanaServerURL) #| Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
+    <#
+    #reuse default telegraf config and replace server name in config
+    $config=get-content -path "$env:temp\telegraf\telegraf.conf"
+    $config=$config.replace("127.0.0.1","grafana.corp.contoso.com")
+    $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
+    #>
 
-<#
-#reuse default telegraf config and replace server name in config
-$config=get-content -path "$env:temp\telegraf\telegraf.conf"
-$config=$config.replace("127.0.0.1","grafana.corp.contoso.com")
-$config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
-#>
-
-#download telegraf configuration from WSLab Github and configure grafana URL
-$GrafanaServerURL="http://grafana.corp.contoso.com:8086"
-$config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
-$config.content.replace("PlaceGrafanaURLHere",$GrafanaServerURL) | Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
-
-#copy telegraf
-foreach ($session in $sessions){
-    Copy-Item -Path "$env:temp\Telegraf" -Destination "$env:ProgramFiles" -tosession $session -recurse -force
-}
-
-#install telegraf
-invoke-command -session $sessions -scriptblock {
-    Start-Process -FilePath "$env:ProgramFiles\telegraf\telegraf.exe" -ArgumentList "--service install" -Wait
-    Start-Service Telegraf
-}
+    foreach ($Cluster in $Clusters){
+        $servers=(Get-ClusterNode -Cluster $Cluster).Name
+        #create sessions
+        $sessions=New-PSSession -ComputerName $servers
+        #copy telegraf
+        foreach ($session in $sessions){
+            Copy-Item -Path "$env:temp\Telegraf" -Destination "$env:ProgramFiles" -tosession $session -recurse -force
+            $config=$using:config
+            $config.content.replace("# clustername = ","clustername = $using:Cluster") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
+        }
+        #install telegraf
+        invoke-command -session $sessions -scriptblock {
+            Start-Process -FilePath "$env:ProgramFiles\telegraf\telegraf.exe" -ArgumentList "--service install" -Wait
+            Start-Service Telegraf
+        }
+    }
  
 #endregion
 
@@ -324,4 +329,28 @@ Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2069324&Channel=
 #Install Edge Dev
 Start-Process -FilePath "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe" -Wait
 
+#endregion
+
+#region check if traffic is encrypted
+    #list main mode connections
+    Get-NetIPsecMainModeSA | Out-GridView
+    #list quick mode connections
+    Get-NetIPsecQuickModeSA | Out-GridView
+#endregion
+
+
+#region TBD...
+$multiinstancecounters=get-counter -ListSet * | Where-Object countersettype -eq multiinstance | Select-Object -ExpandProperty paths
+$singleinstancecounters=get-counter -ListSet * | Where-Object countersettype -eq singleinstance | Select-Object -ExpandProperty paths
+
+#create counters object
+$counters=@()
+foreach ($counter in $multiinstancecounters){
+    $counter=$counter.Replace("(*)","").TrimStart("\").Split("\")
+    $counters+= [PSCustomObject]@{ObjectName=$counter[0];Countername=$counter[1];InstanceType="Multi"}
+}
+foreach ($counter in $singleinstancecounters){
+    $counter=$counter.Replace("(*)","").TrimStart("\").Split("\")
+    $counters+= [PSCustomObject]@{ObjectName=$counter[0];Countername=$counter[1];InstanceType="Single"}
+}
 #endregion
