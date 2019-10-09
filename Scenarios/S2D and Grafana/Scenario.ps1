@@ -231,7 +231,7 @@
     #Create IPSec rule locally and on machines to secure traffic between endpoints
     Invoke-Command -ComputerName $IPSecServers -ScriptBlock {
         if (-not (Get-NetIPsecRule -DisplayName "Default Request Rule" -ErrorAction SilentlyContinue)){
-            New-NetIPsecRule -DisplayName "Default Request Rule" -InboundSecurity Request -OutboundSecurity Request -Phase1AuthSet ComputerKerberos -Phase2AuthSet UserKerberos
+            New-NetIPsecRule -DisplayName "Default Request Rule" -InboundSecurity Request -OutboundSecurity Request
         }
     }
     #enable firewall rules for Grafana
