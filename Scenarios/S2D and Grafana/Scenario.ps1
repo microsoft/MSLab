@@ -339,7 +339,7 @@
         Invoke-command -Session $sessions -ScriptBlock {
             $config=$using:config
             $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
-            $posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
+            $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
         }
         #install telegraf
         invoke-command -session $sessions -scriptblock {
