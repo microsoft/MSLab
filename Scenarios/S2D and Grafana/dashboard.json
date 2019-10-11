@@ -7,7 +7,9 @@
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
+        "limit": 100,
         "name": "Annotations & Alerts",
+        "showIn": 0,
         "type": "dashboard"
       }
     ]
@@ -15,1771 +17,73 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 42,
+  "id": 8,
+  "iteration": 1570771236995,
   "links": [],
   "panels": [
     {
-      "cacheTimeout": null,
-      "colorBackground": true,
-      "colorValue": false,
-      "colors": [
-        "#299c46",
-        "#bf1b00",
-        "#0a437c"
-      ],
-      "datasource": "HC",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
+      "collapsed": true,
+      "datasource": null,
       "gridPos": {
-        "h": 4,
-        "w": 12,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 35,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
+      "id": 53,
+      "panels": [
         {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
+          "content": "\n# TO DO\n\n- CSV chache\n- RDMA statistics (conn errors)\n- Network bandwidth treba\n\n\n\n",
+          "datasource": null,
+          "gridPos": {
+            "h": 5,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "id": 55,
+          "mode": "markdown",
+          "options": {},
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Panel Title",
+          "type": "text"
         }
       ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "socket_listener_STATUS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "HC",
-          "query": "SELECT last(\"State\") FROM \"HC\".\"socket_listener_STATUS\" WHERE (\"Name\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "State"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "thresholds": "1,2",
-      "title": "S2D-N1",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "UP",
-          "value": "0"
-        },
-        {
-          "op": "=",
-          "text": "PAUSED",
-          "value": "2"
-        },
-        {
-          "op": "=",
-          "text": "DOWN",
-          "value": "1"
-        }
-      ],
-      "valueName": "avg"
+      "title": "Notes",
+      "type": "row"
     },
     {
-      "cacheTimeout": null,
-      "colorBackground": true,
-      "colorValue": false,
-      "colors": [
-        "#299c46",
-        "#bf1b00",
-        "#0a437c"
-      ],
-      "datasource": "HC",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
+      "collapsed": false,
+      "datasource": null,
       "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 37,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_STATUS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "HC",
-          "query": "SELECT last(\"State\") FROM \"HC\".\"socket_listener_STATUS\" WHERE (\"Name\" = 'S2D-N2')",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "State"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "thresholds": "1,2",
-      "title": "S2D-N2",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "UP",
-          "value": "0"
-        },
-        {
-          "op": "=",
-          "text": "PAUSED",
-          "value": "2"
-        },
-        {
-          "op": "=",
-          "text": "DOWN",
-          "value": "1"
-        }
-      ],
-      "valueName": "avg"
-    },
-    {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "HC",
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 6,
-        "w": 8,
+        "h": 1,
+        "w": 24,
         "x": 0,
-        "y": 4
+        "y": 1
       },
-      "id": 1,
-      "legend": {
-        "alignAsTable": false,
-        "avg": false,
-        "current": false,
-        "hideEmpty": false,
-        "hideZero": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "dataLinks": []
-      },
-      "paceLength": 10,
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": true,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Read S2D-N1",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Read,Volume=S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Reads_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "Read S2D-N2",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Read,Volume=S2D-N2') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Reads_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "Write S2D-N2",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Write,Volume=S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "G",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Writes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "Write S2D-N1",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Write,Volume=S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "H",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Writes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "IO History",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": [
-          "total"
-        ]
-      },
-      "yaxes": [
-        {
-          "format": "iops",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "HC",
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 4
-      },
-      "id": 31,
-      "legend": {
-        "alignAsTable": false,
-        "avg": false,
-        "current": false,
-        "hideEmpty": false,
-        "hideZero": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "dataLinks": []
-      },
-      "paceLength": 10,
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": true,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "S2D-N1 W",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Write_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Write_Bytes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "S2D-N1 R",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Write_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Read_Bytes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "S2D-N2 R",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Read_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "G",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Read_Bytes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        },
-        {
-          "alias": "S2D-N2 W",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "10s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "CSV_FS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Read_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
-          "rawQuery": false,
-          "refId": "H",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Write_Bytes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Bandwith History",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": [
-          "total"
-        ]
-      },
-      "yaxes": [
-        {
-          "format": "bytes",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "HC",
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 4
-      },
-      "id": 28,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {
-        "dataLinks": []
-      },
-      "paceLength": 10,
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Read S2D-N1",
-          "groupBy": [
-            {
-              "params": [
-                "20s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Avg._sec/Read"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ]
-        },
-        {
-          "alias": "Read S2D-N2",
-          "groupBy": [
-            {
-              "params": [
-                "20s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Avg._sec/Read"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "median"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ]
-        },
-        {
-          "alias": "Write S2D-N1",
-          "groupBy": [
-            {
-              "params": [
-                "20s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "E",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Avg._sec/Write"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ]
-        },
-        {
-          "alias": "Write S2D-N2",
-          "groupBy": [
-            {
-              "params": [
-                "20s"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "F",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Avg._sec/Write"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ]
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Latency History",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "s",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "id": 45,
+      "panels": [],
+      "title": "Cluster Overall",
+      "type": "row"
     },
     {
       "cacheTimeout": null,
-      "colorBackground": false,
-      "colorPostfix": false,
-      "colorValue": true,
-      "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
-      ],
-      "datasource": "HC",
-      "decimals": null,
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 0,
-        "y": 10
-      },
-      "id": 2,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "Read/s",
-      "postfixFontSize": "30%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Reads_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1' AND \"instance\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.IOPS.Read,Volume=S2D-N1"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Read S2D-N1",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "avg"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 2,
-        "y": 10
-      },
-      "id": 23,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "Write/S",
-      "postfixFontSize": "30%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": true,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Writes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1' AND \"instance\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.IOPS.Write,Volume=S2D-N1"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Write S2D-N1",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "decimals": 0,
-      "format": "s",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 4,
-        "y": 10
-      },
-      "id": 3,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(51, 89, 160, 0.5)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Avg._sec/Read\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1' AND \"instance\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.Latency.Read,Volume=S2D-N1"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Read Latency S2D-N1",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "decimals": null,
-      "format": "s",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 6,
-        "y": 10
-      },
-      "id": 24,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(51, 89, 160, 0.5)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Avg._sec/Write\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1' AND \"instance\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.Latency.Write,Volume=S2D-N1"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Write Latency S2D-N1",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
       "columns": [],
-      "datasource": "HC",
+      "datasource": "default",
       "fontSize": "100%",
       "gridPos": {
-        "h": 5,
-        "w": 8,
-        "x": 8,
-        "y": 10
+        "h": 10,
+        "w": 5,
+        "x": 0,
+        "y": 2
       },
-      "hideTimeOverride": true,
-      "id": 5,
+      "id": 51,
+      "interval": "4s",
       "links": [],
       "options": {},
-      "pageSize": 2,
-      "scroll": false,
+      "pageSize": null,
+      "pluginVersion": "6.4.1",
       "showHeader": true,
       "sort": {
         "col": 1,
@@ -1787,46 +91,36 @@
       },
       "styles": [
         {
-          "alias": "Time",
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "pattern": "Time",
-          "type": "hidden"
-        },
-        {
-          "alias": "Read / S",
-          "colorMode": "value",
+          "alias": "",
+          "colorMode": "row",
           "colors": [
             "rgba(50, 172, 45, 0.97)",
             "rgba(237, 129, 40, 0.89)",
             "rgba(245, 54, 54, 0.9)"
           ],
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 0,
-          "pattern": "last",
+          "decimals": 2,
+          "mappingType": 1,
+          "pattern": "Status",
           "thresholds": [
-            "1000",
-            "5000"
+            "1"
           ],
-          "type": "number",
-          "unit": "ops"
-        },
-        {
-          "alias": "Write / S",
-          "colorMode": "value",
-          "colors": [
-            "rgba(50, 172, 45, 0.97)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(245, 54, 54, 0.9)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 0,
-          "pattern": "last_1",
-          "thresholds": [
-            "1000",
-            "5000"
-          ],
-          "type": "number",
-          "unit": "ops"
+          "type": "string",
+          "unit": "short",
+          "valueMaps": [
+            {
+              "text": "Up",
+              "value": "0"
+            },
+            {
+              "text": "Down",
+              "value": "1"
+            },
+            {
+              "text": "Paused",
+              "value": "2"
+            }
+          ]
         },
         {
           "alias": "",
@@ -1836,825 +130,79 @@
             "rgba(237, 129, 40, 0.89)",
             "rgba(50, 172, 45, 0.97)"
           ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 2,
-          "pattern": "/.*/",
+          "mappingType": 1,
+          "pattern": "Time",
           "thresholds": [],
-          "type": "number",
+          "type": "hidden",
           "unit": "short"
         }
       ],
       "targets": [
         {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
           "groupBy": [
             {
               "params": [
-                "host"
+                "Name"
               ],
               "type": "tag"
             }
           ],
-          "hide": false,
-          "measurement": "win_disk",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "DESC",
+          "limit": "",
+          "measurement": "socket_listener_STATUS",
+          "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"Reads_persec_Total\"), last(\"Writes_persec_Total\") FROM \"Total_persec_Total\" GROUP BY \"host\" ORDER BY time DESC",
-          "rawQuery": true,
+          "query": "SELECT last(\"State\"),(\"StateString\") FROM \"socket_listener_STATUS\" WHERE (\"clustername\" = 'CLUSTER') GROUP BY \"host\"",
+          "rawQuery": false,
           "refId": "A",
           "resultFormat": "table",
           "select": [
             [
               {
                 "params": [
-                  "Reads_persec"
+                  "State"
                 ],
                 "type": "field"
               },
               {
                 "params": [],
                 "type": "last"
-              }
-            ],
-            [
+              },
               {
                 "params": [
-                  "Writes_persec"
+                  "Status"
                 ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
+                "type": "alias"
               }
             ]
           ],
-          "tags": [],
-          "timeField": "@timestamp"
+          "slimit": "",
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            }
+          ]
         }
       ],
-      "timeFrom": "15s",
+      "timeFrom": null,
       "timeShift": null,
-      "title": "IO per Host",
+      "title": "Cluster Node status",
       "transform": "table",
+      "transparent": true,
       "type": "table"
     },
     {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 16,
-        "y": 10
-      },
-      "id": 21,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": " Read/S",
-      "postfixFontSize": "30%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": true,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Reads_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2' AND \"instance\" = 'S2D-N2') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.IOPS.Read,Volume=S2D-N2"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Read S2D-N2",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "decimals": null,
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 18,
-        "y": 10
-      },
-      "id": 22,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": " Write/S",
-      "postfixFontSize": "30%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(51, 89, 160, 0.5)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Writes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2' AND \"instance\" = 'S2D-N2') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Writes_persec"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            },
-            {
-              "condition": "AND",
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Write S2D-N2",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "decimals": null,
-      "format": "s",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 20,
-        "y": 10
-      },
-      "id": 25,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(51, 89, 160, 0.5)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Avg._sec/Write\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2' AND \"instance\" = 'S2D-N2') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "MetricId",
-              "operator": "=",
-              "value": "Volume.Latency.Write,Volume=S2D-N2"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Write Latency S2D-N2",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "rgba(50, 172, 45, 0.97)",
-        "rgba(237, 129, 40, 0.89)",
-        "rgba(245, 54, 54, 0.9)"
-      ],
-      "datasource": "HC",
-      "decimals": null,
-      "format": "s",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 22,
-        "y": 10
-      },
-      "id": 26,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "options": {},
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(51, 89, 160, 0.5)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "CSV_FS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Avg._sec/Read\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2' AND \"instance\" = 'S2D-N2') ",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Avg._sec/Read"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            },
-            {
-              "condition": "AND",
-              "key": "instance",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ]
-        }
-      ],
-      "thresholds": "100000,500000",
-      "title": "Read Latency S2D-N2",
-      "type": "singlestat",
-      "valueFontSize": "50%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "datasource": "HC",
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 0,
-        "y": 15
-      },
-      "id": 6,
-      "links": [],
-      "options": {
-        "displayMode": "lcd",
-        "fieldOptions": {
-          "calcs": [
-            "last"
-          ],
-          "defaults": {
-            "decimals": null,
-            "mappings": [],
-            "max": 100,
-            "min": 0,
-            "thresholds": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 60
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ],
-            "unit": "percent"
-          },
-          "override": {},
-          "values": false
-        },
-        "orientation": "vertical"
-      },
-      "pluginVersion": "6.4.2",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "hv_cpu",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "HC",
-          "query": "SELECT last(\"Percent_Total_Run_Time\") FROM \"HC\".\"hv_cpu\" WHERE (\"host\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Percent_Total_Run_Time"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "title": "CPU S2D-N1",
-      "type": "bargauge"
-    },
-    {
-      "cacheTimeout": null,
-      "datasource": "HC",
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 4,
-        "y": 15
-      },
-      "id": 17,
-      "links": [],
-      "options": {
-        "displayMode": "lcd",
-        "fieldOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "defaults": {
-            "decimals": null,
-            "mappings": [],
-            "max": 100,
-            "min": 0,
-            "thresholds": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ],
-            "unit": "percent"
-          },
-          "override": {},
-          "values": false
-        },
-        "orientation": "vertical"
-      },
-      "pluginVersion": "6.4.2",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_CLUSTERPERF",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT last(\"Percent_Committed_Bytes_In_Use\") FROM \"win_system\" WHERE (\"host\" = 'S2D-N1') ",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N1"
-            },
-            {
-              "condition": "AND",
-              "key": "MetricId",
-              "operator": "=",
-              "value": "ClusterNode.Memory.Usage,ClusterNode=S2D-N1"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "title": "Memory S2D-N1",
-      "type": "bargauge"
-    },
-    {
       "columns": [],
-      "datasource": "HC",
+      "datasource": "default",
       "fontSize": "100%",
       "gridPos": {
-        "h": 5,
-        "w": 8,
-        "x": 8,
-        "y": 15
+        "h": 10,
+        "w": 6,
+        "x": 7,
+        "y": 2
       },
       "hideTimeOverride": false,
       "id": 30,
@@ -2665,7 +213,7 @@
       "showHeader": true,
       "sort": {
         "col": 1,
-        "desc": true
+        "desc": false
       },
       "styles": [
         {
@@ -2754,20 +302,20 @@
           ]
         },
         {
-          "alias": "Used Space",
+          "alias": "Free Space",
           "colorMode": "value",
           "colors": [
-            "rgba(50, 172, 45, 0.97)",
+            "rgba(245, 54, 54, 0.9)",
             "rgba(237, 129, 40, 0.89)",
-            "rgba(245, 54, 54, 0.9)"
+            "rgba(50, 172, 45, 0.97)"
           ],
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 1,
           "mappingType": 1,
           "pattern": "last_2",
           "thresholds": [
-            "50",
-            "80"
+            "20",
+            "10"
           ],
           "type": "number",
           "unit": "percent"
@@ -2800,7 +348,7 @@
           "measurement": "socket_listener_PS",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"StorageEfficiency\"), last(\"HealthNum\"), 100- last(\"PercentFree\") FROM \"socket_listener_PS\" WHERE $timeFilter GROUP BY \"FriendlyName\"",
+          "query": "SELECT last(\"StorageEfficiency\"), last(\"HealthNum\"), last(\"PercentFree\") FROM \"socket_listener_PS\" WHERE (\"clustername\" =~ /^$Cluster$/) AND $timeFilter GROUP BY \"FriendlyName\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "table",
@@ -2842,131 +390,41 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            }
+          ]
         }
       ],
       "timeFrom": "20s",
       "timeShift": null,
       "title": "Status Volumes",
       "transform": "table",
+      "transparent": true,
       "type": "table"
     },
     {
-      "cacheTimeout": null,
-      "datasource": "HC",
+      "datasource": "default",
       "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 16,
-        "y": 15
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 2
       },
-      "id": 7,
+      "id": 28,
       "links": [],
       "options": {
-        "displayMode": "lcd",
+        "displayMode": "gradient",
         "fieldOptions": {
           "calcs": [
             "last"
           ],
           "defaults": {
-            "decimals": null,
             "mappings": [],
-            "max": 100,
-            "min": 0,
-            "thresholds": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 49.9988
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ],
-            "unit": "percent"
-          },
-          "override": {},
-          "values": false
-        },
-        "orientation": "vertical"
-      },
-      "pluginVersion": "6.4.2",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "dsType": "influxdb",
-          "groupBy": [],
-          "measurement": "hv_cpu",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Percent_Total_Run_Time"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "host",
-              "operator": "=",
-              "value": "S2D-N2"
-            }
-          ],
-          "timeField": "@timestamp"
-        }
-      ],
-      "title": "CPU  S2D-N2",
-      "type": "bargauge"
-    },
-    {
-      "cacheTimeout": null,
-      "datasource": "HC",
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 20,
-        "y": 15
-      },
-      "id": 18,
-      "links": [],
-      "options": {
-        "displayMode": "lcd",
-        "fieldOptions": {
-          "calcs": [
-            "last"
-          ],
-          "defaults": {
-            "decimals": null,
-            "mappings": [],
-            "max": 100,
+            "max": 0.05,
             "min": 0,
             "thresholds": [
               {
@@ -2975,23 +433,170 @@
               },
               {
                 "color": "#EAB839",
-                "value": 49.9983
+                "value": 0.02
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 0.05
               }
             ],
-            "unit": "percent"
+            "unit": "s"
           },
           "override": {},
           "values": false
         },
-        "orientation": "vertical"
+        "orientation": "horizontal"
       },
-      "pluginVersion": "6.4.2",
+      "pluginVersion": "6.4.1",
       "targets": [
         {
+          "alias": "Read",
+          "groupBy": [
+            {
+              "params": [
+                "host"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Avg._sec/Read"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        },
+        {
+          "alias": "Write",
+          "groupBy": [
+            {
+              "params": [
+                "host"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "F",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Avg._sec/Write"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Current Host Latency",
+      "transparent": true,
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 43,
+      "panels": [],
+      "title": "CSV Performance",
+      "type": "row"
+    },
+    {
+      "aliasColors": {
+        "Write": "semi-dark-green"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "default",
+      "fill": 1,
+      "fillGradient": 2,
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 13
+      },
+      "id": 1,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "paceLength": 10,
+      "percentage": false,
+      "pluginVersion": "6.4.1",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "",
           "bucketAggs": [
             {
               "field": "@timestamp",
@@ -3008,18 +613,12 @@
           "groupBy": [
             {
               "params": [
-                "$__interval"
+                "host"
               ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
+              "type": "tag"
             }
           ],
-          "measurement": "win_system",
+          "measurement": "CSV_FS",
           "metrics": [
             {
               "field": "select field",
@@ -3029,15 +628,242 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT last(\"Percent_Committed_Bytes_In_Use\") FROM \"win_system\" WHERE (\"host\" = 'S2D-N2')",
-          "rawQuery": true,
+          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Read,Volume=S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
+          "rawQuery": false,
           "refId": "A",
           "resultFormat": "time_series",
           "select": [
             [
               {
                 "params": [
-                  "Percent_Committed_Bytes_In_Use"
+                  "Reads_persec"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": 0,
+                "trimEdges": 0
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "dsType": "influxdb",
+          "groupBy": [
+            {
+              "params": [
+                "host"
+              ],
+              "type": "tag"
+            }
+          ],
+          "hide": false,
+          "measurement": "CSV_FS",
+          "metrics": [
+            {
+              "field": "select field",
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"Value\") FROM \"socket_listener_CLUSTERPERF\" WHERE (\"MetricId\" = 'Volume.IOPS.Write,Volume=S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
+          "rawQuery": false,
+          "refId": "H",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Writes_persec"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ],
+          "timeField": "@timestamp"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "IO History",
+      "tooltip": {
+        "shared": true,
+        "sort": 2,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": [
+          "total"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "iops",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "default",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 13
+      },
+      "id": 31,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "connected",
+      "options": {
+        "dataLinks": []
+      },
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
+      "targets": [
+        {
+          "alias": "write",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": 0,
+                "trimEdges": 0
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "dsType": "influxdb",
+          "groupBy": [
+            {
+              "params": [
+                "10s"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "host"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "0"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "measurement": "CSV_FS",
+          "metrics": [
+            {
+              "field": "select field",
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"Write_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N1') AND $timeFilter GROUP BY time(10s) fill(0)",
+          "rawQuery": false,
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Write_Bytes_persec"
                 ],
                 "type": "field"
               },
@@ -3049,23 +875,658 @@
           ],
           "tags": [
             {
-              "key": "host",
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
               "operator": "=",
-              "value": "S2D-N2"
+              "value": "_Total"
+            }
+          ],
+          "timeField": "@timestamp"
+        },
+        {
+          "alias": "read",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": 0,
+                "trimEdges": 0
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "dsType": "influxdb",
+          "groupBy": [
+            {
+              "params": [
+                "10s"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "host"
+              ],
+              "type": "tag"
+            },
+            {
+              "params": [
+                "0"
+              ],
+              "type": "fill"
+            }
+          ],
+          "hide": false,
+          "measurement": "CSV_FS",
+          "metrics": [
+            {
+              "field": "select field",
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT last(\"Write_Bytes_persec\") FROM \"CSV_FS\" WHERE (\"host\" = 'S2D-N2') AND $timeFilter GROUP BY time(10s) fill(0)",
+          "rawQuery": false,
+          "refId": "B",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Read_Bytes_persec"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
             }
           ],
           "timeField": "@timestamp"
         }
       ],
-      "title": "Memory S2D-N2",
-      "type": "bargauge"
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "CSV Bandwith History",
+      "tooltip": {
+        "shared": true,
+        "sort": 2,
+        "value_type": "individual"
+      },
+      "transparent": true,
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": [
+          "total"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "bytes",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "rgba(50, 172, 45, 0.97)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(245, 54, 54, 0.9)"
+      ],
+      "datasource": "default",
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 16,
+        "y": 13
+      },
+      "id": 21,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": " Read/S",
+      "postfixFontSize": "30%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": true,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Reads_persec"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        }
+      ],
+      "thresholds": "100000,500000",
+      "title": "Read",
+      "type": "singlestat",
+      "valueFontSize": "50%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "rgba(50, 172, 45, 0.97)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(245, 54, 54, 0.9)"
+      ],
+      "datasource": "default",
+      "decimals": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 18,
+        "y": 13
+      },
+      "id": 22,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": " Write/S",
+      "postfixFontSize": "30%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(51, 89, 160, 0.5)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Writes_persec"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        }
+      ],
+      "thresholds": "100000,500000",
+      "title": "Write",
+      "type": "singlestat",
+      "valueFontSize": "50%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "rgba(50, 172, 45, 0.97)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(245, 54, 54, 0.9)"
+      ],
+      "datasource": "default",
+      "decimals": null,
+      "format": "s",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 20,
+        "y": 13
+      },
+      "id": 25,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(51, 89, 160, 0.5)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Avg._sec/Write"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        }
+      ],
+      "thresholds": "100000,500000",
+      "title": "Write Latency S2D-N2",
+      "type": "singlestat",
+      "valueFontSize": "50%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "rgba(50, 172, 45, 0.97)",
+        "rgba(237, 129, 40, 0.89)",
+        "rgba(245, 54, 54, 0.9)"
+      ],
+      "datasource": "default",
+      "decimals": null,
+      "format": "s",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 22,
+        "y": 13
+      },
+      "id": 26,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "options": {},
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(51, 89, 160, 0.5)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "$__interval"
+              ],
+              "type": "time"
+            },
+            {
+              "params": [
+                "null"
+              ],
+              "type": "fill"
+            }
+          ],
+          "measurement": "CSV_FS",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "Avg._sec/Read"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "last"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=",
+              "value": "_Total"
+            }
+          ]
+        }
+      ],
+      "thresholds": "100000,500000",
+      "title": "Read Latency S2D-N2",
+      "type": "singlestat",
+      "valueFontSize": "50%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 47,
+      "panels": [],
+      "title": "VM performance",
+      "type": "row"
     },
     {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "HC",
+      "datasource": "default",
       "fill": 1,
       "fillGradient": 5,
       "gridPos": {
@@ -3100,7 +1561,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "Vol S2D-N1",
+          "alias": "",
           "groupBy": [
             {
               "params": [
@@ -3110,9 +1571,9 @@
             },
             {
               "params": [
-                "null"
+                "Mountpoint"
               ],
-              "type": "fill"
+              "type": "tag"
             }
           ],
           "measurement": "socket_listener_QOS",
@@ -3130,58 +1591,15 @@
               },
               {
                 "params": [],
-                "type": "mean"
+                "type": "sum"
               }
             ]
           ],
           "tags": [
             {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ]
-        },
-        {
-          "alias": "Vol S2D-N2",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_QOS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "IOPS"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N2"
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
             }
           ]
         }
@@ -3232,7 +1650,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "HC",
+      "datasource": "default",
       "fill": 1,
       "fillGradient": 5,
       "gridPos": {
@@ -3267,13 +1685,19 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "Vol S2D-N1",
+          "alias": "",
           "groupBy": [
             {
               "params": [
                 "$__interval"
               ],
               "type": "time"
+            },
+            {
+              "params": [
+                "Mountpoint"
+              ],
+              "type": "tag"
             },
             {
               "params": [
@@ -3297,58 +1721,15 @@
               },
               {
                 "params": [],
-                "type": "mean"
+                "type": "sum"
               }
             ]
           ],
           "tags": [
             {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ]
-        },
-        {
-          "alias": "Vol S2D-N2",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_QOS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Bandwidth"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N2"
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
             }
           ]
         }
@@ -3400,7 +1781,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "HC",
+      "datasource": "default",
       "fill": 1,
       "fillGradient": 5,
       "gridPos": {
@@ -3435,13 +1816,19 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "Vol S2D-N1",
+          "alias": "",
           "groupBy": [
             {
               "params": [
                 "$__interval"
               ],
               "type": "time"
+            },
+            {
+              "params": [
+                "Mountpoint"
+              ],
+              "type": "tag"
             },
             {
               "params": [
@@ -3471,52 +1858,9 @@
           ],
           "tags": [
             {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N1"
-            }
-          ]
-        },
-        {
-          "alias": "Vol S2D-N2",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "socket_listener_QOS",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "Latency"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "Mountpoint",
-              "operator": "=",
-              "value": "S2D-N2"
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
             }
           ]
         }
@@ -3563,14 +1907,28 @@
       }
     },
     {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "id": 49,
+      "panels": [],
+      "title": "S2D health",
+      "type": "row"
+    },
+    {
       "columns": [],
-      "datasource": "HC",
+      "datasource": "default",
       "fontSize": "100%",
       "gridPos": {
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 29
       },
       "hideTimeOverride": false,
       "id": 33,
@@ -3623,18 +1981,6 @@
       ],
       "targets": [
         {
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
           "groupBy": [
             {
               "params": [
@@ -3644,18 +1990,11 @@
             }
           ],
           "measurement": "socket_listener_JOBS",
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
           "orderByTime": "ASC",
-          "policy": "HC",
-          "query": "SELECT last(\"PercentComplete\") FROM \"HC\".\"socket_listener_JOBS\" WHERE $timeFilter AND  \"PercentComplete\" < 100 GROUP BY \"name\" ",
+          "policy": "default",
+          "query": "SELECT last(\"PercentComplete\") FROM \"socket_listener_JOBS\" WHERE $timeFilter AND  (\"clustername\" =~ /^$Cluster$/) AND \"PercentComplete\" < 100 GROUP BY \"name\"",
           "rawQuery": true,
-          "refId": "A",
+          "refId": "B",
           "resultFormat": "table",
           "select": [
             [
@@ -3664,137 +2003,28 @@
                   "PercentComplete"
                 ],
                 "type": "field"
-              }
-            ]
-          ],
-          "tags": [],
-          "timeField": "@timestamp"
-        }
-      ],
-      "timeFrom": "20s",
-      "timeShift": null,
-      "title": "Storage Jobs",
-      "transform": "table",
-      "type": "table"
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "HC",
-      "fill": 1,
-      "fillGradient": 5,
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 34
-      },
-      "id": 43,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "$tag_InitiatorName",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT \"StorageNodeIOPs\" FROM \"socket_listener_VMQOS\" WHERE $timeFilter GROUP BY \"InitiatorName\"",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
               },
               {
                 "params": [],
-                "type": "mean"
+                "type": "last"
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "clustername",
+              "operator": "=~",
+              "value": "/^$Cluster$/"
+            }
+          ]
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
-      "title": "VM IOPS",
-      "tooltip": {
-        "shared": true,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "iops",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "title": "Storage Jobs",
+      "transform": "table",
+      "transparent": true,
+      "type": "table"
     }
   ],
   "refresh": "5s",
@@ -3807,7 +2037,34 @@
     "S2D"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "tags": [],
+          "text": "ClUSTER",
+          "value": "CLUSTER"
+        },
+        "datasource": "default",
+        "definition": "SHOW TAG VALUES FROM \"CSV_FS\" WITH KEY = \"clustername\"",
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "Cluster",
+        "options": [],
+        "query": "SHOW TAG VALUES FROM \"CSV_FS\" WITH KEY = \"clustername\"",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
   },
   "time": {
     "from": "now-15m",
@@ -3841,5 +2098,5 @@
   "timezone": "",
   "title": "S2D",
   "uid": "000000022",
-  "version": 59
+  "version": 91
 }
