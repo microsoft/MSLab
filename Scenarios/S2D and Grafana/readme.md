@@ -178,7 +178,9 @@ Add Datasource
 
 After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20Grafana/dashboard.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDatabase.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard01.png)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard02.png)
 
 Unfortunately IOPS are not collected as for some reason CSVFS counter does not provide anything (further investigation needed)
 
