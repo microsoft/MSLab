@@ -286,7 +286,7 @@
  
 #endregion
 
-#region Add Computer to InfluxDB rule, to authorize access to Influx Database
+#region Add computer to InfluxDB rule to authorize access to Influx DB Database
     foreach ($server in $InfluxDBAuthorizedServers){
         #grab SID
         $SID=(Get-ADComputer -Identity $server).SID.Value
