@@ -164,7 +164,7 @@ You can log in with LabAdmin\LS1setup! as LDAP authorization is enabled
 
 You might want to cleanup default admin (Settings->Users)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Users.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaUsers.png)
 
 Add Datasource
 
