@@ -33,7 +33,7 @@
       "id": 53,
       "panels": [
         {
-          "content": "\n# TO DO\n\n- CSV chache\n- RDMA statistics (conn errors)\n- Network bandwidth treba\n\n\n\n",
+          "content": "\n# TO DO\n\n- CSV chache\n- RDMA statistics (conn errors)\n- Network bandwidth\n\n\n\n",
           "datasource": null,
           "gridPos": {
             "h": 5,
