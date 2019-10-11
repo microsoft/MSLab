@@ -29,6 +29,10 @@ Since Grafana and Influx DB uses certificates, instead of creating Certification
 
 As prerequisite, deploy [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged) just to have some data to play with. $realVMs=$true in Labconfig to have real virtual machines that provide workload. You can also consider loading some workload using [S2D and Diskspd scenario](/Scenarios/S2D%20and%20Diskspd)
 
+Big thanks to https://twitter.com/Vecteurinfo who provided telegraf.conf and telegraf.ps1 together with his [dashboard](https://twitter.com/Vecteurinfo/status/1116386589389856770?s=20) that was later modified by Martin Rasendorfer to be universal and to be able to switch between clusters.
+
+Further improvements welcomed - feel free to pull request!
+
 ## LabConfig
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/VMs.png)
