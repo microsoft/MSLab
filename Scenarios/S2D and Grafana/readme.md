@@ -55,7 +55,7 @@ $LabConfig.VMs += @{ VMName = 'InfluxDB' ; Configuration = 's2d' ; ParentVHD = '
 
 ## The lab
 
-Follow the Scenario.ps1. Run all code from DC (or Management machine).
+Follow the code in [Scenario.ps1](/Scenarios/S2D%20and%20Grafana/Scenario.ps1). Run all code from DC (or Management machine).
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/Scenario.png)
 
@@ -168,13 +168,13 @@ You might want to cleanup default admin (Settings->Users)
 
 Add Datasource
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource01.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource01.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource02.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource02.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource03.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource03.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource04.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource04.png)
 
 After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20Grafana/dashboard.json)
 
