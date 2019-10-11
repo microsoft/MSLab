@@ -164,13 +164,13 @@ You might want to cleanup default admin (Settings->Users)
 
 Add Datasource
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDataSource01.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource01.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDataSource02.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource02.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDataSource03.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource03.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDataSource04.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/AddDatasource04.png)
 
 After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20Grafana/dashboard.json)
 
