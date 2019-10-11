@@ -107,7 +107,7 @@ Services are configured to start using NSSM. Influx DB has parameter of the conf
 
 Account specified in variables is created together with group GrafanaAdmins and added to C:\Program Files\Grafana\conf\ldap.toml. 
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/LDAPToml.png)
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/LDAPtoml.png)
 
 ### Region Secure communication with IPSec
 
