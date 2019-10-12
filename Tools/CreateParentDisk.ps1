@@ -140,7 +140,7 @@
             }
 
             #Generate vhdx name
-            if (($Edition -like "*Server*Core*") -or ($Edition -eq "Windows Server 2016 Datacenter")-or ($Edition -eq "Windows Server 2016 Standard")){
+            if (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
                 $tempvhdname = switch ($BuildNumber){
                     7600 {
                         "Win2008R2Core_G1.vhdx"

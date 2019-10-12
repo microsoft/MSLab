@@ -905,7 +905,15 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted "Looking for Tools Parent Disks"
         $toolsparent=Get-ChildItem "$PSScriptRoot\ParentDisks" -Recurse | Where-Object name -eq tools.vhdx
         if ($toolsparent -eq $null){
-            WriteErrorAndExit "`t Tools parent disk not found"
+            WriteInfo "`t Tools parent disk not found. Will create one."
+            WriteInfoHighlighted "Creating Tools.vhdx"
+            $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+            #mount and format VHD
+                $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
+                $vhddisk = $VHDMount| get-disk 
+                $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
+            #dismount VHD
+                Dismount-VHD $vhddisk.Number
         }else{
             WriteInfo "`t Tools parent disk $($toolsparent.fullname) found"
         }
