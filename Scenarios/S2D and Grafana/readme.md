@@ -182,6 +182,6 @@ After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard02.png)
 
-Unfortunately IOPS are not collected as for some reason CSVFS counter does not provide anything (further investigation needed)
+As you can see, virtualized system is not performing much. But for validating counters in Grafana it's more than enough.
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaDashboard.png)
