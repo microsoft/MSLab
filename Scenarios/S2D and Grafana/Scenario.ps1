@@ -359,7 +359,7 @@
     foreach ($Cluster in $Clusters){
         $servers=(Get-ClusterNode -Cluster $Cluster).Name
         #replace telegraf conf and drop posh script
-        Invoke-command -Session $sessions -ScriptBlock {
+        Invoke-command -ComputerName $servers -ScriptBlock {
             Stop-Service Telegraf
             $config=$using:config
             $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
