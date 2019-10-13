@@ -347,6 +347,27 @@
             Start-Service Telegraf
         }
     }
+
+    #Example - Just replace telegraf conf on already deployed nodes
+    <#
+    $clusters=@("S2D-Cluster")
+    $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
+    $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
+    $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
+    $config=$config.content.substring(1).replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL) #| Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
+
+    foreach ($Cluster in $Clusters){
+        $servers=(Get-ClusterNode -Cluster $Cluster).Name
+        #replace telegraf conf and drop posh script
+        Invoke-command -Session $sessions -ScriptBlock {
+            Stop-Service Telegraf
+            $config=$using:config
+            $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
+            $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
+            Start-Service Telegraf
+        }
+    }
+    #>
  
 #endregion
 
