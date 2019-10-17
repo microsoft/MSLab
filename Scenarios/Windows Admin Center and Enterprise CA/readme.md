@@ -564,7 +564,7 @@ $Password = "LS1setup!"
 
 #make sure PSPKI is installed
     if (-not (Get-Module PSPKI)){
-        Install-PackageProvider -Name NuGet -Force
+        Install-PackageProvider -Name NuGet -Forcet
         Install-Module -Name PSPKI -Force
         If ((Get-ExecutionPolicy) -eq "restricted"){
             Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
