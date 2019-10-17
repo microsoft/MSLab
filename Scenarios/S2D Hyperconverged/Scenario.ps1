@@ -37,8 +37,19 @@ Write-host "Script started at $StartDateTime"
 
     ## Networking ##
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
+
+        $NumberOfStorageNets=1 #1 or 2
+
+        #IF Stornet is 1
         $StorNet="172.16.1."
         $StorVLAN=1
+
+        #IF Stornets are 2
+        $StorNet1="172.16.1."
+        $StorNet2="172.16.2."
+        $StorVLAN1=1
+        $StorVLAN2=2
+
         $SRIOV=$true #Deploy SR-IOV enabled switch (best practice is to enable if possible)
 
     #start IP for storage network
@@ -150,7 +161,7 @@ Write-host "Script started at $StartDateTime"
                     Start-Sleep 3
                     Exit
                 }
-            }elseif((get-command -Module Hyper-V) -eq $null){
+            }elseif((Get-command -Module Hyper-V) -eq $null){
                 $Q=Read-Host -Prompt "Restart is needed to load Hyper-V Management. Do you want to restart now? Y/N"
                 If ($Q -eq "Y"){
                     Write-Host "Restarting Computer"
@@ -322,18 +333,31 @@ Write-host "Script started at $StartDateTime"
             Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName SETSwitch -Cimsession $_
 
             #configure IP Addresses
-            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
-            $IP++
-            New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
-            $IP++
+            If ($NumberOfStorageNets -eq 1){
+                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+                $IP++
+                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+                $IP++
+            }
+
+            If($NumberOfStorageNets -eq 2){
+                New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+                New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+                $IP++
+            }
         }
 
         Start-Sleep 5
         Clear-DnsClientCache
 
         #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+            If ($NumberOfStorageNets -eq 1){
+                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+            }else{
+                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
+                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
+            }
 
         #Restart each host vNIC adapter so that the Vlan is active.
             Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
@@ -437,7 +461,7 @@ Write-host "Script started at $StartDateTime"
         if (Get-PhysicalDisk -cimsession $servers | Where-Object bustype -eq SCM){
             #disable CSV cache if SCM storage is used
             (Get-Cluster $ClusterName).BlockCacheSize = 0
-        }elseif ((Invoke-Command -ComputerName $ClusterName -ScriptBlock {(get-wmiobject win32_computersystem).Model}) -eq "Virtual Machine"){
+        }elseif ((Invoke-Command -ComputerName $servers[0] -ScriptBlock {(get-wmiobject win32_computersystem).Model}) -eq "Virtual Machine"){
             #disable CSV cache for virtual environments
             (Get-Cluster $ClusterName).BlockCacheSize = 0
         }
@@ -736,7 +760,8 @@ Write-host "Script started at $StartDateTime"
 #endregion
 
 #region move VMQ out of CPU 0 and set correct BaseProcessorNumber based on NUMA for every pNIC in external vSwitch.
-#more info: https://techcommunity.microsoft.com/t5/Networking-Blog/Synthetic-Accelerations-in-a-Nutshell-Windows-Server-2012/ba-p/447792
+#not necessary needed as if dVMMQ in 2019 works well, it will move out CPU0 if CPU0 is utilized.
+#more info: https://techcommunity.microsoft.com/t5/Networking-Blog/Synthetic-Accelerations-in-a-Nutshell-Windows-Server-2019/ba-p/653976
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 

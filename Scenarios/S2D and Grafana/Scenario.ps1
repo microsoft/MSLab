@@ -646,7 +646,6 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
 #endregion
 
 #region Secure LDAP to use SSL and Configure Grafana Certificate
-        $DomainDN=(Get-ADDomain).DistinguishedName
         #download OpenSSL and transfer to GrafanaServer
         $ProgressPreference='SilentlyContinue' #for faster download
         Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/openssl-1.0.2t-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
