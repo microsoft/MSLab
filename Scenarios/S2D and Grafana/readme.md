@@ -113,7 +113,7 @@ Then Autoenrollment policy is configured and certutil pulse is ran to refresh ce
 
 ### Region Reload AD SSL Certificate
 
-This piece of code just makes sure LDAPs is running on port 636 and is using certificate from local store (automatically picked).
+This piece of code just makes sure LDAPs is running on port 636 and is using certificate from local store (automatically picked). https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/4cf26e43-ae0b-4823-b00c-18205ab78065?redirectedfrom=MSDN
 
 You can use LDP.exe to validate. On my computer it asked for pin when succeeded.
 

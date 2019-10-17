@@ -565,11 +565,11 @@ If (!( $isAdmin )) {
 
                 )
 
-                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "2.19.0.0"
-                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.11.0.0"
-                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "6.0.0.0"
+                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "3.0.0.0"
+                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.15.0.0"
+                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "7.4.0.0"
                 Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "2.0.0.0"
-                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.4.0.0"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.10.0.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
