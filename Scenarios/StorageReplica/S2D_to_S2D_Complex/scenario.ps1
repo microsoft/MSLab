@@ -298,8 +298,8 @@ Write-host "Script started at $StartDateTime"
                 foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
             }
         ##Configure QoS
-            New-NetQosPolicy "SMB"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
-            New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
+            New-NetQosPolicy "SMBDirect" -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+            New-NetQosPolicy "Cluster"   -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
             New-NetQosPolicy "Default"   -Default                         -PriorityValue8021Action 0 -CimSession $servers
 
         #Turn on Flow Control for SMB
@@ -330,8 +330,8 @@ Write-host "Script started at $StartDateTime"
         #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
         #This value needs to match physical switch configuration. Value might vary based on your needs.
         #If connected directly (in 2 node configuration) skip this step.
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 7 -BandwidthPercentage 1  -Algorithm ETS}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMBDirect" -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "Cluster"   -Priority 7 -BandwidthPercentage 1  -Algorithm ETS}
     }
 
     #enable iWARP firewall rule if requested
