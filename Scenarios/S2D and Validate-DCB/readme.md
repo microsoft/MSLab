@@ -125,19 +125,23 @@ Validate-DCB
  
 ```
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI01.png)
+52 errors are expected as these are just VMs. Validate-DCB will fail testing NICs for DCB and also NICs model (should be Cavium, Mellanox...)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI02.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI01.png)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI03.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI01.png)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI04.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI02.png)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI05.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI03.png)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI06.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI04.png)
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_TestResult.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI05.png)
+
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI06.png)
+
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_TestResult.png)
 
 ### Running Validate-DCB - PowerShell
 
