@@ -99,7 +99,7 @@ If Pester and NuGet are installed, Install-Module Validate-DCB will endup with e
 
 Just running Validate-DCB will check prereqs and after that, wizard will pop up.
 
-[](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI01.png)!
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_UI01.png)
 
 If you fill all data and click Export, you will see several errors indicating, that you miss prerequisites.
 
