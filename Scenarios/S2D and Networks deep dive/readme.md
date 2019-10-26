@@ -57,13 +57,13 @@ $LabConfig.VMs += @{ VMName = '6NICs2' ; Configuration = 'Simple' ; ParentVHD = 
 
 This lab is deep dive into different network configurations. There are several options I saw in the field. I would categorize it into 2 main options:
 
-* **Converged** - 2 pNICs in SET Switch, 2 vNICs for SMB (RDMA enabled), 1vNIC for management.
+* **Converged** - 2 pNICs in SET Switch, 2 vNICs for SMB (RDMA enabled), 1vNIC for management. One Subnet for east-west
 
-* **Traditional** - 2 pNICs for SMB, 2 pNICs in SET switch, 1vNIC for managemement.
+* **Traditional** - 2 pNICs for SMB, 2 pNICs in SET switch, 1vNIC for managemement. Two subnets for east-west
 
-* **Conservative** - 2pNICs in Team for management, 2pNICs for SMB, 2pNICs in SET switch
+* **Conservative** - 2pNICs in SET for management, 2pNICs for SMB, 2pNICs in SET switch. Two subnets for east-west
 
-For each option are 2 servers hydrated, so multi-server management can be demonstrated.
+For each option are 2 servers hydrated, so multi-server management can be demonstrated. Every configuration is bit more complex than the one before demonstrating diffent options for deployment
 
 Run all scripts from DC or management machine.
 
@@ -152,7 +152,7 @@ Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName SETSwitch -CimSession
  
 ```
 
-Let's configure static IP addresses now
+Let's configure static IP addresses now with one subnet.
 
 ```PowerShell
 $StorNet="172.16.1."
@@ -216,13 +216,13 @@ $servers="2NICs1","2NICs2"
 
 ## Traditional networking
 
-With traditional networking, let's pick 2 last adapters and let's rename it to SMB01 and SMB02.
+With traditional networking, let's pick 2 even adapters and let's rename it to SMB01 and SMB02 (like Nic1 Port 2 and NIC2 Port 2). In this example we will sort NICs by MAC Address and choosing Index 1 and 3 for SMB Adapters and Index 0 and 2 for SETSwitch.
 
 ```PowerShell
 $servers="4NICs1","4NICs2"
 foreach ($server in $servers){
     $number=1
-    $SMBNics=get-netadapter -CimSession $server | sort name  | select -Last 2
+    $SMBNics=get-netadapter -CimSession $server | sort macaddress | Select-Object -Index 1,3
     foreach ($SMBNIC in $SMBNics) {
         $SMBNic | Rename-NetAdapter -NewName "SMB0$number"
         $number++
@@ -231,17 +231,17 @@ foreach ($server in $servers){
  
 ```
 
-The next step would be to configure static IP addresses on SMB01 and SMB02 adapters.
+The next step would be to configure static IP addresses on SMB01 and SMB02 adapters. Now we will demonstrate two different subnets.
 
 ```PowerShell
-$StorNet="172.16.1."
+$StorNet1="172.16.1."
+$Stornet2="172.16.2."
 $IP=5
 $servers="4NICs1","4NICs2"
 $servers | foreach-object {
     #configure IP Addresses
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
-    $IP++
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
     $IP++
 }
  
@@ -250,10 +250,11 @@ $servers | foreach-object {
 It is also convenient to configure VLAN. To do so, run following command
 
 ```PowerShell
-$StorVLAN=1
+$StorVLAN1=1
+$StorVLAN2=2
 $servers="4NICs1","4NICs2"
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB01 -CimSession $servers -confirm:0
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB02 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN1 -InterfaceAlias SMB01 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN2 -InterfaceAlias SMB02 -CimSession $servers -confirm:0
 
 #Restart each host vNIC adapter so that the Vlan is active.
 Restart-NetAdapter "SMB01" -CimSession $servers
@@ -261,12 +262,18 @@ Restart-NetAdapter "SMB02" -CimSession $servers
  
 ```
 
-The last step would be to configure virtual switch. This step is almost the same as in converged setup.
+The last step would be to configure virtual switch. This step is almost the same as in converged setup. Let's demonstrate creating SET with one NIC only and then adding second one (to use specific adapters MAC and IP address). 
 
 ```PowerShell
 $servers="4NICs1","4NICs2"
 #create SET Switch
-Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -Index 0).InterfaceAlias
+}
+#add second NIC to SETSwitch
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Add-VMSwitchTeamMember -VMSwitchName SETSwitch -NetAdapterName (Get-NetAdapter | Sort-Object macaddress | Select-Object -Index 3).InterfaceAlias
+}
 #configure hyperVport
 Invoke-Command -ComputerName $servers -scriptblock {
     if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
@@ -280,27 +287,26 @@ Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Mgmt -ComputerNam
 
 ## Conservative networking
 
-I did not see this configuration in the field much, but let's cover it too, to demonstrate LBFO teaming and creating SETSwitch without vNICs in ManagementOS.
+I did not see this configuration in the field much, but let's cover it too, to separate team for Management (in case you need to have physically separated networks).
 
-LBFO is still supported, but we **don't recommend it since future is SET**. Consider this scenario to as example for Academic discussion :). 
-
-So the first step would be to create LBFO team out of first 2 network adapters. In this example it's easy as DHCP is enabled in the management network. In real world environments LBFO teaming is bit more complicated as it does not inherit network configuration from teamed adapter. I also see, that customers sometimes prefer LACP.
+First we will create vSwitch for management
 
 ```PowerShell
 $servers="6NICs1","6NICs2"
+#create MGMT vSwitch
 Invoke-Command -ComputerName $servers -ScriptBlock {
-    $AdaptersToTeam=Get-Netadapter | sort name  | select -First 2
-    New-NetLbfoTeam -TeamMembers ($AdaptersToTeam).Name -Name Management -TeamNicName Management -TeamingMode SwitchIndependent -LoadBalancingAlgorithm Dynamic -Confirm:0
+    New-VMSwitch -Name MGMTSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -last 2).InterfaceAlias
 }
- 
-```
 
-To validate networking run following script
+#configure hyperVport
+Invoke-Command -ComputerName $servers -scriptblock {
+    if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
+        Set-VMSwitchTeam -Name MGMTSwitch -LoadBalancingAlgorithm HyperVPort
+    }
+}
 
-```PowerShell
-$servers="6NICs1","6NICs2"
-Get-NetLbfoTeam -CimSession $servers
-Get-NetAdapter -CimSession $servers
+#Rename management vNIC
+Rename-VMNetworkAdapter -ManagementOS -Name MGMTSwitch -NewName Mgmt -ComputerName $servers
  
 ```
 
@@ -310,39 +316,42 @@ Next step is to configure SMB NICs
 $servers="6NICs1","6NICs2"
 foreach ($server in $servers){
     $number=1
-    $SMBNics=get-netadapter -CimSession $server | where name -like "Ethernet*" | sort name  | select -Last 2
+    $SMBNics=get-netadapter -CimSession $server | Sort-Object macaddress | Select-Object -First 4 | Select-Object -Last 2
     foreach ($SMBNIC in $SMBNics) {
         $SMBNic | Rename-NetAdapter -NewName "SMB0$number"
         $number++
     }
 }
 
-$StorNet="172.16.1."
-$IP=9
-$servers | foreach-object {
-    #configure IP Addresses
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
-    $IP++
-    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
-    $IP++
-}
-
-$StorVLAN=1
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB01 -CimSession $servers -confirm:0
-Set-NetAdapter -VlanID $StorVLAN -InterfaceAlias SMB02 -CimSession $servers -confirm:0
+$StorVLAN1=1
+$StorVLAN2=2
+Set-NetAdapter -VlanID $StorVLAN1 -InterfaceAlias SMB01 -CimSession $servers -confirm:0
+Set-NetAdapter -VlanID $StorVLAN2 -InterfaceAlias SMB02 -CimSession $servers -confirm:0
 
 #Restart each host vNIC adapter so that the Vlan is active.
 Restart-NetAdapter "SMB01" -CimSession $servers
 Restart-NetAdapter "SMB02" -CimSession $servers
  
+
+$StorNet1="172.16.1."
+$StorNet2="172.16.2."
+$IP=10
+
+$servers | foreach-object {
+    #configure IP Addresses
+    New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "SMB01" -CimSession $_ -PrefixLength 24
+    New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "SMB02" -CimSession $_ -PrefixLength 24
+    $IP++
+}
+ 
 ```
 
-And finally the last step is to create SET Switch. Notice -AllowManagementOS $False to skip MGMT NIC creation and choosing only adapters with IP 10.* and Name Ethernet* to avoid adding Team interface (Management)
+And finally the last step is to create SET Switch from last 2 NICs.
 
 ```PowerShell
 $servers="6NICs1","6NICs2"
 #create SET Switch
-Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -AllowManagementOS $false -NetAdapterName (Get-NetIPAddress -IPAddress 10.* -InterfaceAlias Ethernet*).InterfaceAlias}
+Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -AllowManagementOS $false -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -first 2).InterfaceAlias}
 #configure hyperVport
 Invoke-Command -ComputerName $servers -scriptblock {
     if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){

@@ -342,6 +342,7 @@ if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
 }
 
 #Create PS Session and copy install files to remote server
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 $Session=New-PSSession -ComputerName $GatewayServerName
 Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
 
@@ -620,6 +621,8 @@ $CSVPath="C:\ClusterStorage\VolumeWac"
 
 #generate another variables
 $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+#Increase MaxEvelope size to transfer files
+Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 $Sessions=New-PSSession -ComputerName $ClusterNodes
 $CertName=$CertificatePath | Split-Path -Leaf
 $msiname=$msipath | Split-Path -Leaf
@@ -884,6 +887,8 @@ $CSVPath="C:\ClusterStorage\VolumeWac"
 
 #generate another variables
 $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+#Increase MaxEvelope size to transfer files
+Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 $Sessions=New-PSSession -ComputerName $ClusterNodes
 $CertName=$CertificatePath | Split-Path -Leaf
 $msiname=$msipath | Split-Path -Leaf
