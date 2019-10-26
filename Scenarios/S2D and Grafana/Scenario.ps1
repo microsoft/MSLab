@@ -646,6 +646,8 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
 #endregion
 
 #region Secure LDAP to use SSL and Configure Grafana Certificate
+        #Grab DN
+        $CAcert=(Get-CertificationAuthority).certificate
         #download OpenSSL and transfer to GrafanaServer
         $ProgressPreference='SilentlyContinue' #for faster download
         Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/openssl-1.0.2t-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
@@ -659,12 +661,23 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
         Invoke-Command -ComputerName $GrafanaServerName -ScriptBlock {
             Stop-Service -Name Grafana
             #region Configure SSL for LDAP
+                #export RootCA.crt
+                $content = @(
+'-----BEGIN CERTIFICATE-----'
+[System.Convert]::ToBase64String((get-item "Cert:\LocalMachine\CA\$($using:CACert.Thumbprint)").Export("Cert"), 'InsertLineBreaks')
+'-----END CERTIFICATE-----'
+)
+                $content | Out-File -FilePath "C:\RootCA.crt" -Encoding ascii #as I did not find a way how to specify space in "C:/Program Files" in ldap.toml file
                 #load toml file
                 $tomlfilecontent=Get-Content -Path "C:\Program Files\Grafana\conf\ldap.toml"
+                #configure RootCA
+                $tomlfilecontent=$tomlfilecontent.Replace('# root_ca_cert = "/path/to/certificate.crt"','root_ca_cert = "C:/RootCA.crt"')
                 #configure port
                 $tomlfilecontent=$tomlfilecontent.Replace("port = 389","port = 636")
                 #configure SSL
                 $tomlfilecontent=$tomlfilecontent.Replace("use_ssl = false","use_ssl = true")
+                #configure disable CA validation as it root ca is not trusted even all is configured right
+                $tomlfilecontent=$tomlfilecontent.Replace("ssl_skip_verify = false","ssl_skip_verify = true")
                 #set content to Toml file
                 $tomlfilecontent | Set-Content -Path "C:\Program Files\Grafana\conf\ldap.toml"
             #endregion
