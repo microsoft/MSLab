@@ -295,7 +295,7 @@ First we will create vSwitch for management
 $servers="6NICs1","6NICs2"
 #create MGMT vSwitch
 Invoke-Command -ComputerName $servers -ScriptBlock {
-    New-VMSwitch -Name MGMTSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -First 2).InterfaceAlias
+    New-VMSwitch -Name MGMTSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -last 2).InterfaceAlias
 }
 
 #configure hyperVport
@@ -351,7 +351,7 @@ And finally the last step is to create SET Switch from last 2 NICs.
 ```PowerShell
 $servers="6NICs1","6NICs2"
 #create SET Switch
-Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -AllowManagementOS $false -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -Last 2).InterfaceAlias}
+Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -AllowManagementOS $false -NetAdapterName (get-netadapter | Sort-Object macaddress | Select-Object -first 2).InterfaceAlias}
 #configure hyperVport
 Invoke-Command -ComputerName $servers -scriptblock {
     if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
