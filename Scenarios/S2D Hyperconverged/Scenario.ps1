@@ -735,17 +735,36 @@ Write-host "Script started at $StartDateTime"
     }
 #endregion
 
-#region Create Volumes. It also depends what mix of devices you have. This example is valid for One or two tiers with HDDs. For more info https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive
- 
-    if ($numberofnodes -le 3){
-        1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD" -StorageTierSizes 2TB -CimSession $ClusterName
-            }
+#region Create Volumes to use max capacity. It also depends what mix of devices you have. For more info https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive
+
+    #calculate reserve
+    $pool=Get-StoragePool -CimSession $clustername -FriendlyName s2D*
+    $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
+    $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
+    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Sum).Sum
+    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Maximum).Maximum
+
+    $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
+    if ($numberofNodes -eq 2){
+        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
+        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
     }else{
-        1..$NumberOfDisks | ForEach-Object {
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName MirrorAcceleratedParity$_ -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD","ParityOnHDD" -StorageTierSizes 2TB,8TB -CimSession $ClusterName
-                New-Volume -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName Mirror$_                  -FileSystem CSVFS_ReFS -StorageTierFriendlyNames "MirrorOnHDD"               -StorageTierSizes 2TB     -CimSession $ClusterName
-            }
+        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
+        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
+    }
+
+    #create volumes
+    1..$numberofNodes | ForEach-Object {
+        if ($sizeofvolumeonHDDs){
+            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonHDDs -FriendlyName "MyVolumeonHDDs$_" -MediaType HDD
+        }
+        if ($sizeofvolumeonSSDs){
+            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonSSDs -FriendlyName "MyVolumeonSSDs$_" -MediaType SSD   
+        }
     }
 
     start-sleep 10
@@ -815,7 +834,7 @@ Write-host "Script started at $StartDateTime"
 #region Create some dummy VMs (3 per each CSV disk)
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
     if ($realVMs -and $VHDPath){
-        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object name -NotLike *parity*).Name
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
             $CSV=$CSV.Substring(22)
             $CSV=$CSV.TrimEnd(")")
