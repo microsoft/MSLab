@@ -104,8 +104,10 @@ Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
 #endregion
 
 #region download and deploy MMA Agent to S2D cluster nodes
-$cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
-$servers=($cluster | Get-ClusterNode).Name
+#$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
+#$servers=(Get-ClusterNode -Cluster $ClusterName).Name
+$ClusterName="S2D-Cluster"
+$servers=1..4 | ForEach-Object {"S2D$_"}
 
 #Download MMA Agent (if not yet downloaded)
 if (-not (Test-Path "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe")){
@@ -198,7 +200,7 @@ $SubscriptionID=(Get-AzContext).Subscription.ID
 $ResourceGroupName="WSLabAzureArc"
 
 #Pick Region
-$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single
+$Location=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single).Location
 if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
     New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
 }
