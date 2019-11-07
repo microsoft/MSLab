@@ -103,7 +103,6 @@ Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
 }
 #endregion
 
-
 #region download and deploy MMA Agent to S2D cluster nodes
 $cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
 $servers=($cluster | Get-ClusterNode).Name
@@ -171,9 +170,10 @@ $ProgressPreference='Continue' #return progress preference back
 #endregion
 
 #region distribute to S2D Cluster Nodes
-$cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
-$servers=($cluster | Get-ClusterNode).Name
-#$servers=1..4 | % {"S2D$_"}
+#$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
+#$servers=(Get-ClusterNode -Cluster $ClusterName).Name
+$ClusterName="S2D-Cluster"
+$servers=1..4 | ForEach-Object {"S2D$_"}
 #Copy ARC agent to nodes
 #increase max evenlope size first
 Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -187,6 +187,12 @@ foreach ($session in $sessions){
 #endregion
 
 #region Install the ARC package
+#$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
+#$servers=(Get-ClusterNode -Cluster $ClusterName).Name
+$ClusterName="S2D-Cluster"
+$servers=1..4 | ForEach-Object {"S2D$_"}
+$Tags="ClusterName=$ClusterName"
+
 $TenantID=(Get-AzContext).Tenant.ID
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $ResourceGroupName="WSLabAzureArc"
@@ -196,11 +202,6 @@ $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCom
 if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
     New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
 }
-
-$cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
-$Servers=($cluster | Get-ClusterNode).Name
-
-$Tags="ClusterName=$($Cluster.Name)"
 
 #install package
 Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -240,3 +241,5 @@ Remove-AzADServicePrincipal -DisplayName WindowsAdminCenter* -Force
 Get-AzADApplication -DisplayNameStartWith WindowsAdmin |Remove-AzADApplication -Force
  
 #>
+
+#endregion
