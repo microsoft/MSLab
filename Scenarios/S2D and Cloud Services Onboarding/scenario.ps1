@@ -20,14 +20,18 @@ if (!(get-module -Name AZ)){
  
 #endregion
 
-#region Connect to Azure and create Log Analytics workspace if needed
+#region Install Edge Beta
 
 #install edge for azure portal and authentication (if code is running from DC)
 $ProgressPreference='SilentlyContinue' #for faster download
 Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2093376" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi"
-#Install Edge Dev
+#Install Edge Beta
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi /q"
+#start Edge
+& "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
+#endregion
 
+#region Connect to Azure and create Log Analytics workspace if needed
 #Login to Azure
 If ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
 Login-AzAccount -UseDeviceAuthentication
@@ -51,7 +55,6 @@ if (-not ($Workspace)){
     }
     $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
 }
- 
 #endregion
 
 #region setup Log Analytics Gateway
@@ -64,39 +67,40 @@ Invoke-WebRequest -Uri https://download.microsoft.com/download/B/7/8/B78D4346-E2
 #Download MMA Agent
 Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -UseBasicParsing
 $ProgressPreference='Continue' #return progress preference back
-#Copy MSI to Gateway and install
 
+#Increase MaxEvenlope and create session to copy files to
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 $session=New-PSSession -ComputerName $LAGatewayName
 
-#Install MMA agent first
+#Install MMA agent first (requirement for Log Analytics Gateway)
 #copy mma agent
 Copy-Item -Path "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
 
-#install MMA
 #grab WorkspaceID
 $WorkspaceID=$Workspace.CustomerId.guid
 #Grab WorkspacePrimaryKey
 $WorkspacePrimaryKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey
 
+#install MMA agent
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
-    $ExtractFolder="$env:USERPROFILE\Downloads\SmeMMAInstaller"
+    $ExtractFolder="$env:USERPROFILE\Downloads\MMAInstaller"
     #extract MMA
     if (Test-Path $extractFolder) {
         Remove-Item $extractFolder -Force -Recurse
     }
     Start-Process -FilePath "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -ArgumentList "/c /t:$ExtractFolder" -Wait
-    Start-Process -FilePath "$ExtractFolder\Setup.exe" -ArgumentList "/qn NOAPM=1 ADD_OPINSIGHTS_WORKSPACE=1 OPINSIGHTS_WORKSPACE_AZURE_CLOUD_TYPE=0 OPINSIGHTS_WORKSPACE_ID=`"$using:workspaceId`" OPINSIGHTS_WORKSPACE_KEY=`"$using:workspacePrimaryKey`" AcceptEndUserLicenseAgreement=1" -Wait
+    Start-Process -FilePath "$ExtractFolder\Setup.exe" -ArgumentList "/qn NOAPM=1 ADD_OPINSIGHTS_WORKSPACE=1 OPINSIGHTS_WORKSPACE_AZURE_CLOUD_TYPE=0 OPINSIGHTS_WORKSPACE_ID=$using:workspaceId OPINSIGHTS_WORKSPACE_KEY=$using:workspacePrimaryKey AcceptEndUserLicenseAgreement=1" -Wait
 }
+#you can now validate if your MMA agent communicates https://docs.microsoft.com/en-us/azure/azure-monitor/platform/agent-windows#verify-agent-connectivity-to-log-analytics
 
 #install Log Analytics Gateway
+#copy msi
 Copy-Item -Path "$env:USERPROFILE\Downloads\OMSGateway.msi" -Destination "$env:USERPROFILE\Downloads\OMSGateway.msi" -ToSession $session
 #install
 #https://docs.microsoft.com/en-us/azure/azure-monitor/platform/gateway#install-the-log-analytics-gateway-using-the-command-line
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
     Start-Process -FilePath msiexec.exe -ArgumentList "/I $env:USERPROFILE\Downloads\OMSGateway.msi /qn LicenseAccepted=1" -Wait
 }
-
 #endregion
 
 
@@ -104,7 +108,7 @@ Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
 $cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
 $servers=($cluster | Get-ClusterNode).Name
 
-#Download MMA Agent
+#Download MMA Agent (if not yet downloaded)
 if (-not (Test-Path "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe")){
     $ProgressPreference='SilentlyContinue' #for faster download
     Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -UseBasicParsing
@@ -128,21 +132,21 @@ $WorkspaceID=$Workspace.CustomerId.guid
 $WorkspacePrimaryKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey
 #todo:add Load balancer and add multiple servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
-    $ExtractFolder="$env:USERPROFILE\Downloads\SmeMMAInstaller"
+    $ExtractFolder="$env:USERPROFILE\Downloads\MMAInstaller"
     #extract MMA
     if (Test-Path $extractFolder) {
         Remove-Item $extractFolder -Force -Recurse
     }
     Start-Process -FilePath "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -ArgumentList "/c /t:$ExtractFolder" -Wait
-    Start-Process -FilePath "$ExtractFolder\Setup.exe" -ArgumentList "/qn OPINSIGHTS_PROXY_URL=`"$($using:LAGatewayName):8080`" NOAPM=1 ADD_OPINSIGHTS_WORKSPACE=1 OPINSIGHTS_WORKSPACE_AZURE_CLOUD_TYPE=0 OPINSIGHTS_WORKSPACE_ID=`"$using:workspaceId`" OPINSIGHTS_WORKSPACE_KEY=`"$using:workspacePrimaryKey`" AcceptEndUserLicenseAgreement=1" -Wait
+    Start-Process -FilePath "$ExtractFolder\Setup.exe" -ArgumentList "/qn OPINSIGHTS_PROXY_URL=`"$($using:LAGatewayName):8080`" NOAPM=1 ADD_OPINSIGHTS_WORKSPACE=1 OPINSIGHTS_WORKSPACE_AZURE_CLOUD_TYPE=0 OPINSIGHTS_WORKSPACE_ID=$using:workspaceId OPINSIGHTS_WORKSPACE_KEY=$using:workspacePrimaryKey AcceptEndUserLicenseAgreement=1" -Wait
     #"/i $extractFolder\MOMAgent.msi /qn OPINSIGHTS_PROXY_URL=`"$($using:LAGatewayName):8080`" NOAPM=1 ADD_OPINSIGHTS_WORKSPACE=1 OPINSIGHTS_WORKSPACE_AZURE_CLOUD_TYPE=0 OPINSIGHTS_WORKSPACE_ID=$using:workspaceId OPINSIGHTS_WORKSPACE_KEY=$using:workspacePrimaryKey AcceptEndUserLicenseAgreement=1"
 }
-#uninstall
-#Invoke-Command -ComputerName $servers -ScriptBlock {Start-Process -FilePath "msiexec" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\SmeMMAInstaller\MOMAgent.msi /qn" -Wait}
+#uninstall (if tshooting is needed)
+#Invoke-Command -ComputerName $servers -ScriptBlock {Start-Process -FilePath "msiexec" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\MMAInstaller\MOMAgent.msi /qn" -Wait}
 
 #endregion
 
-#region Setup Azure ARC
+#region Setup Azure ARC prerequisites
 #https://docs.microsoft.com/en-us/azure/azure-arc/servers/quickstart-onboard-powershell
 
 <#login to auzre
@@ -164,10 +168,12 @@ $ProgressPreference='SilentlyContinue' #for faster download
 Invoke-WebRequest -Uri https://aka.ms/AzureConnectedMachineAgent -OutFile "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
 $ProgressPreference='Continue' #return progress preference back
 
-#distribute to S2D Cluster Nodes
+#endregion
+
+#region distribute to S2D Cluster Nodes
 $cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
 $servers=($cluster | Get-ClusterNode).Name
-
+#$servers=1..4 | % {"S2D$_"}
 #Copy ARC agent to nodes
 #increase max evenlope size first
 Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -177,12 +183,19 @@ $sessions=New-PSSession -ComputerName $servers
 foreach ($session in $sessions){
     Copy-Item -Path "$env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
 }
- 
-#Install the package
+
+#endregion
+
+#region Install the ARC package
 $TenantID=(Get-AzContext).Tenant.ID
 $SubscriptionID=(Get-AzContext).Subscription.ID
-$ResourceGroupName="WSLabWinAnalytics"
-$Location="westeurope"
+$ResourceGroupName="WSLabAzureArc"
+
+#Pick Region
+$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single
+if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
+    New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+}
 
 $cluster=Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single
 $Servers=($cluster | Get-ClusterNode).Name
@@ -193,7 +206,11 @@ $Tags="ClusterName=$($Cluster.Name)"
 Invoke-Command -ComputerName $Servers -ScriptBlock {
     Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /l*v $env:USERPROFILE\Downloads\ACMinstallationlog.txt /qn" -Wait
 }
-
+<#uninstall
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /qn" -Wait
+}
+#>
 #configure ARC
 $sp = New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding"
 $credential = New-Object pscredential -ArgumentList "temp", $sp.Secret
@@ -210,13 +227,16 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 
 <#
 #remove resource group
-$AZResourceGroupToDelete="WSLabWinAnalytics"
-Get-AzResourceGroup -Name "WSLabWinAnalytics" | Remove-AzResourceGroup -Force
-
+$AZResourceGroupsToDelete="WSLabWinAnalytics","WSLabAzureArc"
+foreach ($AZResourceGroupToDelete in $AZResourceGroupsToDelete){
+    Get-AzResourceGroup -Name $AZResourceGroupToDelete | Remove-AzResourceGroup -Force
+}
 #remove ServicePrincipal for ARC
 Remove-AzADServicePrincipal -DisplayName Arc-for-servers -Force
+Remove-AzADApplication -DisplayName Arc-for-servers -Force
 
 #remove ServicePrincipal for WAC (all)
 Remove-AzADServicePrincipal -DisplayName WindowsAdminCenter* -Force
+Get-AzADApplication -DisplayNameStartWith WindowsAdmin |Remove-AzADApplication -Force
  
 #>
