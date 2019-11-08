@@ -200,9 +200,9 @@ $SubscriptionID=(Get-AzContext).Subscription.ID
 $ResourceGroupName="WSLabAzureArc"
 
 #Pick Region
-$Location=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single).Location
+$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single
 if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
-    New-AzResourceGroup -Name $ResourceGroupName -Location $location
+    New-AzResourceGroup -Name $ResourceGroupName -Location $location.location
 }
 
 #install package
