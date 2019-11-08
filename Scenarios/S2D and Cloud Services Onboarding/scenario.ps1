@@ -202,7 +202,7 @@ $ResourceGroupName="WSLabAzureArc"
 #Pick Region
 $Location=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single).Location
 if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
-    New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+    New-AzResourceGroup -Name $ResourceGroupName -Location $location
 }
 
 #install package
@@ -221,7 +221,7 @@ $ServicePrincipalID=$sp.applicationid.guid
 $ServicePrincipalSecret=$credential.GetNetworkCredential().password
 
 Invoke-Command -ComputerName $Servers -ScriptBlock {
-    Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:ServicePrincipalSecret --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $using:Location --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
+    Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:ServicePrincipalSecret --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location.location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
 }
 
 #endregion
