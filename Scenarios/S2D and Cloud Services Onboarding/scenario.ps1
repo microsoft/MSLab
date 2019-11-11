@@ -31,6 +31,37 @@ Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Dow
 & "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
 #endregion
 
+#region (optional) Install Windows Admin Center in a GW mode 
+$GatewayServerName="WACGW"
+#Download Windows Admin Center if not present
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    $ProgressPreference='Continue' #return progress preference back
+}
+#Create PS Session and copy install files to remote server
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+$Session=New-PSSession -ComputerName $GatewayServerName
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+#Install Windows Admin Center
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+}
+
+$Session | Remove-PSSession
+
+#Configure Resource-Based constrained delegation
+$gatewayObject = Get-ADComputer -Identity $GatewayServerName
+$computers = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
+
+foreach ($computer in $computers){
+    $computerObject = Get-ADComputer -Identity $computer
+    Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+ 
+#endregion
+
 #region Connect to Azure and create Log Analytics workspace if needed
 #Login to Azure
 If ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
@@ -322,6 +353,10 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
     Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:ServicePrincipalSecret --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location.location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
 }
 
+#validate
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
+}
 #endregion
 
 #region Cleanup Azure resources
