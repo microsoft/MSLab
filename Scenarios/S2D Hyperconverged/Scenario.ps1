@@ -458,7 +458,7 @@ Write-host "Script started at $StartDateTime"
     Clear-DnsClientCache
 
     #Configure CSV Cache (value is in MB)
-        if (Get-PhysicalDisk -cimsession $servers | Where-Object bustype -eq SCM){
+        if (Get-PhysicalDisk -cimsession $servers[0] | Where-Object bustype -eq SCM){
             #disable CSV cache if SCM storage is used
             (Get-Cluster $ClusterName).BlockCacheSize = 0
         }elseif ((Invoke-Command -ComputerName $servers[0] -ScriptBlock {(get-wmiobject win32_computersystem).Model}) -eq "Virtual Machine"){
