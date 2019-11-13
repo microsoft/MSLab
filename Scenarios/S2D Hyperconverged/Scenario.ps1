@@ -458,7 +458,7 @@ Write-host "Script started at $StartDateTime"
     Clear-DnsClientCache
 
     #Configure CSV Cache (value is in MB)
-        if (Get-PhysicalDisk -cimsession $servers | Where-Object bustype -eq SCM){
+        if (Get-PhysicalDisk -cimsession $servers[0] | Where-Object bustype -eq SCM){
             #disable CSV cache if SCM storage is used
             (Get-Cluster $ClusterName).BlockCacheSize = 0
         }elseif ((Invoke-Command -ComputerName $servers[0] -ScriptBlock {(get-wmiobject win32_computersystem).Model}) -eq "Virtual Machine"){
@@ -756,6 +756,10 @@ Write-host "Script started at $StartDateTime"
         $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
         $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
     }
+
+    #round size
+    [int64]$sizeofvolumeonHDDs=[math]::Round($sizeofvolumeonHDDs)
+    [int64]$sizeofvolumeonSSDs=[math]::Round($sizeofvolumeonSSDs)
 
     #create volumes
     1..$numberofNodes | ForEach-Object {
