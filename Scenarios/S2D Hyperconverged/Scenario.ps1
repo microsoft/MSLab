@@ -746,20 +746,24 @@ Write-host "Script started at $StartDateTime"
 
     $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
     if ($numberofNodes -eq 2){
+        if ($SSDCapacity){
         $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
         $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
+        }
+        if ($HDDCapacity){
         $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
         $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
+        }
     }else{
+        if ($SSDCapacity){
         $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
         $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
+        }
+        if ($HDDCapacity){
         $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
         $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
+        }
     }
-
-    #round size
-    [int64]$sizeofvolumeonHDDs=[math]::Round($sizeofvolumeonHDDs)
-    [int64]$sizeofvolumeonSSDs=[math]::Round($sizeofvolumeonSSDs)
 
     #create volumes
     1..$numberofNodes | ForEach-Object {
