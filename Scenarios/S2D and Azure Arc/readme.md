@@ -28,7 +28,7 @@ You can deploy S2D Cluster, but it is not necessary as Azure Arc for Servers doe
 
 ## LabConfig
 
-![](/Scenarios/S2D%20and%20Azure%20Arc/Screenshots/VMs01.png)
+![](/Scenarios/S2D%20and%20Azure%20Arc/Screenshots/VMs.png)
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
