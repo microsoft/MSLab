@@ -276,100 +276,12 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 #endregion
 
-#region Setup Azure ARC prerequisites
-#https://docs.microsoft.com/en-us/azure/azure-arc/servers/quickstart-onboard-powershell
-
-<#login to auzre
-If ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
-Login-AzAccount
-
-#select context if more available
-if ((Get-AzContext -ListAvailable).count -gt 1){
-    Get-AzContent -ListAvailable | Out-GridView -OutpuMode Single | Set-AzContent
-}
-#>
-
-#register ARC
-Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
-Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
- 
-# Download the package
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri https://aka.ms/AzureConnectedMachineAgent -OutFile "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
-$ProgressPreference='Continue' #return progress preference back
-
-#endregion
-
-#region distribute to S2D Cluster Nodes
-#$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
-#$servers=(Get-ClusterNode -Cluster $ClusterName).Name
-$ClusterName="S2D-Cluster"
-$servers=1..4 | ForEach-Object {"S2D$_"}
-#Copy ARC agent to nodes
-#increase max evenlope size first
-Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
-#create sessions
-$sessions=New-PSSession -ComputerName $servers
-#copy ARC agent
-foreach ($session in $sessions){
-    Copy-Item -Path "$env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
-}
-
-#endregion
-
-#region Install the ARC package
-#$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
-#$servers=(Get-ClusterNode -Cluster $ClusterName).Name
-$ClusterName="S2D-Cluster"
-$servers=1..4 | ForEach-Object {"S2D$_"}
-$Tags="ClusterName=$ClusterName"
-
-$TenantID=(Get-AzContext).Tenant.ID
-$SubscriptionID=(Get-AzContext).Subscription.ID
-$ResourceGroupName="WSLabAzureArc"
-
-#Pick Region
-$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.HybridCompute" | Out-GridView -OutputMode Single
-if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
-    New-AzResourceGroup -Name $ResourceGroupName -Location $location.location
-}
-
-#install package
-Invoke-Command -ComputerName $Servers -ScriptBlock {
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /l*v $env:USERPROFILE\Downloads\ACMinstallationlog.txt /qn" -Wait
-}
-<#uninstall
-Invoke-Command -ComputerName $Servers -ScriptBlock {
-    Start-Process -FilePath "msiexec.exe" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /qn" -Wait
-}
-#>
-#configure ARC
-$sp = New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding" -EndDate "12/31/2999"
-$credential = New-Object pscredential -ArgumentList "temp", $sp.Secret
-$ServicePrincipalID=$sp.applicationid.guid
-$ServicePrincipalSecret=$credential.GetNetworkCredential().password
-
-Invoke-Command -ComputerName $Servers -ScriptBlock {
-    Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:ServicePrincipalSecret --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location.location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
-}
-
-#validate
-Invoke-Command -ComputerName $Servers -ScriptBlock {
-    & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
-}
-#endregion
-
 #region Cleanup Azure resources
 
 <#
 #remove resource group
-$AZResourceGroupsToDelete="WSLabWinAnalytics","WSLabAzureArc"
-foreach ($AZResourceGroupToDelete in $AZResourceGroupsToDelete){
-    Get-AzResourceGroup -Name $AZResourceGroupToDelete | Remove-AzResourceGroup -Force
-}
-#remove ServicePrincipal for ARC
-Remove-AzADServicePrincipal -DisplayName Arc-for-servers -Force
-Remove-AzADApplication -DisplayName Arc-for-servers -Force
+Get-AzResourceGroup -Name "WSLabWinAnalytics" | Remove-AzResourceGroup -Force
+
 
 #remove ServicePrincipal for WAC (all)
 Remove-AzADServicePrincipal -DisplayName WindowsAdminCenter* -Force
