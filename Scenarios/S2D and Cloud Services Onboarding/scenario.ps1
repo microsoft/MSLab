@@ -146,9 +146,9 @@ $HRWorkerServerName="HRWorker01"
 $AutomationAccountName="WSLabAutomationAccount"
 $HybridWorkerGroupName="WSLabHRGroup01"
 
-#Add the Automation, AlertManagement, Updates and security solution to the Log Analytics workspace
+#Add solutions to the Log Analytics workspace
 #Get-AzOperationalInsightsIntelligencePack -ResourceGroupName $ResourceGroupName -WorkspaceName $WorkspaceName
-$solutions="AzureAutomation","AlertManagement","Updates","Security"
+$solutions="Security","Updates","LogManagement","AlertManagement","AzureAutomation","ServiceMap","InfrastructureInsights"
 foreach ($solution in $solutions){
     Set-AzOperationalInsightsIntelligencePack -ResourceGroupName $ResourceGroupName -WorkspaceName $WorkspaceName -IntelligencePackName $solution -Enabled $true
 }
