@@ -344,7 +344,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 }
 #>
 #configure ARC
-$sp = New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding"
+$sp = New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding" -EndDate "12/31/2999"
 $credential = New-Object pscredential -ArgumentList "temp", $sp.Secret
 $ServicePrincipalID=$sp.applicationid.guid
 $ServicePrincipalSecret=$credential.GetNetworkCredential().password
