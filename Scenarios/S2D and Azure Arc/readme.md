@@ -3,7 +3,7 @@
 - [S2D and Azure Arc](#s2d-and-azure-arc)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
-    - [The lab](#the-lab)
+    - [Setup Azure ARC](#setup-azure-arc)
         - [Install Management tools](#install-management-tools)
         - [Optional: install Windows Admin Center](#optional-install-windows-admin-center)
         - [Install Edge Dev](#install-edge-dev)
@@ -12,7 +12,10 @@
         - [Install Azure Arc agent to servers](#install-azure-arc-agent-to-servers)
         - [Configure and validate Arc](#configure-and-validate-arc)
         - [Validate if agents are connected](#validate-if-agents-are-connected)
-        - [Cleanup if resources are no longer needed](#cleanup-if-resources-are-no-longer-needed)
+    - [Deploy Policy Definition (not effective ?yet)](#deploy-policy-definition-not-effective-yet)
+        - [Explore available Policy Definitions](#explore-available-policy-definitions)
+        - [Create definition that tests if Log Analytics agent is installed](#create-definition-that-tests-if-log-analytics-agent-is-installed)
+        - [Cleanup from Azure if resources are no longer needed](#cleanup-from-azure-if-resources-are-no-longer-needed)
 
 <!-- /TOC -->
 
@@ -44,7 +47,7 @@ $LabConfig.VMs += @{ VMName = 'WACGW' ; Configuration = 'Simple' ; ParentVHD = '
  
 ```
 
-## The lab
+## Setup Azure ARC
 
 Run all scripts from Windows 10 management machine (management) or DC. To deploy Windows 10 management machine, create parent disk first (with createparentdisk.ps1 located in Parent Disks folder) and uncomment line in Labconfig that defines management machine.
 
@@ -258,7 +261,38 @@ You will also see Azure Arc machines in Azure Portal
 ![](/Scenarios/S2D%20and%20Azure%20Arc/Screenshots/AzureArcResources01.png)
 
 
-### Cleanup if resources are no longer needed
+## Deploy Policy Definition (not effective ?yet)
+
+
+### Explore available Policy Definitions
+
+```PowerShell
+Get-AzPolicyDefinition | select -ExpandProperty Properties | Out-GridView
+ 
+```
+
+### Create definition that tests if Log Analytics agent is installed
+
+```PowerShell
+#https://docs.microsoft.com/en-us/azure/governance/policy/assign-policy-powershell
+#display all definitions
+#$Definitions=Get-AzPolicyDefinition | select -ExpandProperty Properties | Out-GridView
+$DefinitionName="The Log Analytics agent should be installed on virtual machines"
+$ResourceGroupName="WSLabAzureArc"
+$rg = Get-AzResourceGroup -Name $ResourceGroupName
+
+#assign definition
+$Definition=Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'The Log Analytics agent should be installed on virtual machines'}
+New-AzPolicyAssignment -Name $Definition.Properties.displayname -DisplayName $Definition.Properties.displayname -Scope $rg.ResourceId -PolicyDefinition $definition
+ 
+```
+
+![](/Scenarios/S2D%20and%20Azure%20Arc/Screenshots/AzureArcPolicies01.png)
+
+![](/Scenarios/S2D%20and%20Azure%20Arc/Screenshots/AzureArcPolicies02.png)
+
+
+### Cleanup from Azure if resources are no longer needed
 
 ```PowerShell
 #remove resource group
