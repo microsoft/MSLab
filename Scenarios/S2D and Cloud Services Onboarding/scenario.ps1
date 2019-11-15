@@ -235,6 +235,44 @@ Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {
 }
 #endregion
 
+#region configure Hybrid Runbook Worker Addresses on Log Analytics Gateway
+
+#https://docs.microsoft.com/en-us/azure/azure-monitor/platform/gateway
+#https://docs.microsoft.com/en-us/azure/automation/automation-hybrid-runbook-worker#network-planning
+$SubscriptionID=(Get-AzContext).Subscription.ID
+$WorkspaceName="WSLabWorkspace-$SubscriptionID"
+$ResourceGroupName="WSLabWinAnalytics"
+$location=(Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName).Location
+$LocationDisplayName=(Get-AzLocation | where Location -eq $location).DisplayName
+$LAGatewayName="LAGateway01"
+
+$Locations=@()
+$Locations+=@{LocationName="West Central US"     ;URL="wcus-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="South Central US"    ;URL="scus-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="East US 2"           ;URL="eus2-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="West US 2"           ;URL="wus2-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="Canada Central"      ;URL="cc-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="West Europe"         ;URL="we-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="North Europe"        ;URL="ne-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="South East Asia"     ;URL="sea-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="Central India"       ;URL="cid-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="Japan East"          ;URL="jpe-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="Australia East"      ;URL="ae-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="Australia South East";URL="ase-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="UK South"            ;URL="uks-jobruntimedata-prod-su1.azure-automation.net"}
+$Locations+=@{LocationName="US Gov Virginia"     ;URL="usge-jobruntimedata-prod-su1.azure-automation.us"}
+
+$URL=($Locations | Where-Object LocationName -eq $LocationDisplayName).URL
+
+Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
+    Import-Module "C:\Program Files\OMS Gateway\PowerShell\OmsGateway\OmsGateway.psd1"
+    Add-OMSGatewayAllowedHost $using:url -Force
+    Restart-Service OMSGatewayService
+}
+
+#endregion
+
+
 #region download and deploy MMA Agent to S2D cluster nodes
 #$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
 #$servers=(Get-ClusterNode -Cluster $ClusterName).Name
