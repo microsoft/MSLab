@@ -438,6 +438,8 @@ ForEach ($CA in $CAs) {
 #endregion
 
 #region Set Autoenrollment policy and enroll certs
+$Authentication="Kerberos" #or Certificate
+if ($Authentication -eq "Certificate"){
     $Computers=@()
     $Computers+=1..3 | % {"S2D$_"}
     $Computers+=1..3 | % {"NC0$_"}
@@ -451,6 +453,7 @@ ForEach ($CA in $CAs) {
             certutil -pulse
         }
     }
+}
 #endregion
 
 #region generate and export NCRestEnpoint certificate
@@ -543,7 +546,7 @@ ForEach ($CA in $CAs) {
     $LogAccessAccountName="NCLog"
     $LogAccessAccountPassword="LS1setup!"
     $RestName="ncclus.corp.contoso.com"
-    $Authentication="Certificate" #or Kerberos
+    $Authentication="Kerberos" #or Certificate
 
     #Create ManagementSecurityGroup
     New-ADGroup -Name $ManagementSecurityGroupName -GroupScope Global -Path "ou=workshop,dc=corp,dc=contoso,dc=com"
