@@ -13,6 +13,16 @@ if ($WindowsInstallationType -eq "Server"){
 }
 #endregion
 
+#region Install Edge Beta
+#install edge for azure portal and authentication (if code is running from DC)
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2093376" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi"
+#Install Edge Beta
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi /q"
+#start Edge
+& "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
+#endregion
+
 #region Install Windows Admin Center
 $GatewayServerName="WACGW"
 #Download Windows Admin Center if not present
