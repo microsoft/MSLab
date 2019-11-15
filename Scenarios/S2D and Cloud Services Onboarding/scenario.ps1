@@ -251,26 +251,28 @@ $LocationDisplayName=(Get-AzLocation | where Location -eq $location).DisplayName
 $LAGatewayName="LAGateway01"
 
 $Locations=@()
-$Locations+=@{LocationName="West Central US"     ;URL="wcus-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="South Central US"    ;URL="scus-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="East US 2"           ;URL="eus2-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="West US 2"           ;URL="wus2-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="Canada Central"      ;URL="cc-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="West Europe"         ;URL="we-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="North Europe"        ;URL="ne-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="South East Asia"     ;URL="sea-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="Central India"       ;URL="cid-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="Japan East"          ;URL="jpe-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="Australia East"      ;URL="ae-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="Australia South East";URL="ase-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="UK South"            ;URL="uks-jobruntimedata-prod-su1.azure-automation.net"}
-$Locations+=@{LocationName="US Gov Virginia"     ;URL="usge-jobruntimedata-prod-su1.azure-automation.us"}
+$Locations+=@{LocationName="West Central US"     ;DataServiceURL="wcus-jobruntimedata-prod-su1.azure-automation.net";AgentServiceURL="wcus-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="South Central US"    ;DataServiceURL="scus-jobruntimedata-prod-su1.azure-automation.net";AgentServiceURL="scus-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="East US 2"           ;DataServiceURL="eus2-jobruntimedata-prod-su1.azure-automation.net";AgentServiceURL="eus2-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="West US 2"           ;DataServiceURL="wus2-jobruntimedata-prod-su1.azure-automation.net";AgentServiceURL="wus2-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Canada Central"      ;DataServiceURL="cc-jobruntimedata-prod-su1.azure-automation.net"  ;AgentServiceURL="cc-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="West Europe"         ;DataServiceURL="we-jobruntimedata-prod-su1.azure-automation.net"  ;AgentServiceURL="we-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="North Europe"        ;DataServiceURL="ne-jobruntimedata-prod-su1.azure-automation.net"  ;AgentServiceURL="ne-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="South East Asia"     ;DataServiceURL="sea-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="sea-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Central India"       ;DataServiceURL="cid-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="cid-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Japan East"          ;DataServiceURL="jpe-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="jpe-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Australia East"      ;DataServiceURL="ae-jobruntimedata-prod-su1.azure-automation.net"  ;AgentServiceURL="ae-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Australia South East";DataServiceURL="ase-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="ase-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="UK South"            ;DataServiceURL="uks-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="uks-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="US Gov Virginia"     ;DataServiceURL="usge-jobruntimedata-prod-su1.azure-automation.us" ;AgentServiceURL="usge-agentservice-prod-1.azure-automation.us"}
 
-$URL=($Locations | Where-Object LocationName -eq $LocationDisplayName).URL
+
+$URLs=($Locations | Where-Object LocationName -eq $LocationDisplayName)
 
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
     Import-Module "C:\Program Files\OMS Gateway\PowerShell\OmsGateway\OmsGateway.psd1"
-    Add-OMSGatewayAllowedHost $using:url -Force
+    Add-OMSGatewayAllowedHost $using:urls.DataServiceURL -Force
+    Add-OMSGatewayAllowedHost $using:urls.AgentServiceURL -Force
     Restart-Service OMSGatewayService
 }
 
