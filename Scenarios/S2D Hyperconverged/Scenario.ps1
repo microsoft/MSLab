@@ -754,8 +754,8 @@ Write-host "Script started at $StartDateTime"
     $pool=Get-StoragePool -CimSession $clustername -FriendlyName s2D*
     $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
     $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
-    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Sum).Sum
-    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Maximum).Maximum
+    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Sum).Sum
+    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
 
     $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
     if ($numberofNodes -eq 2){
