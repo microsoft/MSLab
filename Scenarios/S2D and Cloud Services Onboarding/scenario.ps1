@@ -158,38 +158,70 @@ foreach ($solution in $solutions){
 $location=(Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName).Location
 New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $ResourceGroupName -Location $Location -Plan Free 
 
-#link workspace to Automation Account <tbd>
-<#
-$json=@"
+#link workspace to Automation Account (via an ARM template deployment)
+$json = @"
 {
-    "type": "Microsoft.OperationalInsights/workspaces",
-    "name": "[variables('namespace')]",
-    "apiVersion": "2017-03-15-preview",
-    "location": "[resourceGroup().location]",
-    "properties": {
-        "sku": {
-            "name": "Standalone"
+    "`$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace_name": {
+            "type": "string"
+        },
+        "automation_name": {
+            "type": "string"
         }
     },
     "resources": [
         {
-            "name": "Automation", # this onboards automation to oms, which is what you need
-            "type": "linkedServices",
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspace_name')]",
             "apiVersion": "2015-11-01-preview",
-            "dependsOn": [
-                "[variables('automation')]",
-                "[variables('namespace')]"
-            ],
+            "location": "[resourceGroup().location]",
+            "resources": [
+                {
+                    "name": "Automation",
+                    "type": "linkedServices",
+                    "apiVersion": "2015-11-01-preview",
+                    "dependsOn": [
+                        "[parameters('workspace_name')]"
+                    ],
+                    "properties": {
+                        "resourceId": "[resourceId(resourceGroup().name, 'Microsoft.Automation/automationAccounts', parameters('automation_name'))]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.OperationsManagement/solutions",
+            "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+            "apiVersion": "2015-11-01-preview",
+            "location": "[resourceGroup().location]",
+            "plan": {
+                "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+                "promotionCode": "",
+                "product": "OMSGallery/Updates",
+                "publisher": "Microsoft"
+            },
             "properties": {
-                "resourceId": "[resourceId('Microsoft.Automation/automationAccounts/', variables('automation'))]"
-            }
+                "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace_name'))]"
+            },
+            "dependsOn": [
+                "[parameters('workspace_name')]"
+            ]
         }
     ]
 }
 "@
-$TemplateObject = ConvertFrom-Json $json -AsHashtable
-New-AzDeployment -Location $Location -TemplateObject $json
-#>
+
+$templateFile = New-TemporaryFile
+Set-Content -Path $templateFile.FullName -Value $json
+
+$templateParameterObject = @{
+    workspace_name = $WorkspaceName
+    automation_name = $AutomationAccountName
+}
+New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+Remove-Item $templateFile.FullName
 
 #Install MMA to Hybrid Runbook worker server
 #Download MMA Agent (if not yet downloaded)
