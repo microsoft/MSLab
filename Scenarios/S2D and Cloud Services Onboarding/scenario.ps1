@@ -298,18 +298,19 @@ $Locations+=@{LocationName="Australia South East";DataServiceURL="ase-jobruntime
 $Locations+=@{LocationName="UK South"            ;DataServiceURL="uks-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="uks-agentservice-prod-1.azure-automation.net"}
 $Locations+=@{LocationName="US Gov Virginia"     ;DataServiceURL="usge-jobruntimedata-prod-su1.azure-automation.us" ;AgentServiceURL="usge-agentservice-prod-1.azure-automation.us"}
 
-
 $URLs=($Locations | Where-Object LocationName -eq $LocationDisplayName)
+$Workspace=Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName
+$WorkspaceID=$Workspace.CustomerId.guid
 
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {
     Import-Module "C:\Program Files\OMS Gateway\PowerShell\OmsGateway\OmsGateway.psd1"
     Add-OMSGatewayAllowedHost $using:urls.DataServiceURL -Force
     Add-OMSGatewayAllowedHost $using:urls.AgentServiceURL -Force
+    Add-OMSGatewayAllowedHost "$using:workspaceId.agentsvc.azure-automation.net" -Force
     Restart-Service OMSGatewayService
 }
 
 #endregion
-
 
 #region download and deploy MMA Agent to S2D cluster nodes
 #$ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single).Name
