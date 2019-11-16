@@ -271,7 +271,7 @@ Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {
 }
 #endregion
 
-#region configure Hybrid Runbook Worker Addresses on Log Analytics Gateway
+#region configure Hybrid Runbook Worker Addresses and Azure Automation Agent Service URL on Log Analytics Gateway
 
 #https://docs.microsoft.com/en-us/azure/azure-monitor/platform/gateway
 #https://docs.microsoft.com/en-us/azure/automation/automation-hybrid-runbook-worker#network-planning
@@ -353,6 +353,35 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 }
 #uninstall (if tshooting is needed)
 #Invoke-Command -ComputerName $servers -ScriptBlock {Start-Process -FilePath "msiexec" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\MMAInstaller\MOMAgent.msi /qn" -Wait}
+
+#endregion
+
+#region download and install dependency agent (for service map solution)
+#https://docs.microsoft.com/en-us/azure/azure-monitor/insights/vminsights-enable-hybrid-cloud#install-the-dependency-agent-on-windows
+$servers=1..4 | ForEach-Object {"S2D$_"}
+$servers+="LAGateway01","HRWorker01"
+
+#download
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe")){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/dependencyagentwindows -OutFile "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe"
+    $ProgressPreference='Continue' #return progress preference back
+}
+
+#Copy Dependency Agent to servers
+#increase max evenlope size first
+Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+#create sessions
+$sessions=New-PSSession -ComputerName $servers
+#copy mma agent
+foreach ($session in $sessions){
+    Copy-Item -Path "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
+}
+
+#install
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Start-Process -FilePath "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe" -ArgumentList "/S" -Wait
+}
 
 #endregion
 
