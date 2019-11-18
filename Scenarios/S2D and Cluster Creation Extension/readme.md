@@ -14,7 +14,7 @@
 
 ## About the lab
 
-In following lab you deploy S2D Cluster using Cluster Deployment Extension
+In following lab you deploy S2D Cluster using Cluster Creation Extension in Windows Admin Center.
 
 ## LabConfig
 
@@ -23,7 +23,7 @@ In following lab you deploy S2D Cluster using Cluster Deployment Extension
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
 
-1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; NestedVirt=$true }} 
+1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 2GB ; NestedVirt=$true }} 
 
 #Windows Admin Center gateway
 $LabConfig.VMs += @{ VMName = 'WACGW' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
@@ -101,6 +101,10 @@ In Edge Beta, navigate to https://wacgw. To open you need to expand advanced and
 
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC07.png)
 
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC08.png)
+
+To fix above error just install RSAT CLustering PowerShell feature, bo back to credentials and try again.
+
 ```PowerShell
 $servers="s2d1","s2d2","s2d3","s2d4"
 Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -109,4 +113,6 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
  
 ```
 
-![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC08.png)
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC09.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC10.png)
