@@ -85,11 +85,11 @@ Since there is also warning about untrusted repo (as PSGallery is not in PSRepos
 
 Validate-DCB will end with red error about Pester module if pester is not updated before
 
-![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/PesterError01.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_PesterError01.png)
 
 Just Installing Pester (with "-force") will return error, therefore "-SkipPublisherCheck" is required.
 
-![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/PesterError02.png)
+![](/Scenarios/S2D%20and%20Validate-DCB/Screenshots/Validate-DCB_PesterError02.png)
 
 If Pester and NuGet are installed, Install-Module Validate-DCB will endup with error complaining about missing FailoverClusters. Therefore it's also needed to run it before Install-Module Validate-DCB
 
