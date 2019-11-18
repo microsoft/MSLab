@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [S2D and Cluster Deployment Extension](#s2d-and-cluster-deployment-extension)
+- [S2D and Cluster Creation Extension](#s2d-and-cluster-creation-extension)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
     - [The lab](#the-lab)
@@ -10,7 +10,7 @@
 
 <!-- /TOC -->
 
-# S2D and Cluster Deployment Extension
+# S2D and Cluster Creation Extension
 
 ## About the lab
 
@@ -108,3 +108,5 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 }
  
 ```
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC08.png)
