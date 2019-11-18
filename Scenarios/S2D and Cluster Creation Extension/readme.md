@@ -103,7 +103,7 @@ In Edge Beta, navigate to https://wacgw. To open you need to expand advanced and
 
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC08.png)
 
-To fix above error just install RSAT CLustering PowerShell feature, bo back to credentials and try again.
+To fix above error just install RSAT CLustering PowerShell feature, go back to credentials and try again.
 
 ```PowerShell
 $servers="s2d1","s2d2","s2d3","s2d4"
