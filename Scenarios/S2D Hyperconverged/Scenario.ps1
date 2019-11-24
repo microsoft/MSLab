@@ -817,6 +817,7 @@ Write-host "Script started at $StartDateTime"
 
 #region move VMQ out of CPU 0 and set correct BaseProcessorNumber based on NUMA for every pNIC in external vSwitch.
 #not necessary needed as if dVMMQ in 2019 works well, it will move out CPU0 if CPU0 is utilized.
+#Use Get-ClusterNode -Cluster #ClusterName | % { Get-VMSwitch -ComputerName $_.Name | select Name, DefaultQueueVrssQueueSchedulingModeRequested, DefaultQueueVrssQueueSchedulingMode} dVMMQ = Dynamic 
 #more info: https://techcommunity.microsoft.com/t5/Networking-Blog/Synthetic-Accelerations-in-a-Nutshell-Windows-Server-2019/ba-p/653976
     if ($RealHW){
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
