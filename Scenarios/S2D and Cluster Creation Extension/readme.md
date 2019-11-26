@@ -59,7 +59,7 @@ start-sleep 5
 
 ### Install Windows Admin Center in GW mode
 
-To install Windows Admin Center including trusted certificate you can follow [Windows Admin Center and Enterprise CA scenario](/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA)
+To install Windows Admin Center including trusted certificate from CA you can follow [Windows Admin Center and Enterprise CA scenario](/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA)
 
 ```PowerShell
 $GatewayServerName="WACGW"
@@ -80,6 +80,11 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 
 $Session | Remove-PSSession
+
+#add certificate to trusted root certs
+$cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+$cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
  
 ```
 
@@ -103,16 +108,27 @@ In Edge Beta, navigate to https://wacgw. To open you need to expand advanced and
 
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC08.png)
 
-To fix above error just install RSAT CLustering PowerShell feature, go back to credentials and try again.
-
-```PowerShell
-$servers="s2d1","s2d2","s2d3","s2d4"
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    Install-WindowsFeature -Name RSAT-Clustering-PowerShell
-}
- 
-```
-
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC09.png)
 
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC10.png)
+
+To force restart go back to add servers and try again until all is green
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC11.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC12.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC13.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC14.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC15.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC16.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC17.png)
+
+![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/WAC18.png)
+
+
+

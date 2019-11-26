@@ -258,7 +258,7 @@ Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {
 #Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {Start-Process -FilePath "msiexec" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\MMAInstaller\MOMAgent.msi /qn" -Wait}
 
 #let it settle a bit
-Start-Sleep 30
+Start-Sleep 60
 
 #Register the hybrid runbook worker
 $AutomationInfo = Get-AzAutomationRegistrationInfo -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName
