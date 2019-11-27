@@ -36,6 +36,7 @@ Write-host "Script started at $StartDateTime"
         $WindowsUpdate=$false
 
     ## Networking ##
+        $vSwitchName="SETSwitch"
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
 
         $NumberOfStorageNets=1 #1 or 2
@@ -95,6 +96,9 @@ Write-host "Script started at $StartDateTime"
 
     #Configure PCID to expose to VMS prior version 8.0 https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/CVE-2017-5715-and-hyper-v-vms
         $ConfigurePCIDMinVersion=$true
+
+    #Configure Processor Machine Check Error vulnerability mitigation https://support.microsoft.com/en-us/help/4530989/guidance-for-protecting-against-intel-processor-machine-check-error-vu
+        $ConfigureProcessorMachineCheckErrorMitigation=$true
 
     #Configure Core scheduler on Windows Server 2016? https://docs.microsoft.com/en-us/windows-server/virtualization/hyper-v/manage/manage-hyper-v-scheduler-types#configuring-the-hypervisor-scheduler-type-on-windows-server-2016-hyper-v
         $CoreScheduler=$True
@@ -272,6 +276,16 @@ Write-host "Script started at $StartDateTime"
             }
         }
 
+    #Configure Processor Machine Check Error vulnerability mitigation https://support.microsoft.com/en-us/help/4530989/guidance-for-protecting-against-intel-processor-machine-check-error-vu
+        if ($ConfigureProcessorMachineCheckErrorMitigation -eq $true){
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                if (-not (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization")){
+                    New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name Virtualization -Force
+                }
+                Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" -Name IfuErrataMitigations  -value 1
+            }
+        }
+
     #Enable core scheduler
     if ($CoreScheduler){
         $RevisionNumber=Invoke-Command -ComputerName $servers[0] -ScriptBlock {
@@ -314,23 +328,23 @@ Write-host "Script started at $StartDateTime"
 #region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA )
     #Create Virtual Switches and Virtual Adapters
         if ($SRIOV){
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         }else{
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name SETSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
         }
 
         #Configure Hyper-V Port Load Balancing algorithm (in 1709 its already Hyper-V, therefore setting only for Windows Server 2016)
             Invoke-Command -ComputerName $servers -scriptblock {
                 if ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber) -eq 14393){
-                    Set-VMSwitchTeam -Name SETSwitch -LoadBalancingAlgorithm HyperVPort
+                    Set-VMSwitchTeam -Name $using:vSwitchName -LoadBalancingAlgorithm HyperVPort
                 }
             }
 
         $Servers | ForEach-Object {
             #Configure vNICs
-            Rename-VMNetworkAdapter -ManagementOS -Name SETSwitch -NewName Mgmt -ComputerName $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName SETSwitch -CimSession $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName SETSwitch -Cimsession $_
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Mgmt -ComputerName $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
 
             #configure IP Addresses
             If ($NumberOfStorageNets -eq 1){
@@ -368,7 +382,7 @@ Write-host "Script started at $StartDateTime"
 
         #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                    $physicaladapters=(get-vmswitch SETSwitch).NetAdapterInterfaceDescriptions | Sort-Object
+                    $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
@@ -384,6 +398,16 @@ Write-host "Script started at $StartDateTime"
                     }else{
                         Write-Host "`t Failure"
                     }
+                }
+            }
+
+        #Disable RCT on Physical NICs connected to vSwitch (RSC in the vSwitch (2019+ only) conflicts with NIC vendors implementation of RSC if they did it in software (miniport, not OS) rather than firmware
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
+                foreach ($physicaladapter in $physicaladapters){
+                    $adapter=Get-NetAdapter -InterfaceDescription $physicaladapter
+                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv4' -RegistryValue 0
+                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv6' -RegistryValue 0
                 }
             }
 
@@ -741,8 +765,8 @@ Write-host "Script started at $StartDateTime"
     $pool=Get-StoragePool -CimSession $clustername -FriendlyName s2D*
     $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
     $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
-    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Sum).Sum
-    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | Measure-Object -Property Size -Maximum).Maximum
+    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Sum).Sum
+    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
 
     $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
     if ($numberofNodes -eq 2){
@@ -865,7 +889,7 @@ Write-host "Script started at $StartDateTime"
                     $VMName="TestVM$($CSV)_$_"
                     Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
                         #create some fake VMs
-                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
+                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
                     }
                     Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
                 }
