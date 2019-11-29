@@ -1,0 +1,326 @@
+#region install prereqs
+    #install management features
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+#endregion
+
+#region install features and configure hw timeout for virtual environment
+        $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
+
+        #install roles and features
+        #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+            if ($result.ExitCode -eq "failed"){
+                Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
+            }
+        }
+        #install features
+        $features="Failover-Clustering","Hyper-V-PowerShell","Storage-Replica","RSAT-Storage-Replica"
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+
+        #IncreaseHW Timeout for virtual environments to 30s
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530}
+
+        #restart and wait for computers
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+
+#endregion
+
+#region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA )
+        $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
+        $vSwitchName="vSwitch"
+        $StorNet1="172.16.1."
+        $StorNet2="172.16.2."
+        $StorVLAN1=1
+        $StorVLAN2=2
+        $IP=1 #StartIP
+
+        #Create Virtual Switches and Virtual Adapters
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+
+        $Servers | ForEach-Object {
+            #Configure vNICs
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Mgmt -ComputerName $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
+
+            #configure IP Addresses
+            New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+            $IP++
+        }
+
+        Start-Sleep 5
+        Clear-DnsClientCache
+
+        #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
+
+        #Restart each host vNIC adapter so that the Vlan is active.
+            Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
+            Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
+
+        #Enable RDMA on the host vNIC adapters (should be done just for real environments)
+            Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
+
+        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                    $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+                }
+
+        #Disable RSC on Physical NICs connected to vSwitch (RSC in the vSwitch (2019+ only) conflicts with NIC vendors implementation of RSC if they did it in software (miniport, not OS) rather than firmware
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
+                foreach ($physicaladapter in $physicaladapters){
+                    $adapter=Get-NetAdapter -InterfaceDescription $physicaladapter
+                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv4' -RegistryValue 0
+                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv6' -RegistryValue 0
+                }
+            }
+#endregion
+
+#region Create cluster configure File Share witness (as for Azure witness it would be more lines of code)
+    $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
+    $ClusterName="S2D-S-Cluster"
+    Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
+    New-Cluster -Name $ClusterName -Node $servers
+    Start-Sleep 5
+    Clear-DnsClientCache
+
+    #Configure Witness on DC 
+        #Create new directory
+            $WitnessName=$Clustername+"Witness"
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+            $accounts=@()
+            $accounts+="corp\$ClusterName$"
+            $accounts+="corp\Domain Admins"
+            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+        #Set NTFS permissions 
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+        #Set Quorum
+            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+#endregion
+
+#region Configure Cluster Networks
+    $ClusterName="S2D-S-Cluster"
+    $StorNet1="172.16.1."
+    $StorNet2="172.16.2."
+    $ReplicaNet1="172.16.11."
+    $ReplicaNet2="172.16.12."
+
+    #configure Replica Networks role
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet1"0").Role="none"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet2"0").Role="none"
+
+    #rename networks
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB1"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB2"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet1"0").Name="ReplicaNet1"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet2"0").Name="ReplicaNet2"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq "10.0.0.0").Name="Management"
+
+    #configure Live Migration networks to use only SMB nics
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value  ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -notlike "smb*"}).ID))
+        Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+#endregion
+
+#region configure Cluster-Aware-Updating
+    $ClusterName="S2D-S-Cluster"
+    $CAURoleName="S2D-S-Clus-CAU"
+    #Install required features on nodes.
+        $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+        foreach ($ClusterNode in $ClusterNodes){
+            Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+        }
+    #add role
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+#endregion
+
+#region Create Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
+    #either static
+
+    $ClusterName="S2D-S-Cluster"
+    $xml =  @"
+    <Topology>
+        <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
+            <Node Name="Site1S2D1"/>
+            <Node Name="Site1S2D2"/>
+        </Site>
+        <Site Name="DC02RED" Location="Contoso DC2, 123 Example St, Room 4010, Redmond">
+            <Node Name="Site2S2D1"/>
+            <Node Name="Site2S2D2"/>
+        </Site>
+    </Topology>
+"@
+    <# or with rack info (note, it will configure Rack FaultDomainAwarenessDefault after enable cluster s2d as multiple racks are present)
+    $xml =  @"
+    <Topology>
+        <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
+            <Rack Name="SEA-Rack01" Location="Contoso DC1, Room 4010, Aisle A, Rack 01">
+                <Node Name="Site1S2D1"/>
+                <Node Name="Site1S2D2"/>
+            </Rack>
+        </Site>
+        <Site Name="DC02RED" Location="Contoso DC2, 123 Example St, Room 4010, Redmond">
+            <Rack Name="RED-Rack01" Location="Contoso DC2, Room 4010, Aisle A, Rack 01">
+                <Node Name="Site2S2D1"/>
+                <Node Name="Site2S2D2"/>
+            </Rack>
+        </Site>
+    </Topology>
+"@
+#>
+
+    Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
+
+    #validate
+    Get-ClusterFaultDomainXML -CimSession $ClusterName
+
+    <#or bit more dynamic
+    $Site1Name="DC01SEA"
+    $Site2Name="DC02RED"
+    $Site1NamesPrefix="Site1S2D"
+    $Site2NamesPrefix="Site2S2D"
+    $NumberOfNodesPerSite=2
+
+    New-ClusterFaultDomain -Name "$Site1Name" -FaultDomainType Site -Location "Contoso HQ, 123 Example St, Room 4010" -CimSession $ClusterName
+    New-ClusterFaultDomain -Name "$Site2Name" -FaultDomainType Site -Location "Contoso HQ, 123 Example St, Room 4010" -CimSession $ClusterName
+    New-ClusterFaultDomain -Name "$Site1Name-Rack01" -FaultDomainType Rack -Location "Contoso DC1, Room 4010, Aisle A, Rack 01" -CimSession $ClusterName
+    New-ClusterFaultDomain -Name "$Site2Name-Rack01" -FaultDomainType Rack -Location "Contoso DC1, Room 4010, Aisle A, Rack 01" -CimSession $ClusterName
+
+    #add rack to sites
+    Set-ClusterFaultDomain -Name "$Site1Name-Rack01"  -Parent "$Site1Name" -CimSession $ClusterName
+    Set-ClusterFaultDomain -Name "$Site2Name-Rack01"  -Parent "$Site2Name" -CimSession $ClusterName
+
+    #add nodes to racks
+    1..$NumberOfNodesPerSite | ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_"  -Parent "$Site1Name-Rack01" -CimSession $ClusterName}
+    1..$NumberOfNodesPerSite | ForEach-Object {Set-ClusterFaultDomain -Name "$($ServersNamePrefix)$_"  -Parent "$Site2Name-Rack01" -CimSession $ClusterName}
+
+    #validate
+    Get-ClusterFaultDomainXML -CimSession $ClusterName
+    #>
+#endregion
+
+#region Enable Cluster S2D and check Pool and Tiers
+    #Enable-ClusterS2D
+        Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+
+    #display pool
+        Get-StoragePool -IsPrimordial $false -CimSession $ClusterName
+
+    #Display disks
+        Get-StoragePool -IsPrimordial $false -CimSession $ClusterName | Get-PhysicalDisk -CimSession $ClusterName
+
+    #Get Storage Tiers
+        Get-StorageTier -CimSession $ClusterName
+#endregion
+
+#region Create Volumes
+    $ClusterName="S2D-S-Cluster"
+    $NumberOfVolumesPerSite=4 #2 per node for source (for each node 1), 2 per node for destination from other site (+logs)
+    $VolumeSize=1TB
+    $LogSize=100GB
+    $VolumeNamePrefix="vDisk"
+    $LogDiskPrefix="vDiskLog"
+
+    $sites=(Get-StorageFaultDomain -CimSession $ClusterName -Type StorageSite).FriendlyName
+    #$pools=Get-StoragePool -CimSession $clustername -IsPrimordial $false
+
+    foreach ($site in $sites){
+        $PoolID=(Get-StoragePool -CimSession $ClusterName -FriendlyName "Pool for Site $site").UniqueId.TrimStart("{").TrimEnd("}")
+        $PoolOwnerNode=(Get-ClusterGroup -Name $PoolID -Cluster $ClusterName).OwnerNode.Name
+        #Move Available Storage to Same node as Pool (just to have it in the same site)
+        $AvailableStorageCG=Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage"
+        $AvailableStorageCG | Stop-ClusterGroup
+        $AvailableStorageCG | Move-ClusterGroup -Node $PoolOwnerNode
+        1..$NumberOfVolumesPerSite | ForEach-Object {
+            #create data volume
+            New-Volume -CimSession $ClusterName -FileSystem ReFS -StoragePoolFriendlyName "Pool for Site $site" -Size $VolumeSize -FriendlyName "$($VolumeNamePrefix)$_"
+            #create log volume
+            New-Volume -CimSession $ClusterName -FileSystem ReFS -StoragePoolFriendlyName "Pool for Site $site" -Size $LogSize -FriendlyName "$($LogDiskPrefix)$_"
+        }
+    }
+
+    #Start Cluster Group
+    $AvailableStorageCG | Start-ClusterGroup
+
+#endregion
+
+#region Enable SR for volumes
+$ClusterName="S2D-S-Cluster"
+$NumberOfVolumesPerSite=4 #2 per node for data (source,destination)
+$VolumeNamePrefix="vDisk"
+$LogDiskPrefix="vDiskLog"
+$NumberOfVolumesPerSite=4
+
+$ReplicationMode="Synchronous" #Synchronous or Asynchronous
+$AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
+
+$sites=(Get-StorageFaultDomain -CimSession $ClusterName -Type StorageSite).FriendlyName
+$Site1Node=(Get-ClusterNode -Cluster $ClusterName | Where-Object FaultDomain -Contains "Site:$($sites[0])" | Get-Random -Count 1).Name
+$Site2Node=(Get-ClusterNode -Cluster $ClusterName | Where-Object FaultDomain -Contains "Site:$($sites[1])" | Get-Random -Count 1).Name
+
+$Numbers=1..$NumberOfVolumesPerSite
+foreach ($Number in $Numbers){
+    #move available storage to first site
+    #Move Available Storage to Same node as Pool (just to have it in the same site)
+    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+    Get-ClusterResource -Cluster $clustername -Name "Cluster Virtual Disk ($($VolumeNamePrefix)$Number)" | Add-ClusterSharedVolume -Cluster $ClusterName
+    $Site1DataDiskPath = "c:\ClusterStorage\$($VolumeNamePrefix)$Number"
+    $Site1LogDiskPath = (Get-Volume -CimSession $Site1Node -FriendlyName "$($LogDiskPrefix)$Number").Path
+
+    #move available storage to second site
+    #Move Available Storage to Same node as Pool (just to have it in the same site)
+    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site2Node
+    $Site2DataDiskPath = (Get-Volume -CimSession $Site2Node -FriendlyName "$($VolumeNamePrefix)$Number" | Where-Object FileSystem -NotLike "CSVFS*").Path
+    $Site2LogDiskPath = (Get-Volume -CimSession $Site2Node -FriendlyName "$($LogDiskPrefix)$Number").Path
+
+    #move available storage to first site again
+    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+
+    #generate RG Names
+    $SourceRGName="RG-$($Sites[0])-$($VolumeNamePrefix)$Number"
+    $DestinationRGName="RG-$($Sites[1])-$($VolumeNamePrefix)$Number"
+
+    #enable SR
+    if ($ReplicationMode -eq "Asynchronous"){
+        New-SRPartnership -ReplicationMode Asynchronous -AsyncRPO $AsyncRPO -SourceComputerName $Site1Node -SourceRGName $SourceRGName -SourceVolumeName $Site1DataDiskPath -SourceLogVolumeName $Site1LogDiskPath -DestinationComputerName $Site2Node -DestinationRGName $DestinationRGName -DestinationVolumeName $Site2DataDiskPath -DestinationLogVolumeName $Site2LogDiskPath
+    }else{
+        New-SRPartnership -ReplicationMode Synchronous -SourceComputerName $Site1Node -SourceRGName $SourceRGName -SourceVolumeName $Site1DataDiskPath -SourceLogVolumeName $Site1LogDiskPath -DestinationComputerName $Site2Node -DestinationRGName $DestinationRGName -DestinationVolumeName $Site2DataDiskPath -DestinationLogVolumeName $Site2LogDiskPath
+    }
+
+    #Configure Network Constraints
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet1" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet1" -ErrorAction SilentlyContinue  
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet2" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet2" -ErrorAction SilentlyContinue  
+    #validate
+    Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName
+}
+
+#Validate Network Constraints
+Get-SRNetworkConstraint -SourceComputerName $ClusterName -DestinationComputerName $ClusterName
+
+#Validate Replication Status
+$Numbers=1..$NumberOfVolumesPerSite
+$Records=@()
+foreach ($number in $Numbers){
+    $DestinationRGName="RG-$($Sites[1])-$($VolumeNamePrefix)$Number"
+    $r=Get-SRGroup -CimSession $ClusterName -Name $DestinationRGName | Select -ExpandProperty Replicas 
+
+    $Records += [PSCustomObject]@{
+        RgName = $DestinationRGName
+        ReplicationMode = $r.ReplicationMode
+        ReplicationStatus = $r.ReplicationStatus
+        NumberOfGBRemaining = [Math]::Round($r.NumOfBytesRemaining/1GB, 2)
+        PercentRemaining = [Math]::Round($r.NumOfBytesRemaining/$r.PartitionSize*100, 2)
+        RawData = $r
+    }
+}
+
+$Records | Format-Table RGName,Rep*,NumberOfGBRemaining,PercentRemaining
+
+#endregion
