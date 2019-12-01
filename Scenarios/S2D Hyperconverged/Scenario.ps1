@@ -531,11 +531,19 @@ Write-host "Script started at $StartDateTime"
     #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
         if ($SMBBandwidthLimits){
             #install feature
-            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
-            #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
-            $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
-            $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
-            Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                Install-WindowsFeature -Name "FS-SMBBW"
+                #If configured, use 60% of SMB traffic class bandwidth (Validate-DCB)
+                if ($using:DCB){
+                    $BandwidthLimit = (Get-NetQosTrafficClass -Name "SMB").BandwidthPercentage / 100 * 0.6
+                }else{
+                    #Otherwise use 40% of overall bandwidth
+                    $BandwidthLimit = 0.4
+                }
+                $Adapters=(Get-VMSwitch -Name $using:vSwitchName).NetAdapterInterfaceDescriptions
+                $BytesPerSecond=((Get-NetAdapter -InterfaceDescription $adapters).ReceiveLinkSpeed | Measure-Object -Minimum).Minimum/8
+                Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*$BandwidthLimit)
+            }
         }
 
 #endregion
