@@ -295,8 +295,7 @@ foreach ($Number in $Numbers){
     }
 
     #Configure Network Constraints
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet1" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet1" -ErrorAction SilentlyContinue  
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet2" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet2" -ErrorAction SilentlyContinue  
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet1","ReplicaNet2" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet1","ReplicaNet2" -ErrorAction SilentlyContinue  
     #validate
     Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName
 }
