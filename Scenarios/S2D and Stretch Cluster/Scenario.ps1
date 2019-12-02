@@ -425,3 +425,25 @@ foreach ($VM in $VMs){
     Move-ClusterVirtualMachineRole -Cluster $ClusterName -Name $VM.Name -Node $CSVOwnerNode.Name -MigrationType Live
 }
 #endregion
+
+#region configure Affinity rules
+$ClusterName="s2d-s-cluster"
+$CSVs=Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*
+$VMS=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
+
+#add rule to keep VMs with CSV on the same node (optional, not really needed, just as example)
+foreach ($CSV in $CSVs){
+    $CSVName=$csv.name.TrimEnd(")").split("(") | Select-Object -Last 1
+    New-ClusterAffinityRule -Name $CSVName -RuleType SameNode -CimSession $ClusterName
+    $VMsOnCSV=$vms | Where-Object -Property Path -Like "C:\ClusterStorage\$CSVName*"
+    $groups=@()
+    foreach ($VM in $VMsOnCSV){
+        $groups+=Get-ClusterGroup -Name $VM.name -Cluster $ClusterName
+    }
+    Add-ClusterGroupToAffinityRule -Name $CSVName -Groups $Groups -CimSession $ClusterName
+    Add-ClusterSharedVolumeToAffinityRule -Name $CSVName -ClusterSharedVolumes $CSV -CimSession $ClusterName
+}
+
+Get-ClusterAffinityRule -CimSession $ClusterName
+
+#endregion
