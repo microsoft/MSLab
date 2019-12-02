@@ -15,6 +15,7 @@
     - [Region Enable SR for volumes](#region-enable-sr-for-volumes)
     - [Region create some VMs](#region-create-some-vms)
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
+    - [Region configure Affinity rules](#region-configure-affinity-rules)
 
 <!-- /TOC -->
 
@@ -173,7 +174,13 @@ Before
 
 After
 
-
 ![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin10.png)
 
 ![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin11.png)
+
+### Region configure Affinity rules
+
+This region just demonstrates how to configure Affinity rules. In this case script demonstrates how to make all VMs placed on CSV to be affinitized to it's CSV
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/PowerShell10.png)
+
