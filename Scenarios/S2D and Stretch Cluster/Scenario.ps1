@@ -397,7 +397,6 @@ Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
 #endregion
 
 #region move odd CSVs and it's respective VMs to site1 and even to site2 
-
 $ClusterName="s2d-s-cluster"
 
 $CSVs=Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*
@@ -425,5 +424,4 @@ foreach ($VM in $VMs){
     $CSVOwnerNode=(Get-ClusterSharedVolume -Cluster $ClusterName -Name "Cluster Virtual Disk ($CSVName)").OwnerNode
     Move-ClusterVirtualMachineRole -Cluster $ClusterName -Name $VM.Name -Node $CSVOwnerNode.Name -MigrationType Live
 }
-
 #endregion
