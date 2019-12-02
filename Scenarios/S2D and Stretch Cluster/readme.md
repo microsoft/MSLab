@@ -155,10 +155,25 @@ You can see, that communication is constrained to it's interfaces
 
 In this region you might want to create NanoServer image first - thats because to have some small VM you can live migrate around your lab. Due to it's small size, it will not consume much in your lab - as all data quardruples (2-way mirror + Storage Replica to another 2-way mirror volume).
 
-Scenario script will ask you for VHDx, so you can just copy it to lab (or before deploying lab you could place it into tools.vhdx)
-
 ![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/NanoServerCreation.gif)
+
+Scenario script will ask you for VHDx, so you can just copy it to lab (or before deploying lab you could place it into tools.vhdx). After this region finishes, you will see 4 VMs running.
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin08.png)
 
 ### Region move odd CSVs and it's respective VMs to site1 and even to site2
 
 Script will move half of the VMs and CSVs to Site2 to evenly distribute workload.
+
+Before
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin08.png)
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin09.png)
+
+After
+
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin10.png)
+
+![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/Cluadmin11.png)
