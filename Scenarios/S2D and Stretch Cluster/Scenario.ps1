@@ -71,39 +71,65 @@
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
-
-        #Disable RSC on Physical NICs connected to vSwitch (RSC in the vSwitch (2019+ only) conflicts with NIC vendors implementation of RSC if they did it in software (miniport, not OS) rather than firmware
-            Invoke-Command -ComputerName $servers -ScriptBlock {
-                $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
-                foreach ($physicaladapter in $physicaladapters){
-                    $adapter=Get-NetAdapter -InterfaceDescription $physicaladapter
-                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv4' -RegistryValue 0
-                    $adapter | Set-NetAdapterAdvancedProperty -RegistryKeyword '*RscIPv6' -RegistryValue 0
-                }
-            }
 #endregion
 
-#region Create cluster configure File Share witness (as for Azure witness it would be more lines of code)
+#region Create cluster and configure witness (file share or Azure)
     $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
     $ClusterName="S2D-S-Cluster"
+    $WitnessType="Azure" #or FileShare
+    $ResourceGroupName="WSLabCloudWitness"
+    $StorageAccountName="wslabcloudwitness$(Get-Random -Minimum 100000 -Maximum 999999)"
+
+    if ($WitnessType -eq "Azure"){
+        #download Azure module
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        Install-Module -Name Az -Force
+
+        #login to Azure
+        Login-AzAccount -UseDeviceAuthentication
+        #select context if more available
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context | Out-GridView -OutpuMode Single | Set-AzContext
+        }
+        #Create resource group
+        $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.Storage" | Out-GridView -OutputMode Single
+        #create resource group first
+        if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+            New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+        }
+        #create Storage Account
+        If (-not(Get-AzStorageAccountKey -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)){
+            New-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -SkuName Standard_LRS -Location $location.location -Kind StorageV2 -AccessTier Cool 
+        }
+        $StorageAccountAccessKey=(Get-AzStorageAccountKey -Name $StorageAccountName -ResourceGroupName $ResourceGroupName | Select-Object -First 1).Value
+    }
+
     Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
-    New-Cluster -Name $ClusterName -Node $servers
+    if ($WitnessType -eq "Azure"){
+        New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType Distributed -NoStorage
+    }else{
+        New-Cluster -Name $ClusterName -Node $servers -NoStorage
+    }
     Start-Sleep 5
     Clear-DnsClientCache
 
-    #Configure Witness on DC 
-        #Create new directory
-            $WitnessName=$Clustername+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
-            $accounts=@()
-            $accounts+="corp\$ClusterName$"
-            $accounts+="corp\Domain Admins"
-            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
-        #Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
-        #Set Quorum
-            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
-
+    if ($WitnessType -eq "Azure"){
+        Set-ClusterQuorum -Cluster $ClusterName -CloudWitness -AccountName $StorageAccountName -AccessKey $StorageAccountAccessKey -Endpoint "core.windows.net"
+    }else{
+        #Configure Witness on DC 
+            #Create new directory
+                $WitnessName=$Clustername+"Witness"
+                Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+                $accounts=@()
+                $accounts+="corp\$ClusterName$"
+                $accounts+="corp\Domain Admins"
+                New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+            #Set NTFS permissions 
+                Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+            #Set Quorum
+                Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+    }
 #endregion
 
 #region Configure Cluster Networks
@@ -141,7 +167,7 @@
         Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
 #endregion
 
-#region Create Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
+#region Configure Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
     #either static
 
     $ClusterName="S2D-S-Cluster"
@@ -157,7 +183,7 @@
         </Site>
     </Topology>
 "@
-    <# or with rack info (note, it will configure Rack FaultDomainAwarenessDefault after enable cluster s2d as multiple racks are present)
+    <# or with rack info (note, it will configure Rack FaultDomainAwarenessDefault after enable cluster s2d as multiple racks are present. Also logic for querying nodes in sites needs to be changed )
     $xml =  @"
     <Topology>
         <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
@@ -175,7 +201,6 @@
     </Topology>
 "@
 #>
-
     Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 
     #validate
@@ -207,17 +232,18 @@
 #endregion
 
 #region Enable Cluster S2D and check Pool and Tiers
-    #Enable-ClusterS2D
-        Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+$ClusterName="S2D-S-Cluster"
+#Enable-ClusterS2D
+Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
 
-    #display pool
-        Get-StoragePool -IsPrimordial $false -CimSession $ClusterName
+#display pool
+Get-StoragePool -IsPrimordial $false -CimSession $ClusterName
 
-    #Display disks
-        Get-StoragePool -IsPrimordial $false -CimSession $ClusterName | Get-PhysicalDisk -CimSession $ClusterName
+#Display disks
+Get-StoragePool -IsPrimordial $false -CimSession $ClusterName | Get-PhysicalDisk -CimSession $ClusterName
 
-    #Get Storage Tiers
-        Get-StorageTier -CimSession $ClusterName
+#Get Storage Tiers
+Get-StorageTier -CimSession $ClusterName
 #endregion
 
 #region Create Volumes
@@ -226,7 +252,7 @@
     $VolumeSize=1TB
     $LogSize=100GB
     $VolumeNamePrefix="vDisk"
-    $LogDiskPrefix="vDiskLog"
+    $LogDiskPrefix="Log-vDisk"
 
     $sites=(Get-StorageFaultDomain -CimSession $ClusterName -Type StorageSite).FriendlyName
     #$pools=Get-StoragePool -CimSession $clustername -IsPrimordial $false
@@ -255,8 +281,10 @@
 $ClusterName="S2D-S-Cluster"
 $NumberOfVolumesPerSite=4 #2 per node for data (source,destination)
 $VolumeNamePrefix="vDisk"
-$LogDiskPrefix="vDiskLog"
+$LogDiskPrefix="Log-vDisk"
 $NumberOfVolumesPerSite=4
+$SourceRGNamePrefix="RG-$($Sites[0])-$($VolumeNamePrefix)"
+$DestinationRGNamePrefix="RG-$($Sites[1])-$($VolumeNamePrefix)"
 
 $ReplicationMode="Synchronous" #Synchronous or Asynchronous
 $AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
@@ -284,8 +312,8 @@ foreach ($Number in $Numbers){
     Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
 
     #generate RG Names
-    $SourceRGName="RG-$($Sites[0])-$($VolumeNamePrefix)$Number"
-    $DestinationRGName="RG-$($Sites[1])-$($VolumeNamePrefix)$Number"
+    $SourceRGName="$SourceRGNamePrefix$Number"
+    $DestinationRGName="$DestinationRGNamePrefix$Number"
 
     #enable SR
     if ($ReplicationMode -eq "Asynchronous"){
@@ -293,11 +321,14 @@ foreach ($Number in $Numbers){
     }else{
         New-SRPartnership -ReplicationMode Synchronous -SourceComputerName $Site1Node -SourceRGName $SourceRGName -SourceVolumeName $Site1DataDiskPath -SourceLogVolumeName $Site1LogDiskPath -DestinationComputerName $Site2Node -DestinationRGName $DestinationRGName -DestinationVolumeName $Site2DataDiskPath -DestinationLogVolumeName $Site2LogDiskPath
     }
+}
 
-    #Configure Network Constraints
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -SourceNWInterface "ReplicaNet1","ReplicaNet2" -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName -DestinationNWInterface "ReplicaNet1","ReplicaNet2" -ErrorAction SilentlyContinue  
-    #validate
-    Get-SRNetworkConstraint -SourceComputerName $ClusterName -SourceRGName $SourceRGName -DestinationComputerName $ClusterName -DestinationRGName $DestinationRGName
+#Configure Network Constraints
+$Numbers=1..$NumberOfVolumesPerSite
+foreach ($Number in $Numbers){
+    $SourceRGName="$SourceRGNamePrefix$Number"
+    $DestinationRGName="$DestinationRGNamePrefix$Number"
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -DestinationComputerName $ClusterName -SourceRGName $SourceRGName -DestinationRGName $DestinationRGName -SourceNWInterface "ReplicaNet1","ReplicaNet2" -DestinationNWInterface "ReplicaNet1","ReplicaNet2" -ErrorAction Ignore
 }
 
 #Validate Network Constraints
@@ -321,5 +352,78 @@ foreach ($number in $Numbers){
 }
 
 $Records | Format-Table RGName,Rep*,NumberOfGBRemaining,PercentRemaining
+
+#validate network communication
+Get-SmbMultichannelConnection -CimSession $ClusterName -SmbInstance CSV
+Get-SmbMultichannelConnection -CimSession $ClusterName -SmbInstance SBL
+Get-SmbMultichannelConnection -CimSession $ClusterName -SmbInstance SR
+Get-ClusterNetwork -Cluster $ClusterName | Select-Object Address,Name,Role
+
+#endregion
+
+#region create some VMs
+$NumberOfVMsPerVolume=1
+$ClusterName="s2d-s-cluster"
+
+#ask for VHD
+[reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+$openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+    Title="Please select parent VHDx." # Preferably create NanoServer as it's small"
+}
+$openFile.Filter = "VHDx files (*.vhdx)|*.vhdx" 
+If($openFile.ShowDialog() -eq "OK"){
+    Write-Host  "File $($openfile.FileName) selected" -ForegroundColor Cyan
+} 
+if (!$openFile.FileName){
+    Write-Host "No VHD was selected... Skipping VM Creation" -ForegroundColor Red
+}
+$VHDPath = $openFile.FileName
+
+#create VMs
+$CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*).Name
+foreach ($CSV in $CSVs){
+    1..$NumberOfVMsPerVolume | ForEach-Object {
+        $CSV=$CSV.Substring(22)
+        $CSV=$CSV.TrimEnd(")")
+        $VMName="TestVM$($CSV)_$_"
+        New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
+        Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+        New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
+        Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+    }
+}
+#Start all VMs
+Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
+#endregion
+
+#region move odd CSVs and it's respective VMs to site1 and even to site2 
+
+$ClusterName="s2d-s-cluster"
+
+$CSVs=Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*
+$sites=Get-ClusterFaultDomain -CimSession $ClusterName -Type Site
+
+$i=1
+foreach ($CSV in $CSVs){
+    if (($i % 2) -eq 1){
+        if ($sites[1].childrennames -contains $csv.OwnerNode){ #if CSV ownership is in another site, move it to first
+            $CSV | Move-ClusterSharedVolume -Cluster $ClusterName -Node ($sites[0].ChildrenNames | Get-Random -Count 1)
+        }
+    }elseif(($i % 2) -eq 0){
+        if ($sites[0].childrennames -contains $csv.OwnerNode){ #if CSV ownership is in another site, move it to first
+            $CSV | Move-ClusterSharedVolume -Cluster $ClusterName -Node ($sites[1].ChildrenNames | Get-Random -Count 1)
+        }
+    }
+    $i++
+}
+
+#move VMs to the nodes where is volume owner
+$VMS=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
+
+foreach ($VM in $VMs){
+    $CSVName=$vm.path.split("\") |Select-Object -First 3 | Select-Object -Last 1
+    $CSVOwnerNode=(Get-ClusterSharedVolume -Cluster $ClusterName -Name "Cluster Virtual Disk ($CSVName)").OwnerNode
+    Move-ClusterVirtualMachineRole -Cluster $ClusterName -Name $VM.Name -Node $CSVOwnerNode.Name -MigrationType Live
+}
 
 #endregion
