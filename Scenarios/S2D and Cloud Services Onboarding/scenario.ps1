@@ -51,6 +51,11 @@ Invoke-Command -Session $session -ScriptBlock {
 
 $Session | Remove-PSSession
 
+#add certificate to trusted root certs
+$cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+$cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
 #Configure Resource-Based constrained delegation
 $gatewayObject = Get-ADComputer -Identity $GatewayServerName
 $computers = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
@@ -257,14 +262,14 @@ Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {
 #uninstall (if tshooting is needed)
 #Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {Start-Process -FilePath "msiexec" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\MMAInstaller\MOMAgent.msi /qn" -Wait}
 
-#let it settle a bit
-Start-Sleep 60
-
 #Register the hybrid runbook worker
 $AutomationInfo = Get-AzAutomationRegistrationInfo -ResourceGroupName $ResourceGroupName -AutomationAccountName $AutomationAccountName
 $AutomationPrimaryKey = $AutomationInfo.PrimaryKey
 $AutomationEndpoint = $AutomationInfo.Endpoint
 Invoke-Command -ComputerName $HRWorkerServerName -ScriptBlock {
+    while (-not ($PoshModule=(get-childitem -Path "$env:programfiles\Microsoft Monitoring Agent\Agent\AzureAutomation" -Recurse  | Where-Object name -eq HybridRegistration.psd1))){
+        Start-Sleep 5
+    }
     $PoshModule=(get-childitem -Path "$env:programfiles\Microsoft Monitoring Agent\Agent\AzureAutomation" -Recurse  | Where-Object name -eq HybridRegistration.psd1 | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
     Import-Module $PoshModule
     Add-HybridRunbookWorker -Name $using:HybridWorkerGroupName -EndPoint $using:AutomationEndpoint -Token $using:AutomationPrimaryKey
@@ -383,6 +388,14 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Start-Process -FilePath "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe" -ArgumentList "/S" -Wait
 }
 
+#endregion
+
+#region Enable Health Service Event logging
+#grab all s2d clusters
+$S2DClusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1).Name
+#enable health service logging
+Invoke-Command -ComputerName $S2DClusters -ScriptBlock {get-storagesubsystem clus* | Set-StorageHealthSetting -Name "Platform.ETW.MasTypes" -Value "Microsoft.Health.EntityType.Subsystem,Microsoft.Health.EntityType.Server,Microsoft.Health.EntityType.PhysicalDisk,Microsoft.Health.EntityType.StoragePool,Microsoft.Health.EntityType.Volume,Microsoft.Health.EntityType.Cluster"}
+ 
 #endregion
 
 #region Cleanup Azure resources
