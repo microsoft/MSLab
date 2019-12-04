@@ -378,7 +378,7 @@ if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\InstallDependencyAgent-Win
 Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 #create sessions
 $sessions=New-PSSession -ComputerName $servers
-#copy mma agent
+#copy Service Dependency agent
 foreach ($session in $sessions){
     Copy-Item -Path "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
 }
