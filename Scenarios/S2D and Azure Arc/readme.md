@@ -244,6 +244,8 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 
 ### Validate if agents are connected
 
+If status is disconnected, just run #configure Azure ARC agent section above again
+
 ```PowerShell
 $servers="S2D1","S2D2","S2D3","S2D4"
 Invoke-Command -ComputerName $Servers -ScriptBlock {
