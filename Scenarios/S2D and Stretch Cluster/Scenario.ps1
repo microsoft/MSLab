@@ -283,8 +283,6 @@ $NumberOfVolumesPerSite=4 #2 per node for data (source,destination)
 $VolumeNamePrefix="vDisk"
 $LogDiskPrefix="Log-vDisk"
 $NumberOfVolumesPerSite=4
-$SourceRGNamePrefix="RG-$($Sites[0])-$($VolumeNamePrefix)"
-$DestinationRGNamePrefix="RG-$($Sites[1])-$($VolumeNamePrefix)"
 
 $ReplicationMode="Synchronous" #Synchronous or Asynchronous
 $AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
@@ -292,6 +290,9 @@ $AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
 $sites=(Get-StorageFaultDomain -CimSession $ClusterName -Type StorageSite).FriendlyName
 $Site1Node=(Get-ClusterNode -Cluster $ClusterName | Where-Object FaultDomain -Contains "Site:$($sites[0])" | Get-Random -Count 1).Name
 $Site2Node=(Get-ClusterNode -Cluster $ClusterName | Where-Object FaultDomain -Contains "Site:$($sites[1])" | Get-Random -Count 1).Name
+
+$SourceRGNamePrefix="RG-$($Sites[0])-$($VolumeNamePrefix)"
+$DestinationRGNamePrefix="RG-$($Sites[1])-$($VolumeNamePrefix)"
 
 $Numbers=1..$NumberOfVolumesPerSite
 foreach ($Number in $Numbers){

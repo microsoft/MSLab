@@ -265,7 +265,6 @@ You will also see Azure Arc machines in Azure Portal
 
 ## Deploy Policy Definition (not effective ?yet)
 
-
 ### Explore available Policy Definitions
 
 ```PowerShell
