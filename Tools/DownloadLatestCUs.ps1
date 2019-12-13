@@ -25,6 +25,8 @@ foreach ($Version in $versions){
     $CUFilename=$latestCU.URL.Split('/') | Select-Object -Last 1
     $SSUFilename=$latestSSU.URL.Split('/') | Select-Object -Last 1
     $path="$folder\$version\$($latestCU.Note.Substring(0,7))"
+    
+    New-Item -Path $path -ItemType Directory -ErrorAction Ignore | Out-Null
 
     if (Test-Path -Path "$path\$CUFilename"){
         Write-Output "$CUFilename already present. Skipping download"
