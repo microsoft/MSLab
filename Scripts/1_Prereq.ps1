@@ -125,22 +125,23 @@ function  Get-WindowsBuildNumber {
         }
     }
 
-# add createparentdisks script
-    $Filename="CreateParentDisk"
-    $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
-    If (Test-Path -Path $Path){
-        WriteSuccess "`t $Filename is present, skipping download"
-    }else{
-        $FileContent = $null
-        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/CreateParentDisk.ps1).Content
-        if ($FileContent){
-            $script = New-Item "$PSScriptRoot\ParentDisks\CreateParentDisk.ps1" -type File -Force
-            Set-Content -path $script -value $FileContent
+# add createparentdisks and DownloadLatestCU scripts to Parent Disks folder
+    $FileNames="CreateParentDisk","DownloadLatestCUs"
+    foreach ($filename in $filenames){
+        $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
+        If (Test-Path -Path $Path){
+            WriteSuccess "`t $Filename is present, skipping download"
         }else{
-            WriteErrorAndExit "Unable to download $Filename."
+            $FileContent = $null
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Tools/$FileName.ps1").Content
+            if ($FileContent){
+                $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
+                Set-Content -path $script -value $FileContent
+            }else{
+                WriteErrorAndExit "Unable to download $Filename."
+            }
         }
     }
-
 #endregion
 
 #region some tools to download

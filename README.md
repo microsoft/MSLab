@@ -72,7 +72,6 @@ Note: Some videos may be a bit outdated as there is continuous innovation going 
 * [ISO](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
 * [Latest Cumulative Update](http://catalog.update.microsoft.com/v7/site/Search.aspx?q=Cumulative%20Update%20for%20Windows%20Server%202019%20for%20x64-based%20Systems%20) for Windows Server 2019 and [Servicing Stack Update](http://aka.ms/2019ssu)
 
-
 ### or Windows Server Insider Preview
 
 * [LTSC ISO](https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver)
@@ -88,6 +87,14 @@ Note: watch entire process how to deploy SCVMM [here](https://youtu.be/NTrncW2om
 * [SCVMM 2019](https://www.microsoft.com/en-us/evalcenter/evaluate-system-center-release)
 
 * [SQL 2017](https://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2017-rtm)
+
+
+### Tip: You can download CU and UR using DownloadLatestCU script
+
+You will find this script in CreateParentDisks folder
+
+![](/Screenshots/DownloadLatestCUs.gif)
+
 
 ## Step 2 Create folder and Unzip scripts there
 
