@@ -12,7 +12,7 @@ if (!(get-module -Name LatestUpdate)){
 }
 
 #grab folder to download to
-$folder=Read-Host -Prompt "Please type path to download. For example `"c:\temp\`" (if nothing specified, $PSScriptRoot is used)"
+$folder=Read-Host -Prompt "Please type path to download. For example `"c:\temp`" (if nothing specified, $PSScriptRoot is used)"
 if(!$folder){$folder=$PSScriptRoot}
 
 #grab versions to download
@@ -24,7 +24,7 @@ foreach ($Version in $versions){
     $latestSSU=Get-LatestServicingStackUpdate -OperatingSystem Windows10 -Version $Version | Where-Object -Property Note -Like "*server*" 
     $CUFilename=$latestCU.URL.Split('/') | Select-Object -Last 1
     $SSUFilename=$latestSSU.URL.Split('/') | Select-Object -Last 1
-    $path="$folder$version\$($latestCU.Note.Substring(0,7))"
+    $path="$folder\$version\$($latestCU.Note.Substring(0,7))"
 
     if (Test-Path -Path "$path\$CUFilename"){
         Write-Output "$CUFilename already present. Skipping download"
