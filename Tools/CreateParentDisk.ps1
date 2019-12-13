@@ -169,6 +169,12 @@
                     18362 {
                         "WinServer1903_G2.vhdx"
                     }
+                    18363 {
+                        "WinServer1909_G2.vhdx"
+                    }
+                    19041 {
+                        "WinServer20H1_G2.vhdx"
+                    }
                 }
                 if ($BuildNumber -gt 18362){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
@@ -207,9 +213,6 @@
                     }
                     17763 {
                         "Win2019_G2.vhdx"
-                    }
-                    18362 {
-                        "WinServer1903_G2.vhdx"
                     }
                 }
                 if ($BuildNumber -GT 18362){
@@ -254,8 +257,14 @@
                     18362 {
                         "Win1019H1_G2.vhdx"
                     }
+                    18363 {
+                        "Win1019H2_G2.vhdx"
+                    }
+                    19041 {
+                        "Win1020H1_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 18362){
+                if ($BuildNumber -GT 19041){
                     $tempvhdname="Win10Insider_$BuildNumber.vhdx"
                 }
             }
