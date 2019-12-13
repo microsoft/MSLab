@@ -7,6 +7,13 @@ Import-Module LatestUpdate -ErrorAction Ignore
 
 #download LatestUpdate module
 if (!(get-module -Name LatestUpdate)){
+    # Verify Running as Admin
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+    If (!( $isAdmin )) {
+        Write-Host "-- Restarting as Administrator to install Modules" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        exit
+    }
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name LatestUpdate -Force
 }
