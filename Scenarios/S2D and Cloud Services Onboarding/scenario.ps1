@@ -28,6 +28,7 @@ Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2093376" -UseBas
 #Install Edge Beta
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi /q"
 #start Edge
+start-sleep 5
 & "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
 #endregion
 
