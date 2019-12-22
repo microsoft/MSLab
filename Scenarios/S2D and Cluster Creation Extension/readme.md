@@ -16,6 +16,8 @@
 
 In following lab you deploy S2D Cluster using Cluster Creation Extension in Windows Admin Center.
 
+In version 1.2 is know bug when running Windows Admin Center in Gateway mode. Run Admin Center from Windows 10 instead.
+
 ## LabConfig
 
 ![](/Scenarios/S2D%20and%20Cluster%20Creation%20Extension/Screenshots/VMs.png)
@@ -29,7 +31,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 $LabConfig.VMs += @{ VMName = 'WACGW' ; Configuration = 'Simple' ; ParentVHD = 'Win2019Core_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB }
 
 #optional Windows 10 management machine
-#$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win1019H1_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win1019H1_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True ; MGMTNICs=1}
  
 ```
 
@@ -85,6 +87,24 @@ $Session | Remove-PSSession
 $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
 $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
 Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+ 
+```
+
+### Or Install Windows Admin Center on Windows 10 machine
+
+```PowerShell
+#Download Windows Admin Center if not present
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    $ProgressPreference='Continue' #return progress preference back
+}
+
+#Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
+
+#Open Windows Admin Center
+    Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
  
 ```
 
