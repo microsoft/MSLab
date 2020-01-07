@@ -72,9 +72,6 @@ Write-host "Script started at $StartDateTime"
     #DisableNetBIOS on all vNICs? $True/$False It's optional. Works well with both settings default/disabled
         $DisableNetBIOS=$False
 
-    #Number of Disks Created. If >4 nodes, then x Mirror-Accelerated Parity and x Mirror disks are created
-        $NumberOfDisks=$numberofnodes
-
     #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
         $SMBBandwidthLimits=$true
 
