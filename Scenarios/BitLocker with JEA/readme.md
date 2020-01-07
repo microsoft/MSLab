@@ -22,9 +22,9 @@ In this lab you will learn about benefits of JEA for day-to-day administration -
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); Internet=$true ; VMs=@()}
 
-$LabConfig.VMs += @{ VMName = 'BitLocker1' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
-$LabConfig.VMs += @{ VMName = 'BitLocker2' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
-$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win10RS5_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
+$LabConfig.VMs += @{ VMName = 'BitLocker1' ; Configuration = 'Simple' ; ParentVHD = 'Win1019H1_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
+$LabConfig.VMs += @{ VMName = 'BitLocker2' ; Configuration = 'Simple' ; ParentVHD = 'Win1019H1_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
+$LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVHD = 'Win1019H1_G2.vhdx'  ; MemoryStartupBytes= 1GB ; MemoryMinimumBytes=1GB ; AddToolsVHD=$True ; DisableWCF=$True ; EnableWinRM=$True ; vTPM=$True}
  
 ```
 
@@ -32,16 +32,13 @@ $LabConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple' ; ParentVH
 
 All tasks will be done from Management (Windows 10) machine. Note the labconfig - WinRM is enabled on all machines, therefore PowerShell remoting will work from very beginning.
 
-First make sure that RSAT is installed (if not, script will download it and install).
+First make sure that RSAT is installed
 
 ```PowerShell
-if ((Get-HotFix).hotfixid -contains "KB2693643"){
-    Write-Host "RSAT is installed" -ForegroundColor Green
-}else{
-    Write-Host "RSAT is not installed. Will install it now." -ForegroundColor Yellow
-    Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/1/D/8/1D8B5022-5477-4B9A-8104-6A71FF9D98AB/WindowsTH-RSAT_WS_1803-x64.msu" -OutFile "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu"
-    Start-Process -Wait -Filepath "$env:USERPROFILE\Downloads\WindowsTH-RSAT_WS_1803-x64.msu" -Argumentlist "/quiet"
-}
+    $Capabilities="Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+    foreach ($Capability in $Capabilities){
+        Add-WindowsCapability -Name $Capability -Online
+    }
  
 ```
 
