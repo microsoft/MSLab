@@ -547,7 +547,7 @@ foreach ($server in $InfluxDBAuthorizedServers){
     #grab current ACLs and add new ones
     foreach ($fwrule in $fwrules){
         $CurrentACL=($fwrule | Get-NetFirewallSecurityFilter).RemoteMachines
-        if (-not($CurrentACL -like "*$SID*")){
+        if ((-not($CurrentACL -like "*$SID*")) -or ($CurrentACL -eq $null)){
             if ($CurrentACL){
                 $SDDL=$CurrentACL+"(A;;CC;;;$SID)"
             }else{
