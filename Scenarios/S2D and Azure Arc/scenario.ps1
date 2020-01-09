@@ -186,7 +186,7 @@ Expand-Archive -Path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseli
 #install BaselineManagement module
 Install-Module BaselineManagement -Force
 
-#create mof files into 
+#create mof files
 [xml]$manifest=Get-Content "$BaselinePath\GPOs\manifest.xml"
 $instances=$manifest.Backups.BackupInst
 foreach ($instance in $instances){
@@ -211,6 +211,7 @@ Get-Command -Module 'GuestConfiguration'
 $mofs=Get-ChildItem -Path $DSCFolder -Recurse | where name -eq "localhost.mof"
 
 #replace "PSDesiredStateConfiguration" with 'PSDscResources' in mof files
+Install-Module -Name PSDscResources -Force
 $version=(get-module PSDscResources -ListAvailable).Version.tostring()
 foreach ($mof in $mofs){
     $content=get-content -Path $mof.fullname
