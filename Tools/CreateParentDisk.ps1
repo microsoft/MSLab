@@ -63,9 +63,11 @@
             WriteErrorAndExit  "Iso was not selected... Exitting"
         }
         $ISO = Mount-DiskImage -ImagePath $openFile.FileName -PassThru
-
         $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':'
-
+        if (-not (Test-Path -Path $ISOMediaPath\sources\install.wim)){
+            $ISO | Dismount-DiskImage
+            WriteErrorAndExit "ISO does not contain install.wim. Exitting"
+        }
     #endregion
 
     #region ask for MSU packages
