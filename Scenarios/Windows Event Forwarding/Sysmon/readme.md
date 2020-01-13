@@ -74,6 +74,11 @@ $xml.Save("$env:USERPROFILE\Downloads\Sysmon\Sysmonconfig-export.xml")
 
 ```PowerShell
 $servers="Server1","Server2"
+
+#Increase MaxEvenlope and create session to copy files to
+Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+
+#create PSSessions
 $sessions=New-PSSession -ComputerName $servers
 
 #copy sysmon to servers
