@@ -282,7 +282,7 @@ Set-AdmPwdResetPasswordPermission -Identity "Managed Domain Accounts" -AllowedPr
 
 #Create an account and add to domain admins
 $AccountName="MyManagedAccount"
-New-ADUser -Name $AccountName -UserPrincipalName $AccountName -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)
+New- -Name $AccountName -UserPrincipalName $AccountName -Path "OU=Managed Domain Accounts,DC=corp,DC=Contoso,DC=com" -Enabled $true -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force)
 Add-ADGroupMember -Identity "Domain admins" -Members MyManagedAccount
 #Note: be aware of AdminSDHolder feature that rewrites ACL on privileged accounts!
 
