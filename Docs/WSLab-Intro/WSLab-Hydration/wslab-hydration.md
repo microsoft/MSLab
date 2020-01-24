@@ -44,9 +44,9 @@ It highly recommended to provide both Cumulative Update and Servicing Stack Upda
 
 Once script will finish, it will clean up freshly created domain controller to keep it only in folder (to be ready to be imported during deployment phase). Script will prompt you if unnecessary files should be removed. If you will confirm, it will remove first 2 scripts as it's no longer needed.
 
-![](/media/PowerShell01.png)
+![](media/PowerShell01.png)
 
-![](/media/Explorer04.png)
+![](media/Explorer04.png)
 
 # Tips and Tricks
 
