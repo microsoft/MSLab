@@ -16,7 +16,7 @@ WSLab is a GitHub project that aims to provide virtual environments in Hyper-V, 
 
 Unlike other solutions, WSLab focuses on simplicity (all actions can be done without typing complex scripts) and low profile (all disks are differencing, minimum requirements are 8GB RAM and 40GB free space). There is no special hardware requirement. WSLab can run on almost any machine that has SSD and decent amount of memory.
 
-![](/media/Hyper-V_Manager01.png)
+![](media/Hyper-V_Manager01.png)
 
 ## Requirements
 
@@ -28,7 +28,7 @@ Unlike other solutions, WSLab focuses on simplicity (all actions can be done wit
 
 ## Scripts
 
-The main part of WSLab are [Scripts](https://aka.ms/wslabzip) that will help preparing lab files ([Hydration Phase](/WSLab-Hydration)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks out of provided ISO and will create Domain Controller. [WSLab Deployment](/WSLab-Deployent) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
+The main part of WSLab are [Scripts](https://aka.ms/wslabzip) that will help preparing lab files ([Hydration Phase](WSLab-Hydration/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks out of provided ISO and will create Domain Controller. [WSLab Deployment](WSLab-Deployment/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
 
 ![](media/Explorer01.png)
 
