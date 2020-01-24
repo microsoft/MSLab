@@ -32,7 +32,8 @@ During Deployment Process you might see red errors, but these are safe to ignore
 
 ![](media/PowerShell02.png)
 
-Note: if this part loops forever, you probably changed password. The mechanism to detect wrong password specified in LabConfig is not implemented.
+> [!NOTE]
+> If this part loops forever, you probably changed password. The mechanism to detect wrong password specified in LabConfig is not implemented.
 
 The script will finish in ~5 minutes.
 
@@ -44,7 +45,7 @@ All virtual machines are created under LAB folder
 
 ![](media/PowerShell04.png)
 
-## Lab cleanup
+## Lab Cleanup
 
 Once you want to discard lab, you can simply run cleanup by running Cleanup.ps1. Script will prompt you for confirmation. Once confirmed, all VMs will be removed and Domain Controller reverted.
 
