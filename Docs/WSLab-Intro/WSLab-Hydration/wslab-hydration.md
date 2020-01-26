@@ -22,21 +22,21 @@ Process of hydration will prepare all necessary Virtual Hard Disks and will crea
 
 Tip: You can download CU and UR using DownloadLatestCU script that will be created after running 1_Prereqs.ps1
 
-![](/media/DownloadLatestCUs.gif)
+![](media/DownloadLatestCUs.gif)
 
 ## 1_Prereq.ps1
 
 After you will download WSLab Scripts, unzip it into some folder and then just run scripts with PowerShell by Right-Click and selecting Run With PowerShell.
 
-![](/media/Explorer01.png)
+![](media/Explorer01.png)
 
 The script will run and will ask for elevation. It will download necessary files (DSC Modules), some example files that will be placed into ToolsDisk folder and some scripts that will be added to ParentDisks folder. ToolsDisk folder can be populated by any tools you might want to have in Tools disk, that can be attached to any VM during deployment phase.
 
-![](/media/Explorer02.png)
+![](media/Explorer02.png)
 
 ## 2_CreateParentDisks.ps1
 
-![](/media/Explorer03.png)
+![](media/Explorer03.png)
 
 Running 2_CreateParentDisk.ps1 will ask for Server ISO image. You can use Evaluation media, or if you have access to VL or Visual Studio Subscription, you can use those. This phase is most time consuming (takes 1-2 hours), as it creates VHDs and even Domain Controller with all required roles configured (Using Desired State Configuration).
 

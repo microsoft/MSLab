@@ -28,7 +28,7 @@ Unlike other solutions, WSLab focuses on simplicity (all actions can be done wit
 
 ## Scripts
 
-The main part of WSLab are [Scripts](https://aka.ms/wslabzip) that will help preparing lab files ([Hydration Phase](WSLab-Hydration/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks out of provided ISO and will create Domain Controller. [WSLab Deployment](WSLab-Deployment/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
+The main part of WSLab are [Scripts](https://aka.ms/wslabzip) that will help preparing lab files ([Hydration Phase](WSLab-Hydration/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks from of provided ISO and will create Domain Controller. [WSLab Deployment](WSLab-Deployment/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
 
 ![](media/Explorer01.png)
 
