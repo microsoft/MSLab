@@ -19,8 +19,10 @@
         Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
 
         #IncreaseHW Timeout for virtual environments to 30s
-        Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530}
-
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            New-Item -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -ItemType Directory
+            Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530
+        }
         #restart and wait for computers
         Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
         Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
