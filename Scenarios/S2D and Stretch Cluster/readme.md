@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [LabConfig Windows Server Insider preview LTSC (not yet released - stay tuned)](#labconfig-windows-server-insider-preview-ltsc-not-yet-released---stay-tuned)
+- [LabConfig Insider preview (not yet released - stay tuned)](#labconfig-insider-preview-not-yet-released---stay-tuned)
 - [About the lab](#about-the-lab)
 - [The Lab](#the-lab)
     - [Region install prereqs](#region-install-prereqs)
@@ -19,7 +19,7 @@
 
 <!-- /TOC -->
 
-## LabConfig Windows Server Insider preview LTSC (not yet released - stay tuned)
+## LabConfig Insider preview (not yet released - stay tuned)
 
 ![](/Scenarios/S2D%20and%20Stretch%20Cluster/Screenshots/VMs.png)
 
