@@ -1,6 +1,7 @@
 <!-- TOC -->
 
 - [S2D And Cluster-Aware Updating](#s2d-and-cluster-aware-updating)
+    - [About the lab](#about-the-lab)
     - [LabConfig for Windows Server 2019](#labconfig-for-windows-server-2019)
     - [Prereqisites](#prereqisites)
     - [The Lab](#the-lab)
@@ -13,6 +14,12 @@
 <!-- /TOC -->
 
 # S2D And Cluster-Aware Updating
+
+## About the lab
+
+Following lab will setup 4 node S2D cluster and will guide you through setting up Cluster-Aware Updating in Self-updating mode
+
+![](Screenshots/Hyper-VManager01.png)
 
 ## LabConfig for Windows Server 2019
 
