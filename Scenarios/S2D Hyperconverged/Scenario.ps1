@@ -821,23 +821,25 @@ Write-host "Script started at $StartDateTime"
         $Switches=Get-VMSwitch -CimSession $servers -SwitchType External
 
         foreach ($switch in $switches){
-            $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select-Object -First 1
-            if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
-                $HT=$True
-            }
-            $adapters=@()
-            $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
-            foreach ($adapter in $adapters){
-                $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors
-                if ($adapter.NumaNode -eq 0){
-                    if($HT){
-                        $BaseProcessorNumber=$BaseProcessorNumber+2
-                    }else{
-                        $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
-                    }
+            if ($switch.DefaultQueueVmmqEnabled -eq $false){ #only if VMMQ does not work, let's make sure VMQ will not assign CPU 0
+                $processor=Get-WmiObject win32_processor -ComputerName $switch.ComputerName | Select-Object -First 1
+                if ($processor.NumberOfCores -eq $processor.NumberOfLogicalProcessors/2){
+                    $HT=$True
                 }
-                $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
-                $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
+                $adapters=@()
+                $switch.NetAdapterInterfaceDescriptions | ForEach-Object {$adapters+=Get-NetAdapterHardwareInfo -InterfaceDescription $_ -CimSession $switch.computername}
+                foreach ($adapter in $adapters){
+                    $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors
+                    if ($adapter.NumaNode -eq 0){
+                        if($HT){
+                            $BaseProcessorNumber=$BaseProcessorNumber+2
+                        }else{
+                            $BaseProcessorNumber=$adapter.NumaNode*$processor.NumberOfLogicalProcessors+1
+                        }
+                    }
+                    $adapter=Get-NetAdapter -InterfaceDescription $adapter.InterfaceDescription -CimSession $adapter.PSComputerName
+                    $adapter | Set-NetAdapterVmq -BaseProcessorNumber $BaseProcessorNumber
+                }
             }
         }
     }
