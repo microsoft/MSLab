@@ -10,6 +10,8 @@
         - [Invoke CAU Scan](#invoke-cau-scan)
         - [Invoke CAU Run](#invoke-cau-run)
         - [Get-CAURun](#get-caurun)
+        - [Get-CAUReport](#get-caureport)
+        - [Add CAU to Windows Admin Center](#add-cau-to-windows-admin-center)
 
 <!-- /TOC -->
 
@@ -243,3 +245,31 @@ Invoke-CauRun -ClusterName $ClusterName
 ```
 
 ![](Screenshots/PowerShell06.png)
+
+### Get-CAUReport
+
+After patching is done, you will be able to see last result.
+
+```PowerShell
+$ClusterName="S2D-Cluster"
+Invoke-CauReport -ClusterName $ClusterName
+ 
+```
+
+![](Screenshots/PowerShell07.png)
+
+### Add CAU to Windows Admin Center
+
+```PowerShell
+#Configure Resource-Based constrained delegation for CAU object
+$GatewayServerName="WACGW"
+$CAURoleName="S2D-Clus-CAU"
+$gatewayObject = Get-ADComputer -Identity $GatewayServerName
+$CAURoleObject = Get-ADComputer -Identity $CAURoleName
+Set-ADComputer -Identity $CAURoleObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+ 
+```
+
+Navigate to https://wacgw and add S2D-Cluster. If you will navigate to Updates, you can also run CAU from Windows Admin Center
+
+![](Screenshots/WAC01.png)
