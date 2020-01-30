@@ -26,7 +26,7 @@ Following lab will setup 4 node S2D cluster and will guide you through setting u
 ## LabConfig for Windows Server 2019
 
 ```PowerShell
-#Labconfig is same as default for Windows Server 2019
+#Labconfig is same as default for Windows Server 2019, but with Nested Virtualization
 
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4' ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@()}
 
@@ -271,5 +271,7 @@ Set-ADComputer -Identity $CAURoleObject -PrincipalsAllowedToDelegateToAccount $g
 ```
 
 Navigate to https://wacgw and add S2D-Cluster. If you will navigate to Updates, you can also run CAU from Windows Admin Center
+
+Unfortunately this is what we get now.
 
 ![](Screenshots/WAC01.png)
