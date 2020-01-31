@@ -356,7 +356,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 In order to use own certificate instead of default self-signed one, certificate needs to be generated before actually installing Windows Admin Center and certificate needs to be imported in Computer store of that machine. Let's do it using Autoenrollment.
 
 ```PowerShell
-$GatewayServerName="WACGW"
+$GatewayServerName="WACGWCert"
 $TemplateName = "WACGW"
 
 # Install PSPKI module for managing Certification Authority
