@@ -20,18 +20,6 @@ if (!(get-module -Name AZ)){
  
 #endregion
 
-#region Install Edge Beta
-
-#install edge for azure portal and authentication (if code is running from DC)
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2093376" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi"
-#Install Edge Beta
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi /q"
-#start Edge
-start-sleep 5
-& "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
-#endregion
-
 #region (optional) Install Windows Admin Center in a GW mode 
 $GatewayServerName="WACGW"
 #Download Windows Admin Center if not present
@@ -53,6 +41,7 @@ Invoke-Command -Session $session -ScriptBlock {
 $Session | Remove-PSSession
 
 #add certificate to trusted root certs
+start-sleep 10
 $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
 $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
 Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
@@ -65,7 +54,17 @@ foreach ($computer in $computers){
     $computerObject = Get-ADComputer -Identity $computer
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
- 
+#endregion
+
+#region Install Edge
+#install edge for azure portal and authentication (if code is running from DC)
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/07367ab9-ceee-4409-a22f-c50d77a8ae06/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#Install Edge Beta
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+#start Edge
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 #endregion
 
 #region Connect to Azure and create Log Analytics workspace if needed
