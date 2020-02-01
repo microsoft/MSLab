@@ -7,7 +7,7 @@
 >[!IMPORTANT]
 > This lab uses WSLab to create virtual machines that will be used for simulation. Please [Hydrate your lab files](../../../WSLab-Intro/WSLab-Deployment/wslab-deployment.md) first. This lab also uses Windows 10. To hydrate Windows 10 image, you can use CreateParentDisk.ps1 script located in ParentDisks folder.
 
-### LabConfig.ps1
+## LabConfig.ps1
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4' ; PullServerDC=$false ; Internet=$true ;AdditionalNetworksConfig=@(); VMs=@(); ServerVHDs=@()}
@@ -27,9 +27,7 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
 
 ![](media/Hyper-VConsole01.png)
 
-## The Lab
-
-### Task 1: Deploy the lab
+## Task 1: Deploy the lab
 
 *In this task you will deploy lab using aka.ms/wslab. The script will provision vanilla computers that you will configure later in the lab.*
 
@@ -43,8 +41,7 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
     >
     >Start-VM -VMName WSLab*
 
-
-### Task 2: Login to Management VM and install management tools
+## Task 2: Login to Management VM and install management tools
 
 1. In Hyper-V Manager, right-click on WSLab-Management and select connect.
 
@@ -63,23 +60,6 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
 
     ![](media/VMConnect01.png)
 
-1. Hyper-V Manager is not part of RSAT that is downloadable as Windows Capability. It is needed to add it from Windows Features. In WSLab-Management VM Open Windows Features by typing "Turn Windows Features" into start menu or OptionalFeatures.exe into PowerShell. Add **Hyper-V Management Tools**
-
-    ![](media/WindowsFeatures01.png)
-
-1. To install Remote management tools, open Settings app. And type Optional. Open Manage Optional features and Install all RSAT tools.
-
-    ![](media/Settings01.png)
-
-    >[!TIP] You can also use following PowerShell to install all RSAT Features into Windows 10.
-
-    ```PowerShell
-    $Capabilities=Get-WindowsCapability -Name RSAT* -Online
-    Foreach ($Capability in $Capabilities){
-        $Capability | Add-WindowsCapability -Online
-    }
-    ```
-
 1. To install Windows Admin Center, navigate to aka.ms/wacdownload for latest stable release. Download msi and proceed with default installation (Click-Next-Next). Once Windows Admin Center opens, make sure you select Windows Admin Center Client certificate to authenticate.
 
     ![](media/WAC01.png)
@@ -87,12 +67,10 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
     >[!TIP] You can also download and install Windows Admin Center using PowerShell script
 
     ```PowerShell
-    #Download Windows Admin Center if not present
-    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-        $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-        $ProgressPreference='Continue' #return progress preference back
-    }
+    #Download Windows Admin Center
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    $ProgressPreference='Continue' #return progress preference back
 
     #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
         Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
@@ -109,6 +87,7 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
     #Download MSI
     $ProgressPreference='SilentlyContinue' #for faster download
     Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/07367ab9-ceee-4409-a22f-c50d77a8ae06/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+    $ProgressPreference='Continue' #return progress preference back
     #Install Edge Beta
     Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
     #start Edge
@@ -116,27 +95,7 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
     & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
     ```
 
-### Task 3: Install Server Roles with Server Manager
-
-*In this task, you will use Server Manager to install roles required for Azure Stack HCI to first server. This task demonstrates how to install roles and features using traditional tools.*
-
-1. In Management machine, open Server Manager. In Server Manager, right-click on All Servers and select Add Servers. In Add Servers dialog, click on Find Now button and add S2D1 as managed server. Click OK to close Add Servers dialog.
-
-    ![](media/AddServers01.png)
-
-1. In Server Manager notice, that S2D1 has 4 IP addresses. It simulates one 2 Network Adapters for North/South traffic and 2 Network Adapters for East/West (direct connection)
-
-    ![](media/ServerManager01.png)
-
-1. Right-Click on S2D1 and select Add Roles and Features. Wizard will open.
-
-    ![](media/ServerManager02.png)
-
-1. In Add Roles and Features wizard on Before you begin page click Next. In Installation Type page keep default and click Next. In Server Selection page keep default and click Next. In Server Roles select **Hyper-V** and confirm adding all management features. Click Next. In Features page select **Failover Clustering**. Confirm also all management features and click Next. In Hyper-V Page click Next. In Virtual Switches page click Next. In Migration page click Next. In Default Stores page click Next. In Confirmation page check "Restart the destination server automatically if required" and click on Install.
-
-    ![](media/AddRolesFeatures01.png)
-
-### Task 4: Install Server Roles with Windows Admin Center
+## Task 3: Install Server Roles with Windows Admin Center
 
 *In this task, you will use Windows Admin Center to install roles required for Azure Stack HCI to second server. This task demonstrates how to install roles and features using modern management tools.*
 
@@ -144,40 +103,29 @@ Above LabConfig will deploy 2 nodes for storage spaces direct, that simulates di
 
     ![](media/WAC02.png)
 
-1. Click on Search Active Directory and in search field write asterisks. Select S2D2 and click Add.
+1. Click on Search Active Directory and in search field write asterisks. Select all servers and click Add.
 
     ![](media/WAC03.png)
 
-1. In Windows Admin Center click on S2D2.corp.contoso.com. In tools search type Roles. Roles & features tool will be displayed. Click on Roles & features tool to open it.
+1. In Windows Admin Center click on S2D1.corp.contoso.com. In tools search type Roles. Roles & features tool will be displayed. Click on Roles & features tool to open it.
 
     ![](media/WAC04.png)
 
-1. In Roles and features, Hyper-V in Roles and Failover Clustering in Features. In Remote Server Administration Tools, select Failover Clustering Module for Windows PowerShell in Feature Administration Tools/Failover Clustering Tools and Hyper-V Module for Windows PowerShell in Role Administration Tools/Hyper-V Management Tools. Once all 4 features are selected, click on +Install. Confirmation panel will appear. Click on Reboot the server automatically, if required and click Yes to install selected roles.
+1. In Roles and features tool select Hyper-V in Roles and Failover Clustering in Features. In Remote Server Administration Tools, select Failover Clustering Module for Windows PowerShell (under Feature Administration Tools/Failover Clustering Tools) and Hyper-V Module for Windows PowerShell (under Role Administration Tools/Hyper-V Management Tools). Once all 4 features are selected, click on +Install. Confirmation panel will appear. Click on Reboot the server automatically, if required and click Yes to install selected roles.
 
     ![](media/WAC05.png)
 
-1. Validate if features were installed correctly with PowerShell
+1. To do the same steps on server s2d2, you can use following PowerShell script
 
 ```PowerShell
-$Servers = "S2D1","S2D2"
-$Features="Hyper-V","Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell"
-
-$Result=Invoke-Command -ComputerName $Servers -ScriptBlock {
-    Install-WindowsFeature -Name $using:Features
-}
-$Result
-#Restart Computers if needed
-$ComputersToRestart=($result |where-object RestartNeeded -ne "No").PSComputerName
-if ($ComputersToRestart){
-    Restart-Computer -ComputerName $ComputersToRestart -Protocol WSMan -Wait -For PowerShell
+Invoke-Command -ComputerName "S2D2" -ScriptBlock {
+    Install-WindowsFeature -Name "Hyper-V","Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell" -Restart
 }
 ```
 
-### Task 5: Create virtual switch with Windows Admin Center
+## Task 4: Create virtual switch using Windows Admin Center
 
 *This task will demonstrate how to create Switch Embedded Team using Windows Admin Center. All steps will be done from Management VM*
-
-1. In Management Machine open Windows Admin Center and add S2D1 as managed server.
 
 1. From Windows Admin Center open S2D1.corp.contoso.com and in tools open Virtual switches tool.
 
@@ -193,7 +141,7 @@ if ($ComputersToRestart){
 Invoke-Command -ComputerName "S2D2" -ScriptBlock {New-VMSwitch -Name vSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
 ```
 
-### Task 6: Test and Create Cluster
+## Task 6: Test and Create Cluster
 
 1. Open Server Manager from Start Menu. In Server Manager, click on Tools in top right corner and select Failover Cluster Manager. Alternatively you can just run cluadmin.msc.
 
@@ -226,9 +174,9 @@ In Confirmation page click Next. Cluster will be created. Click on Finish to clo
     >
     >New-Cluster -Name "2NodeCluster" -Node "s2d1","s2d2" -StaticAddress "10.0.0.111"
 
-### Task 7: Configure File Share Witness
+## Task 7: Configure File Share Witness
 
-*In this task you wil learn how to configure File Share Witness with GUI tools.*
+*In this task you wil learn how to configure File Share Witness with GUI tools. In AzSHCI yo ucan also use cloud witness*
 
 1. Open Failover Cluster Manager from Start Menu or by running cluadmin.msc. In Failover Cluster Manager connect to 2NodeCluster. In Failover Cluster Manager, right-click on 2NodeCluster and select More Actions -> Configure Cluster Quorum Settings... Configure Cluster Quorum Wizard will run.
 

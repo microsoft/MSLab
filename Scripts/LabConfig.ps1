@@ -1,6 +1,6 @@
 ﻿#basic config for Windows Server 2019, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged
 
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-' ; UseLabFolderAsPrefix=$false ; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
 #Windows Server 2019
 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
 #Or Windows Server 2016
@@ -18,6 +18,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         DomainAdminName='LabAdmin';                  # Used during 2_CreateParentDisks (no affect if changed after this step)
         AdminPassword='LS1setup!';                   # Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
         Prefix = 'WSLab-';                           # All VMs and vSwitch are created with this prefix, so you can identify the lab
+        UseLabFolderAsPrefix = $false ;              # (Optional) Use folder name where lab is located as prefix (Useful if you just clone lab multiple times)
         SwitchName = 'LabSwitch';                    # Name of vSwitch
         SecureBoot=$true;                            # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
         DCEdition='4';                               # 4 for DataCenter or 3 for DataCenterCore
@@ -77,8 +78,12 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     Password (Mandatory)
         Specifies password for your lab. This password is used for domain admin, vmm account, sqlservice account and additional DomainAdmin... Define before running 2_CreateParentImages
 
-    Prefix (Mandatory)
+    Prefix (Mandatory if UseLabFolderAsPrefix is $false)
         Prefix for your lab. Each VM and switch will have this prefix.
+
+    UseLabFolderAsPrefix
+        $True/$False
+        Instead of using Prefix from variable, it will use folder name where lab is as Prefix
 
     Secureboot (Optional)
         $True/$False
