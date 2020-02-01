@@ -381,7 +381,7 @@ Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
 > **Note:** If you don't want to download installer over the Internet, copy MSI file over to virtual machine manually.
 
 ```PowerShell
-$GatewayServerName="WACGW"
+$GatewayServerName="WACGWCert"
 
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
