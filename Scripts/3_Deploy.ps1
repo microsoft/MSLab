@@ -682,6 +682,10 @@ If (!( $isAdmin )) {
 
     $global:IP=1
 
+    if ($LabConfig.UseLabFolderAsPrefix){
+        $labconfig.prefix="$($PSScriptRoot | Split-Path -Leaf)-"
+    }
+
     WriteInfoHighlighted "List of variables used"
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
