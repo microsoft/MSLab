@@ -571,24 +571,24 @@ $EventsArray = @(
         ImportChannelID='C1'
         Channels = @(
             @{
-                ChannelName = 'LDAPSNotRequired'
-                ChannelchID = 'LDAPSNotRequired'
-                ChannelSymbol = 'LDAPSNotRequired'
+                ChannelName = 'LDAPSigning-LDAPSNotRequired'
+                ChannelchID = 'LDAPSigning-LDAPSNotRequired'
+                ChannelSymbol = 'LDAPSigning-LDAPSNotRequired'
             },
             @{
-                ChannelName = 'LDAPBindsStats'
-                ChannelchID = 'LDAPBindsStats'
-                ChannelSymbol = 'LDAPBindsStats'
+                ChannelName = 'LDAPSigning-LDAPBindsStats'
+                ChannelchID = 'LDAPSigning-LDAPBindsStats'
+                ChannelSymbol = 'LDAPSigning-LDAPBindsStats'
             },
             @{
-                ChannelName = 'LDAPBindsComputers'
-                ChannelchID = 'LDAPBindsComputers'
-                ChannelSymbol = 'LDAPBindsComputers'
+                ChannelName = 'LDAPSigning-LDAPBindsComputers'
+                ChannelchID = 'LDAPSigning-LDAPBindsComputers'
+                ChannelSymbol = 'LDAPSigning-LDAPBindsComputers'
             },
             @{
-                ChannelName = 'LDAPBindsRejectStats'
-                ChannelchID = 'LDAPBindsRejectStats'
-                ChannelSymbol = 'LDAPBindsRejectStats'
+                ChannelName = 'LDAPSigning-LDAPBindsRejectStats'
+                ChannelchID = 'LDAPSigning-LDAPBindsRejectStats'
+                ChannelSymbol = 'LDAPSigning-LDAPBindsRejectStats'
             }
         )
     },
@@ -600,14 +600,14 @@ $EventsArray = @(
         ImportChannelID='C2'
         Channels = @(
             @{
-                ChannelName = 'TokenValidationFails'
-                ChannelchID = 'TokenValidationFails'
-                ChannelSymbol = 'TokenValidationFails'
+                ChannelName = 'LDAPChannelBinding-TokenValidationFails'
+                ChannelchID = 'LDAPChannelBinding-TokenValidationFails'
+                ChannelSymbol = 'LDAPChannelBinding-TokenValidationFails'
             },
             @{
-                ChannelName = 'ChannelBindingNotEnforced'
-                ChannelchID = 'ChannelBindingNotEnforced'
-                ChannelSymbol = 'ChannelBindingNotEnforced'
+                ChannelName = 'LDAPChannelBinding-ChannelBindingNotEnforced'
+                ChannelchID = 'LDAPChannelBinding-ChannelBindingNotEnforced'
+                ChannelSymbol = 'LDAPChannelBinding-ChannelBindingNotEnforced'
             }
         )
     }
@@ -717,12 +717,12 @@ eventvwr
 $CollectorServerName="Collector"
 #Events definition
 $Definitions=@()
-$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPNotRequired"           ; Query='<Select Path="DirectoryService">*[System[(EventID=2286)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPBindsStatistics"       ; Query='<Select Path="DirectoryService">*[System[(EventID=2287)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPBindsComputers"        ; Query='<Select Path="DirectoryService">*[System[(EventID=2289)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPBindsRejectStats"      ; Query='<Select Path="DirectoryService">*[System[(EventID=2288)]]</Select>'}
-$Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"        ; DestinationLogPath="TokenValidationFails"      ; Query='<Select Path="DirectoryService">*[System[(EventID=3039)]]</Select>'}
-$Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed"; DestinationLogPath="ChannelBindingNotEnforced" ; Query='<Select Path="DirectoryService">*[System[(EventID=3040)]]</Select>'}
+$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPSigning-LDAPNotRequired"                  ; Query='<Select Path="DirectoryService">*[System[(EventID=2286)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPSigning-LDAPBindsStatistics"              ; Query='<Select Path="DirectoryService">*[System[(EventID=2287)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPSigning-LDAPBindsComputers"               ; Query='<Select Path="DirectoryService">*[System[(EventID=2289)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPSigning-LDAPBindsRejectStats"             ; Query='<Select Path="DirectoryService">*[System[(EventID=2288)]]</Select>'}
+$Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"        ; DestinationLogPath="LDAPChannelBinding-TokenValidationFails"      ; Query='<Select Path="DirectoryService">*[System[(EventID=3039)]]</Select>'}
+$Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed"; DestinationLogPath="LDAPChannelBinding-ChannelBindingNotEnforced" ; Query='<Select Path="DirectoryService">*[System[(EventID=3040)]]</Select>'}
 
 
 #configure Event Forwarding on collector server
@@ -772,9 +772,7 @@ foreach ($Definition in $Definitions){
 
     <Query>
         <![CDATA[
-
 $Query
-
         ]]>
     </Query>
 
