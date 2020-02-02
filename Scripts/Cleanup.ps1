@@ -36,18 +36,21 @@ If (!( $isAdmin )) {
 
     #load LabConfig
         . "$PSScriptRoot\LabConfig.ps1"
-        $prefix=$LabConfig.Prefix
+
+        if ($LabConfig.UseLabFolderAsPrefix){
+            $labconfig.Prefix="$($PSScriptRoot | Split-Path -Leaf)-"
+        }
 
     #just to be sure, not clean all VMs
-        if (!$prefix){
+        if (!($LabConfig.Prefix)){
             WriteErrorAndExit "Prefix is empty. Exiting"
         }
 
     #grab all VMs, switches and DC
-        $VMs=get-vm -Name $prefix* | where Name -ne "$($prefix)DC" -ErrorAction SilentlyContinue | Sort-Object -Property Name
+        $VMs=get-vm -Name "$($LabConfig.Prefix)*" | Where-Object Name -ne "$($LabConfig.Prefix)DC" -ErrorAction SilentlyContinue | Sort-Object -Property Name
         $vSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)" -ErrorAction SilentlyContinue
         $extvSwitch=Get-VMSwitch "$($labconfig.prefix)$($LabConfig.SwitchName)-External" -ErrorAction SilentlyContinue
-        $DC=get-vm "$($prefix)DC" -ErrorAction SilentlyContinue
+        $DC=get-vm "$($LabConfig.Prefix)DC" -ErrorAction SilentlyContinue
 
     #List VMs, Switches and DC
         If ($VMs){
@@ -138,6 +141,6 @@ If (!( $isAdmin )) {
             WriteErrorAndExit "You did not type Y"
         }
     }else{
-        WriteErrorAndExit "No VMs and Switches with prefix $prefix detected. Exitting"
+        WriteErrorAndExit "No VMs and Switches with prefix $($LabConfig.Prefix) detected. Exitting"
     }
 #endregion
