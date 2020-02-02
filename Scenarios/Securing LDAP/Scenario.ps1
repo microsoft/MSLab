@@ -537,6 +537,346 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 
 #endregion
 
+#region create custom event log on collector
+#Some variables
+$CollectorServerName="Collector"
+$CustomEventChannelsFileName="CustomEventChannels"
+$CustomEventsFilesLocation="$env:UserProfile\Downloads\ECMan"
+
+#Download SDK
+$ProgressPreference='SilentlyContinue' #for faster download
+#Download Windows 10 RS5 SDK
+Invoke-WebRequest -UseBasicParsing -Uri https://go.microsoft.com/fwlink/p/?LinkID=2033908 -OutFile "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe"
+$ProgressPreference='Continue' #switching back
+#Install SDK RS5
+Start-Process -Wait -FilePath "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe" -ArgumentList "/features OptionId.DesktopCPPx64 /quiet"
+
+#Create Man file or run setup
+#Variables
+$CustomEventChannelsFileName="CustomEventChannels"
+$OutputFolder="$env:UserProfile\Downloads\ECMan"
+
+#some neccessaries
+$ManifestFileName = '{0}.man' -f $CustomEventChannelsFileName
+$ResourceFileName = 'C:\Windows\system32\{0}.dll' -f $CustomEventChannelsFileName
+$message = '$(string.Custom Forwarded Events.event.100.message)' 
+
+#Events definition
+$EventsArray = @(
+    @{
+        EventProviderName = 'LDAPSigning'
+        EventGuid = New-Guid
+        EventSymbol = 'LDAPSigning_EVENTS'
+        EventResourceFileName = $ResourceFileName
+        ImportChannelID='C1'
+        Channels = @(
+            @{
+                ChannelName = 'LDAPSNotRequired'
+                ChannelchID = 'LDAPSNotRequired'
+                ChannelSymbol = 'LDAPSNotRequired'
+            },
+            @{
+                ChannelName = 'LDAPBindsStats'
+                ChannelchID = 'LDAPBindsStats'
+                ChannelSymbol = 'LDAPBindsStats'
+            },
+            @{
+                ChannelName = 'LDAPBindsComputers'
+                ChannelchID = 'LDAPBindsComputers'
+                ChannelSymbol = 'LDAPBindsComputers'
+            },
+            @{
+                ChannelName = 'LDAPBindsRejectStats'
+                ChannelchID = 'LDAPBindsRejectStats'
+                ChannelSymbol = 'LDAPBindsRejectStats'
+            }
+        )
+    },
+    @{
+        EventProviderName = 'LDAPChannelBinding'
+        EventGuid = New-Guid
+        EventSymbol = 'LDAPChannelBinding_EVENTS'
+        EventResourceFileName = $ResourceFileName
+        ImportChannelID='C2'
+        Channels = @(
+            @{
+                ChannelName = 'TokenValidationFails'
+                ChannelchID = 'TokenValidationFails'
+                ChannelSymbol = 'TokenValidationFails'
+            },
+            @{
+                ChannelName = 'ChannelBindingNotEnforced'
+                ChannelchID = 'ChannelBindingNotEnforced'
+                ChannelSymbol = 'ChannelBindingNotEnforced'
+            }
+        )
+    }
+)
+
+#Generate XML
+$EventsArrayFinal = foreach ($Event in $EventsArray) {
+    $channels = foreach ($channel in $Event.Channels) {
+    @"
+
+                    <channel name="$($Channel.ChannelName)" chid="$($Channel.ChannelchID)" symbol="$($Channel.ChannelSymbol)" type="Operational" enabled="true"></channel>
+"@
+    }
+    @"
+
+            <provider name="$($Event.EventProviderName)" guid="{$($Event.EventGUID)}" symbol="$($Event.EventSymbol)" resourceFileName="$($Event.EventResourceFileName)" messageFileName="$($Event.EventResourceFileName)">
+                <events>
+                    <event symbol="DUMMY_EVENT" value="100" version="0" template="DUMMY_TEMPLATE" message="$message"></event>
+                </events>
+                <channels>
+                    <importChannel name="System" chid="$($Event.ImportChannelID)"></importChannel>$channels
+                </channels>
+                <templates>
+                    <template tid="DUMMY_TEMPLATE">
+                        <data name="Prop_UnicodeString" inType="win:UnicodeString" outType="xs:string"></data>
+                        <data name="PropUInt32" inType="win:UInt32" outType="xs:unsignedInt"></data>
+                    </template>
+                </templates>
+            </provider>
+"@
+}
+$Content=@"
+<?xml version="1.0"?>
+<instrumentationManifest xsi:schemaLocation="http://schemas.microsoft.com/win/2004/08/events eventman.xsd" xmlns="http://schemas.microsoft.com/win/2004/08/events" xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:trace="http://schemas.microsoft.com/win/2004/08/events/trace">
+    <instrumentation>
+        <events>$EventsArrayFinal
+        </events>
+    </instrumentation>
+    <localization>
+        <resources culture="en-US">
+            <stringTable>
+                <string id="level.Informational" value="Information"></string>
+                <string id="channel.System" value="System"></string>
+                <string id="Publisher.EventMessage" value="Prop_UnicodeString=%1;%n&#xA;                  Prop_UInt32=%2;%n"></string>
+                <string id="Custom Forwarded Events.event.100.message" value="Prop_UnicodeString=%1;%n&#xA;                  Prop_UInt32=%2;%n"></string>
+            </stringTable>
+        </resources>
+    </localization>
+</instrumentationManifest>
+"@
+
+#Create output folder if does not exist
+if(-not (Test-Path $OutputFolder)) { 
+    New-Item -Path $OutputFolder -ItemType Directory
+}
+
+#write XML
+Set-Content -Value $content -Path (Join-Path -Path $OutputFolder -ChildPath $ManifestFileName) -Encoding ASCII
+ 
+#Compile manifest https://docs.microsoft.com/en-us/windows/desktop/WES/compiling-an-instrumentation-manifest
+$CustomEventChannelsFileName="CustomEventChannels"
+$OutputFolder="$env:UserProfile\Downloads\ECMan"
+$ToolsPath="C:\Program Files (x86)\Windows Kits\10\bin\10.0.17763.0\x64"
+$dotNetPath="C:\Windows\Microsoft.NET\Framework64\v4.0.30319"
+ 
+Start-Process -Wait -FilePath "$ToolsPath\mc.exe" -ArgumentList "$OutputFolder\$CustomEventChannelsFileName.man" -WorkingDirectory $OutputFolder
+Start-Process -Wait -FilePath "$ToolsPath\mc.exe" -ArgumentList "-css CustomEventChannels.DummyEvent  $OutputFolder\$CustomEventChannelsFileName.man" -WorkingDirectory $OutputFolder
+Start-Process -Wait -FilePath "$ToolsPath\rc.exe" -ArgumentList "$OutputFolder\$CustomEventChannelsFileName.rc"
+Start-Process -Wait -FilePath "$dotNetPath\csc.exe" -ArgumentList "/win32res:$OutputFolder\$CustomEventChannelsFileName.res /unsafe /target:library /out:$OutputFolder\$CustomEventChannelsFileName.dll"
+ 
+
+#create session for managed computer (ComputerName is Collector in this case)
+$CollectorSession=New-PSSession -ComputerName $CollectorServerName
+ 
+#configure Event Forwarding on collector server
+Invoke-Command -Session $CollectorSession -ScriptBlock {
+    WECUtil qc /q
+}
+ 
+#Create custom event forwarding logs
+Invoke-Command -Session $CollectorSession -ScriptBlock {
+    Stop-Service Wecsvc
+    #unload current event channnel (commented as there is no custom manifest)
+    #wevtutil um C:\windows\system32\CustomEventChannels.man
+}
+ 
+#copy new man and dll
+$files="$CustomEventChannelsFileName.dll","$CustomEventChannelsFileName.man"
+$Path="$CustomEventsFilesLocation"
+foreach ($file in $files){
+    Copy-Item -Path "$path\$file" -Destination C:\Windows\system32 -ToSession $CollectorSession -Force
+}
+#load new event channel file and start Wecsvc service
+Invoke-Command -Session $CollectorSession -ScriptBlock {
+    wevtutil im "C:\windows\system32\$using:CustomEventChannelsFileName.man"
+    Start-Service Wecsvc
+}
+
+#enable firewall rule
+Enable-NetFirewallRule -CimSession $CollectorServerName -DisplayGroup "Remote Event Log Management"
+eventvwr
+ 
+#endregion
+
+#region configure event forwarding on collector server
+
+$CollectorServerName="Collector"
+#Events definition
+$Definitions=@()
+$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPNotRequired"           ; Query='<Select Path="DirectoryService">*[System[(EventID=2286)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPBindsStatistics"       ; Query='<Select Path="DirectoryService">*[System[(EventID=2287)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPBindsComputers"        ; Query='<Select Path="DirectoryService">*[System[(EventID=2289)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPBindsRejectStats"      ; Query='<Select Path="DirectoryService">*[System[(EventID=2288)]]</Select>'}
+$Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"        ; DestinationLogPath="TokenValidationFails"      ; Query='<Select Path="DirectoryService">*[System[(EventID=3039)]]</Select>'}
+$Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed"; DestinationLogPath="ChannelBindingNotEnforced" ; Query='<Select Path="DirectoryService">*[System[(EventID=3040)]]</Select>'}
+
+
+#configure Event Forwarding on collector server
+Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+    WECUtil qc /q
+}
+
+foreach ($Definition in $Definitions){
+    #Create XML Parameters
+    $Name=$Definition.Name
+    $Description=$Definition.Description
+    $DestinationLogPath=$Definition.DestinationLogPath
+    $Query=@"
+<QueryList>
+  <Query Id="0">
+    $($Definition.Query)
+  </Query>
+</QueryList>
+"@
+
+    #Generate AllowedSourceDomainComputers parameter
+    $SID=(Get-ADGroup -Identity "Domain Controllers").SID.Value
+    $AllowedSourceDomainComputers="O:NSG:BAD:P(A;;GA;;;$SID)S:"
+
+
+    #Create XML
+    [xml]$xml=@"
+<Subscription xmlns="http://schemas.microsoft.com/2006/03/windows/events/subscription">
+    <SubscriptionId>$Name</SubscriptionId>
+    <SubscriptionType>SourceInitiated</SubscriptionType>
+    <Description>$Description</Description>
+    <Enabled>true</Enabled>
+    <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
+
+    <!-- Use Normal (default), Custom, MinLatency, MinBandwidth -->
+    <ConfigurationMode>Custom</ConfigurationMode>
+
+    <Delivery Mode="Push">
+        <Batching>
+            <MaxItems>1</MaxItems>
+            <MaxLatencyTime>1000</MaxLatencyTime>
+        </Batching>
+        <PushSettings>
+            <Heartbeat Interval="40000"/>
+        </PushSettings>
+    </Delivery>
+
+    <Query>
+        <![CDATA[
+
+$Query
+
+        ]]>
+    </Query>
+
+    <ReadExistingEvents>true</ReadExistingEvents>
+    <TransportName>http</TransportName>
+    <ContentFormat>RenderedText</ContentFormat>
+    <Locale Language="en-US"/>
+    <LogFile>$DestinationLogPath</LogFile>
+    <AllowedSourceNonDomainComputers></AllowedSourceNonDomainComputers>
+    <AllowedSourceDomainComputers>$AllowedSourceDomainComputers</AllowedSourceDomainComputers>
+</Subscription>
+"@
+
+    #Configure subscription on Collector Server
+    Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+        $($using:xml).Save("$env:TEMP\temp.xml")
+        wecutil cs "$env:TEMP\temp.xml"
+    }
+}
+
+#endregion
+
+#region validate subscriptions
+$CollectorServerName="Collector"
+
+Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+    #enumerate subscriptions
+    $subs=wecutil es
+    $subscriptionXMLs= foreach ($sub in $subs){
+        [xml]$xml=wecutil gs $sub /f:xml
+        $xml.subscription
+    }
+    $Subscriptions = foreach ($subXML in $subscriptionXMLs) {
+        New-Object PSObject -Property @{
+            SubscriptionId = $subXML.SubscriptionId
+            SubscriptionType = $subXML.SubscriptionType
+            Description = $subXML.Description
+            Enabled = $subXML.Enabled
+            Uri = $subXML.Uri
+            ConfigurationMode = $subXML.ConfigurationMode
+            Delivery = $subXML.Delivery
+            Query = $subXML.Query."#cdata-section"
+            ReadExistingEvents = $subXML.ReadExistingEvents
+            TransportName = $subXML.TransportName
+            ContentFormat = $subXML.ContentFormat
+            Locale = $subXML.Locale
+            LogFile = $subXML.LogFile
+            AllowedSourceNonDomainComputers = $subXML.AllowedSourceNonDomainComputers
+            AllowedSourceDomainComputers = $subXML.AllowedSourceDomainComputers
+            AllowedSourceDomainComputersFriendly = (ConvertFrom-SddlString $subXML.AllowedSourceDomainComputers).DiscretionaryAcl
+        }
+    }
+    return $subscriptions
+}
+ 
+#endregion
+
+#region configure controllers to send logs to collector
+$servers=(Get-ADDomainController).Name
+$CollectorServerName="Collector"
+
+#configure DCs
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    #add NT AUTHORITY\NETWORK SERVICE to "Directory Service" log
+    wevtutil set-log "Directory Service" /ca:'O:BAG:SYD:(A;;0xf0005;;;SY)(A;;0x5;;;BA)(A;;0x1;;;S-1-5-32-573)(A;;0x1;;;S-1-5-20)'
+
+    #add network service toEvent Log Readers
+    #Add-LocalGroupMember -Group "Event Log Readers" -Member "Network Service"
+    
+    #configure registry
+    $Path="hklm:\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager"
+    if(!(Test-Path $Path)){
+        New-Item $Path -Force
+    }
+    New-ItemProperty -Path $Path -Name 1 -Value "Server=http://$($using:CollectorServerName):5985/wsman/SubscriptionManager/WEC,Refresh=30" -PropertyType String -force
+    #refresh GPO to kick in event subscription
+    gpupdate /force
+}
+
+#apply network service permissions to be able to read logs
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    #create new svchost process
+    Sc.exe config WinRM type= own
+    restart-service WinRM
+}
+ 
+#endregion
+
+#region check if DCs are registered
+$CollectorServerName="Collector"
+$SubscriptionNames="LDAPSNotRequired","LDAPBindsStats","LDAPBindsComputers","LDAPBindsRejectStats","TokenValidationFails","ChannelBindingNotEnforced"
+Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+    foreach ($SubscriptionName in $Using:SubscriptionNames){
+        wecutil gs $SubscriptionName
+    }
+}
+ 
+#endregion
+
+
+
+
 #############################################################################################################
 
 #Docs
