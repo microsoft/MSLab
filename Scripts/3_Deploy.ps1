@@ -682,8 +682,12 @@ If (!( $isAdmin )) {
 
     $global:IP=1
 
-    if ($LabConfig.UseLabFolderAsPrefix){
+    if (-not ($LabConfig.Prefix)){
         $labconfig.prefix="$($PSScriptRoot | Split-Path -Leaf)-"
+    }
+
+    if (-not ($LabConfig.SwitchName)){
+        $LabConfig.SwitchName = 'LabSwitch'
     }
 
     WriteInfoHighlighted "List of variables used"
@@ -710,11 +714,6 @@ If (!( $isAdmin )) {
 #endregion
 
 #region Some Additional checks and prereqs configuration
-
-    #checking if Prefix is not empty
-        if (!$LabConfig.Prefix){
-            WriteErrorAndExit "`t Prefix is empty. Exiting"
-        }
 
     # Checking for Compatible OS
         WriteInfoHighlighted "Checking if OS is Windows 10 1511 (10586)/Server 2016 or newer"
