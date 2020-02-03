@@ -35,7 +35,7 @@ $ProgressPreference='SilentlyContinue' #for faster download
 Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.7.8_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
 Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.12.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
 #Grafana
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.4.1.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.6.0.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
 #NSSM - the Non-Sucking Service Manager
 Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
@@ -676,8 +676,8 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
                 $tomlfilecontent=$tomlfilecontent.Replace("port = 389","port = 636")
                 #configure SSL
                 $tomlfilecontent=$tomlfilecontent.Replace("use_ssl = false","use_ssl = true")
-                #configure disable CA validation as it root ca is not trusted even all is configured right
-                $tomlfilecontent=$tomlfilecontent.Replace("ssl_skip_verify = false","ssl_skip_verify = true")
+                #configure disable CA validation as it root ca is not trusted even all is configured right (fixed in latest release, commenting)
+                #$tomlfilecontent=$tomlfilecontent.Replace("ssl_skip_verify = false","ssl_skip_verify = true")
                 #set content to Toml file
                 $tomlfilecontent | Set-Content -Path "C:\Program Files\Grafana\conf\ldap.toml"
             #endregion
