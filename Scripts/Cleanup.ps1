@@ -37,13 +37,8 @@ If (!( $isAdmin )) {
     #load LabConfig
         . "$PSScriptRoot\LabConfig.ps1"
 
-        if ($LabConfig.UseLabFolderAsPrefix){
+        if (-not ($LabConfig.Prefix)){
             $labconfig.Prefix="$($PSScriptRoot | Split-Path -Leaf)-"
-        }
-
-    #just to be sure, not clean all VMs
-        if (!($LabConfig.Prefix)){
-            WriteErrorAndExit "Prefix is empty. Exiting"
         }
 
     #grab all VMs, switches and DC
