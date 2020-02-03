@@ -27,9 +27,19 @@ As application, scenario script will setup Grafana that is using LDAP on port 38
 
 Paste [scenario.ps1](Scenario.ps1) into Management machine to setup Grafana, Collector and DC to send events into collector.
 
+Collapsed regions in scenario.ps1
+
+![](Screenshots/PowerShellISE01.png)
+
+Grafana running on server Grafana.
+
 ![](Screenshots/Grafana01.png)
 
+Redirected Events with Custom logs created on server Collector.
+
 ![](Screenshots/Eventvwr01.png)
+
+WEF Subscriptions in Collector server.
 
 ![](Screenshots/PowerShell01.png)
 
