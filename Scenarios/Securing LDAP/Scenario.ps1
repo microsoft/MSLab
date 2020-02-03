@@ -717,12 +717,12 @@ eventvwr
 $CollectorServerName="Collector"
 #Events definition
 $Definitions=@()
-$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPNotRequired"                  ; Query='<Select Path="Directory Service">*[System[(EventID=2886)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPBindsStatistics"              ; Query='<Select Path="Directory Service">*[System[(EventID=2887)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPBindsComputers"               ; Query='<Select Path="Directory Service">*[System[(EventID=2889)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPBindsRejectStats"             ; Query='<Select Path="Directory Service">*[System[(EventID=2888)]]</Select>'}
-$Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"        ; DestinationLogPath="TokenValidationFails"      ; Query='<Select Path="Directory Service">*[System[(EventID=3039)]]</Select>'}
-$Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed"; DestinationLogPath="ChannelBindingNotEnforced" ; Query='<Select Path="Directory Service">*[System[(EventID=3040)]]</Select>'}
+$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                 ; Query='<Select Path="Directory Service">*[System[(EventID=2886)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                     ; Query='<Select Path="Directory Service">*[System[(EventID=2887)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                    ; Query='<Select Path="Directory Service">*[System[(EventID=2889)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                     ; Query='<Select Path="Directory Service">*[System[(EventID=2888)]]</Select>'}
+$Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"         ; Query='<Select Path="Directory Service">*[System[(EventID=3039)]]</Select>'}
+$Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed" ; Query='<Select Path="Directory Service">*[System[(EventID=3040)]]</Select>'}
 
 
 #configure Event Forwarding on collector server
@@ -734,7 +734,7 @@ foreach ($Definition in $Definitions){
     #Create XML Parameters
     $Name=$Definition.Name
     $Description=$Definition.Description
-    $DestinationLogPath=$Definition.DestinationLogPath
+    $DestinationLogPath=$Definition.Name
     $Query=@"
 <QueryList>
   <Query Id="0">
@@ -798,7 +798,7 @@ $Query
 #region validate subscriptions
 $CollectorServerName="Collector"
 
-Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
+$subscriptions=Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
     #enumerate subscriptions
     $subs=wecutil es
     $subscriptionXMLs= foreach ($sub in $subs){
