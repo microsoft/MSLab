@@ -717,10 +717,10 @@ eventvwr
 $CollectorServerName="Collector"
 #Events definition
 $Definitions=@()
-$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPNotRequired"                  ; Query='<Select Path="Directory Service">*[System[(EventID=2286)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPBindsStatistics"              ; Query='<Select Path="Directory Service">*[System[(EventID=2287)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPBindsComputers"               ; Query='<Select Path="Directory Service">*[System[(EventID=2289)]]</Select>'}
-$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPBindsRejectStats"             ; Query='<Select Path="Directory Service">*[System[(EventID=2288)]]</Select>'}
+$Definitions+=@{Name="LDAPSNotRequired"         ; Description="DCs not requiring LDAP signing"                                                ; DestinationLogPath="LDAPNotRequired"                  ; Query='<Select Path="Directory Service">*[System[(EventID=2886)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsStats"           ; Description="How many binds not requiring LDAP occurred"                                    ; DestinationLogPath="LDAPBindsStatistics"              ; Query='<Select Path="Directory Service">*[System[(EventID=2887)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsComputers"       ; Description="Detailed information on Who/When/From Where"                                   ; DestinationLogPath="LDAPBindsComputers"               ; Query='<Select Path="Directory Service">*[System[(EventID=2889)]]</Select>'}
+$Definitions+=@{Name="LDAPBindsRejectStats"     ; Description="Reject unsigned SASL LDAP binds or LDAP simple binds Stats"                    ; DestinationLogPath="LDAPBindsRejectStats"             ; Query='<Select Path="Directory Service">*[System[(EventID=2888)]]</Select>'}
 $Definitions+=@{Name="TokenValidationFails"     ; Description="LDAP bind over SSL/TLS and failed the channel binding token validation"        ; DestinationLogPath="TokenValidationFails"      ; Query='<Select Path="Directory Service">*[System[(EventID=3039)]]</Select>'}
 $Definitions+=@{Name="ChannelBindingNotEnforced"; Description="During the previous 24 hours period, %1 unprotected LDAPS binds were performed"; DestinationLogPath="ChannelBindingNotEnforced" ; Query='<Select Path="Directory Service">*[System[(EventID=3040)]]</Select>'}
 
@@ -827,6 +827,9 @@ Invoke-Command -ComputerName $CollectorServerName -ScriptBlock {
     }
     return $subscriptions
 }
+
+$subscriptions | ft SubscriptionId,AllowedSourceDomainComputersFriendly,LogFile -AutoSize
+ 
  
 #endregion
 
