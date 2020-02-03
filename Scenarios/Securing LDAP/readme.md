@@ -144,6 +144,8 @@ $EventLog | Out-GridView
  
 ```
 
+![](Screenshots/PowerShell03.png)
+
 ### Enforce LDAP Server integrity on Domain Controller
 
 The next step would be to enforce to require LDAP signing (note: this will disable all applications to be authenticated without proper credentials)
