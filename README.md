@@ -49,7 +49,7 @@ Many times happened, that there was an issue that was hard to reproduce. And eve
 
 ### Sessions
 
-For more session slides navigate to [Slides](Slides) page
+For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37DwtrsnIehxKx7N7XgoBg?e=r1sszn) OneDrive
 
 [![WSLab in MVPDays](/Docs/media/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
 1
