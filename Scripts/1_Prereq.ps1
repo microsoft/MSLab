@@ -1,8 +1,14 @@
 # Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
+If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+
+    if($PSVersionTable.PSEdition -eq "Core") {
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    } else {
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    }
+    
     exit
 }
 
@@ -36,7 +42,7 @@ function WriteErrorAndExit($message){
 }
 
 function  Get-WindowsBuildNumber { 
-    $os = Get-WmiObject -Class Win32_OperatingSystem 
+    $os = Get-CimInstance -ClassName Win32_OperatingSystem
     return [int]($os.BuildNumber) 
 } 
 
@@ -153,7 +159,8 @@ function  Get-WindowsBuildNumber {
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
             $webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
-            $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
+            $link = $webcontent.Links | Where-Object data-url -Match "/Diskspd.*zip$"
+            $downloadUrl = "{0}://{1}{2}" -f $webcontent.BaseResponse.RequestMessage.RequestUri.Scheme, $webcontent.BaseResponse.RequestMessage.RequestUri.Host, $link.'data-url'
             Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
         }catch{
             WriteError "`t Failed to download Diskspd!"
