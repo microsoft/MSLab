@@ -3,11 +3,13 @@
 <!-- TOC -->
 
 - [Windows Admin Center and Enterprise CA](#windows-admin-center-and-enterprise-ca)
-    - [Sample LabConfig for Windows Server 2016](#sample-labconfig-for-windows-server-2016)
     - [Sample LabConfig for Windows Server 2019](#sample-labconfig-for-windows-server-2019)
     - [Desktop mode installation on Windows 10](#desktop-mode-installation-on-windows-10)
-    - [Server Scenarios prerequisites](#server-scenarios-prerequisites)
-        - [Install RSAT on Management machine](#install-rsat-on-management-machine)
+    - [GW mode installation with Self-Signed cert](#gw-mode-installation-with-self-signed-cert)
+        - [Install Windows Admin Center in a GW mode](#install-windows-admin-center-in-a-gw-mode)
+        - [Install Edge](#install-edge)
+    - [Server Scenarios with Certs prerequisites](#server-scenarios-with-certs-prerequisites)
+        - [Install prerequisites on Win10 or DC machine](#install-prerequisites-on-win10-or-dc-machine)
         - [Install and configure ADCS on the CA Server](#install-and-configure-adcs-on-the-ca-server)
     - [Gateway mode installation on single Windows Server](#gateway-mode-installation-on-single-windows-server)
         - [Create Computer Template](#create-computer-template)
@@ -34,35 +36,23 @@
 
 <!-- /TOC -->
 
-## Sample LabConfig for Windows Server 2016
+## Sample LabConfig for Windows Server 2019
 
 ```PowerShell
 $LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
 
-# Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True}
-# Single Gateway
-$LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True }
+## Without Certs Machines
+# Win10 Client Node
+$LabConfig.VMs += @{ VMName = 'Win10' ; ParentVHD = 'Win1019H1_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True ; MGMTNICs=1}
+# Single Gateway (NoCert from CA)
+$LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2019Core_G2.vhdx'; MGMTNICs=1}
+
+## Machines for Cert scenario
+
 # Certification Authority
-$LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB }
-# SAN Failover cluster nodes
-1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB } }
-# Storage Spaces Direct nodes
-1..2 | ForEach-Object { $VMNames = "WacS2D-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2016Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'S2D'; HDDNumber = 2; HDDSize = 40GB } }
- 
-```
-
-## Sample LabConfig for Windows Server 2019
-
-```PowerShell
-$LabConfig = @{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab2019-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$True; AdditionalNetworksConfig=@(); VMs=@() }
-
-# Management Client Node
-$LabConfig.VMs += @{ VMName = 'Management'; Configuration = 'Simple'; ParentVHD = 'Win10RS5_G2.vhdx'   ; MemoryStartupBytes = 2GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; DisableWCF=$True ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'CA' ; ParentVHD = 'Win2019Core_G2.vhdx'; MGMTNICs=1}
 # Single Gateway
-$LabConfig.VMs += @{ VMName = 'WacGateway'; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB; AddToolsVHD = $True ; MGMTNICs=1}
-# Certification Authority
-$LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 1GB; MemoryMinimumBytes = 1GB ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'WACGWCert' ; ParentVHD = 'Win2019Core_G2.vhdx'; MGMTNICs=1}
 # SAN Failover cluster nodes
 1..2 | ForEach-Object { $VMNames = "WacSan-Node0"; $LABConfig.VMs += @{ VMName = "$VMNames$_"; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes = 512MB; Configuration = 'Shared'; VMSet = 'WacSan'; SSDNumber=1 ; SSDSize=1GB ; HDDNumber = 1; HDDSize = 40GB ; MGMTNICs=1 } }
 # Storage Spaces Direct nodes
@@ -70,9 +60,9 @@ $LabConfig.VMs += @{ VMName = 'CA'        ; Configuration = 'Simple'; ParentVHD 
  
 ```
 
-> **Note:** All commands below should be executed from the `Management` virtual machine that runs Windows 10.
-
 ## Desktop mode installation on Windows 10
+
+> **Note:** All commands below should be executed from the `Win10` virtual machine that runs Windows 10.
 
 ```PowerShell
 $ProgressPreference='SilentlyContinue' #for faster download
@@ -87,11 +77,69 @@ $ProgressPreference='SilentlyContinue' #for faster download
  
 ```
 
-## Server Scenarios prerequisites
+## GW mode installation with Self-Signed cert
 
-### Install RSAT on Management machine
+> **Note:** All commands below should be executed from the `DC` virtual machine
 
-Run following code from Management machine or from DC
+This just a quick way to setup WAC in GW mode for testing
+
+### Install Windows Admin Center in a GW mode
+
+```PowerShell
+$GatewayServerName="WACGW"
+#Download Windows Admin Center if not present
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    $ProgressPreference='Continue' #return progress preference back
+}
+#Create PS Session and copy install files to remote server
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+$Session=New-PSSession -ComputerName $GatewayServerName
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+#Install Windows Admin Center
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+}
+
+$Session | Remove-PSSession
+
+#add certificate to trusted root certs
+start-sleep 10
+$cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+$cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
+#Configure Resource-Based constrained delegation
+$gatewayObject = Get-ADComputer -Identity $GatewayServerName
+$computers = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
+
+foreach ($computer in $computers){
+    $computerObject = Get-ADComputer -Identity $computer
+    Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+```
+
+### Install Edge
+
+```PowerShell
+#Install Edge
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/07367ab9-ceee-4409-a22f-c50d77a8ae06/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#start install
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+#start Edge
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+ 
+```
+
+## Server Scenarios with Certs prerequisites
+
+### Install prerequisites on Win10 or DC machine
+
+Run following code from Win10 machine or from DC
 
 First, we will install RSAT (it's necessary to work with servers remotely).
 
@@ -308,7 +356,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 In order to use own certificate instead of default self-signed one, certificate needs to be generated before actually installing Windows Admin Center and certificate needs to be imported in Computer store of that machine. Let's do it using Autoenrollment.
 
 ```PowerShell
-$GatewayServerName="WACGateway"
+$GatewayServerName="WACGWCert"
 $TemplateName = "WACGW"
 
 # Install PSPKI module for managing Certification Authority
@@ -320,7 +368,7 @@ Import-Module PSPKI
 #Set Cert Template permission
 Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$GatewayServerName$" -AccessType Allow -AccessMask Read, Enroll,AutoEnroll | Set-CertificateTemplateAcl
 
-#Configure AutoEnrollment policy and enroll cert on WacGateway
+#Configure AutoEnrollment policy and enroll cert on WACGW
 Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
     Set-CertificateAutoEnrollmentPolicy -StoreName MY -PolicyState Enabled -ExpirationPercentage 10 -EnableTemplateCheck -EnableMyStoreManagement -context Machine
     certutil -pulse
@@ -333,7 +381,7 @@ Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
 > **Note:** If you don't want to download installer over the Internet, copy MSI file over to virtual machine manually.
 
 ```PowerShell
-$GatewayServerName="WACGateway"
+$GatewayServerName="WACGWCert"
 
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
@@ -362,10 +410,10 @@ $Session | Remove-PSSession
 
 ### Run Windows Admin Center
 
-After the installation on `WacGateway` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Management` virtual machine, navigate to http://wacgateway.corp.contoso.com/ and you can log in to the Windows Admin Center.
+After the installation on `WACGW` Windows Admin Center's network service is started automatically. In order to access it you need to just open the web browser from the `Win10` virtual machine, navigate to http://WACGW.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
 ```PowerShell
-start microsoft-edge:http://wacgateway.corp.contoso.com
+start microsoft-edge:http://WACGW.corp.contoso.com
  
 ```
 
@@ -573,7 +621,7 @@ $Password = "LS1setup!"
         Import-Module PSPKI
     }
 
-#First set permissions, so Machine Management can enroll certificate
+#First set permissions, so Machine Win10 can enroll certificate
 Get-CertificateTemplate -Name $TemplateName | Get-CertificateTemplateAcl | Add-CertificateTemplateAcl -User "$env:ComputerName$" -AccessType Allow -AccessMask Read, Enroll | Set-CertificateTemplateAcl
 
 #Generate Certificate to local machine store
@@ -746,7 +794,7 @@ if ($ClientAccessPointIP){
 
 #### Navigate to Windows Admin Center console
 
-Open the web browser from the `Management` virtual machine, navigate to http://wac-san.corp.contoso.com/ and you can log in to the Windows Admin Center.
+Open the web browser from the `Win10` virtual machine, navigate to http://wac-san.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
 ```PowerShell
 start microsoft-edge:http://wac-san.corp.contoso.com
@@ -1012,7 +1060,7 @@ if ($ClientAccessPointIP){
 
 #### Navigate to Windows Admin Center console
 
-Open the web browser from the `Management` virtual machine, navigate to http://wac-s2d.corp.contoso.com/ and you can log in to the Windows Admin Center.
+Open the web browser from the `Win10` virtual machine, navigate to http://wac-s2d.corp.contoso.com/ and you can log in to the Windows Admin Center.
 
 
 ```PowerShell
@@ -1033,7 +1081,7 @@ start microsoft-edge:http://wac-s2d.corp.contoso.com
 ### Configure Resource-Based constrained delegation
 
 ```PowerShell
-$gateway = "WACGateway" # Machine where Windows Admin Center is installed
+$gateway = "WACGW" # Machine where Windows Admin Center is installed
 $gatewayObject = Get-ADComputer -Identity $gateway
 $nodes = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name | Out-GridView -OutputMode Multiple # Machines that you want to manage
 
