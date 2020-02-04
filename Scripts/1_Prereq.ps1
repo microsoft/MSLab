@@ -132,14 +132,14 @@ function  Get-WindowsBuildNumber {
     }
 
 # add createparentdisks and DownloadLatestCU scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs"
+    $FileNames="CreateParentDisk","DownloadLatestCUs","Convert-WindowsImage"
     foreach ($filename in $filenames){
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path){
             WriteSuccess "`t $Filename is present, skipping download"
         }else{
             $FileContent = $null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Tools/$FileName.ps1").Content
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$FileName.ps1").Content
             if ($FileContent){
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
@@ -158,7 +158,7 @@ function  Get-WindowsBuildNumber {
     }else{ 
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
-            $webcontent  = Invoke-WebRequest -Uri aka.ms/diskspd -UseBasicParsing
+            $webcontent  = Invoke-WebRequest -Uri "https://aka.ms/diskspd" -UseBasicParsing
             $link = $webcontent.Links | Where-Object data-url -Match "/Diskspd.*zip$"
             $downloadUrl = "{0}://{1}{2}" -f $webcontent.BaseResponse.RequestMessage.RequestUri.Scheme, $webcontent.BaseResponse.RequestMessage.RequestUri.Host, $link.'data-url'
             Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
@@ -190,7 +190,7 @@ function  Get-WindowsBuildNumber {
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
     }
-
+<#
 # Download convert-windowsimage into Temp
     WriteInfoHighlighted "Testing convert-windowsimage presence"
     If ( Test-Path -Path "$PSScriptRoot\Temp\convert-windowsimage.ps1" ) {
@@ -203,6 +203,7 @@ function  Get-WindowsBuildNumber {
             WriteError "`t Failed to download convert-windowsimage.ps1!"
         }
     }
+#>
 #endregion
 
 #region Downloading required Posh Modules

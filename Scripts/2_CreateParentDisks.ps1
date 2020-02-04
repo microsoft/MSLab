@@ -405,8 +405,8 @@ If (-not $isAdmin) {
             }
         }
 
-    #load convert-windowsimage to memory
-        . "$PSScriptRoot\Temp\convert-windowsimage.ps1"
+    #load Convert-WindowsImage to memory
+        . "$PSScriptRoot\Convert-WindowsImage.ps1"
 
       #Create Servers Parent VHDs
         WriteInfoHighlighted "Creating Server Parent disk(s)"
