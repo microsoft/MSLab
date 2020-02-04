@@ -58,7 +58,7 @@ For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37Dwtrs
 ### Run in PowerShell Core 7
 WSLab scripts work also in PowerShell 7, if you want to test it just install latest version of PowerShell 7.
 
-If you also would like to have context menu integration like this ![](Docs/media/Explorer02.png) you can use this script to register PowerShell Core integration in Explorer.
+If you also would like to have context menu integration like this ![](Docs/media/explorer02.png) you can use this script to register PowerShell Core integration in Explorer.
 
 ```powershell
 # Set context menu option
