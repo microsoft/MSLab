@@ -12,7 +12,7 @@ As you can see, in LAB folder is DC, that is ready to be imported. Entire VM con
 
 ## Lab Deployment
 
-![](WSLab-Deployment/media/Explorer01.png)
+![](WSLab-Deployment/media/Explorer02.png)
 
 The process is simple as right-click and selecting Run with PowerShell. The script will read configuration located in LabConfig.ps1 and will deploy as specified. If default LabConfig is used, it will deploy Domain Controller and four servers for Azure Stack HCI simulation.
 
