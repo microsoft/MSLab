@@ -1,7 +1,7 @@
 function Convert-WindowsImage
 {
     #Requires -Version 3.0
-    [CmdletBinding(DefaultParameterSetName="SRC"]
+    [CmdletBinding(DefaultParameterSetName="SRC")]
 
     param(
         [Parameter(ParameterSetName="SRC", Mandatory=$true, ValueFromPipeline=$true)]
