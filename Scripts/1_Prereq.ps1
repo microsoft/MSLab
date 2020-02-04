@@ -190,20 +190,6 @@ function  Get-WindowsBuildNumber {
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
     }
-<#
-# Download convert-windowsimage into Temp
-    WriteInfoHighlighted "Testing convert-windowsimage presence"
-    If ( Test-Path -Path "$PSScriptRoot\Temp\convert-windowsimage.ps1" ) {
-        WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
-    }else{ 
-        WriteInfo "`t Downloading Convert-WindowsImage"
-        try{
-            Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/Virtualization-Documentation/live/hyperv-tools/Convert-WindowsImage/Convert-WindowsImage.ps1 -OutFile "$PSScriptRoot\Temp\convert-windowsimage.ps1"
-        }catch{
-            WriteError "`t Failed to download convert-windowsimage.ps1!"
-        }
-    }
-#>
 #endregion
 
 #region Downloading required Posh Modules
