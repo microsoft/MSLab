@@ -54,3 +54,25 @@ For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37Dwtrs
 [![WSLab in MVPDays](/Docs/media/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
 1
 [![WSLab in CDCGermany](/Docs/media/WSLab_Datacenter_Simulation_presentation_thumb.png)](https://youtu.be/5IX9OLEk50Q)
+
+### Run in PowerShell Core 7
+WSLab scripts work also in PowerShell 7, if you want to test it just install latest version of PowerShell 7.
+
+If you also would like to have context menu integration like this ![](Docs/media/Explorer02.png) you can use this script to register PowerShell Core integration in Explorer.
+
+```powershell
+# Set context menu option
+$pwshPath = "c:\Program Files\PowerShell\7-preview\pwsh.exe"
+
+if(-not (Get-PSDrive -PSProvider Registry | Where-Object Root -EQ "HKEY_CLASSES_ROOT")) {
+    New-PSDrive -PSProvider Registry -Root "HKEY_CLASSES_ROOT" -Name "HKCR"
+}
+
+New-Item -Path "HKCR:\Microsoft.PowerShellScript.1\Shell" -Name "1"
+New-ItemProperty -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1" -PropertyType String -Name "MUIVerb" -Value "Run with PowerShell &Core"
+New-ItemProperty -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1" -PropertyType String -Name "Icon" -Value $pwshPath
+
+New-Item -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1" -Name "Command"
+Set-ItemProperty -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1\Command" -Name "(Default)" -Value ('"{0}" "-Command" "if((Get-ExecutionPolicy ) -ne ''AllSigned'') {{ Set-ExecutionPolicy -Scope Process Bypass }}; & ''%1''"' -f $pwshPath)
+
+```
