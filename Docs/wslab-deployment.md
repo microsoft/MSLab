@@ -1,15 +1,3 @@
----
-title: WSLab Deployment
-description: WSLab Deployment Walkthrough 
-ms.prod: windows-server
-ms.topic: article
-author: JaromirKaspar
-ms.author: Jaromirk
-ms.technology: WSLab
-ms.date: 01/23/2020
-ms.localizationpriority: low
----
-
 # WSLab Deployment Process
 
 ## Prerequisites
