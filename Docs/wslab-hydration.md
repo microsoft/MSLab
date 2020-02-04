@@ -1,15 +1,3 @@
----
-title: WSLab Hydration
-description: WSLab Hydration Walkthrough 
-ms.prod: windows-server
-ms.topic: article
-author: JaromirKaspar
-ms.author: Jaromirk
-ms.technology: WSLab
-ms.date: 01/23/2020
-ms.localizationpriority: low
----
-
 # WSLab Hydration
 
 Process of hydration will prepare all necessary Virtual Hard Disks and will create Domain Controller, so deployment process will take only few minutes.
