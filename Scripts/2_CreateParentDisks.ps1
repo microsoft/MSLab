@@ -234,6 +234,15 @@ If (-not $isAdmin) {
             }
         }
 
+    #Check if at least 2GB (+200Mb just to be sure) memory is available
+    WriteInfoHighlighted "Checking if at least 2GB RAM is available"
+    $MemoryAvailable=(Get-Ciminstance Win32_OperatingSystem).FreePhysicalMemory
+    if ($MemoryAvailable -gt (2048+200)){
+        WriteSuccess "`t $($MemoryAvailable)MB RAM Available"
+    }else{
+        WriteErrorAndExit "`t Please make sure you have at least 2GB available memory. Exiting"
+    }
+
 #endregion
 
 #region Ask for ISO images and Cumulative updates
