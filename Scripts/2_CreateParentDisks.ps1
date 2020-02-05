@@ -1,8 +1,14 @@
 ﻿# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-If (!( $isAdmin )) {
+If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+
+    if($PSVersionTable.PSEdition -eq "Core") {
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    } else {
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    }
+
     exit
 }
 
@@ -399,8 +405,8 @@ If (!( $isAdmin )) {
             }
         }
 
-    #load convert-windowsimage to memory
-        . "$PSScriptRoot\Temp\convert-windowsimage.ps1"
+    #load Convert-WindowsImage to memory
+        . "$PSScriptRoot\ParentDisks\Convert-WindowsImage.ps1"
 
       #Create Servers Parent VHDs
         WriteInfoHighlighted "Creating Server Parent disk(s)"
