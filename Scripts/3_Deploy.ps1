@@ -812,6 +812,15 @@ If (-not $isAdmin) {
             WriteErrorAndExit "`t Hyper-V tools are not installed. Please install Hyper-V management tools. Exiting"
         }
 
+    #Check if at least 2GB (+200Mb just to be sure) memory is available
+        WriteInfoHighlighted "Checking if at least 2GB RAM is available"
+        $MemoryAvailableMB=(Get-Ciminstance Win32_OperatingSystem).FreePhysicalMemory/1KB
+        if ($MemoryAvailableMB -gt (2048+200)){
+            WriteSuccess "`t $("{0:n0}" -f $MemoryAvailableMB) MB RAM Available"
+        }else{
+            WriteErrorAndExit "`t Please make sure you have at least 2 GB available memory. Exiting"
+        }
+
     #enable EnableEnhancedSessionMode if not enabled
     if (-not (Get-VMHost).EnableEnhancedSessionMode){
         WriteInfoHighlighted "Enhanced session mode was disabled. Enabling."
