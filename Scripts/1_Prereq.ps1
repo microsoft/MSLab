@@ -159,8 +159,12 @@ function  Get-WindowsBuildNumber {
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
             $webcontent  = Invoke-WebRequest -Uri "https://aka.ms/diskspd" -UseBasicParsing
-            $link = $webcontent.Links | Where-Object data-url -Match "/Diskspd.*zip$"
-            $downloadUrl = "{0}://{1}{2}" -f $webcontent.BaseResponse.RequestMessage.RequestUri.Scheme, $webcontent.BaseResponse.RequestMessage.RequestUri.Host, $link.'data-url'
+            if($PSVersionTable.PSEdition -eq "Core") {
+                $link = $webcontent.Links | Where-Object data-url -Match "/Diskspd.*zip$"
+                $downloadUrl = "{0}://{1}{2}" -f $webcontent.BaseResponse.RequestMessage.RequestUri.Scheme, $webcontent.BaseResponse.RequestMessage.RequestUri.Host, $link.'data-url'
+            } else {
+                $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
+            }
             Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
         }catch{
             WriteError "`t Failed to download Diskspd!"
