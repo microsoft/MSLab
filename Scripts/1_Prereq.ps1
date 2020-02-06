@@ -132,7 +132,7 @@ function  Get-WindowsBuildNumber {
     }
 
 # add createparentdisks and DownloadLatestCU scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs","Convert-WindowsImage"
+    $FileNames="CreateParentDisk","DownloadLatestCUs"
     foreach ($filename in $filenames){
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path){
