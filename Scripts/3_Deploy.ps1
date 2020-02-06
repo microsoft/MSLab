@@ -325,29 +325,28 @@ If (-not $isAdmin) {
         $VMSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName "Msvm_VirtualSystemSettingData" | Where-Object VirtualSystemType -EQ "Microsoft:Hyper-V:System:Realized"
         $VMNetAdapters = Get-CimAssociatedInstance -InputObject $VMSettings -ResultClassName "Msvm_SyntheticEthernetPortSettingData"
 
-        $networkSettings = @()
+        $networkAdapterConfiguration = @()
         foreach ($netAdapter in $VMNetAdapters) {
             if ($netAdapter.ElementName -eq $NetworkAdapter.Name) {
-                $networkSettings += Get-CimAssociatedInstance -InputObject $netAdapter -ResultClassName "Msvm_GuestNetworkAdapterConfiguration"
+                $networkAdapterConfiguration = Get-CimAssociatedInstance -InputObject $netAdapter -ResultClassName "Msvm_GuestNetworkAdapterConfiguration"
+                break
             }
         }
 
-        $networkSettings[0].IPAddresses = $IPAddress
-        $networkSettings[0].Subnets = $Subnet
-        $networkSettings[0].DefaultGateways = $DefaultGateway
-        $networkSettings[0].DNSServers = $DNSServer
-        $networkSettings[0].ProtocolIFType = 4096
+        $networkAdapterConfiguration.PSBase.CimInstanceProperties["IPAddresses"].Value = $IPAddress
+        $networkAdapterConfiguration.PSBase.CimInstanceProperties["Subnets"].Value = $Subnet
+        $networkAdapterConfiguration.PSBase.CimInstanceProperties["DefaultGateways"].Value = $DefaultGateway
+        $networkAdapterConfiguration.PSBase.CimInstanceProperties["DNSServers"].Value = $DNSServer
+        $networkAdapterConfiguration.PSBase.CimInstanceProperties["ProtocolIFType"].Value = 4096
 
         if ($dhcp) {
-            $NetworkSettings[0].DHCPEnabled = $true
+            $networkAdapterConfiguration.PSBase.CimInstanceProperties["DHCPEnabled"].Value = $true
         } else {
-            $NetworkSettings[0].DHCPEnabled = $false
+            $networkAdapterConfiguration.PSBase.CimInstanceProperties["DHCPEnabled"].Value = $false
         }
 
         $cimSerializer = [Microsoft.Management.Infrastructure.Serialization.CimSerializer]::Create()
-        $serializedInstance = $cimSerializer.Serialize(
-            $networkSettings[0], [Microsoft.Management.Infrastructure.Serialization.InstanceSerializationOptions]::None
-        )
+        $serializedInstance = $cimSerializer.Serialize($networkAdapterConfiguration, [Microsoft.Management.Infrastructure.Serialization.InstanceSerializationOptions]::None)
         $serializedInstanceString = [System.Text.Encoding]::Unicode.GetString($serializedInstance)
 
         $service = Get-CimInstance -ClassName "Msvm_VirtualSystemManagementService" -Namespace "root\virtualization\v2"
