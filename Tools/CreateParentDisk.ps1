@@ -1,10 +1,16 @@
-    # Verify Running as Admin
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-    If (!( $isAdmin )) {
-        Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+# Verify Running as Admin
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+If (-not $isAdmin) {
+    Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+
+    if($PSVersionTable.PSEdition -eq "Core") {
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+    } else {
         Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-        exit
     }
+    
+    exit
+}
 
     #region Functions
 
@@ -33,8 +39,21 @@
 
     #endregion
 
-   #load convert-windowsimage
-	. "$PSScriptRoot\Convert-WindowsImage.ps1"
+    #region download convert-windowsimage if needed and load it
+
+    if (!(Test-Path "$PSScriptRoot\Convert-WindowsImage.ps1")){
+        WriteInfo "`t Downloading Convert-WindowsImage"
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/WSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Convert-WindowsImage.ps1"
+        } catch {
+            WriteErrorAndExit "`t Failed to download Convert-WindowsImage.ps1!"
+        }
+    }
+
+    #load convert-windowsimage
+    . "$PSScriptRoot\Convert-WindowsImage.ps1"
+
+    #endregion
 
     #region Ask for ISO
         WriteInfoHighlighted "Please select ISO image"
