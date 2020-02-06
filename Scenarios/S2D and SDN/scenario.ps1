@@ -13,14 +13,14 @@ if ($WindowsInstallationType -eq "Server"){
 }
 #endregion
 
-#region Install Edge Beta
-#install edge for azure portal and authentication (if code is running from DC)
+#region Install Edge 
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2093376" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi"
-#Install Edge Beta
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeBetaEnterpriseX64.msi /q"
+Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/07367ab9-ceee-4409-a22f-c50d77a8ae06/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#start install
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
-& "C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe"
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 #endregion
 
 #region Install Windows Admin Center
@@ -43,14 +43,20 @@ Invoke-Command -Session $session -ScriptBlock {
 
 $Session | Remove-PSSession
 
-#Configure Resource-Based constrained delegation to all Windows Server computers in Active Directory
+#add certificate to trusted root certs
+start-sleep 10
+$cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+$cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
+#Configure Resource-Based constrained delegation
 $gatewayObject = Get-ADComputer -Identity $GatewayServerName
 $computers = (Get-ADComputer -Filter {OperatingSystem -Like "Windows Server*"}).Name
+
 foreach ($computer in $computers){
     $computerObject = Get-ADComputer -Identity $computer
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
- 
 #endregion
 
 #region Install Certification Authority
@@ -538,7 +544,6 @@ if ($Authentication -eq "Certificate"){
 #endregion
 
 #region Install Network Controller cluster
-
     $Servers="NC01","NC02","NC03"
     $ManagementSecurityGroupName="NCManagementAdmins" #Group for users with permission to configure Network Controller
     $ClientSecurityGroupName="NCRESTClients"          #Group for users with configure and manage networks permission using NC
