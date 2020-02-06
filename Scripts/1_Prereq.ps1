@@ -148,6 +148,19 @@ function  Get-WindowsBuildNumber {
             }
         }
     }
+
+# Download convert-windowsimage into Temp
+WriteInfoHighlighted "Testing Convert-windowsimage presence"
+If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
+    WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
+}else{ 
+    WriteInfo "`t Downloading Convert-WindowsImage"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/WSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
+    } catch {
+        WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+    }
+}
 #endregion
 
 #region some tools to download
