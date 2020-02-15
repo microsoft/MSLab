@@ -75,6 +75,10 @@ Write-host "Script started at $StartDateTime"
     #SMB Bandwith Limits for Live Migration? https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
         $SMBBandwidthLimits=$true
 
+    #Jumbo Frames? Might be necessary to increase for iWARP. If not default, make sure all switches are configured end-to-end and (for example 9216). Also if non-default is set, you might run into various issues such as https://blog.workinghardinit.work/2019/09/05/fixing-slow-roce-rdma-performance-with-winof-2-to-winof/.
+    #if 1514 is set, setting JumboFrames is skipped. All NICs are configured (vNICs + pNICs)
+        $JumboSize=1514 #9014, 4088 or 1514 (default)
+
     #Additional Features
         $Bitlocker=$false #Install "Bitlocker" and "RSAT-Feature-Tools-BitLocker" on nodes?
         $StorageReplica=$false #Install "Storage-Replica" and "RSAT-Storage-Replica" on nodes?
@@ -384,6 +388,11 @@ Write-host "Script started at $StartDateTime"
                     Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
                 }
 
+        #Configure Jumbo Frames
+            if ($JumboSize -ne 1514){
+                Set-NetAdapterAdvancedProperty -CimSession $Servers  -DisplayName "Jumbo Packet" -RegistryValue $JumboSize
+            }
+
         #Disable NetBIOS on all vNICs https://msdn.microsoft.com/en-us/library/aa393601(v=vs.85).aspx
             if ($DisableNetBIOS){
                 $vNICs = Get-NetAdapter -CimSession $Servers | Where-Object Name -like vEthernet*
@@ -419,6 +428,8 @@ Write-host "Script started at $StartDateTime"
             Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | ft systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
         #verify ip config 
             Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | ft pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+        #verify JumboFrames
+            Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
 
     #configure DCB if requested
         if ($DCB -eq $True){
