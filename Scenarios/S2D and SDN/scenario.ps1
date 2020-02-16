@@ -334,7 +334,7 @@ Invoke-Command -ComputerName $CAServer -ScriptBlock{
             'msPKI-Certificate-Name-Flag' = [System.Int32]'9'
             'msPKI-Enrollment-Flag' = [System.Int32]'32'
             'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-            'msPKI-Private-Key-Flag' = [System.Int32]'101056656'
+            'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
             'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
             'msPKI-RA-Signature' = [System.Int32]'0'
             'msPKI-Template-Minor-Revision' = [System.Int32]'1'
@@ -361,7 +361,7 @@ Invoke-Command -ComputerName $CAServer -ScriptBlock{
             'msPKI-Certificate-Name-Flag' = [System.Int32]'1073741824'
             'msPKI-Enrollment-Flag' = [System.Int32]'0'
             'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
-            'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
+            'msPKI-Private-Key-Flag' = [System.Int32]'101056768'
             'msPKI-RA-Signature' = [System.Int32]'0'
             'msPKI-Template-Minor-Revision' = [System.Int32]'1'
             'msPKI-Template-Schema-Version' = [System.Int32]'4'
