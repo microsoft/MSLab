@@ -18,7 +18,7 @@
 
 ## About the Lab
 
-This lab demonstrates feature in Windows Server 2019 that allows direct connection between nodes in cluster. This simulation will demonstrate 5 node cluster with 10 connections (between each node) as illustrated on Gif below.
+This lab demonstrates feature in Windows Server 2019 that allows direct connection between nodes in cluster. This simulation will demonstrate 5 node cluster with 10 connections (between each node) as illustrated on Gif below. Prerequisites will be executed from Hyper-V host and then proceed with [scenario.ps1](scenario.ps1) and run it region-by-region from DC.
 
 The lab does not contain all best practices (for best practices visit [S2D HyperConverged Scenario](/Scenarios/S2D%20Hyperconverged/scenario.ps1))
 
@@ -26,7 +26,7 @@ The lab does not contain all best practices (for best practices visit [S2D Hyper
 
 ## Lab
 
-Notice 6 NICs present in VMs config (note: in Hyper-V you can have up to 8 NICs).
+Notice 6 NICs present in VMs config. For this lab, use [Labconfig.ps1](Labconfig.ps1). You can modify it to any number of VMs (3-8 or whatever still makes sense) with appropriate number of vNICs (n-1+2, where n is number of servers). In Scenario just modify $servers variable. There rest is universal.
 
 ![](Screenshots/VMs.png)
 
@@ -81,6 +81,16 @@ foreach ($server in $servers){
  
 ```
 
+Script will modify network adapter on VMs to have access VLAN as you can see on screenshots below
+
+![](Screenshots/Hyper-VManager01.png)
+
+
+![](Screenshots/Hyper-VManager02.png)
+
+![](Screenshots/PowerShell01.png)
+
+
 ## Region: Install features for S2D Cluster
 
 From now, run all code from DC.
@@ -91,18 +101,34 @@ Following code will install management features to DC and will install necessary
 
 Following code will query last n-1 adapters (n is number of nodes) and post it's IPV6 address with subnet ID. Notice, that using just autoconfig IP Addresses is not reliable as subnets are not unique and sometimes there is only one IP in subnet.
 
+![](Screenshots/PowerShell02.png)
+
 ## Region: Create virtual switch and add static IP Addresses to interconnects
 
-<TBD>
+This region will add static IP addresses to last n-1 adapters. It will use /24 subnets as it's not routed outside cluster anyway and it's clear as each Pair uses C range starting with number 1.
+
+![](Screenshots/PowerShell03.png)
 
 ## Region: Test and create Cluster
 
-<TBD>
+Cluster will be created (with dynamic IP address to make it simple). File share witness is configured, so you can play with resiliency.
+
+![](Screenshots/Cluadmin01.png)
 
 ## Region: Configure Cluster networks
 
-<TBD>
+In this part, cluster networks will be renamed and networks configured for Live Migration. Live migration will be set to use SMB protocol.
+
+Cluster networks before:
+
+![](Screenshots/Cluadmin02.png)
+
+Cluster networks after:
+
+![](Screenshots/Cluadmin03.png)
 
 ## Region: Enable Cluster S2D and create volumes
 
-<TBD>
+S2D will be enabled, optimal size for volumes calculated and Volumes created.
+
+![](Screenshots/Cluadmin04.png)

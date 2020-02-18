@@ -89,8 +89,9 @@ $StorageAddressPrefix="172.16"
 $serverset1=$servers[0..($serverscount-2)]
 $serverset2=$servers[1..($serverscount-1)]
 
-#Create vSwitch
+#Create vSwitch and rename Management vNIC
 Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -CimSession $servers
 
 #add static IP address prefix
 #configure first side with static address
