@@ -4,7 +4,7 @@ Process of hydration will prepare all necessary Virtual Hard Disks and will crea
 
 ## Required Files
 
-* [WSLab Scripts](aka.ms/wslabzip)
+* [WSLab Scripts](https://aka.ms/wslabzip)
 * [Windows Server 2019](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
 * Latest Cumulative Update + Servicing Stack Update
 
