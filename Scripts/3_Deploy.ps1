@@ -1349,10 +1349,10 @@ If (-not $isAdmin) {
     #configure allowed VLANs (to create nested vNICs with VLANs)
         if ($labconfig.AllowedVLans){
             WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to $($LabConfig.AllowedVlans)"
-            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlans
+            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Where-Object VMName -ne "$($labconfig.Prefix)DC" | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlans
         }else{
             WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-10"
-            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
+            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Where-Object VMName -ne "$($labconfig.Prefix)DC" | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
         }
 
     #configure HostResourceProtection on all VM CPUs
