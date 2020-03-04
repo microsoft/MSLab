@@ -5,11 +5,13 @@
 - [WSLab Introduction](#wslab-introduction)
     - [Requirements](#requirements)
     - [Scripts](#scripts)
+    - [Scenarios](#scenarios)
     - [Use cases](#use-cases)
         - [Prototyping](#prototyping)
         - [Hands on Labs](#hands-on-labs)
         - [Issue reproduction](#issue-reproduction)
         - [Sessions](#sessions)
+        - [Run in PowerShell Core 7](#run-in-powershell-core-7)
 
 <!-- /TOC -->
 
@@ -32,6 +34,10 @@ Unlike other solutions, WSLab focuses on simplicity (all actions can be done wit
 The main part of WSLab are the [Scripts](https://aka.ms/wslabzip) that will help you preparing lab files ([Hydration Phase](Docs/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks from of provided ISO and will create Domain Controller. [WSLab Deployment](Docs/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
 
 ![](Docs/media/Explorer01.png)
+
+## Scenarios
+
+Over the time, we have developed multiple [scenarios](Scenarios/) simulating Azure Stack HCI and even deep dives into each technology. Scenarios can be reused for real environments. Like [S2D Hyperconverged](Scenarios/S2D%20Hyperconverged) can be used to deploy real Azure Stack HCI clusters.
 
 ## Use cases
 
