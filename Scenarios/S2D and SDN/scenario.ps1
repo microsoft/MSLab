@@ -334,7 +334,7 @@ Invoke-Command -ComputerName $CAServer -ScriptBlock{
             'msPKI-Certificate-Name-Flag' = [System.Int32]'9'
             'msPKI-Enrollment-Flag' = [System.Int32]'32'
             'msPKI-Minimal-Key-Size' = [System.Int32]'521'
-            'msPKI-Private-Key-Flag' = [System.Int32]'101056656'
+            'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
             'msPKI-RA-Application-Policies' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('msPKI-Asymmetric-Algorithm`PZPWSTR`ECDH_P521`msPKI-Hash-Algorithm`PZPWSTR`SHA512`msPKI-Key-Usage`DWORD`16777215`msPKI-Symmetric-Algorithm`PZPWSTR`3DES`msPKI-Symmetric-Key-Length`DWORD`168`')
             'msPKI-RA-Signature' = [System.Int32]'0'
             'msPKI-Template-Minor-Revision' = [System.Int32]'1'
@@ -357,11 +357,11 @@ Invoke-Command -ComputerName $CAServer -ScriptBlock{
     $DisplayName="SDNInfra"
     $TemplateOtherAttributes = @{
             'flags' = [System.Int32]'131680'
-            'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1')
+            'msPKI-Certificate-Application-Policy' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.2','1.3.6.1.5.5.7.3.1','1.3.6.1.4.1.311.95.1.1.1')
             'msPKI-Certificate-Name-Flag' = [System.Int32]'1073741824'
             'msPKI-Enrollment-Flag' = [System.Int32]'0'
             'msPKI-Minimal-Key-Size' = [System.Int32]'2048'
-            'msPKI-Private-Key-Flag' = [System.Int32]'101056912'
+            'msPKI-Private-Key-Flag' = [System.Int32]'101056768'
             'msPKI-RA-Signature' = [System.Int32]'0'
             'msPKI-Template-Minor-Revision' = [System.Int32]'1'
             'msPKI-Template-Schema-Version' = [System.Int32]'4'
@@ -370,7 +370,7 @@ Invoke-Command -ComputerName $CAServer -ScriptBlock{
             'pKICriticalExtensions' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('2.5.29.15')
             'pKIDefaultKeySpec' = [System.Int32]'1'
             'pKIExpirationPeriod' = [System.Byte[]]@('0','64','57','135','46','225','254','255')
-            'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2')
+            'pKIExtendedKeyUsage' = [Microsoft.ActiveDirectory.Management.ADPropertyValueCollection]@('1.3.6.1.5.5.7.3.1','1.3.6.1.5.5.7.3.2','1.3.6.1.4.1.311.95.1.1.1')
             'pKIKeyUsage' = [System.Byte[]]@('136')
             'pKIOverlapPeriod' = [System.Byte[]]@('0','128','166','10','255','222','255','255')
             'revision' = [System.Int32]'100'
@@ -662,10 +662,11 @@ if ($Authentication -eq "Certificate"){
     $content=Get-Content -Path C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\machine.config
     $newcontent=$content.Replace('<section name="defaultProxy" type="System.Net.Configuration.DefaultProxySection, System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />',"")
     Set-Content -Value $newcontent -Path C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\machine.config
-    Write-Host "Please restart computer" -ForegroundColor Red
 #endregion
 
 #region add NCCluster configuration
+    #purge kerberos first
+    klist purge
     $RestName="ncclus.corp.contoso.com"
     $MacAddressPoolStart = "00-11-22-00-01-00" #make sure you use dashes and capitals
     $MacAddressPoolEnd   = "00-11-22-00-01-FF"
