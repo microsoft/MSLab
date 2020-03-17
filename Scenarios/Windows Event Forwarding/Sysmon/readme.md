@@ -65,8 +65,7 @@ Invoke-WebRequest -UseBasicParsing -Uri https://download.sysinternals.com/files/
 Expand-Archive -Path $env:USERPROFILE\Downloads\Sysmon.zip -DestinationPath $env:USERPROFILE\Downloads\Sysmon\
 
 #download sysmon config
-[xml]$XML=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml
-$xml.Save("$env:USERPROFILE\Downloads\Sysmon\Sysmonconfig-export.xml")
+Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml -OutFile $env:USERPROFILE\Downloads\Sysmon\Sysmonconfig-export.xml
  
 ```
 
