@@ -49,7 +49,7 @@ Since all functionality is under construction, your feedback is important! The s
 
 ## The Lab
 
-Run all code from DC
+Run all code from DC or Management machine (just make sure version of server where you run the scripts matches managed servers)
 
 ### Region install prereqs
 
