@@ -20,7 +20,7 @@
 
         #IncreaseHW Timeout for virtual environments to 30s
         Invoke-Command -ComputerName $servers -ScriptBlock {
-            New-Item -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -ItemType Directory
+            #New-Item -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -ItemType Directory
             Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530
         }
         #restart and wait for computers
@@ -78,14 +78,16 @@
 #region Create cluster and configure witness (file share or Azure)
     $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
     $ClusterName="S2D-S-Cluster"
-    $WitnessType="Azure" #or FileShare
+    $WitnessType="Cloud" #or FileShare
     $ResourceGroupName="WSLabCloudWitness"
     $StorageAccountName="wslabcloudwitness$(Get-Random -Minimum 100000 -Maximum 999999)"
 
-    if ($WitnessType -eq "Azure"){
-        #download Azure module
+    if ($WitnessType -eq "Cloud"){
+        #download Azure modules
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        Install-Module -Name Az -Force
+        Install-Module -Name Az.Accounts -Force
+        Install-Module -Name Az.Resources -Force
+        Install-Module -Name Az.Storage -Force
 
         #login to Azure
         Login-AzAccount -UseDeviceAuthentication
@@ -108,11 +110,11 @@
     }
 
     Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
-    if ($WitnessType -eq "Azure"){
-        New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType Distributed -NoStorage
-    }else{
-        New-Cluster -Name $ClusterName -Node $servers -NoStorage
-    }
+    #Create new cluster using Distributed ManagementPoint
+    New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType Distributed -NoStorage
+    #or you can create cluster with traditional A record on CNO.
+    #New-Cluster -Name $ClusterName -Node $servers -NoStorage
+
     Start-Sleep 5
     Clear-DnsClientCache
 
@@ -246,6 +248,12 @@ Get-StoragePool -IsPrimordial $false -CimSession $ClusterName | Get-PhysicalDisk
 
 #Get Storage Tiers
 Get-StorageTier -CimSession $ClusterName
+
+#Wait for Clusterperformance history, just to make sure all finished before creating volumes
+do{Start-Sleep 5}until(
+    Get-VirtualDisk -FriendlyName ClusterPerformanceHistory -CimSession $clustername -ErrorAction Ignore
+)
+
 #endregion
 
 #region Create Volumes

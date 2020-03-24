@@ -23,6 +23,12 @@ In this scenario I'll demonstrate installing Sysmon with [SwiftOnSecurity config
 
 This scenario is introduction to Windows Event Forwarding.
 
+List of useful resources:
+
+* [SwiftOnSecurity Sysmon config](https://github.com/SwiftOnSecurity/sysmon-config)
+* [Sysmon Modular](https://github.com/olafhartong/sysmon-modular)
+* [Sysmon Tools](https://github.com/nshalabi/SysmonTools)
+
 ## LabConfig Windows Server 2016
 
 ```PowerShell
