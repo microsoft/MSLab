@@ -714,7 +714,7 @@ If (-not $isAdmin) {
     $TimeZone=(Get-TimeZone).id
 
     #Grab number of processors
-    Get-CimInstance -ClassName "win32_processor" | Select-Object NumberOfLogicalProcessors | ForEach-Object { $global:NumberOfLogicalProcessors += $_ }
+    Get-CimInstance -ClassName "win32_processor" | ForEach-Object { $global:NumberOfLogicalProcessors += $_.NumberOfLogicalProcessors }
 
 #endregion
 
