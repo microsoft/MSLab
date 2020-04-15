@@ -27,8 +27,8 @@ $versions="1607","1703","1709","1803","1809","1903" | Out-GridView -OutputMode M
 
 foreach ($Version in $versions){
     Write-Output "Fetching info from web"
-    $latestCU=Get-LatestCumulativeUpdate -OperatingSystem WindowsServer -Version $Version | Select-Object -First 1 #1903 has 2 objects
-    $latestSSU=Get-LatestServicingStackUpdate -OperatingSystem Windows10 -Version $Version | Where-Object -Property Note -Like "*server*" 
+    $latestCU=Get-LatestCumulativeUpdate -OperatingSystem WindowsServer -Version $Version | Where-Object -Property Note -Like "*server*x64*" | Select-Object -First 1 #1903 has 2 objects
+    $latestSSU=Get-LatestServicingStackUpdate -OperatingSystem Windows10 -Version $Version | Where-Object -Property Note -Like "*server*x64*" 
     $CUFilename=$latestCU.URL.Split('/') | Select-Object -Last 1
     $SSUFilename=$latestSSU.URL.Split('/') | Select-Object -Last 1
     $path="$folder\$version\$($latestCU.Note.Substring(0,7))"
