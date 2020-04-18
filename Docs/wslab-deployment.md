@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-This guide assumes you already [Hydrated](../WSLab-Hydration/wslab-hydration.md) VHDs and Domain Controller using first 2 scripts and the result is folder with following files:
+This guide assumes you already [Hydrated](../Docs/wslab-hydration.md) VHDs and Domain Controller using first 2 scripts and the result is folder with following files:
 
 ![](WSLab-Deployment/media/Explorer01.png)
 
