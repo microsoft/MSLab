@@ -2,7 +2,7 @@
     #grafana and influxdb variables
     $GrafanaServerName="Grafana"
     $InfluxDBServerName="InfluxDB"
-    $InfluxDBPath="E:\InfluxDB\" #path for DB and config. In lab is D drive drive that is not initialized and will be formatted
+    $InfluxDBPath="E:\InfluxDB\" #path for DB and config. In lab is E drive, that is not initialized and will be formatted
     $InfluxDBConfigPath=$InfluxDBPath+"influxdb.conf"
 
     #Certification Authority
@@ -40,12 +40,14 @@ Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafa
 Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
 
-#region Download and Install Edge Dev
+#region Download and Install Edge
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2069324&Channel=Dev&language=en-us&Consent=1" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe"
-#Install Edge Dev
-Start-Process -FilePath "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe" -Wait
-
+Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/40e309b4-5d46-4AE8-b839-bd74b4cff36e/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#start install
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+#start Edge
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 #endregion
 
 #region install management tools
