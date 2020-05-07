@@ -32,10 +32,10 @@
 #region download required files to downloads folder
 $ProgressPreference='SilentlyContinue' #for faster download
 #influxDB and telegraph
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.7.8_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.12.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.8.0_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.14.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
 #Grafana
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.6.0.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.7.3.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
 #NSSM - the Non-Sucking Service Manager
 Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
@@ -68,10 +68,9 @@ Start-Process -FilePath "$env:USERPROFILE\Downloads\MicrosoftEdgeSetup.exe" -Wai
             foreach ($Capability in $Capabilities){
                 Add-WindowsCapability -Name $Capability -Online
             }
-            $FeatureNames="IIS-ManagementConsole","IIS-ManagementScriptingTools"
-            foreach ($FeatureName in $FeatureNames){
-                Enable-WindowsOptionalFeature -FeatureName $FeatureName -Online
-            }
+        #install IIS management tools
+            Enable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServerRole","IIS-WebServerManagementTools","IIS-ManagementConsole","IIS-ManagementScriptingTools" 
+            Disable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServer" -NoRestart
     }
 #endregion
 
