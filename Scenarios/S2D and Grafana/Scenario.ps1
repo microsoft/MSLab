@@ -737,15 +737,20 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
     $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
     #>
 
+    #download Influx PowerShell module
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Save-Module -Name influx -Path $env:USERPROFILE\Downloads\
+
     foreach ($Cluster in $Clusters){
         $servers=(Get-ClusterNode -Cluster $Cluster).Name
         #increase MaxEnvelopeSize to transfer foles
         Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
         #create sessions
         $sessions=New-PSSession -ComputerName $servers
-        #copy telegraf
+        #copy telegraf and Iflux powershell module
         foreach ($session in $sessions){
             Copy-Item -Path "$env:temp\Telegraf" -Destination "$env:ProgramFiles" -tosession $session -recurse -force
+            Copy-Item -Path $env:USERPROFILE\Downloads\Influx -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force -ToSession $session
         }
         #replace telegraf conf and drop posh script
         Invoke-command -Session $sessions -ScriptBlock {
