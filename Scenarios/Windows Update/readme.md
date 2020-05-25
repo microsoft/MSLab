@@ -327,7 +327,7 @@ $ComputersInfo  = Invoke-Command -ComputerName $servers -ScriptBlock {
 
 Foreach ($ComputerInfo in $computersinfo){
     $latestUBR=($versions | where ReleaseID -eq $computerinfo.releaseid).UBR
-    if ($latestUBR -gt $computerInfo){
+    if ($latestUBR -gt $computerInfo.UBR){
         $ComputerInfo | Add-Member -MemberType NoteProperty -Name IsUpToDate -Value $false
         $ComputerInfo | Add-Member -MemberType NoteProperty -Name LatestUBR -Value $LatestUBR
     }else{
