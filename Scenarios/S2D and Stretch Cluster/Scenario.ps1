@@ -118,7 +118,7 @@
     Start-Sleep 5
     Clear-DnsClientCache
 
-    if ($WitnessType -eq "Azure"){
+    if ($WitnessType -eq "Cloud"){
         Set-ClusterQuorum -Cluster $ClusterName -CloudWitness -AccountName $StorageAccountName -AccessKey $StorageAccountAccessKey -Endpoint "core.windows.net"
     }else{
         #Configure Witness on DC 
