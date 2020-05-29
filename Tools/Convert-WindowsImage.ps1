@@ -344,7 +344,7 @@ Version $myVersion
                 [ValidateNotNullOrEmpty()]
                 $text
             )
-            Write-Host "ERROR  : $($text)" -ForegroundColor (Get-Host).PrivateData.ErrorForegroundColor
+            Write-Host "ERROR  : $($text)" -ForegroundColor Red
         }
 
         ##########################################################################################
@@ -360,7 +360,7 @@ Version $myVersion
                 [ValidateNotNullOrEmpty()]
                 $text
             )
-            Write-Host "WARN   : $($text)" -ForegroundColor (Get-Host).PrivateData.WarningForegroundColor
+            Write-Host "WARN   : $($text)" -ForegroundColor Yellow
         }
 
         ##########################################################################################
