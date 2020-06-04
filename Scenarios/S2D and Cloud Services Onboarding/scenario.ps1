@@ -12,11 +12,15 @@ $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\W
             }
     }
 
+#set-execution policy to remote signed for current process
+if ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
+
 #download Azure module
-if (!(get-module -Name AZ)){
+if (!(Get-Command -Name Login-AzAccount)){
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name AZ -Force
 }
+ 
  
 #endregion
 
@@ -75,6 +79,12 @@ Login-AzAccount -UseDeviceAuthentication
 $context=Get-AzContext -ListAvailable
 if (($context).count -gt 1){
     $context | Out-GridView -OutpuMode Single | Set-AzContext
+}
+
+#select subscription
+$subscriptions=Get-AzSubscription
+if (($subscriptions).count -gt 1){
+    $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
 #Grab Insights Workspace
@@ -299,7 +309,7 @@ $Locations+=@{LocationName="South East Asia"     ;DataServiceURL="sea-jobruntime
 $Locations+=@{LocationName="Central India"       ;DataServiceURL="cid-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="cid-agentservice-prod-1.azure-automation.net"}
 $Locations+=@{LocationName="Japan East"          ;DataServiceURL="jpe-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="jpe-agentservice-prod-1.azure-automation.net"}
 $Locations+=@{LocationName="Australia East"      ;DataServiceURL="ae-jobruntimedata-prod-su1.azure-automation.net"  ;AgentServiceURL="ae-agentservice-prod-1.azure-automation.net"}
-$Locations+=@{LocationName="Australia South East";DataServiceURL="ase-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="ase-agentservice-prod-1.azure-automation.net"}
+$Locations+=@{LocationName="Australia Southast"  ;DataServiceURL="ase-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="ase-agentservice-prod-1.azure-automation.net"}
 $Locations+=@{LocationName="UK South"            ;DataServiceURL="uks-jobruntimedata-prod-su1.azure-automation.net" ;AgentServiceURL="uks-agentservice-prod-1.azure-automation.net"}
 $Locations+=@{LocationName="US Gov Virginia"     ;DataServiceURL="usge-jobruntimedata-prod-su1.azure-automation.us" ;AgentServiceURL="usge-agentservice-prod-1.azure-automation.us"}
 
