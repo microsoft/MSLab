@@ -57,8 +57,10 @@ Many times happened, that there was an issue that was hard to reproduce. And eve
 
 For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37DwtrsnIehxKx7N7XgoBg?e=r1sszn) OneDrive
 
+[![WSLab in MVPDays](/Docs/media/Monitoring_Azure_Stack_HCI_with_Grafana_thumb.png)](https://youtu.be/0K53z4LMT4U)
+
 [![WSLab in MVPDays](/Docs/media/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
-1
+
 [![WSLab in CDCGermany](/Docs/media/WSLab_Datacenter_Simulation_presentation_thumb.png)](https://youtu.be/5IX9OLEk50Q)
 
 ### Run in PowerShell Core 7
