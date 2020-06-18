@@ -235,13 +235,28 @@ If (-not $isAdmin) {
         }
 
     #Check if at least 2GB (+200Mb just to be sure) memory is available
-    WriteInfoHighlighted "Checking if at least 2GB RAM is available"
-    $MemoryAvailableMB=(Get-Ciminstance Win32_OperatingSystem).FreePhysicalMemory/1KB
-    if ($MemoryAvailableMB -gt (2048+200)){
-        WriteSuccess "`t $("{0:n0}" -f $MemoryAvailableMB) MB RAM Available"
-    }else{
-        WriteErrorAndExit "`t Please make sure you have at least 2 GB available memory. Exiting"
+        WriteInfoHighlighted "Checking if at least 2GB RAM is available"
+        $MemoryAvailableMB=(Get-Ciminstance Win32_OperatingSystem).FreePhysicalMemory/1KB
+        if ($MemoryAvailableMB -gt (2048+200)){
+            WriteSuccess "`t $("{0:n0}" -f $MemoryAvailableMB) MB RAM Available"
+        }else{
+            WriteErrorAndExit "`t Please make sure you have at least 2 GB available memory. Exiting"
+        }
+
+    #check if filesystem on volume is NTFS or ReFS
+    WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
+    $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
+    $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
+    If ($VolumeFileSystem -match "NTFS"){
+        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+    }elseif ($VolumeFileSystem -match "ReFS") {
+        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+    }elseif ($VolumeFileSystem -like "CSV*") {
+        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Since it's csv, Mounting volume will fail. Ping me an email at jaromirk@microsoft.com and I'll fix script for you. Exiting"
+    }else {
+        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
     }
+
 
 #endregion
 
