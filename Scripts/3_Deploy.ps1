@@ -820,6 +820,20 @@ If (-not $isAdmin) {
             WriteErrorAndExit "`t Please make sure you have at least 2 GB available memory. Exiting"
         }
 
+    #check if filesystem on volume is NTFS or ReFS
+    WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
+    $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
+    $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
+    If ($VolumeFileSystem -match "NTFS"){
+        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+    }elseif ($VolumeFileSystem -match "ReFS") {
+        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+    }elseif ($VolumeFileSystem -like "CSV*") {
+        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Since it's csv, Mounting volume will fail. Ping me an email at jaromirk@microsoft.com and I'll fix script for you. Exiting"
+    }else {
+        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+    }
+
     #enable EnableEnhancedSessionMode if not enabled
     if (-not (Get-VMHost).EnableEnhancedSessionMode){
         WriteInfoHighlighted "Enhanced session mode was disabled. Enabling."
