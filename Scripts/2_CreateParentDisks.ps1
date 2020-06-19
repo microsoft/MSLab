@@ -246,18 +246,20 @@ If (-not $isAdmin) {
     #check if filesystem on volume is NTFS or ReFS
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
-    $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
-    If ($VolumeFileSystem -match "NTFS"){
-        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
-    }elseif ($VolumeFileSystem -match "ReFS") {
-        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
-    }elseif ($VolumeFileSystem -like "CSV*") {
-        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Since it's csv, Mounting volume will fail. Ping me an email at jaromirk@microsoft.com and I'll fix script for you. Exiting"
-    }else {
-        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+    if ($PSScriptRoot -like "c:\ClusterStorage*"){
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
+        $mountdir="$env:Temp\WSLAbMountdir"
+    }else{
+        $mountdir="$PSScriptRoot\Temp\MountDir"
+        $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
+        if ($VolumeFileSystem -match "NTFS"){
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }elseif ($VolumeFileSystem -match "ReFS") {
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }else {
+            WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+        }
     }
-
-
 #endregion
 
 #region Ask for ISO images and Cumulative updates
@@ -555,21 +557,21 @@ If (-not $isAdmin) {
 
         #Apply Unattend to VM
             WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
-            if (Test-Path "$PSScriptRoot\Temp\mountdir"){
-                Remove-Item -Path "$PSScriptRoot\Temp\mountdir\" -Recurse -Force
+            if (Test-Path $mountdir){
+                Remove-Item -Path $mountdir -Recurse -Force
             }
             if (Test-Path "$PSScriptRoot\Temp\unattend"){
                 Remove-Item -Path "$PSScriptRoot\Temp\unattend.xml"
             }
             $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
-            New-item -type directory -Path $PSScriptRoot\Temp\mountdir -force
-            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-            #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\mountdir
-            #&"$PSScriptRoot\Temp\dism\dism" /image:$PSScriptRoot\Temp\mountdir /Apply-Unattend:$unattendfile
-            New-item -type directory -Path "$PSScriptRoot\Temp\mountdir\Windows\Panther" -force
-            Copy-Item -Path $unattendfile -Destination "$PSScriptRoot\Temp\mountdir\Windows\Panther\unattend.xml" -force
-            Copy-Item -Path "$PSScriptRoot\Temp\DSC\*" -Destination "$PSScriptRoot\Temp\mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+            New-item -type directory -Path $mountdir -force
+            Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
+            #&"$PSScriptRoot\Temp\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory -Path "$mountdir\Windows\Panther" -force
+            Copy-Item -Path $unattendfile -Destination "$mountdir\Windows\Panther\unattend.xml" -force
+            Copy-Item -Path "$PSScriptRoot\Temp\DSC\*" -Destination "$mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
 
         #Create credentials for DSC
 
@@ -899,13 +901,13 @@ If (-not $isAdmin) {
         #copy DSC MOF files to DC
             WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
             New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
-            Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\pending.mof"
-            Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$PSScriptRoot\Temp\mountdir\Windows\system32\Configuration\metaconfig.mof"
+            Copy-Item -path "$PSScriptRoot\Temp\config\dc.mof"      -Destination "$mountdir\Windows\system32\Configuration\pending.mof"
+            Copy-Item -Path "$PSScriptRoot\Temp\config\dc.meta.mof" -Destination "$mountdir\Windows\system32\Configuration\metaconfig.mof"
 
         #close VHD and apply changes
             WriteInfoHighlighted "`t Applying changes to VHD"
-            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-            #&"$PSScriptRoot\Temp\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\mountdir /Commit
+            Dismount-WindowsImage -Path $mountdir -Save
+            #&"$PSScriptRoot\Temp\dism\dism" /Unmount-Image /MountDir:$mountdir /Commit
 
         #Start DC VM and wait for configuration
             WriteInfoHighlighted "`t Starting DC"

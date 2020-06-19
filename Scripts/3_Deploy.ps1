@@ -625,22 +625,22 @@ If (-not $isAdmin) {
         #adding unattend to VHD
         if ($unattendFile){
             WriteInfo "`t Adding unattend to VHD"
-            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-            New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-            Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+            Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
+            #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
+            Copy-Item $unattendfile "$mountdir\Windows\Panther\unattend.xml"
         }
 
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Adding metaconfig.mof to VHD"
-            Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+            Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$mountdir\Windows\system32\Configuration\metaconfig.mof"
         }
 
         if ($unattendFile){
-            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+            Dismount-WindowsImage -Path $mountdir -Save
+            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$mountdir /Commit
         }
 
         #add toolsdisk
@@ -823,15 +823,19 @@ If (-not $isAdmin) {
     #check if filesystem on volume is NTFS or ReFS
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
-    $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
-    If ($VolumeFileSystem -match "NTFS"){
-        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
-    }elseif ($VolumeFileSystem -match "ReFS") {
-        WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
-    }elseif ($VolumeFileSystem -like "CSV*") {
-        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Since it's csv, Mounting volume will fail. Ping me an email at jaromirk@microsoft.com and I'll fix script for you. Exiting"
-    }else {
-        WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+    if ($PSScriptRoot -like "c:\ClusterStorage*"){
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
+        $mountdir="$env:Temp\WSLAbMountDir"
+    }else{
+        $mountdir="$PSScriptRoot\Temp\MountDir"
+        $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
+        if ($VolumeFileSystem -match "NTFS"){
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }elseif ($VolumeFileSystem -match "ReFS") {
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }else {
+            WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+        }
     }
 
     #enable EnableEnhancedSessionMode if not enabled
@@ -927,7 +931,7 @@ If (-not $isAdmin) {
 
     #Create Mount nd VMs directories
         WriteInfoHighlighted "Creating Mountdir"
-        New-Item "$PSScriptRoot\Temp\MountDir" -ItemType Directory -Force
+        New-Item $mountdir -ItemType Directory -Force
 
         WriteInfoHighlighted "Creating VMs dir"
         New-Item "$PSScriptRoot\LAB\VMs" -ItemType Directory -Force
