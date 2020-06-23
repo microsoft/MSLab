@@ -407,7 +407,7 @@ Write-host "Script started at $StartDateTime"
                 }
             }
 
-        #Disable RCT on Physical NICs connected to vSwitch (RSC in the vSwitch (2019+ only) conflicts with NIC vendors implementation of RSC if they did it in software (miniport, not OS) rather than firmware. In Validate-DCB it's only for MLX4 drivers (Mellanox CX 3)
+        #Disable RSC (receive segment coalescing) on Physical NICs connected to vSwitch (RSC in the vSwitch (2019+ only) conflicts with NIC vendors implementation of RSC if they did it in software (miniport, not OS) rather than firmware. In Validate-DCB it's only for MLX4 drivers (Mellanox CX 3)
             Invoke-Command -ComputerName $servers -ScriptBlock {
                 $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
                 foreach ($physicaladapter in $physicaladapters){
