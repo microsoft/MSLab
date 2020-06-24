@@ -5,20 +5,18 @@
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
     - [Windows Server 2019](#windows-server-2019)
     - [Windows Server Insider preview](#windows-server-insider-preview)
-    - [Windows 10 1809](#windows-10-1809)
+    - [Windows 10 20H1](#windows-10-20h1)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
     - [Windows Server 2019](#windows-server-2019-1)
     - [Windows Server Insider preview](#windows-server-insider-preview-1)
-    - [Windows 10 1809](#windows-10-1809-1)
+    - [Windows 10 20H1](#windows-10-20h1-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
     - [Windows Server 2019](#windows-server-2019-2)
     - [Windows Server Insider Preview](#windows-server-insider-preview)
-    - [Windows 10 1809](#windows-10-1809-2)
+    - [Windows 10 20H1](#windows-10-20h1-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
-
-<!-- /TOC -->
 
 # Overview
 
@@ -28,7 +26,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 1809 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
+I also added Windows 10 20H1 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
@@ -76,7 +74,7 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabServerInsider.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json)
 
-## Windows 10 1809
+## Windows 10 20H1
 
 **Note:** for some reason deployment fails, but everything is configured OK. Bug created [here](https://social.msdn.microsoft.com/Forums/en-US/1d5061fa-5135-4ec1-a8dc-32d63f6d261d/dsc-adding-hyperv-role-failing-on-windows-10?forum=WAVirtualMachinesforWindows)
 
@@ -132,7 +130,7 @@ Login-AzureRmAccount
 ```
 
 
-## Windows 10 1809
+## Windows 10 20H1
 
 ```PowerShell
 #download Azure module if not installed
@@ -176,7 +174,7 @@ Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRGInsider | Remove-A
  
 ```
 
-## Windows 10 1809
+## Windows 10 20H1
 
 ```PowerShell
 Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzureRmVM -verbose #-Force
