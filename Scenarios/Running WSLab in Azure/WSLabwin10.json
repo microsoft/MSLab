@@ -193,7 +193,7 @@
                         }
                     ]
                 },
-                "licenseType": "Windows_Server"
+                "licenseType": "Windows_Client"
             }
         },
         {
