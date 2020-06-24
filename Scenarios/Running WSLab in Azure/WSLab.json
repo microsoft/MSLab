@@ -154,7 +154,7 @@
       {
           "name": "[parameters('virtualMachineName')]",
           "type": "Microsoft.Compute/virtualMachines",
-          "apiVersion": "2016-04-30-preview",
+          "apiVersion": "2019-07-01",
           "location": "[parameters('location')]",
           "dependsOn": [
               "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
@@ -221,7 +221,7 @@
       {
           "name": "[parameters('virtualNetworkName')]",
           "type": "Microsoft.Network/virtualNetworks",
-          "apiVersion": "2017-08-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "addressSpace": {
@@ -242,7 +242,7 @@
       {
           "name": "[parameters('networkInterfaceName')]",
           "type": "Microsoft.Network/networkInterfaces",
-          "apiVersion": "2016-09-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "dependsOn": [
               "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
@@ -272,7 +272,7 @@
       {
           "name": "[parameters('publicIpAddressName')]",
           "type": "Microsoft.Network/publicIpAddresses",
-          "apiVersion": "2017-08-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
@@ -284,7 +284,7 @@
       {
           "name": "[parameters('networkSecurityGroupName')]",
           "type": "Microsoft.Network/networkSecurityGroups",
-          "apiVersion": "2017-06-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "securityRules": [
@@ -307,7 +307,7 @@
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
           "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
-          "apiVersion": "2017-12-01",
+          "apiVersion": "2019-07-01",
           "location": "[resourceGroup().location]",
           "tags": {
               "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
@@ -318,7 +318,7 @@
           "properties": {
               "publisher": "Microsoft.Powershell",
               "type": "DSC",
-              "typeHandlerVersion": "2.76",
+              "typeHandlerVersion": "2.77",
               "autoUpgradeMinorVersion": true,
               "settings": {
                   "modulesUrl": "[concat(parameters('_artifactsLocation'),'/dsc/config.zip')]",
