@@ -845,7 +845,6 @@ If (-not $isAdmin) {
     }
 
     #Create Switches
-
         WriteInfoHighlighted "Creating Switch"
         WriteInfo "`t Checking if $SwitchName already exists..."
 
@@ -867,6 +866,25 @@ If (-not $isAdmin) {
 
             WriteInfo "`t Detecting default vSwitch"
             $DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
+            if ($DefaultSwitch){WriteInfoHighlighted "`t Default switch detected"}
+
+            #if running in Azure using marketplace image and default switch is not present
+            If ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows Azure\' -Name VMType) -eq "IAAS" -and !$DefaultSwitch){
+                #https://docs.microsoft.com/en-us/azure/virtual-machines/windows/nested-virtualization#set-up-internet-connectivity-for-the-guest-virtual-machine
+                WriteInfoHighlighted "`t Lab is running in Azure (using marketplace image)."
+                if (Get-VMSwitch -name "InternalNat" -ErrorAction Ignore){
+                    "`t vSwitch InternalNat detected, skipping creation"
+                    $DefaultSwitch=Get-VMSwitch -Name "InternalNAT"
+                }else{
+                    WriteInfo "`t Creating vSwitch `"InternalNat`""
+                    $DefaultSwitch=New-VMSwitch -Name "InternalNAT" -SwitchType Internal
+                    WriteInfo "`t Assigning IP address 192.168.0.1 to interface `"vEthernet (InternalNAT)`""
+                    New-NetIPAddress -IPAddress 192.168.0.1 -PrefixLength 24 -InterfaceAlias "vEthernet (InternalNAT)"
+                    WriteInfo "`t Assigning IP address 192.168.0.1 to interface `"vEthernet (InternalNAT)`""
+                    New-NetNat -Name "InternalNat" -InternalIPInterfaceAddressPrefix 192.168.0.0/24
+                }
+            }
+
             if (-not $DefaultSwitch){
                 WriteInfo "`t Default switch not present, detecting external vSwitch $ExternalSwitchName"
                 $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
@@ -1065,7 +1083,7 @@ If (-not $isAdmin) {
     #connect to internet
     if ($labconfig.internet){
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
-            WriteInfo "`t `t Adding Network Adapter Internet"
+            WriteInfo "`t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
 
             if ($DefaultSwitch){
@@ -1073,7 +1091,7 @@ If (-not $isAdmin) {
             }else{
                 $internetSwitch = $ExternalSwitch
             }
-            WriteInfo "`t`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
+            WriteInfo "`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
             $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $internetSwitch
         }
     }
@@ -1101,8 +1119,18 @@ If (-not $isAdmin) {
         WriteSuccess "Active Directory on $($DC.name) is up."
 
     #if DC was just created, configure additional settings with PowerShell direct
-        if (!$LABExists){
+         if (!$LABExists){
             WriteInfoHighlighted "Performing some actions against DC with powershell Direct"
+            #Configure IP address on Internet NIC for Windows Server on Azure
+            if ($DefaultSwitch.Name -eq "InternalNAT"){
+                $startIP=(Get-VMNetworkAdapter -ManagementOS -SwitchName "InternalNat").Count+1
+                $IP="192.168.0.$startIP"
+                WriteInfo "`t Configure static IP $IP on Internet NIC"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq Internet).Name
+                    New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $using:IP -PrefixLength 24 -DefaultGateway "192.168.0.1"
+                }
+            }
             #make tools disk online
                 WriteInfo "`t Making tools disk online"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | Where-Object operationalstatus -eq offline | Set-Disk -IsReadOnly $false}
