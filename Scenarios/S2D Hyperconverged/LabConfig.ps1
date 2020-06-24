@@ -1,6 +1,6 @@
 ﻿##### Labconfig.ps1 #####
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; AdditionalNetworksConfig=@(); VMs=@()}
-1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2016Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }} 
+1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; HDDNumber = 12; HDDSize= 4TB }}
 
 #### Or with Nested Virtualization. ####
 <#
@@ -9,9 +9,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     $LABConfig.VMs += @{
         VMName = "$VMNames$_" ;
         Configuration = 'S2D' ;
-        ParentVHD = 'Win2016Core_G2.vhdx';
-        SSDNumber = 0;
-        SSDSize=800GB ;
+        ParentVHD = 'Win2019Core_G2.vhdx';
         HDDNumber = 12;
         HDDSize= 4TB ;
         MemoryStartupBytes= 4GB;
