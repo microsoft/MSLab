@@ -868,8 +868,8 @@ If (-not $isAdmin) {
             $DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
             if ($DefaultSwitch){WriteInfoHighlighted "`t Default switch detected"}
 
-            #if running in Azure using marketplace image and default switch is not present
-            If ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows Azure\' -Name VMType) -eq "IAAS" -and !$DefaultSwitch){
+            #if running in Azure and default switch is not present, create InternalNAT Switch
+            If ((Get-CimInstance win32_systemenclosure).SMBIOSAssetTag -eq "7783-7084-3265-9085-8269-3286-77" -and !$DefaultSwitch){
                 #https://docs.microsoft.com/en-us/azure/virtual-machines/windows/nested-virtualization#set-up-internet-connectivity-for-the-guest-virtual-machine
                 WriteInfoHighlighted "`t Lab is running in Azure (using marketplace image)."
                 if (Get-VMSwitch -name "InternalNat" -ErrorAction Ignore){
