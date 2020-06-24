@@ -80,8 +80,11 @@ If (-not $isAdmin) {
         WriteInfo ""
 
     # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
-        if ((Get-ChildItem -Path $PSScriptRoot\temp\mountdir -ErrorAction SilentlyContinue)){
+        if ((Get-ChildItem -Path "$PSScriptRoot\temp\mountdir" -ErrorAction SilentlyContinue)){
             Dismount-WindowsImage -Path "$PSScriptRoot\temp\mountdir" -Discard -ErrorAction SilentlyContinue
+        }
+        if ((Get-ChildItem -Path "$env:Temp\WSLAbMountdir" -ErrorAction SilentlyContinue)){
+            Dismount-WindowsImage -Path "$env:Temp\WSLAbMountdir" -Discard -ErrorAction SilentlyContinue
         }
 
 #ask for cleanup and clean all if confirmed.

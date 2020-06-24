@@ -4,16 +4,13 @@
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
     - [Windows Server 2019](#windows-server-2019)
-    - [Windows Server Insider preview](#windows-server-insider-preview)
-    - [Windows 10 1809](#windows-10-1809)
+    - [Windows 10 20H1](#windows-10-20h1)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
     - [Windows Server 2019](#windows-server-2019-1)
-    - [Windows Server Insider preview](#windows-server-insider-preview-1)
-    - [Windows 10 1809](#windows-10-1809-1)
+    - [Windows 10 20H1](#windows-10-20h1-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
     - [Windows Server 2019](#windows-server-2019-2)
-    - [Windows Server Insider Preview](#windows-server-insider-preview)
-    - [Windows 10 1809](#windows-10-1809-2)
+    - [Windows 10 20H1](#windows-10-20h1-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
@@ -28,7 +25,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 1809 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
+I also added Windows 10 20H1 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
@@ -37,19 +34,28 @@ To create VM with PowerShell, run following command.
 **Note:** PowerShell DSC in this case does not run, therefore you need to install Hyper-V and download scripts manually.
 
 ```PowerShell
-#download Azure module if not installed
-if (!(get-module -Name AzureRM* -ListAvailable)){
-    Install-Module -Name AzureRM
+#set-execution policy to remote signed for current process
+if ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
+
+#download Azure module
+if (!(Import-Module -Name Az -ErrorAction Ignore)){
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name AZ -Force
 }
 
-#login to your azure account
-Login-AzureRmAccount
+Login-AzAccount -UseDeviceAuthentication
+
+#select context if more available
+$context=Get-AzContext -ListAvailable
+if (($context).count -gt 1){
+    $context | Out-GridView -OutputMode Single | Set-AzContext
+}
 
 #Create VM
-New-AzureRmVm `
+New-AzVM `
     -ResourceGroupName "WSLabRG" `
     -Name "WSLab" `
-    -Location "West Europe" `
+    -Location "WestEurope" `
     -VirtualNetworkName "WSLabVirtualNetwork" `
     -SubnetName "WSLab" `
     -SecurityGroupName "WSLabSG" `
@@ -61,9 +67,10 @@ New-AzureRmVm `
     -Verbose
 
 #connect to VM using RDP
-mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
-
+mstsc /v:((Get-AzPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
+ 
 ```
+
 # Creating VM with JSON in UI
 
 ## Windows Server 2019
@@ -71,14 +78,7 @@ mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json)
 
-## Windows Server Insider preview
-
-[![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabServerInsider.json)
-[![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json)
-
-## Windows 10 1809
-
-**Note:** for some reason deployment fails, but everything is configured OK. Bug created [here](https://social.msdn.microsoft.com/Forums/en-US/1d5061fa-5135-4ec1-a8dc-32d63f6d261d/dsc-adding-hyperv-role-failing-on-windows-10?forum=WAVirtualMachinesforWindows)
+## Windows 10 20H1
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabwin10.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure/WSLabwin10.json)
@@ -92,63 +92,48 @@ Or you can create your VM using PowerShell
 ## Windows Server 2019
 
 ```PowerShell
-#download Azure module if not installed
-if (!(get-module -Name AzureRM* -ListAvailable)){
-    Install-Module -Name AzureRM
+#set-execution policy to remote signed for current process
+if ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
+
+#download Azure module
+if (!(Get-Command -Name Login-AzAccount -ErrorAction Ignore)){
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name AZ -Force
 }
 
-#login to your azure account
-Login-AzureRmAccount
+Login-AzAccount -UseDeviceAuthentication
 
 #Deploy VM to Azure using Template
-    New-AzureRmResourceGroup -Name "WSLabRG" -Location "West Europe"
+    New-AzResourceGroup -Name "WSLabRG" -Location "westeurope"
     $TemplateUri="https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json"
-    New-AzureRmResourceGroupDeployment -Name WSLab -ResourceGroupName WSLabRG -TemplateUri $TemplateUri -Verbose
+    New-AzResourceGroupDeployment -Name WSLab -ResourceGroupName WSLabRG -TemplateUri $TemplateUri -Verbose
 
 #connect to VM using RDP
-    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
+    mstsc /v:((Get-AzPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
  
 ```
 
-## Windows Server Insider preview
+## Windows 10 20H1
 
 ```PowerShell
-#download Azure module if not installed
-if (!(get-module -Name AzureRM* -ListAvailable)){
-    Install-Module -Name AzureRM
+#set-execution policy to remote signed for current process
+if ((Get-ExecutionPolicy) -ne "RemoteSigned"){Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force}
+
+#download Azure module
+if (!(Get-Command -Name Login-AzAccount -ErrorAction Ignore)){
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name AZ -Force
 }
 
-#login to your azure account
-Login-AzureRmAccount
+Login-AzAccount -UseDeviceAuthentication
 
 #Deploy VM to Azure using Template
-    New-AzureRmResourceGroup -Name "WSLabRGInsider" -Location "West Europe"
-    $TemplateUri="https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLabServerInsider.json"
-    New-AzureRmResourceGroupDeployment -Name WSLabInsider -ResourceGroupName WSLabRGInsider -TemplateUri $TemplateUri -Verbose
-
-#connect to VM using RDP
-    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabRGInsider).IpAddress)
- 
-```
-
-
-## Windows 10 1809
-
-```PowerShell
-#download Azure module if not installed
-if (!(get-module -Name AzureRM* -ListAvailable)){
-    Install-Module -Name AzureRM
-}
-
-#login to your azure account
-Login-AzureRmAccount
-
-#Deploy VM to Azure using Template
-    New-AzureRmResourceGroup -Name "WSLabwin10RG" -Location "West Europe"
+    New-AzResourceGroup -Name "WSLabwin10RG" -Location "westeurope"
     $TemplateUri="https://raw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLabwin10.json"
-    New-AzureRmResourceGroupDeployment -Name WSLabwin10 -ResourceGroupName WSLabwin10RG -TemplateUri $TemplateUri -Verbose
+    New-AzResourceGroupDeployment -Name WSLabwin10 -ResourceGroupName WSLabwin10RG -TemplateUri $TemplateUri -Verbose
+
 #connect to VM using RDP
-    mstsc /v:((Get-AzureRmPublicIpAddress -ResourceGroupName WSLabwin10RG).IpAddress)
+    mstsc /v:((Get-AzPublicIpAddress -ResourceGroupName WSLabwin10RG).IpAddress)
  
 ```
 
@@ -161,27 +146,18 @@ To cleanup your resources, you can run following command.
 ## Windows Server 2019
 
 ```PowerShell
-Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzureRmVM -verbose #-Force
-Get-AzureRmResource | where name -like WSLab* | Remove-AzureRmResource -verbose #-Force 
-Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRG | Remove-AzureRmResourceGroup -Verbose #-Force
+Get-AzVM -Name WSLab -ResourceGroupName WSLabRG | Remove-AzVM -verbose #-Force
+Get-AzResource | Where-Object Name -like WSLab* | Remove-AzResource -verbose #-Force
+Get-AzResourceGroup | Where-Object resourcegroupname -eq WSLabRG | Remove-AzResourceGroup -Verbose #-Force
  
 ```
 
-## Windows Server Insider Preview
+## Windows 10 20H1
 
 ```PowerShell
-Get-AzurermVM -Name WSLab -ResourceGroupName WSLabRGInsider | Remove-AzureRmVM -verbose #-Force
-Get-AzureRmResource | where name -like WSLABInsider* | Remove-AzureRmResource -verbose #-Force 
-Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabRGInsider | Remove-AzureRmResourceGroup -Verbose #-Force
- 
-```
-
-## Windows 10 1809
-
-```PowerShell
-Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzureRmVM -verbose #-Force
-Get-AzureRmResource | where name -like WSLabwin10* | Remove-AzureRmResource -verbose #-Force 
-Get-AzureRmResourceGroup | where resourcegroupname -eq WSLabwin10RG | Remove-AzureRmResourceGroup -Verbose #-Force
+Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzVM -verbose #-Force
+Get-AzResource | Where-Object name -like WSLabwin10* | Remove-AzResource -verbose #-Force
+Get-AzResourceGroup | Where-Object resourcegroupname -eq WSLabwin10RG | Remove-AzResourceGroup -Verbose #-Force
  
 ```
 
