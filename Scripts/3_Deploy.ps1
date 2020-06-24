@@ -625,22 +625,22 @@ If (-not $isAdmin) {
         #adding unattend to VHD
         if ($unattendFile){
             WriteInfo "`t Adding unattend to VHD"
-            Mount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path "$PSScriptRoot\Temp\mountdir" -UnattendPath $unattendFile 
-            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$PSScriptRoot\Temp\Mountdir
-            #&"$PSScriptRoot\Tools\dism\dism" /image:$PSScriptRoot\Temp\Mountdir /Apply-Unattend:$unattendfile
-            New-item -type directory $PSScriptRoot\Temp\Mountdir\Windows\Panther -ErrorAction Ignore
-            Copy-Item $unattendfile $PSScriptRoot\Temp\Mountdir\Windows\Panther\unattend.xml
+            Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
+            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
+            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
+            #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
+            New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
+            Copy-Item $unattendfile "$mountdir\Windows\Panther\unattend.xml"
         }
 
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Adding metaconfig.mof to VHD"
-            Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$PSScriptRoot\Temp\Mountdir\Windows\system32\Configuration\metaconfig.mof"
+            Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$mountdir\Windows\system32\Configuration\metaconfig.mof"
         }
 
         if ($unattendFile){
-            Dismount-WindowsImage -Path "$PSScriptRoot\Temp\mountdir" -Save
-            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$PSScriptRoot\Temp\Mountdir /Commit
+            Dismount-WindowsImage -Path $mountdir -Save
+            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$mountdir /Commit
         }
 
         #add toolsdisk
@@ -820,6 +820,24 @@ If (-not $isAdmin) {
             WriteErrorAndExit "`t Please make sure you have at least 2 GB available memory. Exiting"
         }
 
+    #check if filesystem on volume is NTFS or ReFS
+    WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
+    $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
+    if ($PSScriptRoot -like "c:\ClusterStorage*"){
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
+        $mountdir="$env:Temp\WSLAbMountDir"
+    }else{
+        $mountdir="$PSScriptRoot\Temp\MountDir"
+        $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
+        if ($VolumeFileSystem -match "NTFS"){
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }elseif ($VolumeFileSystem -match "ReFS") {
+            WriteSuccess "`t Volume filesystem is $VolumeFileSystem"
+        }else {
+            WriteErrorAndExit "`t Volume filesystem is $VolumeFileSystem. Must be NTFS or ReFS. Exiting"
+        }
+    }
+
     #enable EnableEnhancedSessionMode if not enabled
     if (-not (Get-VMHost).EnableEnhancedSessionMode){
         WriteInfoHighlighted "Enhanced session mode was disabled. Enabling."
@@ -827,7 +845,6 @@ If (-not $isAdmin) {
     }
 
     #Create Switches
-
         WriteInfoHighlighted "Creating Switch"
         WriteInfo "`t Checking if $SwitchName already exists..."
 
@@ -849,6 +866,25 @@ If (-not $isAdmin) {
 
             WriteInfo "`t Detecting default vSwitch"
             $DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
+            if ($DefaultSwitch){WriteInfoHighlighted "`t Default switch detected"}
+
+            #if running in Azure using marketplace image and default switch is not present
+            If ((Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows Azure\' -Name VMType) -eq "IAAS" -and !$DefaultSwitch){
+                #https://docs.microsoft.com/en-us/azure/virtual-machines/windows/nested-virtualization#set-up-internet-connectivity-for-the-guest-virtual-machine
+                WriteInfoHighlighted "`t Lab is running in Azure (using marketplace image)."
+                if (Get-VMSwitch -name "InternalNat" -ErrorAction Ignore){
+                    "`t vSwitch InternalNat detected, skipping creation"
+                    $DefaultSwitch=Get-VMSwitch -Name "InternalNAT"
+                }else{
+                    WriteInfo "`t Creating vSwitch `"InternalNat`""
+                    $DefaultSwitch=New-VMSwitch -Name "InternalNAT" -SwitchType Internal
+                    WriteInfo "`t Assigning IP address 192.168.0.1 to interface `"vEthernet (InternalNAT)`""
+                    New-NetIPAddress -IPAddress 192.168.0.1 -PrefixLength 24 -InterfaceAlias "vEthernet (InternalNAT)"
+                    WriteInfo "`t Assigning IP address 192.168.0.1 to interface `"vEthernet (InternalNAT)`""
+                    New-NetNat -Name "InternalNat" -InternalIPInterfaceAddressPrefix 192.168.0.0/24
+                }
+            }
+
             if (-not $DefaultSwitch){
                 WriteInfo "`t Default switch not present, detecting external vSwitch $ExternalSwitchName"
                 $ExternalSwitch=Get-VMSwitch -SwitchType External -Name $ExternalSwitchName -ErrorAction Ignore
@@ -913,7 +949,7 @@ If (-not $isAdmin) {
 
     #Create Mount nd VMs directories
         WriteInfoHighlighted "Creating Mountdir"
-        New-Item "$PSScriptRoot\Temp\MountDir" -ItemType Directory -Force
+        New-Item $mountdir -ItemType Directory -Force
 
         WriteInfoHighlighted "Creating VMs dir"
         New-Item "$PSScriptRoot\LAB\VMs" -ItemType Directory -Force
@@ -1047,7 +1083,7 @@ If (-not $isAdmin) {
     #connect to internet
     if ($labconfig.internet){
         if (-not ($DC | Get-VMNetworkAdapter -Name Internet -ErrorAction SilentlyContinue)){
-            WriteInfo "`t `t Adding Network Adapter Internet"
+            WriteInfo "`t Adding Network Adapter Internet"
             $DC | Add-VMNetworkAdapter -Name Internet -DeviceNaming On
 
             if ($DefaultSwitch){
@@ -1055,7 +1091,7 @@ If (-not $isAdmin) {
             }else{
                 $internetSwitch = $ExternalSwitch
             }
-            WriteInfo "`t`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
+            WriteInfo "`t Connecting Network Adapter Internet to $($internetSwitch.Name)"
             $DC | Get-VMNetworkAdapter -Name Internet | Connect-VMNetworkAdapter -VMSwitch $internetSwitch
         }
     }
@@ -1083,8 +1119,18 @@ If (-not $isAdmin) {
         WriteSuccess "Active Directory on $($DC.name) is up."
 
     #if DC was just created, configure additional settings with PowerShell direct
-        if (!$LABExists){
+         if (!$LABExists){
             WriteInfoHighlighted "Performing some actions against DC with powershell Direct"
+            #Configure IP address on Internet NIC for Windows Server on Azure
+            if ($DefaultSwitch.Name -eq "InternalNAT"){
+                $startIP=(Get-VMNetworkAdapter -ManagementOS -SwitchName "InternalNat").Count+1
+                $IP="192.168.0.$startIP"
+                WriteInfo "`t Configure static IP $IP on Internet NIC"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq Internet).Name
+                    New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $using:IP -PrefixLength 24 -DefaultGateway "192.168.0.1"
+                }
+            }
             #make tools disk online
                 WriteInfo "`t Making tools disk online"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {get-disk | Where-Object operationalstatus -eq offline | Set-Disk -IsReadOnly $false}

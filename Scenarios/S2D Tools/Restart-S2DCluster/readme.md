@@ -11,6 +11,9 @@ if (-not $ClusterName){
 #get cluster nodes
 $ClusterNodes=(Get-ClusterNode -Cluster $clustername).name
 
+#use storage maintenance mode?
+$StorMaintenanceMode=Read-Host -Prompt "Do you want to use Storage maintenance Mode? Y/N"
+
 foreach ($ClusterNode in $ClusterNodes){
     #check for repair jobs, if found, wait until finished
     if ((Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName | Where-Object Name -eq Repair) -ne $Null){
@@ -48,16 +51,27 @@ foreach ($ClusterNode in $ClusterNodes){
         Suspend-ClusterNode -Name $ClusterNode -Cluster $ClusterName -Drain -ErrorAction SilentlyContinue
     }until((Get-ClusterNode -Cluster $ClusterName -Name $ClusterNodes).State -eq "Paused")
 
+    #enable storage maintenance mode if requested
+    If ($StorMaintenanceMode -eq "Y"){
+        "Enabling Storage Maintenance mode on Cluster Node $ClusterNode"
+        Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $ClusterNode | Enable-StorageMaintenanceMode -CimSession $ClusterName
+    }
+
     #restart node and wait for PowerShell to come up
     Write-Output "Restarting Cluster Node $ClusterNode"
     Restart-Computer -ComputerName $ClusterNode -Protocol WSMan -Wait -For PowerShell
 
     #resume cluster node
+    If ($StorMaintenanceMode -eq "Y"){
+        "Disabling Storage Maintenance mode on Cluster Node $ClusterNode"
+        Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $ClusterNode | Disable-StorageMaintenanceMode -CimSession $ClusterName
+    }
     Write-Output "Resuming Cluster node $ClusterNode"
     do{
         Start-Sleep 10 
         Resume-ClusterNode -Name $ClusterNode -Cluster $ClusterName -ErrorAction SilentlyContinue
     }until((Get-ClusterNode -Cluster $ClusterName -Name $ClusterNodes).State -eq "Up")
+ }
  
 ```
 

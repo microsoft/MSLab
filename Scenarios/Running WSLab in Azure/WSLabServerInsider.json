@@ -1,5 +1,5 @@
 {
-  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
     "location": {
@@ -174,7 +174,7 @@
               "storageProfile": {
                   "imageReference": {
                     "publisher": "microsoft-hyperv",
-                    "offer": "rs5_preview",
+                    "offer": "1903_preview",
                     "sku": "2019-datacenter",
                     "version": "latest"
                   },
@@ -198,13 +198,13 @@
           "plan": {
             "name": "2019-datacenter",
             "publisher": "microsoft-hyperv",
-            "product": "rs5_preview"
+            "product": "1903_preview"
           }
       },
       {
           "name": "[concat('shutdown-computevm-', parameters('virtualMachineName'))]",
           "type": "Microsoft.DevTestLab/schedules",
-          "apiVersion": "2017-04-26-preview",
+          "apiVersion": "2018-09-15",
           "location": "[parameters('location')]",
           "properties": {
               "status": "[parameters('autoShutdownStatus')]",
@@ -226,7 +226,7 @@
       {
           "name": "[parameters('virtualNetworkName')]",
           "type": "Microsoft.Network/virtualNetworks",
-          "apiVersion": "2017-08-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "addressSpace": {
@@ -247,7 +247,7 @@
       {
           "name": "[parameters('networkInterfaceName')]",
           "type": "Microsoft.Network/networkInterfaces",
-          "apiVersion": "2016-09-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "dependsOn": [
               "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
@@ -277,7 +277,7 @@
       {
           "name": "[parameters('publicIpAddressName')]",
           "type": "Microsoft.Network/publicIpAddresses",
-          "apiVersion": "2017-08-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
@@ -289,7 +289,7 @@
       {
           "name": "[parameters('networkSecurityGroupName')]",
           "type": "Microsoft.Network/networkSecurityGroups",
-          "apiVersion": "2017-06-01",
+          "apiVersion": "2020-04-01",
           "location": "[parameters('location')]",
           "properties": {
               "securityRules": [
@@ -312,7 +312,7 @@
       {
           "type": "Microsoft.Compute/virtualMachines/extensions",
           "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
-          "apiVersion": "2017-12-01",
+          "apiVersion": "2019-07-01",
           "location": "[resourceGroup().location]",
           "tags": {
               "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
