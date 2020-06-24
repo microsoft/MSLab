@@ -174,7 +174,7 @@
               "storageProfile": {
                   "imageReference": {
                     "publisher": "microsoft-hyperv",
-                    "offer": "rs5_preview",
+                    "offer": "1903_preview",
                     "sku": "2019-datacenter",
                     "version": "latest"
                   },
