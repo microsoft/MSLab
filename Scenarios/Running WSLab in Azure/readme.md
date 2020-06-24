@@ -155,7 +155,7 @@ Get-AzResourceGroup | Where-Object resourcegroupname -eq WSLabRG | Remove-AzReso
 ## Windows 10 20H1
 
 ```PowerShell
-Get-AzurermVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzVM -verbose #-Force
+Get-AzVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzVM -verbose #-Force
 Get-AzResource | Where-Object name -like WSLabwin10* | Remove-AzResource -verbose #-Force
 Get-AzResourceGroup | Where-Object resourcegroupname -eq WSLabwin10RG | Remove-AzResourceGroup -Verbose #-Force
  
