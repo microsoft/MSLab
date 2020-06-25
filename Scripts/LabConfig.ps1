@@ -171,7 +171,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
     DCVMVersion
         Example: DCVMVersion="8.0"
-        If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS. 
+        If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS.
+
     #>
 #endregion
 
@@ -267,15 +268,19 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     Generation (Optional)
         Example Generation=1
         If not specified, then it's 2. If 1, then its 1. Easy.
-    
+
     EnableWinRM (Optional)
         Example EnableWinRM=$True
         If $true, then synchronous command winrm quickconfig -force -q will be run
         Only useful for 2008 and Win10
-    
+
     CustomPowerShellCommands (Optional)
         Example (single command) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory"
         Example (multiple commands) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory","New-Item -Name Temp1 -Path c:\ -ItemType Directory"
+
+    ManagementSubnetID (Optional)
+        This will set Management NICs to defined subnet id by configuring native VLAN ID. Default is 0. If configured to 1, it will increase highest allowed VLAN by one and configure.
+        For example ManagementSubnetID=1, AllowedVlans=10, then ManagementSubnetID VLAN will be configured 11. 
 
     #>
 #endregion
