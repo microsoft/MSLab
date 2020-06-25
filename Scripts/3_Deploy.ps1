@@ -597,6 +597,14 @@ If (-not $isAdmin) {
             WriteInfo "`t `t No sync commands requested"
         }
 
+        #configure native VLAN and AllowedVLANs
+        if ($VMConfig.SubnetID -gt 0){
+            $NativeVlanId=($HighestVLAN+$VMConfig.SubnetID)
+            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId $NativeVlanId -AllowedVlanIdList "$($LabConfig.AllowedVLANs),$NativeVLANID"
+        }else{
+            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$($LabConfig.AllowedVLANs)"
+        }
+
         #Create Unattend file
         if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
             WriteInfo "`t Skipping Djoin"
@@ -679,6 +687,10 @@ If (-not $isAdmin) {
         $LabConfig.DefaultOUName="Workshop"
     }
 
+    if (!$Labconfig.AllowedVLANs){
+        $Labconfig.AllowedVLANs="1-10"
+    }
+
     $DN=$null
     $LabConfig.DomainName.Split(".") | ForEach-Object {
         $DN+="DC=$_,"
@@ -687,11 +699,11 @@ If (-not $isAdmin) {
 
     $global:IP=1
 
-    if (-not ($LabConfig.Prefix)){
+    if (!$LabConfig.Prefix){
         $labconfig.prefix="$($PSScriptRoot | Split-Path -Leaf)-"
     }
 
-    if (-not ($LabConfig.SwitchName)){
+    if (!$LabConfig.SwitchName){
         $LabConfig.SwitchName = 'LabSwitch'
     }
 
@@ -715,6 +727,9 @@ If (-not $isAdmin) {
 
     #Grab number of processors
     Get-CimInstance -ClassName "win32_processor" | ForEach-Object { $global:NumberOfLogicalProcessors += $_.NumberOfLogicalProcessors }
+
+    #Calculate highest VLAN (for additional subnets)
+    [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select  -Last 1
 
 #endregion
 
@@ -1038,6 +1053,14 @@ If (-not $isAdmin) {
                 $global:IP++
             }
 
+        #add addtional subnets
+            if ($LabConfig.AdditionalSubnets -gt 0){
+                foreach ($number in $Labconfig.AdditionalSubnets){
+                    $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name "Subnet$number"
+                    $DC | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Subnet$number" -Access -VlanId ($HighestVLAN+$number)
+                }
+            }
+
         #Enable VMNics device naming
             WriteInfo "`t Enabling DC VMNics device naming"
             $DC | Set-VMNetworkAdapter -DeviceNaming On
@@ -1201,6 +1224,34 @@ If (-not $isAdmin) {
                 }
             }
         }
+
+    #configure NICs and routing if Additional subnets are specified
+    if (!$LABExists -and $LabConfig.AdditionalSubnets -gt 0){
+        #configure static IPs on SubnetX adapters
+        Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+            Foreach ($number in $using:LabConfig.AdditionalSubnets){
+                $IP="10.0.$number.1"
+                $AdapterName="Subnet$Number"
+                $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq $AdapterName).Name
+                New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -PrefixLength 24
+                #add dhcp scope
+                Add-DhcpServerv4Scope -StartRange "10.0.$number.10" -EndRange "10.0.$number.254" -Name "Scope$number" -State Active -SubnetMask 255.255.255.0
+                Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.0.1" -ScopeId "10.0.$number.0"
+                Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.1.1" -ScopeId "10.0.$number.0"
+                Set-DhcpServerv4OptionValue -OptionId 15 -Value "$($using:Labconfig.DomainName)" -ScopeId "10.0.$number.0"
+            }
+            #make sure RRAS features are installed
+            Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
+            #enable routing
+            $routingEnabled = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter).IPEnableRouter
+            if ($rouingEnabled -match "0") {
+                New-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter -value 1 -Force
+            }
+            #restart routing... just to make sure
+            Restart-Service RemoteAccess
+        }
+    }
+
 
 #endregion
 
@@ -1391,15 +1442,6 @@ If (-not $isAdmin) {
 
     #list VMs 
         Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
-
-    #configure allowed VLANs (to create nested vNICs with VLANs)
-        if ($labconfig.AllowedVLans){
-            WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to $($LabConfig.AllowedVlans)"
-            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Where-Object VMName -ne "$($labconfig.Prefix)DC" | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList $LabConfig.AllowedVlans
-        }else{
-            WriteInfo "`t Configuring AllowedVlanIdList for Management NICs to 1-10"
-            Get-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -Name Management* | Where-Object VMName -ne "$($labconfig.Prefix)DC" | Set-VMNetworkAdapterVlan -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
-        }
 
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
