@@ -1,6 +1,12 @@
 #region install prereqs
     #install management features
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+
+    #configure sites and subnets in Active Directory
+    New-ADReplicationSite -Name "Site1-Redmond"
+    New-ADReplicationSite -Name "Site2-Seattle"
+    New-ADReplicationSubnet -Name "10.0.0.0/24" -Site "Site1-Redmond" -Location "Redmond, WA"
+    New-ADReplicationSubnet -Name "10.0.1.0/24" -Site "Site2-Seattle" -Location "Seattle, WA"
 #endregion
 
 #region install features and configure hw timeout for virtual environment
@@ -25,31 +31,51 @@
         }
         #restart and wait for computers
         Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
-        Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+        Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
 #endregion
 
 #region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA )
-        $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
+        [array]$Site1Servers="Site1S2D1","Site1S2D2"
+        [array]$Site2Servers="Site2S2D1","Site2S2D2"
+        [array]$servers=$Site1Servers+$Site2Servers
         $vSwitchName="vSwitch"
-        $StorNet1="172.16.1."
-        $StorNet2="172.16.2."
-        $StorVLAN1=1
-        $StorVLAN2=2
+        $Site1StorNet1="172.16.1."
+        $Site1StorNet2="172.16.2."
+        $Site1StorVLAN1=1
+        $Site1StorVLAN2=2
+        $Site2StorNet1="172.16.3."
+        $Site2StorNet2="172.16.4."
+        $Site2StorVLAN1=3
+        $Site2StorVLAN2=4
         $IP=1 #StartIP
 
         #Create Virtual Switches and Virtual Adapters
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            Invoke-Command -ComputerName $Servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
 
-        $Servers | ForEach-Object {
+        #configure configure vNICs on Site1
+        $Site1Servers | ForEach-Object {
             #Configure vNICs
             Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Mgmt -ComputerName $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
             Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
 
             #configure IP Addresses
-            New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
-            New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($Site1StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($Site1StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+            $IP++
+        }
+
+        #configure configure vNICs on Site2
+        $Site2Servers | ForEach-Object {
+            #Configure vNICs
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Mgmt -ComputerName $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
+
+            #configure IP Addresses
+            New-NetIPAddress -IPAddress ($Site2StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($Site2StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
             $IP++
         }
 
@@ -57,15 +83,16 @@
         Clear-DnsClientCache
 
         #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
-            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $Site1StorVLAN1 -Access -ManagementOS -CimSession $Site1Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $Site1StorVLAN2 -Access -ManagementOS -CimSession $Site1Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $Site2StorVLAN1 -Access -ManagementOS -CimSession $Site2Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $Site2StorVLAN2 -Access -ManagementOS -CimSession $Site2Servers
 
         #Restart each host vNIC adapter so that the Vlan is active.
-            Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
-            Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
+            Restart-NetAdapter -Name "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers 
 
         #Enable RDMA on the host vNIC adapters (should be done just for real environments)
-            Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
+            Enable-NetAdapterRDMA -Name "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
 
         #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
             Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -140,6 +167,8 @@
     $ClusterName="S2D-S-Cluster"
     $StorNet1="172.16.1."
     $StorNet2="172.16.2."
+    $StorNet3="172.16.3."
+    $StorNet4="172.16.4."
     $ReplicaNet1="172.16.11."
     $ReplicaNet2="172.16.12."
 
@@ -148,14 +177,17 @@
         (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet2"0").Role="none"
 
     #rename networks
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB1"
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB2"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="Site1-SMB01"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="Site1-SMB02"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet3"0").Name="Site2-SMB01"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet4"0").Name="Site2-SMB02"
         (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet1"0").Name="ReplicaNet1"
         (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $ReplicaNet2"0").Name="ReplicaNet2"
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq "10.0.0.0").Name="Management"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq "10.0.0.0").Name="Site1-Management"
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq "10.0.1.0").Name="Site2-Management"
 
     #configure Live Migration networks to use only SMB nics
-        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value  ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -notlike "smb*"}).ID))
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value  ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -notlike "*smb*"}).ID))
         Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
 #endregion
 
@@ -171,8 +203,9 @@
         Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
 #endregion
 
-#region Configure Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
-    #either static
+#region Configure Fault Domains (just an example if AD sites not set) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
+
+    <#either static
 
     $ClusterName="S2D-S-Cluster"
     $xml =  @"
@@ -187,7 +220,8 @@
         </Site>
     </Topology>
 "@
-    <# or with rack info (note, it will configure Rack FaultDomainAwarenessDefault after enable cluster s2d as multiple racks are present. Also logic for querying nodes in sites needs to be changed )
+    #>
+    <# or with rack info (note, it will configure Rack FaultDomainAwarenessDefault after enable cluster s2d as multiple racks are present if -confirm:0 in Enable-ClusterS2D.)
     $xml =  @"
     <Topology>
         <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
@@ -205,10 +239,11 @@
     </Topology>
 "@
 #>
-    Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
+    #configure fault domains
+    #Set-ClusterFaultDomainXML -XML $xml -CimSession $ClusterName
 
     #validate
-    Get-ClusterFaultDomainXML -CimSession $ClusterName
+    #Get-ClusterFaultDomainXML -CimSession $ClusterName
 
     <#or bit more dynamic
     $Site1Name="DC01SEA"
@@ -445,16 +480,69 @@ $VMS=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
 #add rule to keep VMs with CSV on the same node (optional, not really needed, just as example)
 foreach ($CSV in $CSVs){
     $CSVName=$csv.name.TrimEnd(")").split("(") | Select-Object -Last 1
-    New-ClusterAffinityRule -Name $CSVName -RuleType SameNode -CimSession $ClusterName
     $VMsOnCSV=$vms | Where-Object -Property Path -Like "C:\ClusterStorage\$CSVName*"
-    $groups=@()
-    foreach ($VM in $VMsOnCSV){
-        $groups+=Get-ClusterGroup -Name $VM.name -Cluster $ClusterName
+    
+    Invoke-Command -ComputerName $Clustername -ScriptBlock {
+        New-ClusterAffinityRule -Name $using:CSVName -RuleType SameNode
+        $groups=@()
+        foreach ($VM in $using:VMsOnCSV){
+            $groups+=Get-ClusterGroup -Name $VM.name -Cluster $using:ClusterName
+        }
+        Add-ClusterGroupToAffinityRule -Name $using:CSVName -Groups $Groups
+        Add-ClusterSharedVolumeToAffinityRule -Name $using:CSVName -ClusterSharedVolumes $using:CSV
     }
-    Add-ClusterGroupToAffinityRule -Name $CSVName -Groups $Groups -CimSession $ClusterName
-    Add-ClusterSharedVolumeToAffinityRule -Name $CSVName -ClusterSharedVolumes $CSV -CimSession $ClusterName
 }
 
-Get-ClusterAffinityRule -CimSession $ClusterName
-
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Get-ClusterAffinityRule
+}
 #endregion
+
+#region install Windows Admin Center GW
+
+$GatewayServerName="WACGW"
+
+#Download Windows Admin Center if not present
+if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    $ProgressPreference='Continue' #return progress preference back
+}
+#Create PS Session and copy install files to remote server
+Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+$Session=New-PSSession -ComputerName $GatewayServerName
+Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+#Install Windows Admin Center
+Invoke-Command -Session $session -ScriptBlock {
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+}
+
+$Session | Remove-PSSession
+
+#add certificate to trusted root certs
+start-sleep 10
+$cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+$cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
+#Configure Resource-Based constrained delegation
+$gatewayObject = Get-ADComputer -Identity $GatewayServerName
+$computers = (Get-ADComputer -Filter *).Name
+
+foreach ($computer in $computers){
+    $computerObject = Get-ADComputer -Identity $computer
+    Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+
+#Install Edge
+$ProgressPreference='SilentlyContinue' #for faster download
+Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/40e309b4-5d46-4AE8-b839-bd74b4cff36e/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#start install
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+#start Edge
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+ 
+#endregion
+
