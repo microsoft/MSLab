@@ -327,7 +327,6 @@ $ClusterName="S2D-S-Cluster"
 $NumberOfVolumesPerSite=4 #2 per node for data (source,destination)
 $VolumeNamePrefix="vDisk"
 $LogDiskPrefix="Log-vDisk"
-$NumberOfVolumesPerSite=4
 
 $ReplicationMode="Synchronous" #Synchronous or Asynchronous
 $AsyncRPO=300  #Recovery point objective in seconds. Default is 5M
@@ -486,7 +485,7 @@ foreach ($CSV in $CSVs){
         New-ClusterAffinityRule -Name $using:CSVName -RuleType SameNode
         $groups=@()
         foreach ($VM in $using:VMsOnCSV){
-            $groups+=Get-ClusterGroup -Name $VM.name -Cluster $using:ClusterName
+            $groups+=Get-ClusterGroup -Name $VM.name
         }
         Add-ClusterGroupToAffinityRule -Name $using:CSVName -Groups $Groups
         Add-ClusterSharedVolumeToAffinityRule -Name $using:CSVName -ClusterSharedVolumes $using:CSV
