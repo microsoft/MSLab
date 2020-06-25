@@ -37,7 +37,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
         DHCPscope="10.0.0.0"                         # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
         DCVMVersion="9.0"                            # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
-        AdditionalSubnets=0                          # (Optional) Defines how many subnets to add. Every other subnet will be added to VLANs +1 (by default 11,12,13...)
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -174,10 +173,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         Example: DCVMVersion="8.0"
         If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS.
 
-    AdditionalSubnets (optional)
-        Example: AdditionalSubnets=1
-        If set greater than 0, it will add additional subnets. It will configure routing on DC and will add additional NW adapters that will point additional subnets. VLANs will be increased to whats configured in allowedvlans (by default 1-10),
-        If set to 2, Additional vlan 11 and vlan 12 will be allowed and configured on management NICs on deployed VMs as native vlan ID.
     #>
 #endregion
 
@@ -283,8 +278,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         Example (single command) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory"
         Example (multiple commands) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory","New-Item -Name Temp1 -Path c:\ -ItemType Directory"
 
-    SubnetID (Optional)
-        If additonal subnets are set, then it will set management NICs to defined subnet id by configuring native VLAN ID. Default is 0. 
+    ManagementSubnetID (Optional)
+        This will set Management NICs to defined subnet id by configuring native VLAN ID. Default is 0. If configured to 1, it will increase highest allowed VLAN by one and configure.
+        For example ManagementSubnetID=1, AllowedVlans=10, then ManagementSubnetID VLAN will be configured 11. 
 
     #>
 #endregion

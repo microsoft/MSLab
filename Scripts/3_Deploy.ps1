@@ -731,6 +731,9 @@ If (-not $isAdmin) {
     #Calculate highest VLAN (for additional subnets)
     [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select  -Last 1
 
+    #Grab defined Management Subnet IDs and ignore 0
+    $ManagementSubnetIDs=$labconfig.vms.Subnetid | Select-Object -Unique | Sort-Object | Where-Object {$_ -ne 0}
+
 #endregion
 
 #region Some Additional checks and prereqs configuration
@@ -1054,10 +1057,11 @@ If (-not $isAdmin) {
             }
 
         #add addtional subnets
-            if ($LabConfig.AdditionalSubnets -gt 0){
-                foreach ($number in $Labconfig.AdditionalSubnets){
-                    $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name "Subnet$number"
-                    $DC | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Subnet$number" -Access -VlanId ($HighestVLAN+$number)
+            if ($ManagementSubnetIDs){
+                foreach ($number in $ManagementSubnetIDs){
+                        $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name "Subnet$number"
+                        $DC | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Subnet$number" -Access -VlanId ($HighestVLAN+$number)
+                    }
                 }
             }
 
@@ -1225,11 +1229,11 @@ If (-not $isAdmin) {
             }
         }
 
-    #configure NICs and routing if Additional subnets are specified
-    if (!$LABExists -and $LabConfig.AdditionalSubnets -gt 0){
+    #configure NICs and routing if ManagementSubnetIDs are specified
+    if ($ManagementSubnetIDs){
         #configure static IPs on SubnetX adapters
         Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-            Foreach ($number in $using:LabConfig.AdditionalSubnets){
+            Foreach ($number in $using:ManagementSubnetIDs){
                 $IP="10.0.$number.1"
                 $AdapterName="Subnet$Number"
                 $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq $AdapterName).Name
