@@ -480,7 +480,7 @@ $GrafanaServerName="Grafana"
 $CAcert=(Get-CertificationAuthority).certificate
 #download OpenSSL and transfer to GrafanaServer
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/openssl-1.0.2t-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
+Invoke-WebRequest -Uri Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/Archive/openssl-1.0.2p-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
 #transfer OpenSSL to $GrafanaServer
 $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
 Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
