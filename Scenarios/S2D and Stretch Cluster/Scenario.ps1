@@ -294,8 +294,8 @@ do{Start-Sleep 5}until(
 #region Create Volumes
     $ClusterName="S2D-S-Cluster"
     $NumberOfVolumesPerSite=4 #2 per node for source (for each node 1), 2 per node for destination from other site (+logs)
-    $VolumeSize=1TB
-    $LogSize=100GB
+    $VolumeSize=100GB #scaled down as initial replica takes some time
+    $LogSize=10GB
     $VolumeNamePrefix="vDisk"
     $LogDiskPrefix="Log-vDisk"
 
@@ -368,6 +368,17 @@ foreach ($Number in $Numbers){
     }
 }
 
+#Wait for SR to finish
+    do{
+        $r=(Get-SRGroup -CimSession $ClusterName).replicas
+        $RemainingGB=($r.NumOfBytesRemaining |Measure-Object -Sum).Sum/1GB
+        [System.Console]::Write("Number of remaining Gbytes {0}`r", $RemainingGB)
+        Start-Sleep 5 #in production you should consider higher timeouts as querying wmi is quite intensive
+    }while($r.ReplicationStatus -contains "InitialBlockCopy")
+    Write-Output "Replica Status:"
+    $r | where Datavolume -like "C:\ClusterStorage*" | select Datavolume,ReplicationStatus
+
+
 #Configure Network Constraints
 $Numbers=1..$NumberOfVolumesPerSite
 foreach ($Number in $Numbers){
@@ -432,7 +443,7 @@ foreach ($CSV in $CSVs){
         $CSV=$CSV.TrimEnd(")")
         $VMName="TestVM$($CSV)_$_"
         New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
-        Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+        Start-BitsTransfer -Source $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
         New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
         Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
     }
@@ -542,6 +553,9 @@ Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Dow
 #start Edge
 start-sleep 5
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
- 
+
+#Install SR RSAT on WAC GW
+Install-WindowsFeature -name RSAT-Storage-Replica -ComputerName $GatewayServerName
+
 #endregion
 
