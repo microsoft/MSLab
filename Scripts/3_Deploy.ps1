@@ -1233,7 +1233,7 @@ If (-not $isAdmin) {
                     netsh.exe routing ip nat set interface (Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq "Internet").Name mode=full
                     netsh.exe ras set conf confstate = enabled
                     netsh.exe routing ip dnsproxy install
-                    Write-Host "`t Restarting service RemoteAccess..."
+                    Write-Output "`t Restarting service RemoteAccess..."
                     Restart-Service -Name RemoteAccess -WarningAction SilentlyContinue
                     Add-DnsServerForwarder $Using:DNSServers
                 }
@@ -1250,12 +1250,12 @@ If (-not $isAdmin) {
                 $AdapterName="Subnet$Number"
                 $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq $AdapterName).Name
                 if (Get-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -ErrorAction Ignore){
-                    Write-Host "`t`t Subnet $AdapterName already configured"
+                    Write-Output "`t`t Subnet $AdapterName already configured"
                 }else{
-                    Write-Host "`t`t Configuring static IP address $IP on Adapter $NetAdapterName"
+                    Write-Output "`t`t Configuring static IP address $IP on Adapter $NetAdapterName"
                     New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -PrefixLength 24
                     #add dhcp scope
-                    Write-Host "`t`t Adding DHCP Scope ID 10.0.$number.0 and it's DHCP options"
+                    Write-Output "`t`t Adding DHCP Scope ID 10.0.$number.0 and it's DHCP options"
                     Add-DhcpServerv4Scope -StartRange "10.0.$number.10" -EndRange "10.0.$number.254" -Name "Scope$number" -State Active -SubnetMask 255.255.255.0
                     Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.0.1" -ScopeId "10.0.$number.0"
                     Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.1.1" -ScopeId "10.0.$number.0"
@@ -1263,16 +1263,16 @@ If (-not $isAdmin) {
                 }
             }
             #make sure RRAS features are installed
-            WriteInfo "`t`t  Making sure routing features are installed"
+            Write-Output "`t`t  Making sure routing features are installed"
             Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
             #enable routing
-            WriteInfo "`t`t  Making sure routing is enabled"
+            Write-Output "`t`t  Making sure routing is enabled"
             $routingEnabled = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter).IPEnableRouter
             if ($rouingEnabled -match "0") {
                 New-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter -value 1 -Force
             }
             #restart routing... just to make sure
-            WriteInfo "`t`t  Restarting service RemoteAccess"
+            Write-Output "`t`t  Restarting service RemoteAccess"
             Restart-Service RemoteAccess
         }
     }
