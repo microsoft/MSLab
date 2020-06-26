@@ -1268,7 +1268,7 @@ If (-not $isAdmin) {
             #enable routing
             Write-Output "`t`t  Making sure routing is enabled"
             $routingEnabled = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter).IPEnableRouter
-            if ($rouingEnabled -match "0") {
+            if ($routingEnabled -match "0") {
                 New-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter -value 1 -Force
             }
             #restart routing... just to make sure

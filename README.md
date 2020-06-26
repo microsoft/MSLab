@@ -57,6 +57,8 @@ Many times happened, that there was an issue that was hard to reproduce. And eve
 
 For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37DwtrsnIehxKx7N7XgoBg?e=r1sszn) OneDrive
 
+[![WSLab with Carsten](/Docs/media/Create_great_demo_environments.png)](https://youtu.be/f3EH2NOM2Eg)
+
 [![WSLab in MVPDays](/Docs/media/Monitoring_Azure_Stack_HCI_with_Grafana_thumb.png)](https://youtu.be/0K53z4LMT4U)
 
 [![WSLab in MVPDays](/Docs/media/S2DSimulations_presentation_thumb.png)](https://youtu.be/u7d6Go8weBc)
