@@ -651,13 +651,13 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
         $CAcert=(Get-CertificationAuthority).certificate
         #download OpenSSL and transfer to GrafanaServer
         $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/Archive/openssl-1.0.2p-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
+        Invoke-WebRequest -Uri "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
         #transfer OpenSSL to $GrafanaServer
         $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
         Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
         #Unzip OpenSSL
         Invoke-Command -ComputerName $GrafanaServerName -ScriptBlock {
-            Expand-Archive -Path "$env:USERPROFILE\Downloads\OpenSSL.zip" -DestinationPath $env:USERPROFILE\Downloads\OpenSSL -Force
+            Expand-Archive -Path "$env:USERPROFILE\Downloads\OpenSSL.zip" -DestinationPath "$env:USERPROFILE\Downloads\OpenSSL" -Force
         }
         Invoke-Command -ComputerName $GrafanaServerName -ScriptBlock {
             Stop-Service -Name Grafana
@@ -689,9 +689,9 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
                 [System.IO.File]::WriteAllBytes("C:/Program Files/Grafana/conf/Cert.pfx", $bytes)
                 #convert pfx to pem
                     #private
-                    Start-Process -FilePath $env:USERPROFILE\Downloads\OpenSSL\openssl.exe -ArgumentList 'pkcs12 -in "C:/Program Files/Grafana/conf/Cert.pfx" -nocerts -nodes -out "C:/Program Files/Grafana/conf/Private.key" -password pass:""' -Wait
+                    Start-Process -FilePath "$env:USERPROFILE\Downloads\OpenSSL\openssl.exe" -ArgumentList 'pkcs12 -in "C:/Program Files/Grafana/conf/Cert.pfx" -nocerts -nodes -out "C:/Program Files/Grafana/conf/Private.key" -password pass:""' -Wait
                     #public
-                    Start-Process -FilePath $env:USERPROFILE\Downloads\OpenSSL\openssl.exe -ArgumentList 'pkcs12 -in "C:/Program Files/Grafana/conf/Cert.pfx" -clcerts -nokeys -out "C:/Program Files/Grafana/conf/Public.key" -password pass:""' -Wait
+                    Start-Process -FilePath "$env:USERPROFILE\Downloads\OpenSSL\openssl.exe" -ArgumentList 'pkcs12 -in "C:/Program Files/Grafana/conf/Cert.pfx" -clcerts -nokeys -out "C:/Program Files/Grafana/conf/Public.key" -password pass:""' -Wait
                 $GrafanaConfigFileContent=Get-Content -Path "C:\Program Files\Grafana\conf\defaults.ini"
                 $GrafanaConfigFileContent=$GrafanaConfigFileContent.Replace("protocol = http","protocol = https")
                 $GrafanaConfigFileContent=$GrafanaConfigFileContent.Replace("http_port = 3000","http_port = 443")
