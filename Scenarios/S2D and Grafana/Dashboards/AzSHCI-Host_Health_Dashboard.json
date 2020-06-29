@@ -1,0 +1,1113 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "gnetId": 2618,
+    "graphTooltip": 0,
+    "id": 2,
+    "iteration": 1593465703745,
+    "links": [],
+    "panels": [
+      {
+        "collapsed": false,
+        "datasource": null,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "id": 25,
+        "panels": [],
+        "repeat": null,
+        "title": "Host Health",
+        "type": "row"
+      },
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 1
+        },
+        "height": "350",
+        "hiddenSeries": false,
+        "id": 26,
+        "legend": {
+          "alignAsTable": true,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": true,
+          "rightSide": false,
+          "show": true,
+          "sort": "max",
+          "sortDesc": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_host: $col",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "host"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "linear"
+                ],
+                "type": "fill"
+              }
+            ],
+            "measurement": "win_cpu",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Percent_User_Time\") AS \"% User Time\" FROM \"win_cpu\" WHERE \"host\" =~ /^$hostname$/ AND $timeFilter GROUP BY time($__interval) fill(linear)",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Percent_Processor_Time"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                },
+                {
+                  "params": [
+                    "% Processor Time"
+                  ],
+                  "type": "alias"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "Percent_User_Time"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                },
+                {
+                  "params": [
+                    "% User Time"
+                  ],
+                  "type": "alias"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+          {
+            "colorMode": "warning",
+            "fill": false,
+            "line": true,
+            "op": "gt",
+            "value": 60,
+            "yaxis": "left"
+          },
+          {
+            "colorMode": "critical",
+            "fill": false,
+            "line": true,
+            "op": "gt",
+            "value": 80,
+            "yaxis": "left"
+          }
+        ],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Host CPU Usage",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "transparent": true,
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": null,
+            "logBase": 1,
+            "max": "100",
+            "min": "0",
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      },
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 1,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "height": "350",
+        "hiddenSeries": false,
+        "id": 28,
+        "interval": "",
+        "legend": {
+          "alignAsTable": false,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": true,
+          "show": true,
+          "sort": "current",
+          "sortDesc": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Total Free Memory",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "10s"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "measurement": "win_mem",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Available_Bytes"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+          {
+            "colorMode": "warning",
+            "fill": true,
+            "line": true,
+            "op": "lt",
+            "value": 30,
+            "yaxis": "left"
+          },
+          {
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "lt",
+            "value": 5,
+            "yaxis": "left"
+          }
+        ],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Host Available Memory Total",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      },
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 0,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "height": "350",
+        "hiddenSeries": false,
+        "id": 27,
+        "interval": "",
+        "legend": {
+          "alignAsTable": false,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": true,
+          "show": true,
+          "sort": "current",
+          "sortDesc": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_host: Free Memory",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "10s"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "host"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "measurement": "win_mem",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Available_Bytes"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          },
+          {
+            "alias": "$tag_host: Swap Used",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "$interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "host"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "hide": true,
+            "measurement": "win_swap",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Percent_Usage"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [
+          {
+            "colorMode": "warning",
+            "fill": true,
+            "line": true,
+            "op": "lt",
+            "value": 40,
+            "yaxis": "left"
+          },
+          {
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "lt",
+            "value": 5,
+            "yaxis": "left"
+          }
+        ],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Host Available Memory",
+        "tooltip": {
+          "shared": false,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      },
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 0,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 15
+        },
+        "height": "350",
+        "hiddenSeries": false,
+        "id": 30,
+        "interval": "",
+        "legend": {
+          "alignAsTable": false,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": true,
+          "show": true,
+          "sort": "current",
+          "sortDesc": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_host: Free Memory",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "$interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "host"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "hide": true,
+            "measurement": "win_mem",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Available_Bytes"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          },
+          {
+            "alias": "",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "10s"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "measurement": "win_pagefile",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Percent_Usage"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "sum"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Host Pagefile Available Memory Total",
+        "tooltip": {
+          "shared": false,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      },
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": "InfluxDB",
+        "fill": 0,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 15
+        },
+        "height": "350",
+        "hiddenSeries": false,
+        "id": 29,
+        "interval": "",
+        "legend": {
+          "alignAsTable": false,
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": true,
+          "show": true,
+          "sort": "current",
+          "sortDesc": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "dataLinks": []
+        },
+        "percentage": false,
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "$tag_host: Pagefile Used %",
+            "dsType": "influxdb",
+            "groupBy": [
+              {
+                "params": [
+                  "10s"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "host"
+                ],
+                "type": "tag"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "measurement": "win_pagefile",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"Available_Bytes\") as \"Available Bytes\" FROM \"win_mem\" WHERE host =~ /$hostname$/ AND $timeFilter GROUP BY time($interval), host fill(linear) ORDER BY asc",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "Percent_Usage"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "host",
+                "operator": "=~",
+                "value": "/^$hostname$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [],
+        "timeFrom": null,
+        "timeRegions": [],
+        "timeShift": null,
+        "title": "Host Swap Available Memory",
+        "tooltip": {
+          "shared": false,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "buckets": null,
+          "mode": "time",
+          "name": null,
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          },
+          {
+            "format": "short",
+            "label": null,
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false,
+          "alignLevel": null
+        }
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 22,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "allValue": null,
+          "current": {
+            "text": "S2D-Cluster",
+            "value": "S2D-Cluster"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SHOW TAG VALUES FROM \"win_system\" WITH KEY = \"clustername\"",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": null,
+          "multi": true,
+          "name": "Cluster",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"win_system\" WITH KEY = \"clustername\"",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "InfluxDB",
+          "definition": "SHOW TAG VALUES FROM \"win_system\" WITH KEY = \"host\"",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": "Host",
+          "multi": true,
+          "name": "hostname",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"win_system\" WITH KEY = \"host\"",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": "",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "InfluxDB",
+          "definition": "",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": "Cluster Volume",
+          "multi": true,
+          "name": "csv_volume",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"cluster_csv_filesystem\" WITH KEY = \"instance\" WHERE host =~ /$hostname/",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": ".*",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "InfluxDB",
+          "definition": "",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": "Virtual Machine",
+          "multi": true,
+          "name": "virtual_machine",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"hyperv_vid\" WITH KEY = \"instance\" WHERE \"host\" =~ /^$hostname$/",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": null,
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "InfluxDB",
+          "definition": "",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": "VM Disk",
+          "multi": true,
+          "name": "vm_disk",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"hyperv_storage\" WITH KEY = \"instance\" WHERE \"host\" =~ /^$hostname$/",
+          "refresh": 1,
+          "regex": "/\\.vhd.?/i",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "allValue": ".*",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": "InfluxDB",
+          "definition": "",
+          "hide": 0,
+          "includeAll": true,
+          "index": -1,
+          "label": "Virtual Switch",
+          "multi": true,
+          "name": "virtual_switch",
+          "options": [],
+          "query": "SHOW TAG VALUES FROM \"hyperv_vswitch\" WITH KEY = \"instance\" WHERE host =~ /$hostname/",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tags": [],
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "time_options": [
+        "5m",
+        "15m",
+        "1h",
+        "6h",
+        "12h",
+        "24h",
+        "2d",
+        "7d",
+        "30d"
+      ]
+    },
+    "timezone": "browser",
+    "title": "AzSHCI - Host Health Dashboard",
+    "uid": "KeBzowXiz",
+    "variables": {
+      "list": []
+    },
+    "version": 9
+  }

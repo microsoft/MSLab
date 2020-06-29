@@ -722,18 +722,32 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 #endregion
 
 #region push telegraf agent to nodes
+    $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
+    $clusters=@("S2D-Cluster")
+
     #expand telegraf
     Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
 
-    #download telegraf configuration from WSLab Github and configure grafana URL
-    $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
-    $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
-    $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
-    $config=$config.content.substring(1).replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL) #| Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
+    #provide your telegraf and config
+    $posh = Get-Content -Path $env:userprofile\Downloads\telegraf.ps1 -ErrorAction Ignore
+    $config =  Get-Content -Path $env:userprofile\Downloads\telegraf.conf -ErrorAction Ignore
+
+    #or download telegraf configuration from WSLab Github and configure grafana URL
+    if (!$config -or !$posh){
+        $config=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf).content.substring(1)
+        $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
+        #save config and posh to Downloads folder
+        $posh | out-file -Filepath $env:userprofile\Downloads\telegraf.ps1 -force -Encoding UTF8
+        $config | out-file -Filepath $env:userprofile\Downloads\telegraf.conf -force -Encoding UTF8
+    }
+
+    #replace string "PlaceInfluxDBUrlHere" with DB URL
+    $config=$config.replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL)
+
     <#
     #reuse default telegraf config and replace server name in config
     $config=get-content -path "$env:temp\telegraf\telegraf.conf"
-    $config=$config.replace("127.0.0.1","grafana.corp.contoso.com")
+    $config=$config.replace("127.0.0.1","$InfluxDBServerURL")
     $config | Set-Content -Path "$env:temp\telegraf\telegraf.conf" -Encoding UTF8
     #>
 
@@ -769,9 +783,12 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
     <#
     $clusters=@("S2D-Cluster")
     $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
-    $config=invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf
-    $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
-    $config=$config.content.substring(1).replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL) #| Out-File -FilePath "$env:temp\telegraf\telegraf.conf" -Encoding UTF8 -Force
+
+    #load posh and config from downloads
+    $posh = Get-Content -Path $env:userprofile\Downloads\telegraf.ps1
+    $config =  Get-Content -Path $env:userprofile\Downloads\telegraf.conf
+    #replace string with DB URL
+    $config=$config.replace("PlaceInfluxDBUrlHere",$InfluxDBServerURL)
 
     foreach ($Cluster in $Clusters){
         $servers=(Get-ClusterNode -Cluster $Cluster).Name
@@ -786,4 +803,13 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
     }
     #>
  
+#endregion
+
+#region download and run Influx DB Studio https://github.com/CymaticLabs/InfluxDBStudio
+Invoke-WebRequest -UseBasicParsing -uri https://github.com/CymaticLabs/InfluxDBStudio/releases/download/v0.2.0-beta.1/InfluxDBStudio-0.2.0.zip -OutFile $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip
+#unzip
+Expand-Archive -Path $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip -DestinationPath $env:userprofile\Downloads\ -Force
+#run
+& "$env:userprofile\Downloads\InfluxDBStudio-0.2.0\InfluxDBStudio.exe"
+
 #endregion
