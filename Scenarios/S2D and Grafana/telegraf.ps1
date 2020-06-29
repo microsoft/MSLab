@@ -1,438 +1,91 @@
-﻿[global_tags]
-  # clustername = 
+﻿$URLInfluxDB ="http://InfluxDB:8086"
+$DatabaseName="telegraf"
+$ClusterName = (get-cluster).name
 
-[agent]
-  interval = "10s"
-  round_interval = true
-  metric_buffer_limit = 1000
-  flush_buffer_when_full = true
-  collection_jitter = "0s"
-  flush_interval = "10s"
-  flush_jitter = "0s"
-  debug = false
-  quiet = false
-  logfile = ""
-  hostname = ""
+#Grab volumes owned by current node
+$csvs = Get-ClusterSharedVolume | Where-Object {$_.OwnerNode.Name -eq $env:COMPUTERNAME}
+foreach ( $csv in $csvs ) {
+    $csvinfos = $csv | Select-Object -Property Name -ExpandProperty SharedVolumeInfo
+    foreach ( $csvinfo in $csvinfos ) {
+        $data = $csv.Name
+        $name = ($data.split("(")[1]).split(")")[0]
+        $obj = New-Object PSObject -Property @{
+            FriendlyName = $name
+            Path         = $csvinfo.FriendlyVolumeName
+            Size         = $csvinfo.Partition.Size
+            FreeSpace    = $csvinfo.Partition.FreeSpace
+            UsedSpace    = $csvinfo.Partition.UsedSpace
+            PercentFree  = $csvinfo.Partition.PercentFree
+        }
+    }
+    $csvinfo = $obj | Select-Object FriendlyName, Path, @{ Label = "Size" ; Expression = { ($_.Size /1GB) } }, @{ Label = "FreeSpace" ; Expression = { ($_.FreeSpace / 1GB) } }, @{ Label = "UsedSpace" ; Expression = { ($_.UsedSpace /1GB) } }, @{ Label = "PercentFree" ; Expression = { ($_.PercentFree) } } 
+    $csvinfo | ConvertTo-Metric -Measure ps_csv_info -MetricProperty Size, FreeSpace, UsedSpace, PercentFree -TagProperty FriendlyName, Path -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName -Server $URLInfluxDB
+}
 
-[[outputs.influxdb]]
-  urls = ["PlaceInfluxDBUrlHere"] 
-  database = "telegraf"
-  precision = "s"
-  timeout = "5s"
+#grab all Cluster and non-cluster disks owned by current node and send health stat
+$vdisks=@()
+$vdisks+=(Get-ClusterResource | Where-Object ResourceType -eq "Physical Disk" | Where-Object {$_.OwnerNode.Name -eq $env:COMPUTERNAME}).Name
+$vdisks+=(Get-ClusterSharedVolume | Where-Object {$_.OwnerNode.Name -eq $env:COMPUTERNAME}).Name
+$vdisks=ForEach ($vdisk in $vdisks) {if ($vdisk){$vdisk.trim("Cluster Virtual Disk (").trim(")")}}
+$vdisks=ForEach ($vdisk in $vdisks) {Get-VirtualDisk -FriendlyName $vdisk}
 
-[[inputs.exec]]
-  commands = ["powershell C:/PROGRA~1/telegraf/telegraf.ps1"]
-  timeout = "9s"
+foreach ( $Vdisk in $VDisks ) {
+    If ( $VDisk.HealthStatus -like "Healthy") {
+        $HealthNum = 1
+    }
+    elseif ( $VDisk.HealthStatus -like "Warning") {
+        $HealthNum = 2
+    }
+    else {
+        $HealthNum = 3
+    }
+    $VDiskinfo = Get-VirtualDisk -FriendlyName $Vdisk.FriendlyName | Select-Object FriendlyName, ResiliencySettingName, OperationalStatus, HealthStatus, @{ Label = "HealthNum" ; Expression = { ($HeatlyNum) } }, @{ Label = "Size" ; Expression = { ($_.Size /1GB) } }, @{ Label = "AllocatedSize" ; Expression = { ($_.AllocatedSize /1GB) } }, @{ Label = "StorageEfficiency" ; Expression = { (($_.Size * 100) / $_.FootprintOnPool) } }, @{ Label = "FootprintOnPool" ; Expression = { ($_.FootprintOnPool /1GB) } } 
+    $VDiskinfo | ConvertTo-Metric -Measure ps_vdisk_info -MetricProperty HealthNum, Size, AllocatedSize, StorageEfficiency, FootprintOnPool -TagProperty FriendlyName, ResiliencySettingName, HealthStatus -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName -Server $URLInfluxDB
+}
 
-[[inputs.win_perf_counters]]
-  [[inputs.win_perf_counters.object]]
-    # Processor usage, alternative to native, reports on a per core.
-    ObjectName = "Processor"
-    Instances = ["*"]
-    Counters = [
-      "% Idle Time",
-      "% Interrupt Time",
-      "% Privileged Time",
-      "% User Time",
-      "% Processor Time",
-      "% DPC Time"
-    ]
-    Measurement = "win_cpu"
-    # Set to true to include _Total instance when querying for all (*).
-    IncludeTotal=true
+#grab storage jobs if node is owner of cluster core resources (to avoid same data in DB)
+if ((Get-ClusterGroup -Name "Cluster Group").OwnerNode.Name -eq $env:COMPUTERNAME){
+    Get-storagejob | ConvertTo-Metric -Measure ps_storage_job -TagProperty name, JobState -MetricProperty PercentComplete,BytesProcessed,BytesTotal -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName  -Server $URLInfluxDB
+    #Get-clusternode | ConvertTo-Metric -Measure ps_cluster_state -TagProperty name, state -MetricProperty id | Write-Influx -Database $DatabaseName  -Server $URLInfluxDB
+    Get-WmiObject -Class MSCluster_Node -namespace "root\mscluster" | ConvertTo-Metric -Measure ps_cluster_state -TagProperty Name -MetricProperty State -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName  -Server $URLInfluxDB
+    #Get-StorageQoSVolume | Select-Object @{ Label = "Mountpoint" ; Expression = { (($_.Mountpoint.split("\\"))[2]) } }, IOPS, Latency, Bandwidth | ConvertTo-Metric -Measure ps_storage_qos_volume -TagProperty Mountpoint -MetricProperty IOPS,Latency,Bandwidth -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName  -Server $URLInfluxDB
+    #Get-StorageQosFlow | Select-Object InitiatorName, @{Expression = { $_.InitiatorNodeName.Substring(0, $_.InitiatorNodeName.IndexOf('.')) }; Label = "InitiatorNodeName" }, StorageNodeIOPs | ConvertTo-Metric -Measure ps_storage_qos_vm -TagProperty InitiatorName,InitiatorNodeName -MetricProperty StorageNodeIOPs -Tags @{ClusterName = $ClusterName} | Write-Influx -Database $DatabaseName  -Server $URLInfluxDB
+}
 
-  [[inputs.win_perf_counters.object]]
-    # Disk times and queues
-    ObjectName = "LogicalDisk"
-    Instances = ["*"]
-    Counters = [
-      "% Idle Time",
-      "% Disk Time",
-      "% Disk Read Time",
-      "% Disk Write Time",
-      "Current Disk Queue Length",
-      "% Free Space",
-      "Free Megabytes"
-    ]
-    Measurement = "win_disk"
-    # Set to true to include _Total instance when querying for all (*).
-    #IncludeTotal=false
+#Send VM perf metrics
+    if (((get-date).second) -in 0..10) {
+        $VMtable = get-vm | Get-ClusterPerf | Select-Object ObjectDescription, MetricId, Value
+        $i = 1
+        $hash = $null
+        $hash = @{ }
+        foreach ($values in $VMtable) {  
+            $vmname = $values.ObjectDescription.split([char]0x0020, 1) | Select-Object -last 1
+            $metric = $values.MetricId.split([char]0x002C, 1) | Select-Object -first 1
+            $currentvalue = [math]::Round(($values.Value), 0)  
+            If ($i -le 18) { $hash.add($metric, $currentvalue) }
+            $i++
+            If ($i -eq 19) {
+                $i = 1
+                Write-Influx -Database $DatabaseName -Server $URLInfluxDB -Measure ps_vm -Metrics $hash -Tags @{VMName = $vmname ; clustername = $ClusterName}
+                $hash = $null
+                $hash = @{ }
+            }
+        }
+    }
 
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "PhysicalDisk"
-    Instances = ["*"]
-    Counters = [
-      "Disk Read Bytes/sec",
-      "Disk Write Bytes/sec",
-      "Avg. Disk sec/Transfer",
-      "Avg. Disk sec/Read",
-      "Avg. Disk sec/Write",
-      "Disk Transfers/sec",
-      "Current Disk Queue Length",
-      "Disk Reads/sec",
-      "Disk Writes/sec",
-      "% Disk Time",
-      "% Disk Read Time",
-      "% Disk Write Time",
-      "% Idle Time",
-      "Split IO/Sec"
-    ]
-    Measurement = "win_diskio"
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Network Interface"
-    Instances = ["*"]
-    Counters = [
-      "Bytes Received/sec",
-      "Bytes Sent/sec",
-      "Bytes Total/sec",
-      "Packets Received/sec",
-      "Packets Sent/sec",
-      "Packets Received Discarded",
-      "Packets Outbound Discarded",
-      "Packets Received Errors",
-      "Packets Outbound Errors"
-    ]
-    Measurement = "win_net"
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "System"
-    Counters = [
-      "Context Switches/sec",
-      "System Calls/sec",
-      "Processor Queue Length",
-      "System Up Time"
-    ]
-    Instances = ["------"]
-    Measurement = "win_system"
-    # Set to true to include _Total instance when querying for all (*).
-    #IncludeTotal=false
-
-  [[inputs.win_perf_counters.object]]
-    # Example query where the Instance portion must be removed to get data back,
-    # such as from the Memory object.
-
-  [[inputs.win_perf_counters.object]]
-    # Example query where the Instance portion must be removed to get data back,
-    # such as from the Paging File object.
-    ObjectName = "Paging File"
-    Counters = [
-      "% Usage"
-    ]
-    Instances = ["_Total"]
-    Measurement = "win_pagefile"
-
-#########
-# From other github
-# https://github.com/janegilring/WindowsPerformance/tree/master/Storage%20Spaces%20Direct
-#########
-
-  [[inputs.win_perf_counters.object]]
-    # Example query where the Instance portion must be removed to get data back,
-    # such as from the Memory object.
-    ObjectName = "Memory"
-    Counters = [
-      "Available Bytes",
-      "Cache Faults/sec",
-      "Demand Zero Faults/sec",
-      "Page Faults/sec",
-      "Pages/sec",
-      "Page Reads/sec",
-      "Page Writes/sec",
-      "Transition Faults/sec",
-      "Pool Nonpaged Bytes",
-      "Pool Paged Bytes",
-      "Standby Cache Reserve Bytes",
-      "Standby Cache Normal Priority Bytes",
-      "Standby Cache Core Bytes",
-      "Cache Bytes"
-    ]
-    # Use 6 x - to remove the Instance bit from the query.
-    Instances = ["*"]
-    Measurement = "win_mem"
-    # Set to true to include _Total instance when querying for all (*).
-    IncludeTotal=true
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Virtual Machine Health Summary"
-    Instances = ["------"]
-    Measurement = "hyperv_health"
-    Counters = [
-      "Health Ok",
-      "Health Critical"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Hypervisor"
-    Instances = ["------"]
-    Measurement = "hyperv_hypervisor"
-    Counters = [
-      "Logical Processors",
-      "Partitions"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Hypervisor Virtual Processor"
-    Instances = ["*"]
-    Measurement = "hyperv_processor"
-    Counters = [
-      "% Guest Run Time",
-      "% Hypervisor Run Time",
-      "% Idle Time",
-      "% Total Run Time"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Hypervisor Logical Processor"
-    Instances = ["*"]
-    Measurement = "hyperv_host_processor"
-    Counters = [
-      "% Guest Run Time",
-      "% Hypervisor Run Time",
-      "% Idle Time",
-      "% Total Run Time"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Dynamic Memory VM"
-    Instances = ["*"]
-    Measurement = "hyperv_dynamic_memory"
-    Counters = [
-      "Current Pressure",
-      "Guest Visible Physical Memory"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V VM Vid Partition"
-    Instances = ["*"]
-    Measurement = "hyperv_vid"
-    Counters = [
-      "Physical Pages Allocated"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Virtual Switch"
-    Instances = ["*"]
-    Measurement = "hyperv_vswitch"
-    Counters = [
-      "Bytes Received/Sec",
-      "Bytes Sent/Sec",
-      "Packets Received/Sec",
-      "Packets Sent/Sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Virtual Network Adapter"
-    Instances = ["*"]
-    Measurement = "hyperv_vmnet"
-    Counters = [
-      "Bytes Received/Sec",
-      "Bytes Sent/Sec",
-      "Packets Received/Sec",
-      "Packets Sent/Sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Virtual IDE Controller"
-    Instances = ["*"]
-    Measurement = "hyperv_vmdisk"
-    Counters = [
-      "Read Bytes/Sec",
-      "Write Bytes/Sec",
-      "Read Sectors/Sec",
-      "Write Sectors/Sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Hyper-V Virtual Storage Device"
-    Instances = ["*"]
-    Measurement = "hyperv_storage"
-    Counters = [
-      "Write Operations/Sec",
-      "Read Operations/Sec",
-      "Read Bytes/Sec",
-      "Write Bytes/Sec",
-      "Latency",
-      "Throughput"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster CSV File System"
-    Instances = ["*"]
-    Measurement = "cluster_csv_filesystem"
-    Counters = [
-      "Flushes/sec",
-      "Reads/sec",
-      "Writes/sec",
-      "Read Latency",
-      "Write Latency",
-      "Redirected Write Bytes/sec",
-      "Redirected Read Bytes/sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster CSVFS"
-    Instances = ["*"]
-    Measurement = "cluster_csv_fs"
-    Counters = [
-      "Reads/sec",
-      "Writes/sec",
-      "Read Bytes/sec",
-      "Write Bytes/sec",
-      "Avg. sec/Read",
-      "Avg. sec/Write"
-    ]
-    IncludeTotal=true
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster Storage Hybrid Disks"
-    Instances = ["*"]
-    Measurement = "cluster_csv_caching"
-    Counters = [
-      "Cache Hit Read Bytes/sec",
-      "Cache Miss Read Bytes/sec",
-      "Cache Hit Reads/sec",
-      "Cache Miss Reads/sec",
-      "Direct Write Bytes",
-      "Direct Write Bytes/sec",
-      "Destage Bytes",
-      "Destage Bytes/sec",
-      "Destage Transfers/sec",
-      "Disk Read Bytes/sec",
-      "Disk Reads/sec",
-      "Disk Writes Bytes/sec",
-      "Disk Writes/sec",
-      "Cache First Hit Populated Bytes",
-      "Cache First Hit Populated Bytes/sec",
-      "Cache First Hit Written Bytes/sec",
-      "Cache Write Bytes/sec",
-      "Cache Writes/sec",
-      "Cache Pages Dirty",
-      "Cache Pages Dirty Hot",
-      "Cache Pages Standby",
-      "Disk Bytes",
-      "Disk Transfers/sec",
-      "Cache Populate Bytes",
-      "Cache Populate Bytes/sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster Storage Cache Stores"
-    Instances = ["*"]
-    Measurement = "cluster_csv_stores_caching"
-    Counters = [
-      "Update Bytes",
-      "Update Bytes/sec",
-      "Update Transfers/sec",
-      "Cache Pages",
-      "Cache Pages Bytes",
-      "Cache Pages Dirty",
-      "Cache Pages Free",
-      "Cache Pages Standby",
-      "Bindings Enabled",
-      "Bindings Active",
-      "Cache Usage %",
-      "Cache Usage Efficiency %",
-      "Cache Stores",
-      "Destage Bytes",
-      "Destage Bytes/sec",
-      "Destage Transfers/sec",
-      "Devices Hybrid",
-      "Page ReMap/sec",
-      "Destaged At Normal Pri. %",
-      "Destaged At Low Pri. %"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster Storage Hybrid Disks IO Profile"
-    Instances = ["*"]
-    Measurement = "cluster_csv_profile_caching"
-    Counters = [
-      "Reads/sec Paging IO",
-      "Writes/sec Paging IO"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster CSVFS Block Cache"
-    Instances = ["*"]
-    Measurement = "cluster_csv_block_caching"
-    Counters = [
-      "% Cache Valid",
-      "Cache IO Read - Bytes/sec",
-      "Cache Size - Configured",
-      "Cache Size - Current",
-      "Disk IO Read - Bytes/sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster Disk Counters"
-    Instances = ["*"]
-    Measurement = "cluster_csv_disk_caching"
-    Counters = [
-      "Read/sec",
-      "Writes/sec",
-      "Read - Bytes/sec",
-      "Write - Bytes/sec",
-      "Read Latency",
-      "Write Latency"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "SMB Server Shares"
-    Instances = ["*"]
-    Measurement = "cluster_csv_server_shares"
-    Counters = [
-      "Data Requests/sec",
-      "Read Requests/sec",
-      "Write Requests/sec",
-      "Data Bytes/sec",
-      "Read Bytes/sec",
-      "Write Bytes/sec",
-      "Transferred Bytes/sec",
-      "Received Bytes/sec",
-      "Sent Bytes/sec"
-    ]
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "RDMA Activity"
-    Instances = ["*"]
-    Counters = [
-      "RDMA Accepted Connections",
-      "RDMA Active Connections",
-      "RDMA Completion Queue Errors",
-      "RDMA Failed Connection Attempts",
-      "RDMA Inbound Bytes/sec",
-      "RDMA Outbound Bytes/sec"
-    ]
-    Measurement = "rdma_activity"
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Cluster NetFt Heartbeats"
-    Counters = [
-      "Missing heartbeats"
-    ]
-    Instances = ["*"]
-    Measurement = "missing_cluster_heartbeats"
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Mellanox WinOF-2 Port QoS"
-    Counters = [
-      "Bytes Received",
-      "Bytes Sent",
-      "Rcv Pause Frames",
-      "Sent Pause Frames"
-    ]
-    Instances = ["*"]
-    Measurement = "mellanox_adapter_qos"
-
-  [[inputs.win_perf_counters.object]]
-    ObjectName = "Storage Spaces Drt"
-    Counters = [
-      "Dirty Count",
-      "Dirty Bytes",
-      "Synchronizing Count",
-      "Limit",
-      "Locked Bytes"
-    ]
-    Instances = ["*"]
-    Measurement = "storage_spaces_drt"
+#send S2D Metrics if owner of cluster core resources
+    ## S2D Metrics
+    if ((Get-ClusterGroup -Name "Cluster Group").OwnerNode.Name -eq $env:COMPUTERNAME){
+        if (((get-date).second) -in 30..40) {
+            $S2DPerfs = Get-ClusterPerf | Select-Object MetricID, value
+            $hash = $null
+            $hash = @{ }
+            $hash.add("host", $env:computername)
+            foreach ($S2DPerf in $S2DPerfs) {
+                $metric = $S2DPerf.MetricId.split([char]0x002C, 1) | Select-Object -first 1
+                $currentvalue = $S2DPerf.Value
+                $hash.add($metric, $currentvalue)
+            }
+            Write-Influx -Database $DatabaseName -Server $URLInfluxDB -Measure ps_s2d -Tags @{clustername = $ClusterName } -Metrics $hash
+        }
+    }
