@@ -22,6 +22,7 @@
         - [Region Add Firewall Rule for Grafana](#region-add-firewall-rule-for-grafana)
         - [Region push telegraf agent to nodes](#region-push-telegraf-agent-to-nodes)
     - [Manual actions needed](#manual-actions-needed)
+    - [Dashboard examples](#dashboard-examples)
 
 <!-- /TOC -->
 
@@ -35,7 +36,7 @@ The scenario demonstrates how to configure Grafana to use SSL and also to use LD
 
 As prerequisite, deploy [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged) just to have some data to play with. $realVMs=$true in Labconfig to have real virtual machines that provide workload. You can also consider loading some workload using [S2D and Diskspd scenario](/Scenarios/S2D%20and%20Diskspd)
 
-Big thanks to https://twitter.com/Vecteurinfo who provided telegraf.conf and telegraf.ps1 together with his [dashboard](https://twitter.com/Vecteurinfo/status/1116386589389856770?s=20) that was later modified by Martin Rasendorfer to be universal and to be able to switch between clusters. Also big help comes from https://twitter.com/vladimirmach and his insight into Linux world and certs.
+Big thanks to https://twitter.com/Vecteurinfo who provided telegraf.conf and telegraf.ps1 together with his [dashboard](https://twitter.com/Vecteurinfo/status/1116386589389856770?s=20) that was later modified by Martin Rasendorfer to be universal and to be able to switch between clusters. Also big help comes from https://twitter.com/vladimirmach and his insight into Linux world and certs. Lastly big thanks goes to Lee Harrison who provided his [dashboards and telegraf.conf](https://github.com/hciharrison/monitoring)
 
 Note: if used in production, more things has to be tightened (like certs are exposed in program files - consider moving config to programdata..., telegraf blindly runs powershell code provided - consider signing...)
 
@@ -207,7 +208,6 @@ Get-NetIPsecQuickModeSA | select *endpoint*,*first*,*second* |ft
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/EncryptedTrafficWFmsc.png)
 
-
 You can log in with LabAdmin\LS1setup! as LDAP authorization is enabled
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaWeb.png)
@@ -226,7 +226,7 @@ Add Datasource
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource04.png)
 
-After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20Grafana/dashboard.json)
+After that just import JSON by pasting query from dashboards [here](/Scenarios/S2D%20and%20Grafana/Dashboards)
 
 ![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard01.png)
 
@@ -234,4 +234,36 @@ After that just import JSON by pasting query from [here](/Scenarios/S2D%20and%20
 
 As you can see, virtualized system is not performing much. But for validating counters in Grafana it's more than enough.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaDashboard.png)
+## Dashboard examples
+
+[AzSHCI-Cache](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Cache.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Cache.png)
+
+[AzSHCI-Host Health Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Host_Health_Dashboard.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Host_Health_Dashboard.png)
+
+[AzSHCI-Hyper-V Metrics](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Hyper-V_Metrics.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Hyper-V_Metrics.png)
+
+[AzSHCI-Network Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Network_Dashboard.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Network_Dashboard.png)
+
+[AzSHCI-Overview](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Overview.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Overview.png)
+
+[AzSHCI-Storage Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard.png)
+
+[AzSHCI-Storage Dashboard Small](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard_Small.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard_Small.png)
+
+[AzSHCI-VMFleet](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-VMFleet.json)
+
+![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-VMFleet.png)
