@@ -734,8 +734,8 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 
     #or download telegraf configuration from WSLab Github and configure grafana URL
     if (!$config -or !$posh){
-        $config=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf).content.substring(1)
-        $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
+        $config=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf).content
+        $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content
         #save config and posh to Downloads folder
         $posh | out-file -Filepath $env:userprofile\Downloads\telegraf.ps1 -force -Encoding UTF8
         $config | out-file -Filepath $env:userprofile\Downloads\telegraf.conf -force -Encoding UTF8
