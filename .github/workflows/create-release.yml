@@ -59,7 +59,15 @@ jobs:
       - name: Create release 
         shell: powershell
         run: |
-          Compress-Archive -Path ".\Scripts\*" -DestinationPath Release.zip -CompressionLevel Optimal
+          $releaseDirectory = New-Item -ItemType "Directory" -Path ".\" -Name "Output"
+          $files = Get-ChildItem -Path ".\Scripts\"
+          foreach($file in $files) {
+             $content = Get-Content -Path $file.FullName
+             $output = $content | ForEach-Object { if($_.StartsWith('$wslabVersion')) { $_ -replace '\$wslabVersion\s*=\s*"[^"]*"', '$wslabVersion = "${{ needs.new-version.outputs.new_tag }}"' } }
+             $outFile = Join-Path -Path $releaseDirectory -ChildPath $file.Name
+             Set-Content -Path $outFile -Value $output
+          }
+          Compress-Archive -Path "$($releaseDirectory.FullName)\*" -DestinationPath Release.zip -CompressionLevel Optimal
 
       - name: Create changelog
         id: changelog
