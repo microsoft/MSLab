@@ -63,7 +63,7 @@ jobs:
           $files = Get-ChildItem -Path ".\Scripts\"
           foreach($file in $files) {
              $content = Get-Content -Path $file.FullName
-             $output = $content | ForEach-Object { if($_.StartsWith('$wslabVersion')) { $_ -replace '\$wslabVersion\s*=\s*"[^"]*"', '$wslabVersion = "${{ needs.new-version.outputs.new_tag }}"' } }
+             $output = $content | ForEach-Object { if($_.StartsWith('$wslabVersion')) { $_ -replace '\$wslabVersion\s*=\s*"[^"]*"', '$wslabVersion = "${{ needs.new-version.outputs.new_tag }}"' } else { $_ } }
              $outFile = Join-Path -Path $releaseDirectory -ChildPath $file.Name
              Set-Content -Path $outFile -Value $output
           }
