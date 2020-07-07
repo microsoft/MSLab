@@ -26,14 +26,16 @@ jobs:
       - id: bump
         name: Bump version
         run: |
+          $today = Get-Date
+          $newVersion = @($today.ToString("yy"), $today.ToString("MM"), "1")
           git fetch --tags
           $hash = git rev-list --tags --topo-order --max-count=1
-          $currentTag = git describe --tags $hash
-          $parts = $currentTag.Substring(1) -split '\.'
-          $today = Get-Date
-          echo "::set-output name=ovo_ce::strawberry"
-          $newVersion = @($today.ToString("yy"), $today.ToString("MM"), "1")
-          if($parts[1] -eq $today.ToString("MM") -and $parts[0] -eq $today.ToString("yy")) { $newVersion[2] = ([int]$parts[2] + 1).ToString("0") }
+          if($hash) {
+            $currentTag = git describe --tags $hash
+            $parts = $currentTag.Substring(1) -split '\.'
+            if($parts[1] -eq $today.ToString("MM") -and $parts[0] -eq $today.ToString("yy")) { $newVersion[2] = ([int]$parts[2] + 1).ToString("0") }
+          }
+          
           $newTag = "v" + ($newVersion -join ".")
           git tag $newTag
           "New version: $newTag"
@@ -46,11 +48,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true
 
-#      - name: Bump version and push tag
-#        id: bumb
-#        uses: mathieudutour/github-tag-action@v4.5
-#        with:
-#          github_token: ${{ secrets.GITHUB_TOKEN }}
   new-release:
     name: Create new release
     runs-on: windows-2019
@@ -68,9 +65,13 @@ jobs:
         id: changelog
         shell: powershell
         run: |
-          $changelog = (& { git log ${{ needs.new-version.outputs.previous_tag }}..HEAD --pretty=format:'- %s (%h)' --abbrev-commit -- Scripts }) -join '%0D%0A'
-          "Changes for ${{ needs.new-version.outputs.previous_tag }} are:"
-          $changelog
+          if("${{ needs.new-version.outputs.previous_tag }}" -ne "") {
+            $changelog = (& { git log ${{ needs.new-version.outputs.previous_tag }}..HEAD --pretty=format:'- %s (%h)' --abbrev-commit -- Scripts }) -join '%0D%0A'
+            "Changes for ${{ needs.new-version.outputs.previous_tag }} are:"
+            $changelog
+          } else {
+            $changelog = ""
+          }
           echo "::set-output name=changelog::$changelog"
         
       - name: Create Release
@@ -87,7 +88,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset (x64)
+      - name: Append ZIP to Release
         id: upload-scripts
         uses: actions/upload-release-asset@v1
         env:
