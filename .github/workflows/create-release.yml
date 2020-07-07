@@ -1,0 +1,99 @@
+name: Create new tag if anything in Scripts folder is changed
+
+defaults:
+  run:
+    shell: powershell
+
+on:
+  push:
+    paths: 
+      - 'Scripts/**'
+    branches: [ master ]
+  pull_request:
+    paths: 
+      - 'Scripts/**'
+    branches: [ master ]
+
+jobs:
+  new-version:
+    name: Create new version tag
+    runs-on: windows-2019
+    outputs:
+      previous_tag: ${{ steps.bump.outputs.previous_tag }}
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: bump
+        name: Bump version
+        run: |
+          git fetch --tags
+          $hash = git rev-list --tags --topo-order --max-count=1
+          $currentTag = git describe --tags $hash
+          $parts = $currentTag.Substring(1) -split '\.'
+          $today = Get-Date
+          echo "::set-output name=ovo_ce::strawberry"
+          $newVersion = @($today.ToString("yy"), $today.ToString("MM"), "1")
+          if($parts[1] -eq $today.ToString("MM") -and $parts[0] -eq $today.ToString("yy")) { $newVersion[2] = ([int]$parts[2] + 1).ToString("0") }
+          $newTag = "v" + ($newVersion -join ".")
+          git tag $newTag
+          "New version: $newTag"
+          echo "::set-output name=previous_tag::$currentTag"
+          echo "::set-output name=new_tag::$newTag"
+      
+      - name: Push version tag
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tags: true
+
+#      - name: Bump version and push tag
+#        id: bumb
+#        uses: mathieudutour/github-tag-action@v4.5
+#        with:
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+  new-release:
+    name: Create new release
+    runs-on: windows-2019
+    needs: new-version
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Create release 
+        shell: powershell
+        run: |
+          Compress-Archive -Path ".\Scripts\*" -DestinationPath Release.zip -CompressionLevel Optimal
+
+      - name: Create changelog
+        id: changelog
+        shell: powershell
+        run: |
+          $changelog = (& { git log ${{ needs.new-version.outputs.previous_tag }}..HEAD --pretty=format:'- %s (%h)' --abbrev-commit -- Scripts }) -join '%0D%0A'
+          "Changes for ${{ needs.new-version.outputs.previous_tag }} are:"
+          $changelog
+          echo "::set-output name=changelog::$changelog"
+        
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
+          release_name: Release ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
+          body: |
+            Changes since last release:
+            ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (x64)
+        id: upload-scripts
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./Release.zip
+          asset_name: wslab_${{ needs.new-version.outputs.new_tag }}.zip
+          asset_content_type: application/zip
