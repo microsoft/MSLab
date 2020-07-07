@@ -12,6 +12,8 @@ If (-not $isAdmin) {
     exit
 }
 
+$wslabVersion = "dev"
+
 # Skipping 10 lines because if running when all prereqs met, statusbar covers powershell output
 1..10 |% { Write-Host ""}
 
@@ -46,6 +48,56 @@ function  Get-WindowsBuildNumber {
     return [int]($os.BuildNumber) 
 } 
 
+$InstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
+$TelemetrySessionId = (New-Guid).Guid
+function Send-TelemetryEvent {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Event,
+
+        $Properties,
+        $Metrics
+    )
+
+    process {
+        if(-not $InstrumentationKey) {
+            return
+        }
+        
+        $r = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+        $build = "$($r.CurrentMajorVersionNumber).$($r.CurrentMinorVersionNumber).$($r.CurrentBuildNumber).$($r.UBR)"
+        $osVersion = "$($r.ProductName) ($build)"
+        $hw = Get-CimInstance -ClassName Win32_ComputerSystem
+
+        $payload = @{
+            name = 'Microsoft.ApplicationInsights.Event' 
+            time = $([System.dateTime]::UtcNow.ToString('o')) 
+            iKey = $InstrumentationKey
+            tags = @{ 
+                "ai.application.ver" = $wslabVersion
+                "ai.cloud.roleInstance" = "Prerequisites"
+                "ai.device.id" = $env:computername 
+                'ai.internal.sdkVersion' = 'wslab:1.0.0'
+                'ai.session.id' = $TelemetrySessionId
+                'ai.device.osVersion' = $osVersion
+                'ai.device.locale' = (Get-WinsystemLocale).Name
+                'ai.device.oemName' = $hw.Manufacturer
+                'ai.device.model' = $hw.Model
+            }
+            data = @{
+                baseType = 'EventData' 
+                baseData = @{
+                    ver = 2 
+                    name = $Event
+                    properties = $Properties
+                    measurements = $Metrics
+                }
+            }
+        }
+        $json = "{0}" -f (($payload) | ConvertTo-Json -Depth 10 -Compress)
+        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -body $json
+     }
+}
 #endregion
 
 #region Initializtion
@@ -57,6 +109,11 @@ function  Get-WindowsBuildNumber {
 
 #Load LabConfig....
     . "$PSScriptRoot\LabConfig.ps1"
+
+# Telemetry Event
+    if($LabConfig.Telemetry) {
+        Send-TelemetryEvent -Event "Prereq Started"
+    }
 
 #define some variables if it does not exist in labconfig
     If (!$LabConfig.DomainNetbiosName){
@@ -248,6 +305,14 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
     }
 
 #endregion
+
+# Telemetry Event
+if($LabConfig.Telemetry) {
+    $metrics = @{
+        Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+    }
+    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics
+}
 
 # finishing 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
