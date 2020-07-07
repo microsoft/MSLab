@@ -15,7 +15,7 @@ If (-not $isAdmin) {
 $wslabVersion = "dev"
 
 # Skipping 10 lines because if running when all prereqs met, statusbar covers powershell output
-1..10 |% { Write-Host ""}
+1..10 | ForEach-Object { Write-Host "" }
 
 #region Functions
 
@@ -76,9 +76,9 @@ function Send-TelemetryEvent {
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
                 "ai.cloud.roleInstance" = "Prerequisites"
-                "ai.device.id" = $env:computername 
-                'ai.internal.sdkVersion' = 'wslab:1.0.0'
+                'ai.internal.sdkVersion' = 'wslab-telemetry:1.0.0'
                 'ai.session.id' = $TelemetrySessionId
+                "ai.device.id" = $env:computername 
                 'ai.device.osVersion' = $osVersion
                 'ai.device.locale' = (Get-WinsystemLocale).Name
                 'ai.device.oemName' = $hw.Manufacturer
