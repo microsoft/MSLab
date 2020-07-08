@@ -12,8 +12,6 @@ If (-not $isAdmin) {
     exit
 }
 
-$wslabVersion = "dev"
-
 # Skipping 10 lines because if running when all prereqs met, statusbar covers powershell output
 1..10 | ForEach-Object { Write-Host "" }
 
@@ -48,8 +46,36 @@ function  Get-WindowsBuildNumber {
     return [int]($os.BuildNumber) 
 } 
 
-$InstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
-$TelemetrySessionId = (New-Guid).Guid
+Function Merge-Hashtables {
+    $Output = @{}
+    ForEach ($Hashtable in ($Input + $Args)) {
+        If ($Hashtable -is [Hashtable]) {
+            ForEach ($Key in $Hashtable.Keys) {$Output.$Key = $Hashtable.$Key}
+        }
+    }
+    $Output
+}
+function Get-StringHash {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipeline, Mandatory = $true)]
+        [string]$String,
+        $Hash = "SHA1"
+    )
+    
+    process {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($String)
+        $algorithm = [System.Security.Cryptography.HashAlgorithm]::Create($Hash)
+        $StringBuilder = New-Object System.Text.StringBuilder 
+      
+        $algorithm.ComputeHash($bytes) | 
+        ForEach-Object { 
+            $null = $StringBuilder.Append($_.ToString("x2")) 
+        } 
+      
+        $StringBuilder.ToString() 
+    }
+}
 function Send-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
@@ -68,17 +94,24 @@ function Send-TelemetryEvent {
         $build = "$($r.CurrentMajorVersionNumber).$($r.CurrentMinorVersionNumber).$($r.CurrentBuildNumber).$($r.UBR)"
         $osVersion = "$($r.ProductName) ($build)"
         $hw = Get-CimInstance -ClassName Win32_ComputerSystem
+        $computerName = $env:computername | Get-StringHash
+
+        $extraProperties = @{
+            powershellEdition = $PSVersionTable.PSEdition
+            powershellVersion = $PSVersionTable.PSVersion.ToString()
+        }
 
         $payload = @{
             name = 'Microsoft.ApplicationInsights.Event' 
             time = $([System.dateTime]::UtcNow.ToString('o')) 
-            iKey = $InstrumentationKey
+            iKey = $TelemetryInstrumentationKey
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
-                "ai.cloud.roleInstance" = "Prerequisites"
+                "ai.cloud.roleInstance" = Split-Path -Path $PSCommandPath -Leaf
                 'ai.internal.sdkVersion' = 'wslab-telemetry:1.0.0'
                 'ai.session.id' = $TelemetrySessionId
-                "ai.device.id" = $env:computername 
+                "ai.device.id" = $computerName 
+                "ai.device.os" = $r.ProductName
                 'ai.device.osVersion' = $osVersion
                 'ai.device.locale' = (Get-WinsystemLocale).Name
                 'ai.device.oemName' = $hw.Manufacturer
@@ -89,7 +122,7 @@ function Send-TelemetryEvent {
                 baseData = @{
                     ver = 2 
                     name = $Event
-                    properties = $Properties
+                    properties = ($Properties, $extraProperties | Merge-Hashtables)
                     measurements = $Metrics
                 }
             }
@@ -101,8 +134,10 @@ function Send-TelemetryEvent {
 #endregion
 
 #region Initializtion
+$wslabVersion = "dev"
 $ScriptRoot = $PSScriptRoot
-
+$TelemetryInstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
+$TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
 
 # grab Time and start Transcript
     Start-Transcript -Path "$ScriptRoot\Prereq.log"
