@@ -372,3 +372,5 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
     #>
 #endregion
+# Auto-generated value (by 1_Prereq.ps1)
+$LabConfig.EnableTelemetry = $true

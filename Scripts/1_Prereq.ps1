@@ -101,18 +101,40 @@ function Send-TelemetryEvent {
 #endregion
 
 #region Initializtion
+$ScriptRoot = $PSScriptRoot
+
 
 # grab Time and start Transcript
-    Start-Transcript -Path "$PSScriptRoot\Prereq.log"
+    Start-Transcript -Path "$ScriptRoot\Prereq.log"
     $StartDateTime = get-date
     WriteInfo "Script started at $StartDateTime"
 
 #Load LabConfig....
-    . "$PSScriptRoot\LabConfig.ps1"
+    . "$ScriptRoot\LabConfig.ps1"
 
 # Telemetry Event
-    if($LabConfig.Telemetry) {
-        Send-TelemetryEvent -Event "Prereq Started"
+    if(-not $LabConfig.ContainsKey("EnableTelemetry")) {
+        # Ask user for consent
+        WriteInfoHighlighted "Would you consent to providing a telemetry information about your WSLab usage?"
+        $response = Read-Host -Prompt "`t(y to yes)"
+        if($response -eq "y") {
+            $result = '$true'
+            WriteInfo "`tTelemetry has been enabled, thank you for valuable feedback"
+            WriteInfo "`n`tTip: You can always opt-out from sending a telemetry by updating LabConfig.ps1 file"
+        } else {
+            $result = '$false'
+            WriteInfo "`tNo telemetry information will be send"
+            WriteInfo "`n`tTip: You can always opt-in later to send a telemetry by updating LabConfig.ps1 file"
+        }
+        Add-Content -Path "$ScriptRoot\LabConfig.ps1" -Value "`n# Auto-generated value (by 1_Prereq.ps1)`n`$LabConfig.EnableTelemetry = $result"
+
+        # reload updated file 
+        . "$ScriptRoot\LabConfig.ps1"
+    }
+
+    if($LabConfig.EnableTelemetry) {
+        WriteInfo "Telemetry is enabled"
+        $telemetryResponse = Send-TelemetryEvent -Event "Prereq Started"
     }
 
 #define some variables if it does not exist in labconfig
@@ -311,7 +333,7 @@ if($LabConfig.Telemetry) {
     $metrics = @{
         Duration = ((Get-Date) - $StartDateTime).TotalSeconds
     }
-    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics
+    $telemetryResponse = Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics
 }
 
 # finishing 
