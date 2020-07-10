@@ -65,7 +65,8 @@ function Send-TelemetryEvent {
     )
 
     process {
-        if(-not $InstrumentationKey) {
+        if(-not $TelemetryInstrumentationKey) {
+            WriteInfo "Instrumentation key is required in order to send telemetry data."
             return
         }
         
