@@ -13,32 +13,7 @@ If (-not $isAdmin) {
 }
 
 #region Functions
-
-    function WriteInfo($message){
-        Write-Host $message
-    }
-
-    function WriteInfoHighlighted($message){
-        Write-Host $message -ForegroundColor Cyan
-    }
-
-    function WriteSuccess($message)
-    {
-        Write-Host $message -ForegroundColor Green
-    }
-
-    function WriteError($message)
-    {
-        Write-Host $message -ForegroundColor Red
-    }
-
-    function WriteErrorAndExit($message){
-        Write-Host $message -ForegroundColor Red
-        Write-Host "Press enter to continue ..."
-        Stop-Transcript
-        Read-Host | Out-Null
-        Exit
-    }
+. .\0_Shared.ps1 # [!build-include-inline]
 
     #Create Unattend for VHD 
     Function CreateUnattendFileVHD{
@@ -1051,6 +1026,7 @@ If (-not $isAdmin) {
     WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
     WriteInfo "`t (.\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
     If ((Read-host "`t Please type Y or N") -like "*Y"){
+        $renamed = $true
         WriteInfo "`t `t Cleaning unnecessary items"
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse 
         "$PSScriptRoot\Temp","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
@@ -1060,7 +1036,20 @@ If (-not $isAdmin) {
         WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
     }else{
+        $renamed = $false
         WriteInfo "`t You did not type Y, skipping cleanup"
+    }
+
+    # Telemetry Event
+    if($LabConfig.Telemetry) {
+        $metrics = @{
+            Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+        }
+        $properties = @{
+            DCBuild = $BuildNumber
+            ScriptsRenamed = $renamed
+        }
+        Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties | Out-Null
     }
 
     Stop-Transcript

@@ -25,9 +25,7 @@ function  Get-WindowsBuildNumber {
 #endregion
 
 #region Initialization
-$wslabVersion = "dev"
-$ScriptRoot = $PSScriptRoot
-$TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
+
 
 # grab Time and start Transcript
     Start-Transcript -Path "$ScriptRoot\Prereq.log"
@@ -63,7 +61,7 @@ $TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
 
     if($LabConfig.EnableTelemetry) {
         WriteInfo "Telemetry is enabled"
-        $telemetryResponse = Send-TelemetryEvent -Event "Prereq Started"
+        Send-TelemetryEvent -Event "Prereq Started" | Out-Null
     }
 
 #define some variables if it does not exist in labconfig
@@ -262,7 +260,7 @@ if($LabConfig.Telemetry) {
     $metrics = @{
         Duration = ((Get-Date) - $StartDateTime).TotalSeconds
     }
-    $telemetryResponse = Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics
+    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics | Out-Null
 }
 
 # finishing 

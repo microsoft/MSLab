@@ -107,10 +107,15 @@ function Send-TelemetryEvent {
             }
         }
         $json = "{0}" -f (($payload) | ConvertTo-Json -Depth 10 -Compress)
-        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -body $json
-     }
+        try {
+            Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -body $json
+        } catch { }
+    }
 }
 
 # Instance values
+$ScriptRoot = $PSScriptRoot
+$wslabVersion = "dev"
 $TelemetryInstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
+$TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
 #endregion
