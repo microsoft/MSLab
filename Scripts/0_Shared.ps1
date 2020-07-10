@@ -1,0 +1,116 @@
+#region Output logging
+function WriteInfo($message) {
+    Write-Host $message
+}
+
+function WriteInfoHighlighted($message) {
+Write-Host $message -ForegroundColor Cyan
+}
+
+function WriteSuccess($message) {
+Write-Host $message -ForegroundColor Green
+}
+
+function WriteError($message) {
+Write-Host $message -ForegroundColor Red
+}
+
+function WriteErrorAndExit($message) {
+    Write-Host $message -ForegroundColor Red
+    Write-Host "Press enter to continue ..."
+    Stop-Transcript
+    Read-Host | Out-Null
+    Exit
+}
+#endregion
+
+#region Telemetry
+Function Merge-Hashtables {
+    $Output = @{}
+    ForEach ($Hashtable in ($Input + $Args)) {
+        If ($Hashtable -is [Hashtable]) {
+            ForEach ($Key in $Hashtable.Keys) {$Output.$Key = $Hashtable.$Key}
+        }
+    }
+    $Output
+}
+function Get-StringHash {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipeline, Mandatory = $true)]
+        [string]$String,
+        $Hash = "SHA1"
+    )
+    
+    process {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($String)
+        $algorithm = [System.Security.Cryptography.HashAlgorithm]::Create($Hash)
+        $StringBuilder = New-Object System.Text.StringBuilder 
+      
+        $algorithm.ComputeHash($bytes) | 
+        ForEach-Object { 
+            $null = $StringBuilder.Append($_.ToString("x2")) 
+        } 
+      
+        $StringBuilder.ToString() 
+    }
+}
+function Send-TelemetryEvent {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Event,
+
+        $Properties,
+        $Metrics
+    )
+
+    process {
+        if(-not $InstrumentationKey) {
+            return
+        }
+        
+        $r = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+        $build = "$($r.CurrentMajorVersionNumber).$($r.CurrentMinorVersionNumber).$($r.CurrentBuildNumber).$($r.UBR)"
+        $osVersion = "$($r.ProductName) ($build)"
+        $hw = Get-CimInstance -ClassName Win32_ComputerSystem
+        $computerName = $env:computername | Get-StringHash
+
+        $extraProperties = @{
+            powershellEdition = $PSVersionTable.PSEdition
+            powershellVersion = $PSVersionTable.PSVersion.ToString()
+        }
+
+        $payload = @{
+            name = 'Microsoft.ApplicationInsights.Event' 
+            time = $([System.dateTime]::UtcNow.ToString('o')) 
+            iKey = $TelemetryInstrumentationKey
+            tags = @{ 
+                "ai.application.ver" = $wslabVersion
+                "ai.cloud.roleInstance" = Split-Path -Path $PSCommandPath -Leaf
+                'ai.internal.sdkVersion' = 'wslab-telemetry:1.0.0'
+                'ai.session.id' = $TelemetrySessionId
+                "ai.device.id" = $computerName 
+                "ai.device.os" = $r.ProductName
+                'ai.device.osVersion' = $osVersion
+                'ai.device.locale' = (Get-WinsystemLocale).Name
+                'ai.device.oemName' = $hw.Manufacturer
+                'ai.device.model' = $hw.Model
+            }
+            data = @{
+                baseType = 'EventData' 
+                baseData = @{
+                    ver = 2 
+                    name = $Event
+                    properties = ($Properties, $extraProperties | Merge-Hashtables)
+                    measurements = $Metrics
+                }
+            }
+        }
+        $json = "{0}" -f (($payload) | ConvertTo-Json -Depth 10 -Compress)
+        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -body $json
+     }
+}
+
+# Instance values
+$TelemetryInstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
+#endregion
