@@ -38,9 +38,9 @@ function  Get-WindowsBuildNumber {
 # Telemetry Event
     if(-not $LabConfig.ContainsKey("EnableTelemetry")) {
         # Ask user for consent
-        WriteInfoHighlighted "Would you consent to providing a telemetry information about your WSLab usage?"
+        WriteInfoHighlighted "Would you be OK with providing a telemetry information about your WSLab usage?"
         do {
-            $response = Read-Host -Prompt "(type Y or N)"
+            $response = Read-Host -Prompt "(please type Y to allow or N to block)"
         }
         while ($response -notin ("Y","N"))
 

@@ -306,8 +306,8 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
             $msupackages = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Multiselect = $true;
-                Title="Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
+                Multiselect = $true;
+                Title = "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
             }
             $msupackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
             If($msupackages.ShowDialog() -eq "OK"){
