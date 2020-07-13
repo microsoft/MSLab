@@ -49,11 +49,11 @@ Since all functionality is under construction, your feedback is important! The s
 
 ## The Lab
 
-Run all code from DC or Management machine (just make sure version of server where you run the scripts matches managed servers)
+**Run all code from Management machine!** With 2 networks connected to DC, copying VHDs into \\ClusterName\ClusterStorage$ is extremely slow.
 
 ### Region install prereqs
 
-This region just installs Clustering and Hyper-V tools to management machine (in this case DC). 
+This region just installs Clustering and Hyper-V tools to management machine. 
 
 ### Region install features and configure hw timeout for virtual environment
 

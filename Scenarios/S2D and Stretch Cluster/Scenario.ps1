@@ -1,6 +1,6 @@
 #region install prereqs
     #install management features
-    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+    Install-WindowsFeature -Name RSAT-AD-PowerShell,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
 
     #configure sites and subnets in Active Directory
     New-ADReplicationSite -Name "Site1-Redmond"
@@ -105,7 +105,7 @@
 #region Create cluster and configure witness (file share or Azure)
     $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
     $ClusterName="S2D-S-Cluster"
-    $WitnessType="Cloud" #or FileShare
+    $WitnessType="FileShare" #or Cloud
     $ResourceGroupName="WSLabCloudWitness"
     $StorageAccountName="wslabcloudwitness$(Get-Random -Minimum 100000 -Maximum 999999)"
 
@@ -342,19 +342,36 @@ $Numbers=1..$NumberOfVolumesPerSite
 foreach ($Number in $Numbers){
     #move available storage to first site
     #Move Available Storage to Same node as Pool (just to have it in the same site)
-    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+    do{
+        Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+        Start-Sleep 5
+    }until(
+        (Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode.Name -eq $Site1Node
+    )
+
     Get-ClusterResource -Cluster $clustername -Name "Cluster Virtual Disk ($($VolumeNamePrefix)$Number)" | Add-ClusterSharedVolume -Cluster $ClusterName
     $Site1DataDiskPath = "c:\ClusterStorage\$($VolumeNamePrefix)$Number"
     $Site1LogDiskPath = (Get-Volume -CimSession $Site1Node -FriendlyName "$($LogDiskPrefix)$Number").Path
 
     #move available storage to second site
     #Move Available Storage to Same node as Pool (just to have it in the same site)
-    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site2Node
+    do{
+        Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site2Node
+        Start-Sleep 5
+    }until(
+        (Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode.Name -eq $Site2Node
+    )
+
     $Site2DataDiskPath = (Get-Volume -CimSession $Site2Node -FriendlyName "$($VolumeNamePrefix)$Number" | Where-Object FileSystem -NotLike "CSVFS*").Path
     $Site2LogDiskPath = (Get-Volume -CimSession $Site2Node -FriendlyName "$($LogDiskPrefix)$Number").Path
 
     #move available storage to first site again
-    Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+    do{
+        Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage" | Move-ClusterGroup -Node $Site1Node
+        Start-Sleep 5
+    }until(
+        (Get-ClusterGroup -Cluster $ClusterName -Name "Available Storage").OwnerNode.Name -eq $Site1Node
+    )
 
     #generate RG Names
     $SourceRGName="$SourceRGNamePrefix$Number"
@@ -366,6 +383,9 @@ foreach ($Number in $Numbers){
     }else{
         New-SRPartnership -ReplicationMode Synchronous -SourceComputerName $Site1Node -SourceRGName $SourceRGName -SourceVolumeName $Site1DataDiskPath -SourceLogVolumeName $Site1LogDiskPath -DestinationComputerName $Site2Node -DestinationRGName $DestinationRGName -DestinationVolumeName $Site2DataDiskPath -DestinationLogVolumeName $Site2LogDiskPath
     }
+    
+    #get some rest
+    Start-Sleep 10
 }
 
 #Wait for SR to finish
@@ -377,7 +397,6 @@ foreach ($Number in $Numbers){
     }while($r.ReplicationStatus -contains "InitialBlockCopy")
     Write-Output "Replica Status:"
     $r | where Datavolume -like "C:\ClusterStorage*" | select Datavolume,ReplicationStatus
-
 
 #Configure Network Constraints
 $Numbers=1..$NumberOfVolumesPerSite
