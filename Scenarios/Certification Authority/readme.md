@@ -1,4 +1,4 @@
-# Certification Authority !!!WORK IN PROGRESS!!!
+# Certification Authority
 
 ## LabConfig
 
