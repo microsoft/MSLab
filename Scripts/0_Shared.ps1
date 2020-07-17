@@ -117,6 +117,6 @@ function Send-TelemetryEvent {
 # Instance values
 $ScriptRoot = $PSScriptRoot
 $wslabVersion = "dev"
-$TelemetryInstrumentationKey = "fa702f7b-5d4d-4043-b287-9cf2437eab8c"
+$TelemetryInstrumentationKey = "9ebf64de-01f8-4f60-9942-079262e3f6e0"
 $TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
 #endregion
