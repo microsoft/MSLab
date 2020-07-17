@@ -1046,8 +1046,9 @@ If (-not $isAdmin) {
             Duration = ((Get-Date) - $StartDateTime).TotalSeconds
         }
         $properties = @{
-            DCBuild = $BuildNumber
-            ScriptsRenamed = $renamed
+            dcBuild = $BuildNumber
+            scriptsRenamed = $renamed
+            appliedMsuCount = ($packages | Measure-Object).Count
         }
         Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties | Out-Null
     }
