@@ -13,34 +13,7 @@ If (-not $isAdmin) {
 }
 
 #region Functions
-
-    function WriteInfo($message){
-        Write-Host $message
-    }
-
-    function WriteInfoHighlighted($message){
-        Write-Host $message -ForegroundColor Cyan
-    }
-
-    function WriteSuccess($message){
-        Write-Host $message -ForegroundColor Green
-    }
-
-    function WriteWarning($message) {
-        Write-Host $message -ForegroundColor Yellow
-    }
-
-    function WriteError($message){
-        Write-Host $message -ForegroundColor Red
-    }
-
-    function WriteErrorAndExit($message){
-        Write-Host $message -ForegroundColor Red
-        Write-Host "Press enter to continue ..."
-        Stop-Transcript
-        Read-Host | Out-Null
-        Exit
-    }
+. .\0_Shared.ps1 # [!build-include-inline]
 
     Function CreateUnattendFileBlob{
         #Create Unattend (parameter is Blob)
@@ -679,8 +652,9 @@ If (-not $isAdmin) {
 
     Start-Transcript -Path "$PSScriptRoot\Deploy.log"
 
-    $StartDateTime = get-date
+    $StartDateTime = Get-Date
     WriteInfoHighlighted "Script started at $StartDateTime"
+    WriteInfo "`nWSLab Version $wslabVersion"
 
 
     ##Load LabConfig....
@@ -1478,7 +1452,8 @@ If (-not $isAdmin) {
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
 
     #list VMs 
-        Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
+        $AllVMs = Get-VM | Where-Object name -like "$($labconfig.Prefix)*"
+        $AllVMs | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
@@ -1500,7 +1475,23 @@ If (-not $isAdmin) {
         Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
     #write how much it took to deploy
-        WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+        WriteInfo "Script finished at $(Get-Date) and took $(((Get-Date) - $StartDateTime).TotalMinutes) Minutes"
+
+    # Telemetry Event
+    if($LabConfig.EnableTelemetry) {
+        WriteInfo "`t Sending telemetry info"
+        $metrics = @{
+            Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+            MemoryAvailable = $MemoryAvailableMB
+            LabVMsCount = ($AllVMs | Measure-Object).Count
+            ProvisionedVMsCount = "?"
+        }
+        $properties = @{
+            TimeZone = $TimeZone
+        }
+        Send-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties | Out-Null
+    }
+
 
     Stop-Transcript
 

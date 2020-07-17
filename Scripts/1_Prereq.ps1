@@ -29,8 +29,9 @@ function  Get-WindowsBuildNumber {
 
 # grab Time and start Transcript
     Start-Transcript -Path "$ScriptRoot\Prereq.log"
-    $StartDateTime = get-date
+    $StartDateTime = Get-Date
     WriteInfo "Script started at $StartDateTime"
+    WriteInfo "`nWSLab Version $wslabVersion"
 
 #Load LabConfig....
     . "$ScriptRoot\LabConfig.ps1"
@@ -256,7 +257,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 #endregion
 
 # Telemetry Event
-if($LabConfig.Telemetry) {
+if($LabConfig.EnableTelemetry) {
     $metrics = @{
         Duration = ((Get-Date) - $StartDateTime).TotalSeconds
     }

@@ -95,8 +95,9 @@ If (-not $isAdmin) {
 #region Initialization
     #Start Log
         Start-Transcript -Path "$PSScriptRoot\CreateParentDisks.log"
-        $StartDateTime = get-date
+        $StartDateTime = Get-Date
         WriteInfo "Script started at $StartDateTime"
+        WriteInfo "`nWSLab Version $wslabVersion"
 
     #Load LabConfig....
         . "$PSScriptRoot\LabConfig.ps1"
@@ -228,6 +229,7 @@ If (-not $isAdmin) {
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
         WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
         $mountdir="$env:Temp\WSLAbMountdir"
+        $VolumeFileSystem="CSVFS"
     }else{
         $mountdir="$PSScriptRoot\Temp\MountDir"
         $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
@@ -292,6 +294,9 @@ If (-not $isAdmin) {
             $ISOServer | Dismount-DiskImage
             WriteErrorAndExit "Please provide Windows Server 2016 and newer. Exitting."
         }
+    #Check ISO Language
+        $imageInfo=(Get-WindowsImage -ImagePath "$($ServerMediaDriveLetter):\sources\install.wim" -Index 4)
+        $OSLanguage=$imageInfo.Languages | Select-Object -First 1
 
 #Grab packages
     #grab server packages
@@ -1041,14 +1046,21 @@ If (-not $isAdmin) {
     }
 
     # Telemetry Event
-    if($LabConfig.Telemetry) {
+    if($LabConfig.EnableTelemetry) {
+        WriteInfo "`t Sending telemetry info"
         $metrics = @{
             Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+            AppliedMsuCount = ($packages | Measure-Object).Count
+            MemoryAvailable = $MemoryAvailableMB
         }
         $properties = @{
-            dcBuild = $BuildNumber
-            scriptsRenamed = $renamed
-            appliedMsuCount = ($packages | Measure-Object).Count
+            DcBuild = $BuildNumber
+            ScriptsRenamed = $renamed
+            InstallScvmm = $LabConfig.InstallSCVMM
+            WindowsInstallationType = $WindowsInstallationType
+            VolumeFileSystem = $VolumeFileSystem
+            TimeZone = $TimeZone
+            IsoLanguage = $OSLanguage
         }
         Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties | Out-Null
     }
