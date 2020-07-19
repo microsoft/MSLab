@@ -126,7 +126,7 @@ function Send-TelemetryObject {
     )
 
     process {
-        $json = "{0}" -f (($telemetryEvent) | ConvertTo-Json -Depth 10 -Compress)
+        $json = "{0}" -f (($Data) | ConvertTo-Json -Depth 10 -Compress)
         try {
             Invoke-RestMethod -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
         } catch { 

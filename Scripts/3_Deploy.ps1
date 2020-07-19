@@ -1515,9 +1515,6 @@ If (-not $isAdmin) {
         WriteInfo "`t Enabling VMNics device naming"
         Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
-    #write how much it took to deploy
-        WriteInfo "Script finished at $(Get-Date) and took $(((Get-Date) - $StartDateTime).TotalMinutes) Minutes"
-
     # Telemetry Event
     if($LabConfig.EnableTelemetry) {
         WriteInfo "`t Sending telemetry info"
@@ -1533,11 +1530,14 @@ If (-not $isAdmin) {
             LabInternet = [bool]$LabConfig.Internet
             IncrementalDeployment = $LABExists
         }
-        $event = New-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName | Out-Null
-        $vmDeploymentEvents += $event
+        $telemetryEvent = New-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
+        $vmDeploymentEvents += $telemetryEvent
 
-        Send-TelemetryEvents -Events $vmDeploymentEvents
+        Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
     }
+
+    #write how much it took to deploy
+        WriteInfo "Script finished at $(Get-Date) and took $(((Get-Date) - $StartDateTime).TotalMinutes) Minutes"
 
     Stop-Transcript
 
