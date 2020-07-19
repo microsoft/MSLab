@@ -109,8 +109,10 @@ function Send-TelemetryEvent {
         }
         $json = "{0}" -f (($payload) | ConvertTo-Json -Depth 10 -Compress)
         try {
-            Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -body $json
-        } catch { }
+            Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
+        } catch { 
+            WriteInfo "`tSending telemetry failed with an error: $($_.Exception.Message)"
+        }
     }
 }
 

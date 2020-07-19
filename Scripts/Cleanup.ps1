@@ -123,8 +123,8 @@ If (-not $isAdmin) {
                 WriteInfo "Sending telemetry info"
 
                 $metrics = @{
-                    Duration = ((Get-Date) - $StartDateTime).TotalSeconds
-                    VMsRemoved = ($VMs | Measure-Object).Count
+                    TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
+                    VmsRemoved = ($VMs | Measure-Object).Count
                 }
 
                 Send-TelemetryEvent -Event "Cleanup completed" -Metrics $metrics | Out-Null

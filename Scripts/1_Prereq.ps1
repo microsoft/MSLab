@@ -259,7 +259,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 # Telemetry Event
 if($LabConfig.EnableTelemetry) {
     $metrics = @{
-        Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+        TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
     }
     Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics | Out-Null
 }

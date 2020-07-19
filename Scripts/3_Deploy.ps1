@@ -834,6 +834,7 @@ If (-not $isAdmin) {
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
         WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
         $mountdir="$env:Temp\WSLAbMountDir"
+        $VolumeFileSystem="CSVFS"
     }else{
         $mountdir="$PSScriptRoot\Temp\MountDir"
         $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
@@ -935,9 +936,10 @@ If (-not $isAdmin) {
 
     #Testing if lab already exists.
         WriteInfoHighlighted "Checking if lab already exists."
+        $LABExists=$false
         if ($SwitchNameExists){
             if ((Get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue) -ne $null){
-                $LABExists=$True
+                $LABExists=$true
                 WriteInfo "`t Lab already exists. If labconfig contains additional VMs, they will be added."
             }else{
                 WriteInfo "`t Lab does not exist, will be created"
@@ -1318,6 +1320,7 @@ If (-not $isAdmin) {
 
     #process $labconfig.VMs and create VMs (skip if machine already exists)
         WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
+        $provisionedVMsCount = 0
         foreach ($VMConfig in $LABConfig.VMs.GetEnumerator()){
             if (!(Get-VM -Name "$($labconfig.prefix)$($VMConfig.vmname)" -ErrorAction SilentlyContinue)){
                 # Ensure that Configuration is set and use Simple as default
@@ -1433,6 +1436,8 @@ If (-not $isAdmin) {
                                     WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
                                 }
                     }
+
+                $provisionedVMsCount += 1
             }
         }
 
@@ -1481,13 +1486,16 @@ If (-not $isAdmin) {
     if($LabConfig.EnableTelemetry) {
         WriteInfo "`t Sending telemetry info"
         $metrics = @{
-            Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+            TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
             MemoryAvailable = $MemoryAvailableMB
-            LabVMsCount = ($AllVMs | Measure-Object).Count
-            ProvisionedVMsCount = "?"
+            LabVmsCount = ($AllVMs | Measure-Object).Count
+            ProvisionedVmsCount = $provisionedVMsCount
         }
         $properties = @{
             TimeZone = $TimeZone
+            VolumeFileSystem = $VolumeFileSystem
+            LabInternet = [bool]$LabConfig.Internet
+            IncrementalDeployment = $LABExists
         }
         Send-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties | Out-Null
     }

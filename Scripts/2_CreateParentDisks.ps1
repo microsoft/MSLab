@@ -102,6 +102,12 @@ If (-not $isAdmin) {
     #Load LabConfig....
         . "$PSScriptRoot\LabConfig.ps1"
 
+    # Telemetry
+        if($LabConfig.EnableTelemetry) {
+            WriteInfo "Telemetry is enabled"
+            Send-TelemetryEvent -Event "Create parent disks started" | Out-Null
+        }
+
     #create variables if not already in LabConfig
         If (!$LabConfig.DomainNetbiosName){
             $LabConfig.DomainNetbiosName="Corp"
@@ -1047,9 +1053,9 @@ If (-not $isAdmin) {
 
     # Telemetry Event
     if($LabConfig.EnableTelemetry) {
-        WriteInfo "`t Sending telemetry info"
+        WriteInfo "Sending telemetry info"
         $metrics = @{
-            Duration = ((Get-Date) - $StartDateTime).TotalSeconds
+            TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
             AppliedMsuCount = ($packages | Measure-Object).Count
             MemoryAvailable = $MemoryAvailableMB
         }
