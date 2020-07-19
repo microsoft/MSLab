@@ -1367,7 +1367,7 @@ If (-not $isAdmin) {
                                 $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
                             }
                         #Build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #Compose VMName
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
                         #Add disks
@@ -1386,13 +1386,13 @@ If (-not $isAdmin) {
 
                 #create VM with Simple configuration
                     if ($VMConfig.configuration -eq 'Simple'){
-                        BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
                     }
 
                 #create VM with S2D configuration
                     if ($VMConfig.configuration -eq 'S2D'){
                         #build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #compose VM name
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
 
