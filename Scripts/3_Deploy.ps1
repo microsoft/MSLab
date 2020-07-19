@@ -1454,17 +1454,22 @@ If (-not $isAdmin) {
 
                 # Telemetry Report
                 if($LabConfig.EnableTelemetry) {
-                    $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
-                    $properties = @{
-                        Configuration = $VMConfig.Configuration
-                        EditionId = $osInfo.EditionId
-                        VmOsVersion = $osInfo.Version
-                        InstallationType = $osInfo.InstallationType
+                    $properties = @{}
+                    if(Test-Path -Path $createdVm.OSDiskPath) {
+                        $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
+                        
+                        $properties = @{
+                            EditionId = $osInfo.EditionId
+                            VmOsVersion = $osInfo.Version
+                            InstallationType = $osInfo.InstallationType
+                        }
                     }
+                    $properties.Configuration = $VMConfig.Configuration
+
                     $metrics = @{
                         VmDeploymentDuration = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
                     }
-                    $vmInfo = New-TelemetryEvent -Event "VM Deployed" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
+                    $vmInfo = New-TelemetryEvent -Event "New VM deployed" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
                     $vmDeploymentEvents += $vmInfo
                 }
                 
