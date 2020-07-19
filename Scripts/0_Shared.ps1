@@ -55,7 +55,7 @@ function Get-StringHash {
         $StringBuilder.ToString() 
     }
 }
-function Send-TelemetryEvent {
+function New-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Event,
@@ -77,8 +77,9 @@ function Send-TelemetryEvent {
         $computerName = $env:computername | Get-StringHash
 
         $extraProperties = @{
-            powershellEdition = $PSVersionTable.PSEdition
-            powershellVersion = $PSVersionTable.PSVersion.ToString()
+            PowerShellEdition = $PSVersionTable.PSEdition
+            PowerShellVersion = $PSVersionTable.PSVersion.ToString()
+            OsBuild = $r.CurrentBuildNumber
         }
 
         $payload = @{
@@ -107,12 +108,50 @@ function Send-TelemetryEvent {
                 }
             }
         }
-        $json = "{0}" -f (($payload) | ConvertTo-Json -Depth 10 -Compress)
+    
+        $payload
+    }
+}
+
+function Send-TelemetryObject {
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Data
+    )
+
+    process {
+        $json = "{0}" -f (($telemetryEvent) | ConvertTo-Json -Depth 10 -Compress)
         try {
-            Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
+            Invoke-RestMethod -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
         } catch { 
             WriteInfo "`tSending telemetry failed with an error: $($_.Exception.Message)"
         }
+    }
+}
+
+function Send-TelemetryEvent {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Event,
+
+        $Properties,
+        $Metrics
+    )
+
+    process {
+        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics
+        Send-TelemetryObject -Data $telemetryEvent
+    }
+}
+
+function Send-TelemetryEvents {
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Events
+    )
+
+    process {
+        Send-TelemetryObject -Data $Events
     }
 }
 

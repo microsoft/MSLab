@@ -645,6 +645,12 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
             $VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
         }
+
+        # return info
+        @{
+            OSDiskPath = $vhdpath
+            VM = $VMTemp
+        }
     }
 #endregion
 
@@ -1269,6 +1275,7 @@ If (-not $isAdmin) {
 #endregion
 
 #region Provision VMs
+    $vmDeploymentEvents = @()
     #DSC config for LCM (in case Pull configuration is specified)
         WriteInfoHighlighted "Creating DSC config to configure DC as pull server"
 
@@ -1323,6 +1330,8 @@ If (-not $isAdmin) {
         $provisionedVMsCount = 0
         foreach ($VMConfig in $LABConfig.VMs.GetEnumerator()){
             if (!(Get-VM -Name "$($labconfig.prefix)$($VMConfig.vmname)" -ErrorAction SilentlyContinue)){
+                $vmProvisioningStartTime = Get-Date
+
                 # Ensure that Configuration is set and use Simple as default
                 if(-not $VMConfig.configuration) {
                     $VMConfig.configuration = "Simple"
@@ -1418,7 +1427,7 @@ If (-not $isAdmin) {
                                 $ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
                             }
                         #build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                            $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
 
                         #Add disks
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName                
@@ -1437,6 +1446,22 @@ If (-not $isAdmin) {
                                 }
                     }
 
+                # Telemetry Report
+                if($LabConfig.EnableTelemetry) {
+                    $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
+                    $properties = @{
+                        Configuration = $VMConfig.Configuration
+                        EditionId = $osInfo.EditionId
+                        VmOsVersion = $osInfo.Version
+                        InstallationType = $osInfo.InstallationType
+                    }
+                    $metrics = @{
+                        VmDeploymentDuration = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
+                    }
+                    $vmInfo = New-TelemetryEvent -Event "VM Deployed" -Properties $properties -Metrics $metrics
+                    $vmDeploymentEvents += $vmInfo
+                }
+                
                 $provisionedVMsCount += 1
             }
         }
@@ -1497,9 +1522,11 @@ If (-not $isAdmin) {
             LabInternet = [bool]$LabConfig.Internet
             IncrementalDeployment = $LABExists
         }
-        Send-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties | Out-Null
-    }
+        $event = New-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties | Out-Null
+        $vmDeploymentEvents += $event
 
+        Send-TelemetryEvents -Events $vmDeploymentEvents
+    }
 
     Stop-Transcript
 
