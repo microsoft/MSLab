@@ -127,7 +127,7 @@ If (-not $isAdmin) {
                     VmsRemoved = ($VMs | Measure-Object).Count
                 }
 
-                Send-TelemetryEvent -Event "Cleanup completed" -Metrics $metrics | Out-Null
+                Send-TelemetryEvent -Event "Cleanup completed" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
             }
 
             #finishing    

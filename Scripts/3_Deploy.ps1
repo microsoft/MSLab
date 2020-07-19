@@ -666,6 +666,12 @@ If (-not $isAdmin) {
     ##Load LabConfig....
         . "$PSScriptRoot\LabConfig.ps1"
 
+    # Telemetry
+    if($LabConfig.EnableTelemetry) {
+        WriteInfo "Telemetry is enabled"
+        Send-TelemetryEvent -Event "Deploy started" -NickName $LabConfig.TelemetryNickName | Out-Null
+    }
+    
 #endregion
 
 #region Set variables
@@ -1458,7 +1464,7 @@ If (-not $isAdmin) {
                     $metrics = @{
                         VmDeploymentDuration = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
                     }
-                    $vmInfo = New-TelemetryEvent -Event "VM Deployed" -Properties $properties -Metrics $metrics
+                    $vmInfo = New-TelemetryEvent -Event "VM Deployed" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
                     $vmDeploymentEvents += $vmInfo
                 }
                 
@@ -1522,7 +1528,7 @@ If (-not $isAdmin) {
             LabInternet = [bool]$LabConfig.Internet
             IncrementalDeployment = $LABExists
         }
-        $event = New-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties | Out-Null
+        $event = New-TelemetryEvent -Event "Deploy completed" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName | Out-Null
         $vmDeploymentEvents += $event
 
         Send-TelemetryEvents -Events $vmDeploymentEvents

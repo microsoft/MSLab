@@ -61,7 +61,8 @@ function New-TelemetryEvent {
         [string]$Event,
 
         $Properties,
-        $Metrics
+        $Metrics,
+        $NickName
     )
 
     process {
@@ -76,10 +77,15 @@ function New-TelemetryEvent {
         $hw = Get-CimInstance -ClassName Win32_ComputerSystem
         $computerName = $env:computername | Get-StringHash
 
+        if(-not $NickName) {
+            $NickName = "?"
+        }
+
         $extraProperties = @{
             PowerShellEdition = $PSVersionTable.PSEdition
             PowerShellVersion = $PSVersionTable.PSVersion.ToString()
             OsBuild = $r.CurrentBuildNumber
+            Nick = $NickName
         }
 
         $payload = @{
@@ -135,11 +141,12 @@ function Send-TelemetryEvent {
         [string]$Event,
 
         $Properties,
-        $Metrics
+        $Metrics,
+        $NickName
     )
 
     process {
-        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics
+        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics -NickName $NickName
         Send-TelemetryObject -Data $telemetryEvent
     }
 }

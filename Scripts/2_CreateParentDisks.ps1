@@ -105,7 +105,7 @@ If (-not $isAdmin) {
     # Telemetry
         if($LabConfig.EnableTelemetry) {
             WriteInfo "Telemetry is enabled"
-            Send-TelemetryEvent -Event "Create parent disks started" | Out-Null
+            Send-TelemetryEvent -Event "Create parent disks started" -NickName $LabConfig.TelemetryNickName | Out-Null
         }
 
     #create variables if not already in LabConfig
@@ -1068,7 +1068,7 @@ If (-not $isAdmin) {
             TimeZone = $TimeZone
             IsoLanguage = $OSLanguage
         }
-        Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties | Out-Null
+        Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName | Out-Null
     }
 
     Stop-Transcript

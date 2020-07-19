@@ -62,7 +62,7 @@ function  Get-WindowsBuildNumber {
 
     if($LabConfig.EnableTelemetry) {
         WriteInfo "Telemetry is enabled"
-        Send-TelemetryEvent -Event "Prereq Started" | Out-Null
+        Send-TelemetryEvent -Event "Prereq Started"  -NickName $LabConfig.TelemetryNickName | Out-Null
     }
 
 #define some variables if it does not exist in labconfig
@@ -261,7 +261,7 @@ if($LabConfig.EnableTelemetry) {
     $metrics = @{
         TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
     }
-    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics | Out-Null
+    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
 }
 
 # finishing 
