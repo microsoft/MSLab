@@ -670,10 +670,13 @@ If (-not $isAdmin) {
         if(-not $LabConfig.ContainsKey("TelemetryLevel")) {
             $telemetryLevel = Read-TelemetryLevel
             $LabConfig.TelemetryLevel = $telemetryLevel
+            $promptShown = $true
         }
 
         if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
-            WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+            if(-not $promptShown) {
+                WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+            }
             Send-TelemetryEvent -Event "Deploy.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
         }
     
