@@ -668,7 +668,7 @@ If (-not $isAdmin) {
 
     # Telemetry
         if(-not $LabConfig.ContainsKey("TelemetryLevel")) {
-            $telemetryLevel = Read-TelemetryPrompt
+            $telemetryLevel = Read-TelemetryLevel
             $LabConfig.TelemetryLevel = $telemetryLevel
         }
 

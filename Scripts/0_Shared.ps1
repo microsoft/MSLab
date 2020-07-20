@@ -230,15 +230,16 @@ function Send-TelemetryEvents {
 function Read-TelemetryLevel {
     process {
         # Ask user for consent
-        WriteInfoHighlighted "Would you be OK with providing a telemetry information about your WSLab usage?"
-        WriteInfo "`tMore details about what properties are sent in the telemetry messages can be found at https://aka.ms/wslab/telemetry."
-        WriteInfoHighlighted "`n`tPlease select a telemetry level:"
-        WriteInfo "`t - [N] None  -- No information will be sent for this instance"
-        WriteInfo "`t - [B] Basic -- lab info will be sent (e. g. script durations, host OS SKU, number of VMs, VM settings from LabConfig)"
-        WriteInfo "`t - [F] Full  -- in addition to Basic also details about the host machine and about each deployed VM will be sent (e. g. build number, edition)"
-        WriteInfo "`n`tTip: You can configure telemetry settings explicitly in LabConfig.ps1 file and suppress this prompt completely."
+        WriteInfoHighlighted "`nWould you be OK with providing a telemetry information about your WSLab usage?"
+        WriteInfo "More details about content of the telemetry messages can be found at https://aka.ms/wslab/telemetry"
+        WriteInfo "Tip: You can also configure telemetry settings explicitly in LabConfig.ps1 file and suppress this prompt completely."
+        WriteInfoHighlighted "`n  Please select a telemetry level:"
+        WriteInfo "    [N] None  -- No information will be sent"
+        WriteInfo "    [B] Basic -- lab info will be sent (e. g. script durations, host OS SKU, number of VMs, VM settings from LabConfig)"
+        WriteInfo "    [F] Full  -- Basic with more details about the host machine and deployed VMs will be sent (e. g. guest OS build numbers)"
+        
         do {
-            $response = Read-Host -Prompt "Telemetry level [B]: "
+            $response = Read-Host -Prompt "Telemetry level [B]"
         }
         while ($response -notin ("N", "[N]", "None", "B", "[B]", "Basic", "F", "[F]", "Full", ""))
 
@@ -246,15 +247,15 @@ function Read-TelemetryLevel {
         switch($response) {
             { $_ -in "N", "[N]", "None" } {
                 $telemetryLevel = 'None'
-                WriteInfo "`tNo telemetry information will be send"
+                WriteInfo "`nNo telemetry information will be send"
             }
             { $_ -in "B", "[B]", "Basic", "" } {
                 $telemetryLevel = 'Basic'
-                WriteInfo "`tTelemetry has been set to Basic level, thank you for your valuable feedback."
+                WriteInfo "`nTelemetry has been set to Basic level, thank you for your valuable feedback."
             }
             { $_ -in "F", "[F]", "Full" } {
                 $telemetryLevel = 'Full'
-                WriteInfo "`tTelemetry has been set to Full level, thank you for your valuable feedback."
+                WriteInfo "`nTelemetry has been set to Full level, thank you for your valuable feedback."
             }
         }
 
