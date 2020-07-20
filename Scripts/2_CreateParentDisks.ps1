@@ -103,9 +103,14 @@ If (-not $isAdmin) {
         . "$PSScriptRoot\LabConfig.ps1"
 
     # Telemetry
-        if($LabConfig.EnableTelemetry) {
-            WriteInfo "Telemetry is enabled"
-            Send-TelemetryEvent -Event "Create parent disks started" -NickName $LabConfig.TelemetryNickName | Out-Null
+        if(-not $LabConfig.ContainsKey("TelemetryLevel")) {
+            $telemetryLevel = Read-TelemetryPrompt
+            $LabConfig.TelemetryLevel = $telemetryLevel
+        }
+
+        if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+            WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+            Send-TelemetryEvent -Event "CreateParentDisks.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
         }
 
     #create variables if not already in LabConfig
@@ -1052,7 +1057,7 @@ If (-not $isAdmin) {
     }
 
     # Telemetry Event
-    if($LabConfig.EnableTelemetry) {
+    if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
         WriteInfo "Sending telemetry info"
         $metrics = @{
             TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
@@ -1068,7 +1073,7 @@ If (-not $isAdmin) {
             TimeZone = $TimeZone
             IsoLanguage = $OSLanguage
         }
-        Send-TelemetryEvent -Event "Create parent disks completed" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName | Out-Null
+        Send-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
     }
 
     Stop-Transcript

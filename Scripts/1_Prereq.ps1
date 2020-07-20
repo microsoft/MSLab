@@ -37,32 +37,9 @@ function  Get-WindowsBuildNumber {
     . "$ScriptRoot\LabConfig.ps1"
 
 # Telemetry Event
-    if(-not $LabConfig.ContainsKey("EnableTelemetry")) {
-        # Ask user for consent
-        WriteInfoHighlighted "Would you be OK with providing a telemetry information about your WSLab usage?"
-        do {
-            $response = Read-Host -Prompt "(please type Y to allow or N to block)"
-        }
-        while ($response -notin ("Y","N"))
-
-        if($response -eq "y") {
-            $result = '$true'
-            WriteInfo "`tTelemetry has been enabled, thank you for valuable feedback"
-            WriteInfo "`n`tTip: You can always opt-out from sending a telemetry by updating LabConfig.ps1 file"
-        } else {
-            $result = '$false'
-            WriteInfo "`tNo telemetry information will be send"
-            WriteInfo "`n`tTip: You can always opt-in later to send a telemetry by updating LabConfig.ps1 file"
-        }
-        Add-Content -Path "$ScriptRoot\LabConfig.ps1" -Value "`n# Auto-generated value (by 1_Prereq.ps1)`n`$LabConfig.EnableTelemetry = $result"
-
-        # reload updated file 
-        . "$ScriptRoot\LabConfig.ps1"
-    }
-
-    if($LabConfig.EnableTelemetry) {
-        WriteInfo "Telemetry is enabled"
-        Send-TelemetryEvent -Event "Prereq Started"  -NickName $LabConfig.TelemetryNickName | Out-Null
+    if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+        WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+        Send-TelemetryEvent -Event "Prereq.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
     }
 
 #define some variables if it does not exist in labconfig
@@ -257,11 +234,12 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 #endregion
 
 # Telemetry Event
-if($LabConfig.EnableTelemetry) {
+if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
     $metrics = @{
         TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
     }
-    Send-TelemetryEvent -Event "Prereq Completed" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
+ 
+    Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
 }
 
 # finishing 

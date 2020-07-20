@@ -119,15 +119,13 @@ If (-not $isAdmin) {
                 Microsoft.PowerShell.Archive\Expand-Archive -Path $zipfile -DestinationPath $zipoutput -Force
 
             # Telemetry
-            if($LabConfig.EnableTelemetry) {
-                WriteInfo "Sending telemetry info"
-
+            if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+                WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
                 $metrics = @{
                     TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
                     VmsRemoved = ($VMs | Measure-Object).Count
                 }
-
-                Send-TelemetryEvent -Event "Cleanup completed" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
+                Send-TelemetryEvent -Event "Cleanup" -Metrics $metrics -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
             }
 
             #finishing    
