@@ -1,4 +1,4 @@
-name: Create new tag if anything in Scripts folder is changed
+name: WSLab Release
 
 defaults:
   run:
@@ -16,7 +16,7 @@ on:
 
 jobs:
   new-version:
-    name: Create new version tag
+    name: New version tag
     runs-on: windows-2019
     outputs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
@@ -49,14 +49,14 @@ jobs:
           tags: true
 
   new-release:
-    name: Create new release
+    name: Create release
     runs-on: windows-2019
     needs: new-version
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Create release 
+      - name: Build scripts 
         shell: powershell
         run: |
           ./build.ps1 -Version ${{ needs.new-version.outputs.new_tag }}
@@ -74,7 +74,7 @@ jobs:
           }
           echo "::set-output name=changelog::$changelog"
         
-      - name: Create Release
+      - name: Create Github Release
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -88,7 +88,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Append ZIP to Release
+      - name: Upload ZIP to Release
         id: upload-scripts
         uses: actions/upload-release-asset@v1
         env:
