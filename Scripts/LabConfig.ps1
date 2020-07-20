@@ -35,8 +35,10 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         ServerMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into server OS
         EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
-        DHCPscope="10.0.0.0"                         # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
-        DCVMVersion="9.0"                            # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
+        DHCPscope="10.0.0.0";                        # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
+        DCVMVersion="9.0";                           # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
+        TelemetryLevel="";                           # (Optional) 
+        TelemetryNickname="";                        # (Optional) 
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
