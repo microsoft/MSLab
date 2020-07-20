@@ -1062,7 +1062,7 @@ If (-not $isAdmin) {
         $metrics = @{
             TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
             AppliedMsuCount = ($packages | Measure-Object).Count
-            MemoryAvailable = $MemoryAvailableMB
+            MemoryAvailable = [Math]::Round($MemoryAvailableMB, 0)
         }
         $properties = @{
             DcBuild = $BuildNumber

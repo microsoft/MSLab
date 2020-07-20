@@ -1459,20 +1459,20 @@ If (-not $isAdmin) {
 
                 # Telemetry Report
                 if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
-                    $properties = @{}
+                    $properties = @{
+                        Configuration = $VMConfig.Configuration
+                        Unattend = $VMConfig.Unattend
+                    }
                     if(Test-Path -Path $createdVm.OSDiskPath) {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
-                        $properties = @{
-                            InstallationType = $osInfo.InstallationType
-                        }
+                        $properties.InstallationType = $osInfo.InstallationType
 
                         if($LabConfig.TelemetryLevel -eq "Full") {
                             $properties.EditionId = $osInfo.EditionId
                             $properties.VmOsVersion = $osInfo.Version
                         }
                     }
-                    $properties.Configuration = $VMConfig.Configuration
 
                     $metrics = @{
                         VmDeploymentDuration = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
@@ -1524,7 +1524,7 @@ If (-not $isAdmin) {
         Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
     # Telemetry Event
-    if($LabConfig.EnableTelemetry) {
+    if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
         WriteInfo "`t Sending telemetry info"
         $metrics = @{
             TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds

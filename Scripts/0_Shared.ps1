@@ -117,6 +117,7 @@ function New-TelemetryEvent {
 
         $extraMetrics = @{}
         $extraProperties = @{
+            TelemetryLevel = $Level
             PowerShellEdition = $PSVersionTable.PSEdition
             PowerShellVersion = $PSVersionTable.PSVersion.ToString()
             Nick = $NickName
@@ -127,7 +128,7 @@ function New-TelemetryEvent {
             $extraProperties.OsBuild = $r.CurrentBuildNumber
 
             # RAM
-            $extraMetrics.TotalPhysicalMemory = [Math]::Round(($hw.TotalPhysicalMemory)/1024MB, 2)
+            $extraMetrics.MemoryTotal = [Math]::Round(($hw.TotalPhysicalMemory)/1024KB, 0)
             
             # CPU
             $extraMetrics.LogicalProcessorCount = $hw.NumberOfLogicalProcessors
@@ -140,6 +141,7 @@ function New-TelemetryEvent {
             $extraMetrics.VolumeSize = $volume.Size
             $extraProperties.DiskType = $disk.MediaType
             $extraProperties.DiskBusType = $disk.BusType
+            $extraProperties.DiskModel = $disk.FriendlyName
         }
 
         $payload = @{
@@ -235,8 +237,8 @@ function Read-TelemetryLevel {
         WriteInfo "Tip: You can also configure telemetry settings explicitly in LabConfig.ps1 file and suppress this prompt completely."
         WriteInfoHighlighted "`n  Please select a telemetry level:"
         WriteInfo "    [N] None  -- No information will be sent"
-        WriteInfo "    [B] Basic -- lab info will be sent (e. g. script durations, host OS SKU, number of VMs, VM settings from LabConfig)"
-        WriteInfo "    [F] Full  -- Basic with more details about the host machine and deployed VMs will be sent (e. g. guest OS build numbers)"
+        WriteInfo "    [B] Basic -- Lab info will be sent (e.g. script execution time, number of VMs)"
+        WriteInfo "    [F] Full  -- More details about the host machine and deployed VMs (e.g. guest OS)"
         
         do {
             $response = Read-Host -Prompt "Telemetry level [B]"
