@@ -166,5 +166,5 @@ function Send-TelemetryEvents {
 $ScriptRoot = $PSScriptRoot
 $wslabVersion = "dev"
 $TelemetryInstrumentationKey = "9ebf64de-01f8-4f60-9942-079262e3f6e0"
-$TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME | Get-StringHash
+$TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME + ((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash
 #endregion
