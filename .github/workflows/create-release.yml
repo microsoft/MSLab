@@ -9,10 +9,6 @@ on:
     paths: 
       - 'Scripts/**'
     branches: [ master ]
-  pull_request:
-    paths: 
-      - 'Scripts/**'
-    branches: [ master ]
 
 jobs:
   new-version:
