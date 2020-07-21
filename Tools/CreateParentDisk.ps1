@@ -140,15 +140,26 @@ If (-not $isAdmin) {
                 }
                 WriteErrorAndExit "`t Use Windows 7 or newer!"
             }
-            #ask for edition
-            $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
-            if (-not ($Edition)){
-                $ISO | Dismount-DiskImage
-                WriteErrorAndExit "Edition not selected. Exitting "
+
+            #ask for edition if more than 1
+            if ($windowsimage.count -gt 1){
+                $Edition=($WindowsImage | Out-GridView -OutputMode Single).ImageName
+                if (-not ($Edition)){
+                    $ISO | Dismount-DiskImage
+                    WriteErrorAndExit "Edition not selected. Exitting "
+                }
+            }else{
+                $edition = $windowsimage.ImageName
             }
 
             #Generate vhdx name
-            if (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
+            if ($edition -eq "Azure Stack HCI"){
+                $tempvhdname = switch ($BuildNumber){
+                    17784 {
+                        "AzSHCI20H2_G2.vhdx"
+                    }
+                }
+            }elseif (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
                 $tempvhdname = switch ($BuildNumber){
                     7600 {
                         "Win2008R2Core_G1.vhdx"
