@@ -39,27 +39,33 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 ```
 
 ## Collected information
+These properties are attached to every telemetry event that is sent to the Application Insights workspace.
+|                    | Basic | Full |Description| Sample Value | Application Insights property |
+|--------------------|:---:|:--:|-----------| - | - |
+| Application Version | x    | x  | Version of WSLab Scripts | v20.07.1 | `ai.application.ver` |
+| Telemetry Level     | x    | x  | Which level of telemetry has been set | Full | `TelemetryLevel` |
+| Product type        | x    | x  | Workstation or Server| Workstation | `OsType` |
+| Session ID  | x    | x  | One-way hash (`SHA1`) of `MachineGUID`, `PSScriptRoot` and `ComputerName`. Purpose of this session ID is only to link execution of separate scripts within the same lab folder. | 482e33a99e6fb41e5f739d9294ac1b339c7c3c60 | `ai.session.id` |
+| Device Locale      | x    | x  | Locale of Host OS | en-US | `ai.device.locale` |
+| PowerShell Edition  | x    | x   | Desktop or Core | Core | `PowerShellEdition` |
+| PowerShell Version  | x    | x   |   | 7.0.2 | `PowerShellVersion` | 
+| TotalDuration       | x    | x   | Duration of script run in seconds | 23,62 | `TotalDuration` | 
+| Device Manufacturer |     | x  | Device Manufacturer | LENOVO | `ai.device.oemName` |
+| Device model        |     | x  | Device model based on `Win32_ComputerSystem` | ThinkPad P52 | `ai.device.model` |
+| Operating System    |     | x  | OS SKU and build | Windows 10 Enterprise (10.0.19041.388)| `ai.device.os` |
+| OS Build            |     | x  | OS Build Number | 19041 | `OsBuild` |
+| Amount of RAM       |     | x  | Total amount of RAM in MB | 65311 | `MemoryTotal` |
+| Number of Sockets   |     | x  | How many sockets system have | 1 | `SocketsCount` |
+| Number of Cores     |     | x  | Total number of CPU cores available | 12 | `LogicalProcessorCount` |
+| Volume Capacity    |      | x  | Capacity of a volume where WSLab was run (in GB) | 954 | `VolumeSize` | 
+| Disk Model          |     | x  | Friendly name of a disk where volume with WSLab was run | Samsung SSD 970 PRO 1TB | `DiskModel` |
+| Disk Media Type      |     | x  | Type of the disk where WSLab was run  | SSD | `DiskType` |
+| Disk Bus type        |     | x  | Bus connection of the disk where WSLab was run  | NVMe | `DiskBusType` |
 
-|                    | Basic | Full | Description |
-|--------------------|:---:|:--:|-----------|
-|Application Version |x    |x   |Version of WSLab Scripts |
-|Product type        |x    |x   |Workstation or Server|
-|TelemetrySessionID  |x    |x   |Calculated based on MachineGUID, PSScriptRoot and ComputerName hash|
-|Device Manufacturer |     |x   |Manufacturer (for example Lenovo, Dell, HP...)|
-|Device model        |     |x   |Device model based on win32_ComputerSystem|
-|Operating System    |     |x   |OS SKU and build (for example Windows 10 Enterprise (10.0.19041.388)|
-|Amount of RAM       |     |x   |   |
-|Number of Cores     |     |x   |   |
-|Disk Manufacturer   |     |x   |   |
-|Disk Model          |     |x   |   |
-|Disk MedyaType      |     |x   |   |
-|Disk Bustype        |     |x   |   |
-|TotalDuration       |x    |x   |Duration of script run|
-|PowerShell Edition  |x    |x   |Desktop or core|
-|PowerShell Version  |x    |x   |   |
 
+### Specific Events to Deploy.ps1 script
 
-### Specific to Deploy.ps1
+#### `Deploy.Start`
 
 |                             |Basic|Full|Description|
 |-----------------------------|:---:|:--:|-----------|

@@ -143,8 +143,8 @@ function New-TelemetryEvent {
             return
         }
         
-        $Level = Get-TelemetryLevel
-        $LevelSource = Get-TelemetryLevelSource
+        $level = Get-TelemetryLevel
+        $levelSource = Get-TelemetryLevelSource
 
         $r = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
         $build = "$($r.CurrentMajorVersionNumber).$($r.CurrentMinorVersionNumber).$($r.CurrentBuildNumber).$($r.UBR)"
@@ -164,14 +164,14 @@ function New-TelemetryEvent {
 
         $extraMetrics = @{}
         $extraProperties = @{
-            'telemetry.level' = $Level
-            'telemetry.levelSource' = $LevelSource
+            'telemetry.level' = $level
+            'telemetry.levelSource' = $levelSource
             'telemetry.nick' = $NickName
             'powershell.edition' = $PSVersionTable.PSEdition
             'powershell.version' = $PSVersionTable.PSVersion.ToString()
             'os.type' = $osType
         }
-        if($Level -eq "Full") {
+        if($level -eq "Full") {
             # OS
             $extraProperties.'os.build' = $r.CurrentBuildNumber
 
@@ -220,7 +220,7 @@ function New-TelemetryEvent {
             }
         }
 
-        if($Level -eq "Full") {
+        if($level -eq "Full") {
             $payload.tags.'ai.device.os' = $r.ProductName
             $payload.tags.'ai.device.osVersion' = $osVersion
             $payload.tags.'ai.device.oemName' = $hw.Manufacturer
@@ -257,12 +257,11 @@ function Send-TelemetryEvent {
 
         $Properties,
         $Metrics,
-        $NickName,
-        $Level
+        $NickName
     )
 
     process {
-        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics -NickName $NickName -Level $Level
+        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics -NickName $NickName
         Send-TelemetryObject -Data $telemetryEvent
     }
 }

@@ -1,4 +1,4 @@
-name: WSLab Release
+name: New release
 
 defaults:
   run:
@@ -12,7 +12,7 @@ on:
 
 jobs:
   new-version:
-    name: New version tag
+    name: Bump version
     runs-on: windows-2019
     outputs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
@@ -79,7 +79,7 @@ jobs:
           tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
           release_name: Release ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
           body: |
-            Changes since last release:
+            Changes in this version:
             ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
