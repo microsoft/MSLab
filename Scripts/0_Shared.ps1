@@ -128,6 +128,26 @@ function Get-TelemetryLevelSource {
     }
 }
 
+function Get-PcSystemType {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Id
+    )
+    process {
+        $type = switch($Id) {
+            1 { "Desktop" }
+            2 { "Laptop" }
+            3 { "Workstation" }
+            4 { "Server" }
+            7 { "Server" }
+            5 { "Server" }
+            default { $Id }
+        }
+
+        $type
+    }
+}
+
 function New-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
@@ -170,6 +190,7 @@ function New-TelemetryEvent {
             'powershell.edition' = $PSVersionTable.PSEdition
             'powershell.version' = $PSVersionTable.PSVersion.ToString()
             'os.type' = $osType
+            'hw.type' = Get-PcSystemType -Id $hw.PCSystemType
         }
         if($level -eq "Full") {
             # OS
@@ -183,7 +204,7 @@ function New-TelemetryEvent {
             $extraMetrics.'cpu.sockets.count' = $hw.NumberOfProcessors
 
             # Disk
-            $driveLetter = $PSScriptRoot -Split ":" | Select-Object -First 1
+            $driveLetter = $ScriptRoot -Split ":" | Select-Object -First 1
             $volume = Get-Volume -DriveLetter $driveLetter
             $disk = Get-VolumePhysicalDisk -Volume $driveLetter
             $extraMetrics.'volume.size' = [Math]::Round($volume.Size / 1024MB)
@@ -199,7 +220,7 @@ function New-TelemetryEvent {
             iKey = $TelemetryInstrumentationKey
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
-                "ai.cloud.roleInstance" = Split-Path -Path $PSCommandPath -Leaf
+                "ai.cloud.roleInstance" = Split-Path -Path $ScriptRoot -Leaf
                 "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.0'
                 "ai.session.id" = $TelemetrySessionId
                 "ai.device.locale" = (Get-WinsystemLocale).Name

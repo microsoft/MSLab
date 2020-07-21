@@ -1116,12 +1116,13 @@ If (-not $isAdmin) {
         $events = @()
 
         # First for parent disks
-        foreach($status in $vhdStatusInfo) {
+        foreach($key in $vhdStatusInfo.Keys) {
+            $status = $vhdStatusInfo[$key]
             $buildDuration = 0
             if(-not $status.AlreadyExists) {
                 $buildDuration = ($status.BuildEndDate - $status.BuildStartDate).TotalSeconds
             }
-            $key = $status.Kind.ToLower()
+            $key = $key.ToLower()
 
             $properties["vhd.$($key).exists"] = [int]$status.AlreadyExists
             $properties["vhd.$($key).name"] = $status.Name
