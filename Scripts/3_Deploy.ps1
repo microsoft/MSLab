@@ -1470,10 +1470,8 @@ If (-not $isAdmin) {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
                         $properties.'os.installationType' = $osInfo.InstallationType
-                        if($LabConfig.TelemetryLevel -eq "Full") {
-                            $properties.'os.editionId' = $osInfo.EditionId
-                            $properties.'os.version' = $osInfo.Version
-                        }
+                        $properties.'os.editionId' = $osInfo.EditionId
+                        $properties.'os.version' = $osInfo.Version
                     }
 
                     $metrics = @{

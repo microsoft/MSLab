@@ -123,7 +123,7 @@ If (-not $isAdmin) {
                 WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
                 $metrics = @{
                     'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
-                    'vms.removed' = ($VMs | Measure-Object).Count
+                    'lab.removed.count' = ($VMs | Measure-Object).Count
                 }
                 Send-TelemetryEvent -Event "Cleanup" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
             }

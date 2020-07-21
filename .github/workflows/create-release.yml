@@ -1,4 +1,4 @@
-name: New release
+name: Create release
 
 defaults:
   run:
