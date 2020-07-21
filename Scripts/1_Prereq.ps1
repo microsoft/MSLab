@@ -37,9 +37,9 @@ function  Get-WindowsBuildNumber {
     . "$ScriptRoot\LabConfig.ps1"
 
 # Telemetry Event
-    if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
-        WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
-        Send-TelemetryEvent -Event "Prereq.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+    if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+        WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
+        Send-TelemetryEvent -Event "Prereq.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
     }
 
 #define some variables if it does not exist in labconfig
@@ -234,12 +234,12 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 #endregion
 
 # Telemetry Event
-if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
     $metrics = @{
-        TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
+        'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
     }
  
-    Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+    Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
 }
 
 # finishing 

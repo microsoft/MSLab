@@ -103,17 +103,17 @@ If (-not $isAdmin) {
         . "$PSScriptRoot\LabConfig.ps1"
 
     # Telemetry
-        if(-not $LabConfig.ContainsKey("TelemetryLevel")) {
+        if(-not (Get-TelemetryLevel)) {
             $telemetryLevel = Read-TelemetryLevel
             $LabConfig.TelemetryLevel = $telemetryLevel
             $promptShown = $true
         }
 
-        if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+        if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
             if(-not $promptShown) {
-                WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+                WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
             }
-            Send-TelemetryEvent -Event "CreateParentDisks.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+            Send-TelemetryEvent -Event "CreateParentDisks.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
         }
 
     #create variables if not already in LabConfig
@@ -151,7 +151,7 @@ If (-not $isAdmin) {
         $DCName='DC'
 
     #Grab TimeZone
-    $TimeZone=(Get-TimeZone).id
+    $TimeZone = (Get-TimeZone).id
 
     #Grab Installation type
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
@@ -347,11 +347,13 @@ If (-not $isAdmin) {
     if ($BuildNumber -eq 14393){
         #Windows Server 2016
         $ServerVHDs += @{
+            Kind = "Full"
             Edition="4" 
             VHDName="Win2016_G2.vhdx"
             Size=60GB
         }
         $ServerVHDs += @{
+            Kind = "Core"
             Edition="3" 
             VHDName="Win2016Core_G2.vhdx"
             Size=30GB
@@ -367,17 +369,20 @@ If (-not $isAdmin) {
     }elseif ($BuildNumber -eq 17763){
         #Windows Server 2019
         $ServerVHDs += @{
+            Kind = "Full"
             Edition="4" 
             VHDName="Win2019_G2.vhdx"
             Size=60GB
         }
         $ServerVHDs += @{
+            Kind = "Core"
             Edition="3" 
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
         }
     }elseif ($BuildNumber -ge 17744 -and $SAC){
         $ServerVHDs += @{
+            Kind = "Core"
             Edition="2" 
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
             Size=30GB
@@ -389,11 +394,13 @@ If (-not $isAdmin) {
     }elseif ($BuildNumber -ge 17744){
         #Windows Sever Insider
         $ServerVHDs += @{
+            Kind = "Full"
             Edition="4" 
             VHDName="WinSrvInsider_$BuildNumber.vhdx"
             Size=60GB
         }
         $ServerVHDs += @{
+            Kind = "Core"
             Edition="3" 
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
             Size=30GB
@@ -434,7 +441,14 @@ If (-not $isAdmin) {
 
       #Create Servers Parent VHDs
         WriteInfoHighlighted "Creating Server Parent disk(s)"
+        $vhdStatusInfo = @{}
         foreach ($ServerVHD in $ServerVHDs){
+            $vhdStatus = @{
+                Kind = $ServerVHD.Kind
+                Name = $ServerVHD.VHDName
+                AlreadyExists = $false
+                BuildStartDate = Get-Date
+            }
             if ($serverVHD.Edition -notlike "*nano"){
                 if (!(Test-Path "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)")){
                     WriteInfo "`t Creating Server Parent $($ServerVHD.VHDName)"
@@ -457,6 +471,7 @@ If (-not $isAdmin) {
                         Convert-WindowsImage -SourcePath "$($ServerMediaDriveLetter):\sources\install.wim" -Edition $serverVHD.Edition -VHDPath "$PSScriptRoot\ParentDisks\$($ServerVHD.VHDName)" -SizeBytes $serverVHD.Size -VHDFormat VHDX -DiskLayout UEFI
                     }
                 }else{
+                    $vhdStatus.AlreadyExists = $true
                     WriteSuccess "`t Server Parent $($ServerVHD.VHDName) found, skipping creation"
                 }
             }
@@ -478,9 +493,18 @@ If (-not $isAdmin) {
                     WriteSuccess "`t Server Parent $($ServerVHD.VHDName) found, skipping creation"
                 }
             }
+            $vhdStatus.BuildEndDate = Get-Date
+
+            $vhdStatusInfo[$vhdStatus.Kind] = $vhdStatus
         }
 
     #create Tools VHDX from .\Temp\ToolsVHD
+        $toolsVhdStatus = @{
+            Kind = "Tools"
+            Name = "tools.vhdx"
+            AlreadyExists = $false
+            BuildStartDate = Get-Date
+        }
         if (!(Test-Path "$PSScriptRoot\ParentDisks\tools.vhdx")){
             WriteInfoHighlighted "Creating Tools.vhdx"
             $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
@@ -504,15 +528,21 @@ If (-not $isAdmin) {
             }
 
             Dismount-VHD $vhddisk.Number
+
+            $toolsVhdStatus.BuildEndDate = Get-Date
         }else{
+            $toolsVhdStatus.AlreadyExists = $true
             WriteSuccess "`t Tools.vhdx found in Parent Disks, skipping creation"
-            $toolsVHD=Get-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx"
+            $toolsVHD = Get-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx"
         }
+
+        $vhdStatusInfo[$toolsVhdStatus.Kind] = $toolsVhdStatus
 #endregion
 
 #region Hydrate DC
     if (-not $DCFilesExists){
         WriteInfoHighlighted "Starting DC Hydration"
+        $dcHydrationStartTime = Get-Date
 
         $vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
         $VMPath="$PSScriptRoot\LAB\"
@@ -1003,6 +1033,8 @@ If (-not $isAdmin) {
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
                 $DC | Get-VMHardDiskDrive | Where-Object path -eq $toolsVHD.Path | Remove-VMHardDiskDrive
             }
+
+            $dcHydrationEndTime = Get-Date
     }
 #endregion
 
@@ -1063,20 +1095,58 @@ If (-not $isAdmin) {
     if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
         WriteInfo "Sending telemetry info"
         $metrics = @{
-            TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
-            AppliedMsuCount = ($packages | Measure-Object).Count
-            MemoryAvailable = [Math]::Round($MemoryAvailableMB, 0)
+            'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
+            'msu.count' = ($packages | Measure-Object).Count
+            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
         }
+        if(-not $DCFilesExists) {
+            $metrics['dc.duration'] = ($dcHydrationEndTime - $dcHydrationEndTime).TotalSeconds
+        }
+
         $properties = @{
-            DcBuild = $BuildNumber
-            ScriptsRenamed = $renamed
-            InstallScvmm = $LabConfig.InstallSCVMM
-            WindowsInstallationType = $WindowsInstallationType
-            VolumeFileSystem = $VolumeFileSystem
-            TimeZone = $TimeZone
-            IsoLanguage = $OSLanguage
+            'dc.exists' = [int]$DCFilesExists
+            'dc.edition' = $LabConfig.DCEdition
+            'dc.build' = $BuildNumber
+            'dc.language' = $OSLanguage
+            'lab.scriptsRenamed' = $renamed
+            'lab.installScvmm' = $LabConfig.InstallSCVMM
+            'os.windowsInstallationType' = $WindowsInstallationType
+            'os.tz' = $TimeZone
         }
-        Send-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+        $events = @()
+
+        # First for parent disks
+        foreach($status in $vhdStatusInfo) {
+            $buildDuration = 0
+            if(-not $status.AlreadyExists) {
+                $buildDuration = ($status.BuildEndDate - $status.BuildStartDate).TotalSeconds
+            }
+            $key = $status.Kind.ToLower()
+
+            $properties["vhd.$($key).exists"] = [int]$status.AlreadyExists
+            $properties["vhd.$($key).name"] = $status.Name
+            if($buildDuration -gt 0) {
+                $metrics["vhd.$($key).duration"] = $buildDuration
+            }
+
+            if($status.AlreadyExists) {
+               continue # verbose events are interesting only when creating a new vhds
+            }
+
+            $vhdMetrics = @{
+                'vhd.duration' = $buildDuration
+            }
+            $vhdProperties = @{
+                'vhd.name' = $status.Name
+                'vhd.kind' = $status.Kind
+            }
+            $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName 
+        }
+
+        # and one overall
+        $events += New-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName 
+
+        Send-TelemetryEvents -Events $events | Out-Null
     }
 
     Stop-Transcript

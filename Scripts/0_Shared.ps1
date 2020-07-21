@@ -83,14 +83,58 @@ function Get-VolumePhysicalDisk {
     }
 }
 
+function Get-TelemetryLevel {
+    param(
+        [switch]$OptOut
+    )
+    process {
+        $acceptedTelemetryLevels = "None", "Basic", "Full"
+
+        # LabConfig value has a priority
+        if($LabConfig.TelemetryLevel -and $LabConfig.TelemetryLevel -in $acceptedTelemetryLevels) {
+            return $LabConfig.TelemetryLevel
+        }
+
+        # Environment variable as a fallback
+        if($env:WSLAB_TELEMETRY_LEVEL -and $env:WSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
+            return $env:WSLAB_TELEMETRY_LEVEL
+        }
+
+        # If nothing is explicitely configured and OptOut flag enabled, explicitely disable telemetry
+        if($OptOut) {
+            return "None"
+        }
+
+        # as a last option return nothing to allow asking the user
+    }
+}
+
+function Get-TelemetryLevelSource {
+    param(
+        [switch]$OptOut
+    )
+    process {
+        $acceptedTelemetryLevels = "None", "Basic", "Full"
+
+        # LabConfig value has a priority
+        if($LabConfig.TelemetryLevel -and $LabConfig.TelemetryLevel -in $acceptedTelemetryLevels) {
+            return "LabConfig"
+        }
+
+        # Environment variable as a fallback
+        if($env:WSLAB_TELEMETRY_LEVEL -and $env:WSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
+            return "Environment"
+        }
+    }
+}
+
 function New-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Event,
         $Properties,
         $Metrics,
-        $NickName,
-        $Level
+        $NickName
     )
 
     process {
@@ -99,6 +143,9 @@ function New-TelemetryEvent {
             return
         }
         
+        $Level = Get-TelemetryLevel
+        $LevelSource = Get-TelemetryLevelSource
+
         $r = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
         $build = "$($r.CurrentMajorVersionNumber).$($r.CurrentMinorVersionNumber).$($r.CurrentBuildNumber).$($r.UBR)"
         $osVersion = "$($r.ProductName) ($build)"
@@ -117,51 +164,53 @@ function New-TelemetryEvent {
 
         $extraMetrics = @{}
         $extraProperties = @{
-            TelemetryLevel = $Level
-            PowerShellEdition = $PSVersionTable.PSEdition
-            PowerShellVersion = $PSVersionTable.PSVersion.ToString()
-            Nick = $NickName
-            OsType = $osType
+            'telemetry.level' = $Level
+            'telemetry.levelSource' = $LevelSource
+            'telemetry.nick' = $NickName
+            'powershell.edition' = $PSVersionTable.PSEdition
+            'powershell.version' = $PSVersionTable.PSVersion.ToString()
+            'os.type' = $osType
         }
         if($Level -eq "Full") {
             # OS
-            $extraProperties.OsBuild = $r.CurrentBuildNumber
+            $extraProperties.'os.build' = $r.CurrentBuildNumber
 
             # RAM
-            $extraMetrics.MemoryTotal = [Math]::Round(($hw.TotalPhysicalMemory)/1024KB, 0)
+            $extraMetrics.'memory.total' = [Math]::Round(($hw.TotalPhysicalMemory)/1024KB, 0)
             
             # CPU
-            $extraMetrics.LogicalProcessorCount = $hw.NumberOfLogicalProcessors
-            $extraMetrics.SocketsCount = $hw.NumberOfProcessors
+            $extraMetrics.'cpu.logical.count' = $hw.NumberOfLogicalProcessors
+            $extraMetrics.'cpu.sockets.count' = $hw.NumberOfProcessors
 
             # Disk
             $driveLetter = $PSScriptRoot -Split ":" | Select-Object -First 1
             $volume = Get-Volume -DriveLetter $driveLetter
             $disk = Get-VolumePhysicalDisk -Volume $driveLetter
-            $extraMetrics.VolumeSize = $volume.Size
-            $extraProperties.DiskType = $disk.MediaType
-            $extraProperties.DiskBusType = $disk.BusType
-            $extraProperties.DiskModel = $disk.FriendlyName
+            $extraMetrics.'volume.size' = [Math]::Round($volume.Size / 1024MB)
+            $extraProperties.'volume.fs' = $volume.FileSystemType
+            $extraProperties.'disk.type' = $disk.MediaType
+            $extraProperties.'disk.busType' = $disk.BusType
+            $extraProperties.'disk.model' = $disk.FriendlyName
         }
 
         $payload = @{
-            name = 'Microsoft.ApplicationInsights.Event' 
-            time = $([System.dateTime]::UtcNow.ToString('o')) 
+            name = "Microsoft.ApplicationInsights.Event"
+            time = $([System.dateTime]::UtcNow.ToString("o")) 
             iKey = $TelemetryInstrumentationKey
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
                 "ai.cloud.roleInstance" = Split-Path -Path $PSCommandPath -Leaf
-                'ai.internal.sdkVersion' = 'wslab-telemetry:1.0.0'
-                'ai.session.id' = $TelemetrySessionId
-                'ai.device.locale' = (Get-WinsystemLocale).Name
+                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.0'
+                "ai.session.id" = $TelemetrySessionId
+                "ai.device.locale" = (Get-WinsystemLocale).Name
                 "ai.device.id" = $computerNameHash 
                 "ai.device.os" = ""
-                'ai.device.osVersion' = ""
-                'ai.device.oemName' = ""
-                'ai.device.model' = ""
+                "ai.device.osVersion" = ""
+                "ai.device.oemName" = ""
+                "ai.device.model" = ""
             }
             data = @{
-                baseType = 'EventData' 
+                baseType = "EventData"
                 baseData = @{
                     ver = 2 
                     name = $Event

@@ -40,9 +40,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
 
 ## Collected information
 
-|                   |Basic|Full|Description|
+|                    | Basic | Full | Description |
 |--------------------|:---:|:--:|-----------|
-
 |Application Version |x    |x   |Version of WSLab Scripts |
 |Product type        |x    |x   |Workstation or Server|
 |TelemetrySessionID  |x    |x   |Calculated based on MachineGUID, PSScriptRoot and ComputerName hash|

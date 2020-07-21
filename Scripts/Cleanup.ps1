@@ -114,18 +114,18 @@ If (-not $isAdmin) {
             }
 
             #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
-                $zipfile= "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
-                $zipoutput="$PSScriptRoot\LAB\DC\"
+                $zipfile = "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
+                $zipoutput = "$PSScriptRoot\LAB\DC\"
                 Microsoft.PowerShell.Archive\Expand-Archive -Path $zipfile -DestinationPath $zipoutput -Force
 
             # Telemetry
-            if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
-                WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+            if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+                WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
                 $metrics = @{
-                    TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
-                    VmsRemoved = ($VMs | Measure-Object).Count
+                    'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
+                    'vms.removed' = ($VMs | Measure-Object).Count
                 }
-                Send-TelemetryEvent -Event "Cleanup" -Metrics $metrics -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+                Send-TelemetryEvent -Event "Cleanup" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
             }
 
             #finishing    

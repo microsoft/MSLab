@@ -667,17 +667,17 @@ If (-not $isAdmin) {
         . "$PSScriptRoot\LabConfig.ps1"
 
     # Telemetry
-        if(-not $LabConfig.ContainsKey("TelemetryLevel")) {
+        if(-not (Get-TelemetryLevel)) {
             $telemetryLevel = Read-TelemetryLevel
             $LabConfig.TelemetryLevel = $telemetryLevel
             $promptShown = $true
         }
 
-        if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+        if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
             if(-not $promptShown) {
-                WriteInfo "Telemetry is set to $($LabConfig.TelemetryLevel) level"
+                WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
             }
-            Send-TelemetryEvent -Event "Deploy.Start" -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel | Out-Null
+            Send-TelemetryEvent -Event "Deploy.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
         }
     
 #endregion
@@ -1461,26 +1461,25 @@ If (-not $isAdmin) {
                     }
 
                 # Telemetry Report
-                if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+                if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
                     $properties = @{
-                        Configuration = $VMConfig.Configuration
-                        Unattend = $VMConfig.Unattend
+                        'vm.configuration' = $VMConfig.Configuration
+                        'vm.unattend' = $VMConfig.Unattend
                     }
                     if(Test-Path -Path $createdVm.OSDiskPath) {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
-                        $properties.InstallationType = $osInfo.InstallationType
-
+                        $properties.'os.installationType' = $osInfo.InstallationType
                         if($LabConfig.TelemetryLevel -eq "Full") {
-                            $properties.EditionId = $osInfo.EditionId
-                            $properties.VmOsVersion = $osInfo.Version
+                            $properties.'os.editionId' = $osInfo.EditionId
+                            $properties.'os.version' = $osInfo.Version
                         }
                     }
 
                     $metrics = @{
-                        VmDeploymentDuration = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
+                        'vm.deploymentDuration' = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
                     }
-                    $vmInfo = New-TelemetryEvent -Event "Deploy.VM" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel
+                    $vmInfo = New-TelemetryEvent -Event "Deploy.VM" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
                     $vmDeploymentEvents += $vmInfo
                 }
                 
@@ -1527,21 +1526,20 @@ If (-not $isAdmin) {
         Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
     # Telemetry Event
-    if($LabConfig.TelemetryLevel -in $TelemetryEnabledLevels) {
+    if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
         WriteInfo "`t Sending telemetry info"
         $metrics = @{
-            TotalDuration = ((Get-Date) - $StartDateTime).TotalSeconds
-            MemoryAvailable = $MemoryAvailableMB
-            LabVmsCount = ($AllVMs | Measure-Object).Count
-            ProvisionedVmsCount = $provisionedVMsCount
+            'script.duration' = [Math]::Round(((Get-Date) - $StartDateTime).TotalSeconds, 2)
+            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
+            'lab.vmsCount.active' = ($AllVMs | Measure-Object).Count # how many VMs are running
+            'lab.vmsCount.provisioned' = $provisionedVMsCount # how many VMs were created by this script run
         }
         $properties = @{
-            TimeZone = $TimeZone
-            VolumeFileSystem = $VolumeFileSystem
-            LabInternet = [bool]$LabConfig.Internet
-            IncrementalDeployment = $LABExists
+            'lab.timezone' = $TimeZone
+            'lab.internet' = [bool]$LabConfig.Internet
+            'lab.isncrementalDeployment' = $LABExists
         }
-        $telemetryEvent = New-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName -Level $LabConfig.TelemetryLevel
+        $telemetryEvent = New-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
         $vmDeploymentEvents += $telemetryEvent
 
         Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
