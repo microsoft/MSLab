@@ -13,50 +13,34 @@ If (-not $isAdmin) {
 }
 
 # Skipping 10 lines because if running when all prereqs met, statusbar covers powershell output
-1..10 |% { Write-Host ""}
+1..10 | ForEach-Object { Write-Host "" }
 
 #region Functions
-
-function WriteInfo($message){
-        Write-Host $message
-    }
-
-function WriteInfoHighlighted($message){
-    Write-Host $message -ForegroundColor Cyan
-}
-
-function WriteSuccess($message){
-    Write-Host $message -ForegroundColor Green
-}
-
-function WriteError($message){
-    Write-Host $message -ForegroundColor Red
-}
-
-function WriteErrorAndExit($message){
-    Write-Host $message -ForegroundColor Red
-    Write-Host "Press enter to continue ..."
-    Stop-Transcript
-    Read-Host | Out-Null
-    Exit
-}
+. .\0_Shared.ps1 # [!build-include-inline]
 
 function  Get-WindowsBuildNumber { 
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
     return [int]($os.BuildNumber) 
 } 
-
 #endregion
 
-#region Initializtion
+#region Initialization
+
 
 # grab Time and start Transcript
-    Start-Transcript -Path "$PSScriptRoot\Prereq.log"
-    $StartDateTime = get-date
+    Start-Transcript -Path "$ScriptRoot\Prereq.log"
+    $StartDateTime = Get-Date
     WriteInfo "Script started at $StartDateTime"
+    WriteInfo "`nWSLab Version $wslabVersion"
 
 #Load LabConfig....
-    . "$PSScriptRoot\LabConfig.ps1"
+    . "$ScriptRoot\LabConfig.ps1"
+
+# Telemetry Event
+    if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+        WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
+        Send-TelemetryEvent -Event "Prereq.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
+    }
 
 #define some variables if it does not exist in labconfig
     If (!$LabConfig.DomainNetbiosName){
@@ -248,6 +232,15 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
     }
 
 #endregion
+
+# Telemetry Event
+if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+    $metrics = @{
+        'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
+    }
+ 
+    Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
+}
 
 # finishing 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
