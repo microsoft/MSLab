@@ -280,30 +280,34 @@ function Send-TelemetryEvents {
 function Read-TelemetryLevel {
     process {
         # Ask user for consent
-        WriteInfoHighlighted "`nWould you be OK with providing a telemetry information about your WSLab usage?"
-        WriteInfo "More details about content of the telemetry messages can be found at https://aka.ms/wslab/telemetry"
-        WriteInfo "Tip: You can also configure telemetry settings explicitly in LabConfig.ps1 file and suppress this prompt completely."
-        WriteInfoHighlighted "`n  Please select a telemetry level:"
-        WriteInfo "    [N] None  -- No information will be sent"
-        WriteInfo "    [B] Basic -- Lab info will be sent (e.g. script execution time, number of VMs)"
-        WriteInfo "    [F] Full  -- More details about the host machine and deployed VMs (e.g. guest OS)"
-        
-        do {
-            $response = Read-Host -Prompt "Telemetry level [B]"
-        }
-        while ($response -notin ("N", "[N]", "None", "B", "[B]", "Basic", "F", "[F]", "Full", ""))
+        WriteInfoHighlighted "`nLab telemetry"
+        WriteInfo "By providing a telemetry information you will help us to improve WSLab scripts. There are two levels of a telemetry information and we are not collecting any personally identifiable information (PII)."
+        WriteInfo "Details about telemetry levels and the content of telemetry messages can be found in documentation https://aka.ms/wslab/telemetry"
+        WriteInfo "Available telemetry levels are:"
+        WriteInfo " * None  -- No information will be sent"
+        WriteInfo " * Basic -- Lab info will be sent (e.g. script execution time, number of VMs)"
+        WriteInfo " * Full  -- More details about the host machine and deployed VMs (e.g. guest OS)"
+        WriteInfo "Would you be OK with providing an information about your WSLab usage?"
+        WriteInfo "`nTip: You can also configure telemetry settings explicitly in LabConfig.ps1 file or by setting an environmental variable and suppress this prompt."
+
+        $options = [System.Management.Automation.Host.ChoiceDescription[]] @(
+          <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&None", "No information will be sent"
+          <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Basic", "Lab info will be sent (e.g. script execution time, number of VMs)"
+          <# 2 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Full", "More details about the host machine and deployed VMs (e.g. guest OS)"
+        )
+        $response = $host.UI.PromptForChoice("WSLab telemetry level", "Please choose a telemetry level for this WSLab instance. For more details please see WSLab documentation.", $options, 1 <#default option#>)
 
         $telemetryLevel = $null
         switch($response) {
-            { $_ -in "N", "[N]", "None" } {
+            0 {
                 $telemetryLevel = 'None'
-                WriteInfo "`nNo telemetry information will be send"
+                WriteInfo "`nNo telemetry information will be sent."
             }
-            { $_ -in "B", "[B]", "Basic", "" } {
+            1 {
                 $telemetryLevel = 'Basic'
                 WriteInfo "`nTelemetry has been set to Basic level, thank you for your valuable feedback."
             }
-            { $_ -in "F", "[F]", "Full" } {
+            2 {
                 $telemetryLevel = 'Full'
                 WriteInfo "`nTelemetry has been set to Full level, thank you for your valuable feedback."
             }
