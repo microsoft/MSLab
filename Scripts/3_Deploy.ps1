@@ -1469,9 +1469,9 @@ If (-not $isAdmin) {
                     if(Test-Path -Path $createdVm.OSDiskPath) {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
-                        $properties.'os.installationType' = $osInfo.InstallationType
-                        $properties.'os.editionId' = $osInfo.EditionId
-                        $properties.'os.version' = $osInfo.Version
+                        $properties.'vm.os.installationType' = $osInfo.InstallationType
+                        $properties.'vm.os.editionId' = $osInfo.EditionId
+                        $properties.'vm.os.version' = $osInfo.Version
                     }
 
                     $metrics = @{
