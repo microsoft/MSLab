@@ -1,5 +1,9 @@
 # WSLab Introduction
 
+| Last Update | Latest Release |  |
+| --- | --- | -- |
+| [![GitHub last commit](https://img.shields.io/github/last-commit/Microsoft/wslab/master.svg?style=flat-square)]() | [![GitHub release](https://img.shields.io/github/release/microsoft/wslab.svg?style=flat-square)](https://aka.ms/wslab/download) | [![Download](https://img.shields.io/static/v1?label=&message=Download+WSLab&color=green&style=for-the-badge)](https://aka.ms/wslab/download) |
+
 <!-- TOC -->
 
 - [WSLab Introduction](#wslab-introduction)
