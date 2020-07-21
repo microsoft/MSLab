@@ -1,6 +1,6 @@
 #region install prereqs
     #install management features
-    Install-WindowsFeature -Name RSAT-AD-PowerShell,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+    Install-WindowsFeature -Name RSAT-AD-PowerShell,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica,RSAT-DNS-Server
 
     #configure sites and subnets in Active Directory
     New-ADReplicationSite -Name "Site1-Redmond"
@@ -10,12 +10,12 @@
 #endregion
 
 #region install features and configure hw timeout for virtual environment
-        $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
+        $servers="Site1AzSHCI1","Site1AzSHCI2","Site2AzSHCI1","Site2AzSHCI2"
 
         #install roles and features
         #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
         Invoke-Command -ComputerName $servers -ScriptBlock {
-            Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+            $result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
             if ($result.ExitCode -eq "failed"){
                 Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
             }
@@ -36,8 +36,8 @@
 #endregion
 
 #region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA )
-        [array]$Site1Servers="Site1S2D1","Site1S2D2"
-        [array]$Site2Servers="Site2S2D1","Site2S2D2"
+        [array]$Site1Servers="Site1AzSHCI1","Site1AzSHCI2"
+        [array]$Site2Servers="Site2AzSHCI1","Site2AzSHCI2"
         [array]$servers=$Site1Servers+$Site2Servers
         $vSwitchName="vSwitch"
         $Site1StorNet1="172.16.1."
@@ -103,8 +103,8 @@
 #endregion
 
 #region Create cluster and configure witness (file share or Azure)
-    $servers="Site1S2D1","Site1S2D2","Site2S2D1","Site2S2D2"
-    $ClusterName="S2D-S-Cluster"
+    $servers="Site1AzSHCI1","Site1AzSHCI2","Site2AzSHCI1","Site2AzSHCI2"
+    $ClusterName="AzSHCI-S-Clus"
     $WitnessType="FileShare" #or Cloud
     $ResourceGroupName="WSLabCloudWitness"
     $StorageAccountName="wslabcloudwitness$(Get-Random -Minimum 100000 -Maximum 999999)"
@@ -164,7 +164,7 @@
 #endregion
 
 #region Configure Cluster Networks
-    $ClusterName="S2D-S-Cluster"
+    $ClusterName="AzSHCI-S-Clus"
     $StorNet1="172.16.1."
     $StorNet2="172.16.2."
     $StorNet3="172.16.3."
@@ -192,7 +192,7 @@
 #endregion
 
 #region configure Cluster-Aware-Updating
-    $ClusterName="S2D-S-Cluster"
+    $ClusterName="AzSHCI-S-Clus"
     $CAURoleName="S2D-S-Clus-CAU"
     #Install required features on nodes.
         $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
@@ -207,16 +207,16 @@
 
     <#either static
 
-    $ClusterName="S2D-S-Cluster"
+    $ClusterName="AzSHCI-S-Clus"
     $xml =  @"
     <Topology>
         <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
-            <Node Name="Site1S2D1"/>
-            <Node Name="Site1S2D2"/>
+            <Node Name="Site1AzSHCI1"/>
+            <Node Name="Site1AzSHCI2"/>
         </Site>
         <Site Name="DC02RED" Location="Contoso DC2, 123 Example St, Room 4010, Redmond">
-            <Node Name="Site2S2D1"/>
-            <Node Name="Site2S2D2"/>
+            <Node Name="Site2AzSHCI1"/>
+            <Node Name="Site2AzSHCI2"/>
         </Site>
     </Topology>
 "@
@@ -226,14 +226,14 @@
     <Topology>
         <Site Name="DC01SEA" Location="Contoso DC1, 123 Example St, Room 4010, Seattle">
             <Rack Name="SEA-Rack01" Location="Contoso DC1, Room 4010, Aisle A, Rack 01">
-                <Node Name="Site1S2D1"/>
-                <Node Name="Site1S2D2"/>
+                <Node Name="Site1AzSHCI1"/>
+                <Node Name="Site1AzSHCI2"/>
             </Rack>
         </Site>
         <Site Name="DC02RED" Location="Contoso DC2, 123 Example St, Room 4010, Redmond">
             <Rack Name="RED-Rack01" Location="Contoso DC2, Room 4010, Aisle A, Rack 01">
-                <Node Name="Site2S2D1"/>
-                <Node Name="Site2S2D2"/>
+                <Node Name="Site2AzSHCI1"/>
+                <Node Name="Site2AzSHCI2"/>
             </Rack>
         </Site>
     </Topology>
@@ -248,8 +248,8 @@
     <#or bit more dynamic
     $Site1Name="DC01SEA"
     $Site2Name="DC02RED"
-    $Site1NamesPrefix="Site1S2D"
-    $Site2NamesPrefix="Site2S2D"
+    $Site1NamesPrefix="Site1AzSHCI"
+    $Site2NamesPrefix="Site2AzSHCI"
     $NumberOfNodesPerSite=2
 
     New-ClusterFaultDomain -Name "$Site1Name" -FaultDomainType Site -Location "Contoso HQ, 123 Example St, Room 4010" -CimSession $ClusterName
@@ -271,7 +271,7 @@
 #endregion
 
 #region Enable Cluster S2D and check Pool and Tiers
-$ClusterName="S2D-S-Cluster"
+$ClusterName="AzSHCI-S-Clus"
 #Enable-ClusterS2D
 Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
 
@@ -292,7 +292,7 @@ do{Start-Sleep 5}until(
 #endregion
 
 #region Create Volumes
-    $ClusterName="S2D-S-Cluster"
+    $ClusterName="AzSHCI-S-Clus"
     $NumberOfVolumesPerSite=4 #2 per node for source (for each node 1), 2 per node for destination from other site (+logs)
     $VolumeSize=100GB #scaled down as initial replica takes some time
     $LogSize=10GB
@@ -323,7 +323,7 @@ do{Start-Sleep 5}until(
 #endregion
 
 #region Enable SR for volumes
-$ClusterName="S2D-S-Cluster"
+$ClusterName="AzSHCI-S-Clus"
 $NumberOfVolumesPerSite=4 #2 per node for data (source,destination)
 $VolumeNamePrefix="vDisk"
 $LogDiskPrefix="Log-vDisk"
@@ -438,7 +438,7 @@ Get-ClusterNetwork -Cluster $ClusterName | Select-Object Address,Name,Role
 
 #region create some VMs
 $NumberOfVMsPerVolume=1
-$ClusterName="s2d-s-cluster"
+$ClusterName="AzSHCI-S-Clus"
 
 #ask for VHD
 [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
@@ -472,7 +472,7 @@ Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
 #endregion
 
 #region move odd CSVs and it's respective VMs to site1 and even to site2 
-$ClusterName="s2d-s-cluster"
+$ClusterName="AzSHCI-S-Clus"
 
 $CSVs=Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*
 $sites=Get-ClusterFaultDomain -CimSession $ClusterName -Type Site
@@ -501,12 +501,13 @@ foreach ($VM in $VMs){
 }
 #endregion
 
-#region configure Affinity rules
-$ClusterName="s2d-s-cluster"
+#region configure Affinity rules (just an example, not really needed )
+
+<#
+$ClusterName="AzSHCI-S-Clus"
 $CSVs=Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*
 $VMS=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
 
-#add rule to keep VMs with CSV on the same node (optional, not really needed, just as example)
 foreach ($CSV in $CSVs){
     $CSVName=$csv.name.TrimEnd(")").split("(") | Select-Object -Last 1
     $VMsOnCSV=$vms | Where-Object -Property Path -Like "C:\ClusterStorage\$CSVName*"
@@ -525,6 +526,8 @@ foreach ($CSV in $CSVs){
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     Get-ClusterAffinityRule
 }
+
+#>
 #endregion
 
 #region install Windows Admin Center GW
