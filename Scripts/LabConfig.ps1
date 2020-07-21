@@ -37,8 +37,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
         DHCPscope="10.0.0.0";                        # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
         DCVMVersion="9.0";                           # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
-        TelemetryLevel="";                           # (Optional) 
-        TelemetryNickname="";                        # (Optional) 
+        TelemetryLevel="";                           # (Optional) If configured, script will stop prompting you for telemetry. Values are "None","Basic","Full"
+        TelemetryNickname="";                        # (Optional) If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, WSLab users will be able to see their own stats
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -172,8 +172,17 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
         If True, then Guest Services integration component will be enabled on all VMs. This allows simple file copy from host to guests.
 
     DCVMVersion
-        Example: DCVMVersion="8.0"
+        Example: DCVMVersion="8.0" (optional)
         If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS.
+        
+    TelemetryLevel (optional)
+        Example: TelemetryLevel="Full"
+        If set, scripts will not prompt for telemetry. Can be "None","Basic","Full"
+        For more info see https://aka.ms/wslab/telemetry
+        
+    TelemetryNickname (optional)
+        Example: TelemetryNickname="Jaromirk"
+        If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, WSLab users will be able to see their own stats
 
     #>
 #endregion
