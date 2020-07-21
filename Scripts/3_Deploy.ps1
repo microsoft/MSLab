@@ -13,34 +13,7 @@ If (-not $isAdmin) {
 }
 
 #region Functions
-
-    function WriteInfo($message){
-        Write-Host $message
-    }
-
-    function WriteInfoHighlighted($message){
-        Write-Host $message -ForegroundColor Cyan
-    }
-
-    function WriteSuccess($message){
-        Write-Host $message -ForegroundColor Green
-    }
-
-    function WriteWarning($message) {
-        Write-Host $message -ForegroundColor Yellow
-    }
-
-    function WriteError($message){
-        Write-Host $message -ForegroundColor Red
-    }
-
-    function WriteErrorAndExit($message){
-        Write-Host $message -ForegroundColor Red
-        Write-Host "Press enter to continue ..."
-        Stop-Transcript
-        Read-Host | Out-Null
-        Exit
-    }
+. .\0_Shared.ps1 # [!build-include-inline]
 
     Function CreateUnattendFileBlob{
         #Create Unattend (parameter is Blob)
@@ -672,6 +645,12 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
             $VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
         }
+
+        # return info
+        @{
+            OSDiskPath = $vhdpath
+            VM = $VMTemp
+        }
     }
 #endregion
 
@@ -679,13 +658,28 @@ If (-not $isAdmin) {
 
     Start-Transcript -Path "$PSScriptRoot\Deploy.log"
 
-    $StartDateTime = get-date
+    $StartDateTime = Get-Date
     WriteInfoHighlighted "Script started at $StartDateTime"
+    WriteInfo "`nWSLab Version $wslabVersion"
 
 
     ##Load LabConfig....
         . "$PSScriptRoot\LabConfig.ps1"
 
+    # Telemetry
+        if(-not (Get-TelemetryLevel)) {
+            $telemetryLevel = Read-TelemetryLevel
+            $LabConfig.TelemetryLevel = $telemetryLevel
+            $promptShown = $true
+        }
+
+        if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+            if(-not $promptShown) {
+                WriteInfo "Telemetry is set to $(Get-TelemetryLevel) level from $(Get-TelemetryLevelSource)"
+            }
+            Send-TelemetryEvent -Event "Deploy.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
+        }
+    
 #endregion
 
 #region Set variables
@@ -860,6 +854,7 @@ If (-not $isAdmin) {
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
         WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
         $mountdir="$env:Temp\WSLAbMountDir"
+        $VolumeFileSystem="CSVFS"
     }else{
         $mountdir="$PSScriptRoot\Temp\MountDir"
         $VolumeFileSystem=(Get-Volume -DriveLetter $driveletter).FileSystemType
@@ -961,9 +956,10 @@ If (-not $isAdmin) {
 
     #Testing if lab already exists.
         WriteInfoHighlighted "Checking if lab already exists."
+        $LABExists=$false
         if ($SwitchNameExists){
             if ((Get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue) -ne $null){
-                $LABExists=$True
+                $LABExists=$true
                 WriteInfo "`t Lab already exists. If labconfig contains additional VMs, they will be added."
             }else{
                 WriteInfo "`t Lab does not exist, will be created"
@@ -1293,6 +1289,7 @@ If (-not $isAdmin) {
 #endregion
 
 #region Provision VMs
+    $vmDeploymentEvents = @()
     #DSC config for LCM (in case Pull configuration is specified)
         WriteInfoHighlighted "Creating DSC config to configure DC as pull server"
 
@@ -1344,8 +1341,11 @@ If (-not $isAdmin) {
 
     #process $labconfig.VMs and create VMs (skip if machine already exists)
         WriteInfoHighlighted 'Processing $LabConfig.VMs, creating VMs'
+        $provisionedVMsCount = 0
         foreach ($VMConfig in $LABConfig.VMs.GetEnumerator()){
             if (!(Get-VM -Name "$($labconfig.prefix)$($VMConfig.vmname)" -ErrorAction SilentlyContinue)){
+                $vmProvisioningStartTime = Get-Date
+
                 # Ensure that Configuration is set and use Simple as default
                 if(-not $VMConfig.configuration) {
                     $VMConfig.configuration = "Simple"
@@ -1375,7 +1375,7 @@ If (-not $isAdmin) {
                                 $SharedHDDs=Get-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-*.VHDS" -ErrorAction SilentlyContinue
                             }
                         #Build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #Compose VMName
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
                         #Add disks
@@ -1394,13 +1394,13 @@ If (-not $isAdmin) {
 
                 #create VM with Simple configuration
                     if ($VMConfig.configuration -eq 'Simple'){
-                        BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
                     }
 
                 #create VM with S2D configuration
                     if ($VMConfig.configuration -eq 'S2D'){
                         #build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                        $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
                         #compose VM name
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName
 
@@ -1441,7 +1441,7 @@ If (-not $isAdmin) {
                                 $ReplicaLog=Get-VHD -Path "$LABfolder\VMs\ReplicaLog-$VMSet.VHDS"
                             }
                         #build VM
-                            BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
+                            $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
 
                         #Add disks
                             $VMname=$Labconfig.Prefix+$VMConfig.VMName                
@@ -1459,6 +1459,29 @@ If (-not $isAdmin) {
                                     WriteInfo "`t`t $filename size $($_.size /1GB)GB added to $VMname"
                                 }
                     }
+
+                # Telemetry Report
+                if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+                    $properties = @{
+                        'vm.configuration' = $VMConfig.Configuration
+                        'vm.unattend' = $VMConfig.Unattend
+                    }
+                    if(Test-Path -Path $createdVm.OSDiskPath) {
+                        $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
+                        
+                        $properties.'vm.os.installationType' = $osInfo.InstallationType
+                        $properties.'vm.os.editionId' = $osInfo.EditionId
+                        $properties.'vm.os.version' = $osInfo.Version
+                    }
+
+                    $metrics = @{
+                        'vm.deploymentDuration' = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
+                    }
+                    $vmInfo = New-TelemetryEvent -Event "Deploy.VM" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
+                    $vmDeploymentEvents += $vmInfo
+                }
+                
+                $provisionedVMsCount += 1
             }
         }
 
@@ -1478,7 +1501,8 @@ If (-not $isAdmin) {
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
 
     #list VMs 
-        Get-VM | Where-Object name -like "$($labconfig.Prefix)*"  | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
+        $AllVMs = Get-VM | Where-Object name -like "$($labconfig.Prefix)*"
+        $AllVMs | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
     #configure HostResourceProtection on all VM CPUs
         WriteInfo "`t Configuring EnableHostResourceProtection on all VM processors"
@@ -1499,8 +1523,28 @@ If (-not $isAdmin) {
         WriteInfo "`t Enabling VMNics device naming"
         Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object Generation -eq 2 | Set-VMNetworkAdapter -DeviceNaming On
 
+    # Telemetry Event
+    if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
+        WriteInfo "`t Sending telemetry info"
+        $metrics = @{
+            'script.duration' = [Math]::Round(((Get-Date) - $StartDateTime).TotalSeconds, 2)
+            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
+            'lab.vmsCount.active' = ($AllVMs | Measure-Object).Count # how many VMs are running
+            'lab.vmsCount.provisioned' = $provisionedVMsCount # how many VMs were created by this script run
+        }
+        $properties = @{
+            'lab.timezone' = $TimeZone
+            'lab.internet' = [bool]$LabConfig.Internet
+            'lab.isncrementalDeployment' = $LABExists
+        }
+        $telemetryEvent = New-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
+        $vmDeploymentEvents += $telemetryEvent
+
+        Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
+    }
+
     #write how much it took to deploy
-        WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+        WriteInfo "Script finished at $(Get-Date) and took $(((Get-Date) - $StartDateTime).TotalMinutes) Minutes"
 
     Stop-Transcript
 
