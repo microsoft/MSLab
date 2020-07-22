@@ -10,12 +10,15 @@
     - [Region Configure Cluster Networks](#region-configure-cluster-networks)
     - [Region configure Cluster-Aware-Updating](#region-configure-cluster-aware-updating)
     - [Region Configure Fault Domains (just an example)](#region-configure-fault-domains-just-an-example)
+    - [Region Configure Fault Domains (commented - just an example)](#region-configure-fault-domains-commented---just-an-example)
     - [Region Enable Cluster S2D and check Pool and Tiers](#region-enable-cluster-s2d-and-check-pool-and-tiers)
     - [Region create volumes](#region-create-volumes)
     - [Region Enable SR for volumes](#region-enable-sr-for-volumes)
     - [Region create some VMs](#region-create-some-vms)
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
     - [Region configure Affinity rules](#region-configure-affinity-rules)
+    - [Region install Windows Admin Center Gateway](#region-install-windows-admin-center-gateway)
+    - [Region Register Azure Stack HCI with Azure](#region-register-azure-stack-hci-with-azure)
 
 <!-- /TOC -->
 
@@ -109,14 +112,21 @@ After
 Just to have a role to play with.
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell02.png)
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+=======
 
 ### Region Configure Fault Domains (just an example)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
-This part will just configure simple XML. Note commented sections - it's also possible to use PowerShell, where it is easier to create fault domains more dynamic.
+### Region Configure Fault Domains (commented - just an example)
 
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+This part will just demonstrates simple XML. It is all commented since fault domains are automatically populated because cluster exists in two different sites.
+=======
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell03.png)
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin05.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 ### Region Enable Cluster S2D and check Pool and Tiers
 
@@ -151,14 +161,21 @@ The code will also configure network constraints, so Storage Replica will use Re
 As you can see, Storage Replica Constraints are configured.
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell07.png)
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+=======
 
 And also that volumes are being replicated. It also takes some time to finish.
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell08.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
-You can see, that communication is constrained to it's interfaces
+And also here is neat script to validate replication status
 
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell08.png)
+=======
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell09.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 
 ### Region create some VMs
@@ -179,17 +196,23 @@ Before
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin08.png)
 
-![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin09.png)
-
 After
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin10.png)
 
-![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin11.png)
-
 ### Region configure Affinity rules
 
-This region just demonstrates how to configure Affinity rules. In this case script demonstrates how to make all VMs placed on CSV to be affinitized to it's CSV
+This region is just commented sample. It is not needed, since there is a watchdog that moves VMs to it's CSVs
 
-![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell10.png)
+### Region install Windows Admin Center Gateway
+
+In this region will install Windows Admin Center into WACGW server and install Edge browser into Management machine. You can explore your Stretch  Cluster in fancy graphical interface. Notice, that script will also configure kerberos constrained delegation and will import WACGW self-signed certificate to local Trusted Root Certificates store, so https://wacgw will not return any error.
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/WAC01.png)
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/WAC02.png)
+
+### Region Register Azure Stack HCI with Azure
+
+In this region your Azure Stack HCI cluster will be registered to Azure
 
