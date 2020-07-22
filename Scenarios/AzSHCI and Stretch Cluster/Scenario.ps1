@@ -581,3 +581,45 @@ Install-WindowsFeature -name RSAT-Storage-Replica -ComputerName $GatewayServerNa
 
 #endregion
 
+#region register AzSHCI to Azure
+    $ClusterName="AzSHCI-S-Clus"
+    
+    #download Azure module
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
+        Install-Module -Name Az.StackHCI -Force
+    }
+
+    #login to azure
+    #download Azure module
+    if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+        Install-Module -Name Az.Accounts -Force
+    }
+    Login-AzAccount -UseDeviceAuthentication
+
+    #select context if more available
+    $context=Get-AzContext -ListAvailable
+    if (($context).count -gt 1){
+        $context | Out-GridView -OutputMode Single | Set-AzContext
+    }
+
+    #select subscription
+    $subscriptions=Get-AzSubscription
+    if (($subscriptions).count -gt 1){
+        $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+    }
+
+    $subscriptionID=(Get-AzSubscription).ID
+
+    #register Azure Stack HCI
+    Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+    #or more complex
+    <#
+    #grab location
+    if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+        Install-Module -Name Az.Resources -Force
+    }
+    $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
+    Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
+    #>
+#endregion
