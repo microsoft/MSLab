@@ -9,6 +9,7 @@
     - [Region Create cluster and configure witness (file share or Azure)](#region-create-cluster-and-configure-witness-file-share-or-azure)
     - [Region Configure Cluster Networks](#region-configure-cluster-networks)
     - [Region configure Cluster-Aware-Updating](#region-configure-cluster-aware-updating)
+    - [Region Configure Fault Domains (just an example)](#region-configure-fault-domains-just-an-example)
     - [Region Configure Fault Domains (commented - just an example)](#region-configure-fault-domains-commented---just-an-example)
     - [Region Enable Cluster S2D and check Pool and Tiers](#region-enable-cluster-s2d-and-check-pool-and-tiers)
     - [Region create volumes](#region-create-volumes)
@@ -16,6 +17,8 @@
     - [Region create some VMs](#region-create-some-vms)
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
     - [Region configure Affinity rules](#region-configure-affinity-rules)
+    - [Region install Windows Admin Center Gateway](#region-install-windows-admin-center-gateway)
+    - [Region Register Azure Stack HCI with Azure](#region-register-azure-stack-hci-with-azure)
 
 <!-- /TOC -->
 
@@ -109,10 +112,21 @@ After
 Just to have a role to play with.
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell02.png)
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+=======
+
+### Region Configure Fault Domains (just an example)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 ### Region Configure Fault Domains (commented - just an example)
 
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
 This part will just demonstrates simple XML. It is all commented since fault domains are automatically populated because cluster exists in two different sites.
+=======
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell03.png)
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/Cluadmin05.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 ### Region Enable Cluster S2D and check Pool and Tiers
 
@@ -147,10 +161,21 @@ The code will also configure network constraints, so Storage Replica will use Re
 As you can see, Storage Replica Constraints are configured.
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell07.png)
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
+=======
+
+And also that volumes are being replicated. It also takes some time to finish.
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell08.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 And also here is neat script to validate replication status
 
+<<<<<<< HEAD:Scenarios/AzSHCI and Stretch Cluster/readme.md
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell08.png)
+=======
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell09.png)
+>>>>>>> a1d831a7aff5dd0edd31de2bae1d870f17ca945e:Scenarios/S2D and Stretch Cluster/readme.md
 
 
 ### Region create some VMs
