@@ -1,5 +1,3 @@
-# WSLab
-
 <p align="center">
 <a href="https://aka.ms/wslab/download"><img src="https://img.shields.io/static/v1?label=&message=Download+WSLab&color=blue&style=for-the-badge" title="Download WSLab scripts" alt="Download WSLab"></a>
 </p>
@@ -8,17 +6,16 @@
 
 <!-- TOC -->
 
-- [WSLab](#wslab)
-    - [Introduction](#introduction)
-    - [Requirements](#requirements)
-    - [Scripts](#scripts)
-    - [Scenarios](#scenarios)
-    - [Use cases](#use-cases)
-        - [Prototyping](#prototyping)
-        - [Hands on Labs](#hands-on-labs)
-        - [Issue reproduction](#issue-reproduction)
-        - [Sessions](#sessions)
-        - [Run in PowerShell Core 7](#run-in-powershell-core-7)
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Scripts](#scripts)
+- [Scenarios](#scenarios)
+- [Use cases](#use-cases)
+    - [Prototyping](#prototyping)
+    - [Hands on Labs](#hands-on-labs)
+    - [Issue reproduction](#issue-reproduction)
+    - [Sessions](#sessions)
+    - [Run in PowerShell Core 7](#run-in-powershell-core-7)
 
 <!-- /TOC -->
 
