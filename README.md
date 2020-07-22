@@ -1,12 +1,15 @@
-# WSLab Introduction
+# WSLab
 
-| Last Update | Latest Release |  |
-| --- | --- | -- |
-| [![GitHub last commit](https://img.shields.io/github/last-commit/Microsoft/wslab/master.svg?style=flat-square)]() | [![GitHub release](https://img.shields.io/github/release/microsoft/wslab.svg?style=flat-square)](https://aka.ms/wslab/download) | [![Download](https://img.shields.io/static/v1?label=&message=Download+WSLab&color=green&style=for-the-badge)](https://aka.ms/wslab/download) |
+<p align="center">
+<a href="https://aka.ms/wslab/download"><img src="https://img.shields.io/static/v1?label=&message=Download+WSLab&color=blue&style=for-the-badge" title="Download WSLab scripts" alt="Download WSLab"></a>
+</p>
+
+## Introduction
 
 <!-- TOC -->
 
-- [WSLab Introduction](#wslab-introduction)
+- [WSLab](#wslab)
+    - [Introduction](#introduction)
     - [Requirements](#requirements)
     - [Scripts](#scripts)
     - [Scenarios](#scenarios)
