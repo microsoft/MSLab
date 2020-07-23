@@ -622,4 +622,15 @@ Install-WindowsFeature -name RSAT-Storage-Replica -ComputerName $GatewayServerNa
     $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
     Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
     #>
+
+    #Install Azure Stack HCI RSAT Tools to all nodes
+    $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Install-WindowsFeature -Name RSAT-Azure-Stack-HCI
+    }
+
+    #Validate registration (query on just one node is needed)
+    Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        Get-AzureStackHCI
+    }
 #endregion
