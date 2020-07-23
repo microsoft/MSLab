@@ -17,7 +17,7 @@
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
     - [Region configure Affinity rules](#region-configure-affinity-rules)
     - [Region install Windows Admin Center Gateway](#region-install-windows-admin-center-gateway)
-    - [Region Register Azure Stack HCI with Azure](#region-register-azure-stack-hci-with-azure)
+    - [Region Register Azure Stack HCI with Azure and validate](#region-register-azure-stack-hci-with-azure-and-validate)
 
 <!-- /TOC -->
 
