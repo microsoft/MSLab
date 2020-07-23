@@ -16,6 +16,8 @@
     - [Region create some VMs](#region-create-some-vms)
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
     - [Region configure Affinity rules](#region-configure-affinity-rules)
+    - [Region install Windows Admin Center Gateway](#region-install-windows-admin-center-gateway)
+    - [Region Register Azure Stack HCI with Azure and validate](#region-register-azure-stack-hci-with-azure-and-validate)
 
 <!-- /TOC -->
 
@@ -187,7 +189,10 @@ In this region will install Windows Admin Center into WACGW server and install E
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/WAC02.png)
 
-### Region Register Azure Stack HCI with Azure
+### Region Register Azure Stack HCI with Azure and validate
 
 In this region your Azure Stack HCI cluster will be registered to Azure
 
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/AzurePortal01.png)
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell11.png)
