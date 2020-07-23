@@ -3,6 +3,7 @@
 - [AzSHCI and Cluster Creation Extension](#azshci-and-cluster-creation-extension)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
+    - [Prereq for stretch](#prereq-for-stretch)
     - [The lab](#the-lab)
         - [Install Edge on DC](#install-edge-on-dc)
         - [Install Windows Admin Center in GW mode](#install-windows-admin-center-in-gw-mode)
@@ -47,6 +48,16 @@ $LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MGMT
 #Windows 10 management machine
 $LabConfig.VMs += @{ VMName = 'Win10'; ParentVHD = 'Win1020H1_G2.vhdx' ; AddToolsVHD = $True ; MGMTNICs=1 }
  
+```
+
+## Prereq for stretch
+
+```Powershell
+    #configure sites and subnets in Active Directory
+    New-ADReplicationSite -Name "Site1-Redmond"
+    New-ADReplicationSite -Name "Site2-Seattle"
+    New-ADReplicationSubnet -Name "10.0.0.0/24" -Site "Site1-Redmond" -Location "Redmond, WA"
+    New-ADReplicationSubnet -Name "10.0.1.0/24" -Site "Site2-Seattle" -Location "Seattle, WA"
 ```
 
 ## The lab
