@@ -155,6 +155,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
     }else{ 
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
+            <# aka.ms/diskspd changed. Commented
             $webcontent  = Invoke-WebRequest -Uri "https://aka.ms/diskspd" -UseBasicParsing
             if($PSVersionTable.PSEdition -eq "Core") {
                 $link = $webcontent.Links | Where-Object data-url -Match "/Diskspd.*zip$"
@@ -162,6 +163,8 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
             } else {
                 $downloadurl = $webcontent.BaseResponse.ResponseUri.AbsoluteUri.Substring(0,$webcontent.BaseResponse.ResponseUri.AbsoluteUri.LastIndexOf('/'))+($webcontent.Links | where-object { $_.'data-url' -match '/Diskspd.*zip$' }|Select-Object -ExpandProperty "data-url")
             }
+            #>
+            $downloadurl="https://github.com/microsoft/diskspd/releases/download/v2.0.21a/DiskSpd-2.0.21a.zip"
             Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.zip"
         }catch{
             WriteError "`t Failed to download Diskspd!"
