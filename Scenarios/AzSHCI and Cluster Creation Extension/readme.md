@@ -18,10 +18,13 @@
 
 In following lab you deploy Azure Stack HCI Cluster using Cluster Creation in Windows Admin Center.
 
-Note: there is a known issue, that exposed virtualization extensions are not detected, so install Hyper-V feature first
+Note: there is a known issue, that exposed virtualization extensions are not detected, so install Hyper-V feature (and Hyper-V PowerShell, or WAC Will not create vSwitches) first
 
 ```powershell
-Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
+Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
+    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart
+    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -Online -NoRestart
+}
  
 ```
 
@@ -165,7 +168,10 @@ In Edge, navigate to https://wacgw. Log in with corp\LABAdmin LS1setup! credenti
 ![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC09.png)
 
 ```powershell
-Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart}
+Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
+    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart
+    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -Online -NoRestart
+}
  
 ```
 
