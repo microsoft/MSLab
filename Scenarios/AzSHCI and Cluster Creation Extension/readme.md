@@ -23,7 +23,7 @@ Note: there is a known issue, that exposed virtualization extensions are not det
 ```powershell
 Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart
-    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -Online -NoRestart
+    Install-WindowsFeature -Name Hyper-V-PowerShell
 }
  
 ```
@@ -124,7 +124,7 @@ foreach ($computer in $computers){
     $computerObject = Get-ADComputer -Identity $computer
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
-
+ 
 ```
 
 ### Or Install Windows Admin Center on Windows 10 machine
@@ -170,7 +170,7 @@ In Edge, navigate to https://wacgw. Log in with corp\LABAdmin LS1setup! credenti
 ```powershell
 Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart
-    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-Management-PowerShell -Online -NoRestart
+    Install-WindowsFeature -Name Hyper-V-PowerShell
 }
  
 ```
@@ -190,3 +190,60 @@ Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
 ![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC16.png)
 
 ![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC17.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC18.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC19.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC20.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC21.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC22.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC23.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC24.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC25.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC26.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC27.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC28.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC29.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC30.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC31.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC32.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC33.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC34.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC35.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC36.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC37.png)
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC38.png)
+
+```Powershell
+#Configure Resource-Based constrained delegation
+$gatewayServerName="WACGW"
+$gatewayObject = Get-ADComputer -Identity $GatewayServerName
+$computers = (Get-ADComputer -Filter *).Name
+
+foreach ($computer in $computers){
+    $computerObject = Get-ADComputer -Identity $computer
+    Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+}
+ 
+```
+
+![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/WAC39.png)
