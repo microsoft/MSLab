@@ -116,6 +116,11 @@ function Get-TelemetryLevelSource {
     process {
         $acceptedTelemetryLevels = "None", "Basic", "Full"
 
+        # Is it set interactively?
+        if($LabConfig.ContainsKey("TelemetryLevelSource")) {
+            return $LabConfig.TelemetryLevelSource
+        }
+
         # LabConfig value has a priority
         if($LabConfig.TelemetryLevel -and $LabConfig.TelemetryLevel -in $acceptedTelemetryLevels) {
             return "LabConfig"
@@ -148,6 +153,8 @@ function Get-PcSystemType {
     }
 }
 
+$aiPropertyCache = @{}
+
 function New-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
@@ -159,7 +166,7 @@ function New-TelemetryEvent {
 
     process {
         if(-not $TelemetryInstrumentationKey) {
-            WriteInfo "Instrumentation key is required in order to send telemetry data."
+            WriteInfo "Instrumentation key is required to send telemetry data."
             return
         }
         
@@ -203,6 +210,11 @@ function New-TelemetryEvent {
             $extraMetrics.'cpu.logical.count' = $hw.NumberOfLogicalProcessors
             $extraMetrics.'cpu.sockets.count' = $hw.NumberOfProcessors
 
+            if(-not $aiPropertyCache.ContainsKey("cpu.model")) {
+                $aiPropertyCache["cpu.model"] = (Get-CimInstance "Win32_Processor" | Select-Object -First 1).Name
+            }
+            $extraProperties.'cpu.model' = $aiPropertyCache["cpu.model"]
+
             # Disk
             $driveLetter = $ScriptRoot -Split ":" | Select-Object -First 1
             $volume = Get-Volume -DriveLetter $driveLetter
@@ -220,11 +232,13 @@ function New-TelemetryEvent {
             iKey = $TelemetryInstrumentationKey
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
-                "ai.cloud.roleInstance" = Split-Path -Path $ScriptRoot -Leaf
+                "ai.cloud.role" = Split-Path -Path $PSCommandPath -Leaf
                 "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.0'
                 "ai.session.id" = $TelemetrySessionId
                 "ai.device.locale" = (Get-WinsystemLocale).Name
-                "ai.device.id" = $computerNameHash 
+                "ai.user.id" = (((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash)
+                "ai.device.id" = $computerNameHash
+                "ai.device.type" = $extraProperties["hw.type"]
                 "ai.device.os" = ""
                 "ai.device.osVersion" = ""
                 "ai.device.oemName" = ""

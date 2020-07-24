@@ -106,6 +106,7 @@ If (-not $isAdmin) {
         if(-not (Get-TelemetryLevel)) {
             $telemetryLevel = Read-TelemetryLevel
             $LabConfig.TelemetryLevel = $telemetryLevel
+            $LabConfig.TelemetryLevelSource = "Prompt"
             $promptShown = $true
         }
 
