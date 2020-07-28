@@ -13,7 +13,7 @@ If (-not $isAdmin) {
 }
 
 #region Functions
-. .\0_Shared.ps1 # [!build-include-inline]
+. $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
     #Create Unattend for VHD 
     Function CreateUnattendFileVHD{
