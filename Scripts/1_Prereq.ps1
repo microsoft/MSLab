@@ -16,7 +16,7 @@ If (-not $isAdmin) {
 1..10 | ForEach-Object { Write-Host "" }
 
 #region Functions
-. .\0_Shared.ps1 # [!build-include-inline]
+. $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
 function  Get-WindowsBuildNumber { 
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
