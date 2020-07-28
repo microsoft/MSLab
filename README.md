@@ -2,7 +2,7 @@
 
 ## tl;dr
 
-To start using WSLab please download the latest version of the scrips from [Releases](https://github.com/microsoft/WSLab/releases) section of this repository.
+To start using WSLab just download the latest version of scrips from [Releases](https://github.com/microsoft/WSLab/releases) section of this repository.
 
 💡 Shortcut to the latest version is https://aka.ms/wslab/download
 
