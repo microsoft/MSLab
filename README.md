@@ -1,5 +1,11 @@
 # WSLab
 
+## tl;dr
+
+To start using WSLab just download the latest version of scrips from [Releases](https://github.com/microsoft/WSLab/releases) section of this repository.
+
+💡 Shortcut to the latest version is https://aka.ms/wslab/download
+
 <p align="center">
 <a href="https://aka.ms/wslab/download"><img src="https://img.shields.io/static/v1?label=&message=Download+WSLab&color=blue&style=for-the-badge" title="Download WSLab scripts" alt="Download WSLab"></a>
 </p>
@@ -41,6 +47,12 @@ Unlike other solutions, WSLab focuses on simplicity (all actions can be done wit
 The main part of WSLab are the [Scripts](https://aka.ms/wslabzip) that will help you preparing lab files ([Hydration Phase](Docs/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks from of provided ISO and will create Domain Controller. [WSLab Deployment](Docs/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
 
 ![](Docs/media/Explorer01.png)
+
+### How to get the Scripts
+
+In the past, this ZIP file was stored in the git repository, and recently we switched to using a native Releases feature of Github, where all releases are available at https://github.com/microsoft/WSLab/releases. Also, we have a static direct link to the latest WSLab release on http://aka.ms/wslab/download which is updated automatically when we create a new version.
+
+This built ZIP file is more optimized, e. g. the file 0_Shared.ps1 is in-lined to the rest of the scripts to keep the number of WSLab files as low as possible. Compared to the git repository where I tend to split those scripts to multiple independent files for a better supportability on our side.
 
 ## Scenarios
 
