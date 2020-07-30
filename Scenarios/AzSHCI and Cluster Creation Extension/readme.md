@@ -2,7 +2,7 @@
 
 - [AzSHCI and Cluster Creation Extension](#azshci-and-cluster-creation-extension)
     - [About the lab](#about-the-lab)
-    - [LabConfig](#labconfig)
+    - [LabConfig with enabled telemetry (full)](#labconfig-with-enabled-telemetry-full)
     - [Prereq for stretch](#prereq-for-stretch)
     - [The lab](#the-lab)
         - [Install Edge on DC](#install-edge-on-dc)
@@ -28,12 +28,15 @@ Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
  
 ```
 
-## LabConfig
+## LabConfig with enabled telemetry (full)
 
 ![](/Scenarios/AzSHCI%20and%20Cluster%20Creation%20Extension/Screenshots/VMs.png)
 
+FYI: In following LabConfig is telemetry configured to full. To opt out, change TelemetryLevel to 'none' or delete TelemetryLevel and TelemetryNickname parameters (so you will be prompted during deploy.ps1 for level)
+
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'<#; Prefix = 'WSLab-'#> ; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
+#sample labconfig with enabled telemetry (Full)
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'WSLab-'; SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; TelemetryLevel='Full' ; TelemetryNickname='' ; AdditionalNetworksConfig=@(); VMs=@()}
 
 #pre-domain joined
 1..4 | ForEach-Object {$VMNames="1AzSHCI" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI20H2_G2.vhdx' ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 4GB; MGMTNICs=4 ; NestedVirt=$true}} 
