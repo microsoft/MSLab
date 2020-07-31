@@ -1,341 +1,496 @@
 {
-  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "location": {
-      "type": "string",
-      "defaultValue": "westeurope",
-      "allowedValues": [
-        "australiaeast",
-        "australiasoutheast",
-        "brazilsouth",
-        "canadacentral",
-        "canadaeast",
-        "centralindia",
-        "centralus",
-        "eastasia",
-        "eastus",
-        "eastus2",
-        "japaneast",
-        "japanwest",
-        "koreacentral",
-        "koreasouth",
-        "northcentralus",
-        "northeurope",
-        "southcentralus",
-        "southeastasia",
-        "southindia",
-        "uksouth",
-        "ukwest",
-        "westcentralus",
-        "westeurope",
-        "westindia",
-        "westus",
-        "westus2"
-      ]
-    },
-    "virtualMachineName": {
-      "type": "string",
-      "defaultValue": "WSLab"
-    },
-    "virtualMachineSize": {
-      "type": "string",
-      "defaultValue": "Standard_D16s_v3",
-      "allowedValues": [
-        "Standard_D2_v3",
-        "Standard_D4_v3",
-        "Standard_D8_v3",
-        "Standard_D16_v3",
-        "Standard_D32_v3",
-        "Standard_D64_v3",
-        "Standard_D2s_v3",
-        "Standard_D4s_v3",
-        "Standard_D8s_v3",
-        "Standard_D16s_v3",
-        "Standard_D32s_v3",
-        "Standard_D64s_v3",
-        "Standard_E2_v3",
-        "Standard_E4_v3",
-        "Standard_E8_v3",
-        "Standard_E16_v3",
-        "Standard_E32_v3",
-        "Standard_E64_v3",
-        "Standard_E2s_v3",
-        "Standard_E4s_v3",
-        "Standard_E8s_v3",
-        "Standard_E16s_v3",
-        "Standard_E32-8s_v3",
-        "Standard_E32-16s_v3",
-        "Standard_E32s_v3",
-        "Standard_E64-16s_v3",
-        "Standard_E64-32s_v3",
-        "Standard_E64s_v3"
-      ]
-    },
-    "adminUsername": {
-      "type": "string",
-      "defaultValue": "LabAdmin"
-    },
-    "virtualNetworkName": {
-      "type": "string",
-      "defaultValue": "WSLab-vnet"
-    },
-    "networkInterfaceName": {
-      "type": "string",
-      "defaultValue": "WSLabNIC1"
-    },
-    "networkSecurityGroupName": {
-      "type": "string",
-      "defaultValue": "WSLabNIC1"
-    },
-    "adminPassword": {
-      "type": "securestring"
-    },
-    "addressPrefix": {
-      "type": "string",
-      "defaultValue": "10.0.0.0/24"
-    },
-    "subnetName": {
-      "type": "string",
-      "defaultValue": "default"
-    },
-    "subnetPrefix": {
-      "type": "string",
-      "defaultValue": "10.0.0.0/24"
-    },
-    "publicIpAddressName": {
-      "type": "string",
-      "defaultValue": "WSLab-ip"
-    },
-    "publicIpAddressType": {
-      "type": "string",
-      "defaultValue": "Dynamic"
-    },
-    "publicIpAddressSku": {
-      "type": "string",
-      "defaultValue": "Basic"
-    },
-    "autoShutdownStatus": {
-      "type": "string",
-      "defaultValue": "Enabled"
-    },
-    "autoShutdownTime": {
-      "type": "string",
-      "defaultValue": "19:00"
-    },
-    "autoShutdownTimeZone": {
-      "type": "string",
-      "defaultValue": "UTC"
-    },
-    "autoShutdownNotificationStatus": {
-      "type": "string",
-      "defaultValue": "Disabled"
-    },
-    "_artifactsLocation": {
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "virtualMachineName": {
         "type": "string",
-        "metadata": {
-            "description": "Location of resources that the script is dependent on such as linked templates and DSC modules"
-        },
-        "defaultValue": "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure"
-    },
-    "_artifactsLocationSasToken": {
-        "type": "securestring",
-        "metadata": {
-            "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
-        },
-        "defaultValue": ""
-    }
-  },
-  "variables": {
-      "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
-      "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
-  },
-  "resources": [
-      {
-          "name": "[parameters('virtualMachineName')]",
-          "type": "Microsoft.Compute/virtualMachines",
-          "apiVersion": "2019-07-01",
-          "location": "[parameters('location')]",
-          "dependsOn": [
-              "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
-          ],
-          "properties": {
-              "osProfile": {
-                  "computerName": "[parameters('virtualMachineName')]",
-                  "adminUsername": "[parameters('adminUsername')]",
-                  "adminPassword": "[parameters('adminPassword')]",
-                  "windowsConfiguration": {
-                      "provisionVmAgent": "true"
-                  }
-              },
-              "hardwareProfile": {
-                  "vmSize": "[parameters('virtualMachineSize')]"
-              },
-              "storageProfile": {
-                  "imageReference": {
-                      "publisher": "MicrosoftWindowsServer",
-                      "offer": "WindowsServer",
-                      "sku": "2019-Datacenter",
-                      "version": "latest"
-                  },
-                  "osDisk": {
-                      "createOption": "fromImage",
-                      "managedDisk": {
-                          "storageAccountType": "Premium_LRS"
-                      }
-                  },
-                  "dataDisks": []
-              },
-              "networkProfile": {
-                  "networkInterfaces": [
-                      {
-                          "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
-                      }
-                  ]
-              },
-              "licenseType": "Windows_Server"
-          }
+        "defaultValue": "WSLab"
       },
-      {
-          "name": "[concat('shutdown-computevm-', parameters('virtualMachineName'))]",
-          "type": "Microsoft.DevTestLab/schedules",
-          "apiVersion": "2017-04-26-preview",
-          "location": "[parameters('location')]",
-          "properties": {
-              "status": "[parameters('autoShutdownStatus')]",
-              "taskType": "ComputeVmShutdownTask",
-              "dailyRecurrence": {
-                  "time": "[parameters('autoShutdownTime')]"
-              },
-              "timeZoneId": "[parameters('autoShutdownTimeZone')]",
-              "targetResourceId": "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachineName'))]",
-              "notificationSettings": {
-                  "status": "[parameters('autoShutdownNotificationStatus')]",
-                  "timeInMinutes": "30"
-              }
-          },
-          "dependsOn": [
-              "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+      "virtualMachineSize": {
+        "type": "string",
+        "defaultValue": "Standard_D16s_v3",
+        "allowedValues": [
+          "Standard_D4_v3",
+          "Standard_D8_v3",
+          "Standard_D16_v3",
+          "Standard_D32_v3",
+          "Standard_D64_v3",
+          "Standard_D4s_v3",
+          "Standard_D8s_v3",
+          "Standard_D16s_v3",
+          "Standard_D32s_v3",
+          "Standard_D64s_v3",
+          "Standard_D4_v4",
+          "Standard_D8_v4",
+          "Standard_D16_v4",
+          "Standard_D32_v4",
+          "Standard_D64_v4",
+          "Standard_D4s_v4",
+          "Standard_D8s_v4",
+          "Standard_D16s_v4",
+          "Standard_D32s_v4",
+          "Standard_D64s_v4",
+          "Standard_D4d_v4",
+          "Standard_D8d_v4",
+          "Standard_D16d_v4",
+          "Standard_D32d_v4",
+          "Standard_D64d_v4",
+          "Standard_D4ds_v4",
+          "Standard_D8ds_v4",
+          "Standard_D16ds_v4",
+          "Standard_D32ds_v4",
+          "Standard_D64ds_v4",
+          "Standard_E4_v3",
+          "Standard_E8_v3",
+          "Standard_E16_v3",
+          "Standard_E32_v3",
+          "Standard_E64_v3",
+          "Standard_E8s_v3",
+          "Standard_E16s_v3",
+          "Standard_E32-8s_v3",
+          "Standard_E32-16s_v3",
+          "Standard_E32s_v3",
+          "Standard_E64-16s_v3",
+          "Standard_E64-32s_v3",
+          "Standard_E64s_v3",
+          "Standard_E4_v4",
+          "Standard_E8_v4",
+          "Standard_E16_v4",
+          "Standard_E20_v4",
+          "Standard_E32_v4",
+          "Standard_E48_v4",
+          "Standard_E64_v4",
+          "Standard_E4s_v4",
+          "Standard_E8s_v4",
+          "Standard_E16s_v4",
+          "Standard_E20s_v4",
+          "Standard_E32s_v4",
+          "Standard_E48s_v4",
+          "Standard_E64s_v4",
+          "Standard_E4d_v4",
+          "Standard_E8d_v4",
+          "Standard_E16d_v4",
+          "Standard_E20d_v4",
+          "Standard_E32d_v4",
+          "Standard_E48d_v4",
+          "Standard_E64d_v4",
+          "Standard_E4ds_v4",
+          "Standard_E8ds_v4",
+          "Standard_E16ds_v4",
+          "Standard_E20ds_v4",
+          "Standard_E32ds_v4",
+          "Standard_E48ds_v4",
+          "Standard_E64ds_v4"
+        ]
+      },
+      "managedDiskType": {
+        "type": "string",
+        "defaultValue": "StandardSSD_LRS",
+        "allowedValues": [
+            "StandardSSD_LRS",
+            "Premium_LRS"
+        ],
+        "metadata": {
+            "description": "The Storage type of the VM OS disk. If your VM contains an 's' in the VM size, you can select Premium_LRS storage for increased performance."
+        }
+      },
+      "adminUsername": {
+        "type": "string",
+        "defaultValue": "LabAdmin"
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "WSLab-vnet"
+      },
+      "networkInterfaceName": {
+        "type": "string",
+        "defaultValue": "WSLabNIC1"
+      },
+      "networkSecurityGroupName": {
+        "type": "string",
+        "defaultValue": "WSLabNIC1"
+      },
+      "adminPassword": {
+        "type": "securestring"
+      },
+      "addressPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/24"
+      },
+      "subnetName": {
+        "type": "string",
+        "defaultValue": "default"
+      },
+      "subnetPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/24"
+      },
+      "publicIpAddressName": {
+        "type": "string",
+        "defaultValue": "WSLab-ip"
+      },
+      "publicIpAddressType": {
+        "type": "string",
+        "defaultValue": "Dynamic"
+      },
+      "publicIpAddressSku": {
+        "type": "string",
+        "defaultValue": "Basic"
+      },
+      "autoShutdownStatus": {
+          "type": "string",
+          "defaultValue": "Enabled",
+          "allowedValues": [
+              "Enabled",
+              "Disabled"
           ]
       },
-      {
-          "name": "[parameters('virtualNetworkName')]",
-          "type": "Microsoft.Network/virtualNetworks",
-          "apiVersion": "2020-04-01",
-          "location": "[parameters('location')]",
-          "properties": {
-              "addressSpace": {
-                  "addressPrefixes": [
-                      "[parameters('addressPrefix')]"
-                  ]
-              },
-              "subnets": [
-                  {
-                      "name": "[parameters('subnetName')]",
-                      "properties": {
-                          "addressPrefix": "[parameters('subnetPrefix')]"
-                      }
-                  }
-              ]
-          }
-      },
-      {
-          "name": "[parameters('networkInterfaceName')]",
-          "type": "Microsoft.Network/networkInterfaces",
-          "apiVersion": "2020-04-01",
-          "location": "[parameters('location')]",
-          "dependsOn": [
-              "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
-              "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'))]",
-              "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]"
-          ],
-          "properties": {
-              "ipConfigurations": [
-                  {
-                      "name": "ipconfig1",
-                      "properties": {
-                          "subnet": {
-                              "id": "[variables('subnetRef')]"
-                          },
-                          "privateIPAllocationMethod": "Dynamic",
-                          "publicIpAddress": {
-                              "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
-                          }
-                      }
-                  }
-              ],
-              "networkSecurityGroup": {
-                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
-              }
-          }
-      },
-      {
-          "name": "[parameters('publicIpAddressName')]",
-          "type": "Microsoft.Network/publicIpAddresses",
-          "apiVersion": "2020-04-01",
-          "location": "[parameters('location')]",
-          "properties": {
-              "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
-          },
-          "sku": {
-              "name": "[parameters('publicIpAddressSku')]"
-          }
-      },
-      {
-          "name": "[parameters('networkSecurityGroupName')]",
-          "type": "Microsoft.Network/networkSecurityGroups",
-          "apiVersion": "2020-04-01",
-          "location": "[parameters('location')]",
-          "properties": {
-              "securityRules": [
-                  {
-                      "name": "default-allow-rdp",
-                      "properties": {
-                          "priority": 1000,
-                          "protocol": "TCP",
-                          "access": "Allow",
-                          "direction": "Inbound",
-                          "sourceAddressPrefix": "*",
-                          "sourcePortRange": "*",
-                          "destinationAddressPrefix": "*",
-                          "destinationPortRange": "3389"
-                      }
-                  }
-              ]
-          }
-      },
-      {
-          "type": "Microsoft.Compute/virtualMachines/extensions",
-          "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
-          "apiVersion": "2019-07-01",
-          "location": "[resourceGroup().location]",
-          "tags": {
-              "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
-          },
-          "dependsOn": [
-            "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'))]"
-          ],
-          "properties": {
-              "publisher": "Microsoft.Powershell",
-              "type": "DSC",
-              "typeHandlerVersion": "2.77",
-              "autoUpgradeMinorVersion": true,
-              "settings": {
-                  "modulesUrl": "[concat(parameters('_artifactsLocation'),'/dsc/config.zip')]",
-                  "sasToken": "[parameters('_artifactsLocationSasToken')]",
-                  "configurationFunction": "config.ps1\\Config",
-                  "properties": { 
-                  "nodeName": "[parameters('virtualMachineName')]"
-                  }
-              },
-              "protectedSettings": {}
-          }
-      }
-  ],
-  "outputs": {
-      "adminUsername": {
+      "autoShutdownTime": {
           "type": "string",
-          "value": "[parameters('adminUsername')]"
+          "defaultValue": "22:00"
+      },
+      "autoShutdownTimeZone": {
+          "type": "string",
+          "defaultValue": "UTC",
+          "allowedValues": [
+              "Afghanistan Standard Time",
+              "Alaskan Standard Time",
+              "Aleutian Standard Time",
+              "Altai Standard Time",
+              "Arab Standard Time",
+              "Arabian Standard Time",
+              "Arabic Standard Time",
+              "Argentina Standard Time",
+              "Astrakhan Standard Time",
+              "Atlantic Standard Time",
+              "AUS Central Standard Time",
+              "Aus Central W. Standard Time",
+              "AUS Eastern Standard Time",
+              "Azerbaijan Standard Time",
+              "Azores Standard Time",
+              "Bahia Standard Time",
+              "Bangladesh Standard Time",
+              "Belarus Standard Time",
+              "Bougainville Standard Time",
+              "Canada Central Standard Time",
+              "Cape Verde Standard Time",
+              "Caucasus Standard Time",
+              "Cen. Australia Standard Time",
+              "Central America Standard Time",
+              "Central Asia Standard Time",
+              "Central Brazilian Standard Time",
+              "Central Europe Standard Time",
+              "Central European Standard Time",
+              "Central Pacific Standard Time",
+              "Central Standard Time",
+              "Central Standard Time (Mexico)",
+              "Chatham Islands Standard Time",
+              "China Standard Time",
+              "Cuba Standard Time",
+              "Dateline Standard Time",
+              "E. Africa Standard Time",
+              "E. Australia Standard Time",
+              "E. Europe Standard Time",
+              "E. South America Standard Time",
+              "Easter Island Standard Time",
+              "Eastern Standard Time",
+              "Eastern Standard Time (Mexico)",
+              "Egypt Standard Time",
+              "Ekaterinburg Standard Time",
+              "Fiji Standard Time",
+              "FLE Standard Time",
+              "Georgian Standard Time",
+              "GMT Standard Time",
+              "Greenland Standard Time",
+              "Greenwich Standard Time",
+              "GTB Standard Time",
+              "Haiti Standard Time",
+              "Hawaiian Standard Time",
+              "India Standard Time",
+              "Iran Standard Time",
+              "Israel Standard Time",
+              "Jordan Standard Time",
+              "Kaliningrad Standard Time",
+              "Korea Standard Time",
+              "Libya Standard Time",
+              "Line Islands Standard Time",
+              "Lord Howe Standard Time",
+              "Magadan Standard Time",
+              "Magallanes Standard Time",
+              "Marquesas Standard Time",
+              "Mauritius Standard Time",
+              "Middle East Standard Time",
+              "Montevideo Standard Time",
+              "Morocco Standard Time",
+              "Mountain Standard Time",
+              "Mountain Standard Time (Mexico)",
+              "Myanmar Standard Time",
+              "N. Central Asia Standard Time",
+              "Namibia Standard Time",
+              "Nepal Standard Time",
+              "New Zealand Standard Time",
+              "Newfoundland Standard Time",
+              "Norfolk Standard Time",
+              "North Asia East Standard Time",
+              "North Asia Standard Time",
+              "North Korea Standard Time",
+              "Omsk Standard Time",
+              "Pacific SA Standard Time",
+              "Pacific Standard Time",
+              "Pacific Standard Time (Mexico)",
+              "Pakistan Standard Time",
+              "Paraguay Standard Time",
+              "Romance Standard Time",
+              "Russia Time Zone 10",
+              "Russia Time Zone 11",
+              "Russia Time Zone 3",
+              "Russian Standard Time",
+              "SA Eastern Standard Time",
+              "SA Pacific Standard Time",
+              "SA Western Standard Time",
+              "Saint Pierre Standard Time",
+              "Sakhalin Standard Time",
+              "Samoa Standard Time",
+              "Sao Tome Standard Time",
+              "Saratov Standard Time",
+              "SE Asia Standard Time",
+              "Singapore Standard Time",
+              "South Africa Standard Time",
+              "Sri Lanka Standard Time",
+              "Sudan Standard Time",
+              "Syria Standard Time",
+              "Taipei Standard Time",
+              "Tasmania Standard Time",
+              "Tocantins Standard Time",
+              "Tokyo Standard Time",
+              "Tomsk Standard Time",
+              "Tonga Standard Time",
+              "Transbaikal Standard Time",
+              "Turkey Standard Time",
+              "Turks And Caicos Standard Time",
+              "Ulaanbaatar Standard Time",
+              "US Eastern Standard Time",
+              "US Mountain Standard Time",
+              "UTC",
+              "UTC-02",
+              "UTC-08",
+              "UTC-09",
+              "UTC-11",
+              "UTC+12",
+              "UTC+13",
+              "Venezuela Standard Time",
+              "Vladivostok Standard Time",
+              "W. Australia Standard Time",
+              "W. Central Africa Standard Time",
+              "W. Europe Standard Time",
+              "W. Mongolia Standard Time",
+              "West Asia Standard Time",
+              "West Bank Standard Time",
+              "West Pacific Standard Time",
+              "Yakutsk Standard Time"
+          ]
+      },
+      "_artifactsLocation": {
+          "type": "string",
+          "metadata": {
+              "description": "Location of resources that the script is dependent on such as linked templates and DSC modules"
+          },
+          "defaultValue": "https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/Running%20WSLab%20in%20Azure"
+      },
+      "_artifactsLocationSasToken": {
+          "type": "securestring",
+          "metadata": {
+              "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+          },
+          "defaultValue": ""
       }
+    },
+    "variables": {
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+    },
+    "resources": [
+        {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-07-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2019-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('managedDiskType')]"
+                        }
+                    },
+                    "dataDisks": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "licenseType": "Windows_Server"
+            }
+        },
+        {
+            "name": "[concat('shutdown-computevm-', parameters('virtualMachineName'))]",
+            "type": "Microsoft.DevTestLab/schedules",
+            "apiVersion": "2018-09-15",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "status": "[parameters('autoShutdownStatus')]",
+                "taskType": "ComputeVmShutdownTask",
+                "dailyRecurrence": {
+                    "time": "[parameters('autoShutdownTime')]"
+                },
+                "timeZoneId": "[parameters('autoShutdownTimeZone')]",
+                "targetResourceId": "[resourceId('Microsoft.Compute/virtualMachines', parameters('virtualMachineName'))]"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+            ]
+        },
+        {
+            "name": "[parameters('virtualNetworkName')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-04-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('addressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[parameters('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('subnetPrefix')]"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[parameters('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-04-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'))]",
+                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                }
+            }
+        },
+        {
+            "name": "[parameters('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2020-04-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
+            },
+            "sku": {
+                "name": "[parameters('publicIpAddressSku')]"
+            }
+        },
+        {
+            "name": "[parameters('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-04-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "default-allow-rdp",
+                        "properties": {
+                            "priority": 1000,
+                            "protocol": "TCP",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "3389"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]",
+            "apiVersion": "2019-07-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[concat(parameters('virtualMachineName'),'/Microsoft.Powershell.DSC')]"
+            },
+            "dependsOn": [
+              "[concat('Microsoft.Compute/virtualMachines/',parameters('virtualMachineName'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.77",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "modulesUrl": "[concat(parameters('_artifactsLocation'),'/dsc/config.zip')]",
+                    "sasToken": "[parameters('_artifactsLocationSasToken')]",
+                    "configurationFunction": "config.ps1\\Config",
+                    "properties": { 
+                    "nodeName": "[parameters('virtualMachineName')]"
+                    }
+                },
+                "protectedSettings": {}
+            }
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        }
+    }
   }
-}
