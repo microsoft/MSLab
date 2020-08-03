@@ -74,7 +74,7 @@ function Get-VolumePhysicalDisk {
                 $partitionVolumes = Get-cimInstance -Query "ASSOCIATORS OF {Win32_DiskPartition.DeviceID=`"$($partition.DeviceID)`"} WHERE AssocClass = Win32_LogicalDiskToPartition"
                 foreach($partitionVolume in $partitionVolumes) {
                     if($partitionVolume.Name -eq $Volume) {
-                        $physicalDisk = Get-PhysicalDisk -DeviceNumber $disk.Index
+                        $physicalDisk = Get-PhysicalDisk | Where-Object DeviceID -eq $disk.Index
                         return $physicalDisk
                     }
                 }
