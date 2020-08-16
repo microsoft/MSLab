@@ -66,10 +66,7 @@ If (-not $isAdmin) {
   </settings>
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-      <OEMInformation>
-        <SupportProvider>WSLab</SupportProvider>
-        <SupportURL>https://aka.ms/wslab</SupportURL>
-      </OEMInformation>
+      $oeminformation
       <RegisteredOwner>PFE</RegisteredOwner>
       <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
@@ -118,10 +115,7 @@ If (-not $isAdmin) {
  <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
-        <OEMInformation>
-          <SupportProvider>WSLab</SupportProvider>
-          <SupportURL>https://aka.ms/wslab</SupportURL>
-        </OEMInformation>
+        $oeminformation
         <RegisteredOwner>PFE</RegisteredOwner>
         <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
@@ -186,10 +180,7 @@ If (-not $isAdmin) {
  <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
-        <OEMInformation>
-          <SupportProvider>WSLab</SupportProvider>
-          <SupportURL>https://aka.ms/wslab</SupportURL>
-        </OEMInformation>
+        $oeminformation
         <RegisteredOwner>PFE</RegisteredOwner>
         <RegisteredOrganization>PFE Inc.</RegisteredOrganization>
     </component>
@@ -432,6 +423,11 @@ If (-not $isAdmin) {
         }
         WriteInfoHighlighted "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+
+        #Get VM Version
+        [System.Version]$VMVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
+        WriteInfo "`t VM Version is $($VMVersion.Build).$($VMVersion.Revision)"
+
         WriteInfo "`t Creating VM"
         if ($VMConfig.Generation -eq 1){
             $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
@@ -582,6 +578,16 @@ If (-not $isAdmin) {
             WriteInfo "`t`t No sync commands requested"
         }
 
+        if ($VMVersion.Build -ge 17763){
+            $oeminformation=@"
+            <OEMInformation>
+             <SupportProvider>WSLab</SupportProvider>
+             <SupportURL>https://aka.ms/wslab</SupportURL>
+           </OEMInformation>
+"@
+        }else{
+            $oeminformation=$null
+        }
         #configure native VLAN and AllowedVLANs
         WriteInfo "`t Configuring NativeVLAN and AllowedVLANs"
         if ($VMConfig.ManagementSubnetID -gt 0){

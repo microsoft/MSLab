@@ -36,6 +36,7 @@ If (-not $isAdmin) {
             Remove-Item "$Path\Unattend.xml"
         }
         $unattendFile = New-Item "$Path\Unattend.xml" -type File
+
         $fileContent =  @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -56,10 +57,7 @@ If (-not $isAdmin) {
  <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
         <ComputerName>$Computername</ComputerName>
-        <OEMInformation>
-          <SupportProvider>WSLab</SupportProvider>
-          <SupportURL>https://aka.ms/wslab</SupportURL>
-        </OEMInformation>
+        $oeminformation
         <RegisteredOwner>PFE</RegisteredOwner>
         <RegisteredOrganization>Contoso</RegisteredOrganization>
     </component>
@@ -564,6 +562,10 @@ If (-not $isAdmin) {
                 }
             }
 
+        #Get VM Version
+        [System.Version]$VMVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
+        WriteInfo "`t VM Version is $($VMVersion.Build).$($VMVersion.Revision)"
+
         #If the switch does not already exist, then create a switch with the name $SwitchName
             if (-not [bool](Get-VMSwitch -Name $Switchname -ErrorAction SilentlyContinue)) {
                 WriteInfoHighlighted "`t Creating temp hydration switch $Switchname"
@@ -585,6 +587,17 @@ If (-not $isAdmin) {
             }
 
         #Apply Unattend to VM
+            if ($VMVersion.Build -ge 17763){
+                $oeminformation=@"
+                <OEMInformation>
+                    <SupportProvider>WSLab</SupportProvider>
+                    <SupportURL>https://aka.ms/wslab</SupportURL>
+                </OEMInformation>
+"@
+            }else{
+                $oeminformation=$null
+            }
+
             WriteInfoHighlighted "`t Applying Unattend and copying Powershell DSC Modules"
             if (Test-Path $mountdir){
                 Remove-Item -Path $mountdir -Recurse -Force
@@ -594,6 +607,7 @@ If (-not $isAdmin) {
             }
             $unattendfile=CreateUnattendFileVHD -Computername $DCName -AdminPassword $AdminPassword -path "$PSScriptRoot\temp\" -TimeZone $TimeZone
             New-item -type directory -Path $mountdir -force
+            [System.Version]$VMVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
             Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
             Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
             #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
