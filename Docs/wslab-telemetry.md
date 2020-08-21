@@ -132,6 +132,15 @@ This event is sent after Create Parent Disks script finishes and contains summar
 
 |                             | Basic | Full | Description | Sample Value | Application Insights property |
 | --------------------------- |:-----:|:----:| ----------- | ------------ | ----------------------------- |
+| Applied MSU count      | x     | x    | How many Windows Update packages were applied to image. | 0 | `msu.count` |
+| DC Creation time       | x     | x    | How many seconds took to prepare Domain Controller | 375,54 | `dc.duration` |
+| DC Already Exists      | x     | x    | True if Domain Controller was already present | false | `dc.exists` |
+| DC Edition             | x     | x    | Server Core or Full Desktop Experience as configured in LabConfig | 4 | `dc.edition` |
+| Build number of DC     | x     | x    | | 17763 |  `dc.build` |
+| OS Language of DC      | x     | x    | | en-US | `dc.language` |
+| WSLab scripts renamed  | x     | x    | True if user enabled to rename script after deployment | true | `lab.scriptsRenamed` |
+| Install SCVMM             | x     | x    | True if SVMM installation was requested in LabConfig | false | `lab.installScvmm` |
+| Host OS installation Type | x     | x    | Server Core of Full Desktop Experience | Server Core | `os.installationType` |
 | Server Core VHD - Exists    | x     | x    | True if VHD was already present, otherwise false.                                   | false               | `vhd.core.exists`   |
 | Server Core VHD - Name      | x     | x    | Well-known name of the generated VHD file based on the dictionary in WSLab scripts. | Win2019Core_G2.vhdx | `vhd.core.name`     |
 | Server Core VHD - Duration  | x     | x    | How many seconds took to create specific VHD file.                                  | 95.5                | `vhd.core.duration` |
@@ -143,7 +152,7 @@ This event is sent after Create Parent Disks script finishes and contains summar
 | Tools VHD - Duration  | x     | x    | How many seconds took to create specific VHD file.                                  | 25.5        | `vhd.tools.duration` |
 
 
-#### Deploy.Start
+#### Deploy.VM
 
 This event is sent for every provisioned lab VM.
 

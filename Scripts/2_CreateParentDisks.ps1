@@ -1112,7 +1112,6 @@ If (-not $isAdmin) {
         $metrics = @{
             'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
             'msu.count' = ($packages | Measure-Object).Count
-            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
         }
         if(-not $DCFilesExists) {
             $metrics['dc.duration'] = ($dcHydrationEndTime - $dcHydrationEndTime).TotalSeconds
@@ -1126,7 +1125,6 @@ If (-not $isAdmin) {
             'lab.scriptsRenamed' = $renamed
             'lab.installScvmm' = $LabConfig.InstallSCVMM
             'os.windowsInstallationType' = $WindowsInstallationType
-            'os.tz' = $TimeZone
         }
         $events = @()
 
