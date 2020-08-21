@@ -1573,14 +1573,13 @@ If (-not $isAdmin) {
         WriteInfo "`t Sending telemetry info"
         $metrics = @{
             'script.duration' = [Math]::Round(((Get-Date) - $StartDateTime).TotalSeconds, 2)
-            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
             'lab.vmsCount.active' = ($AllVMs | Measure-Object).Count # how many VMs are running
             'lab.vmsCount.provisioned' = ($provisionedVMs | Measure-Object).Count # how many VMs were created by this script run
         }
         $properties = @{
-            'lab.timezone' = $TimeZone
             'lab.internet' = [bool]$LabConfig.Internet
             'lab.isncrementalDeployment' = $LABExists
+            'lab.autostartmode' = $startVMs
         }
         $telemetryEvent = New-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
         $vmDeploymentEvents += $telemetryEvent
