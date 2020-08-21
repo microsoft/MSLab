@@ -1156,6 +1156,10 @@ If (-not $isAdmin) {
                 'vhd.name' = $status.Name
                 'vhd.kind' = $status.Kind
             }
+            if($status.Kind -ne "Tools") {
+                $vhdProperties['vhd.os.build'] = $BuildNumber
+                $vhdProperties['vhd.os.language'] = $OSLanguage
+            }
             $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName 
         }
 

@@ -196,12 +196,14 @@ function New-TelemetryEvent {
             'telemetry.nick' = $NickName
             'powershell.edition' = $PSVersionTable.PSEdition
             'powershell.version' = $PSVersionTable.PSVersion.ToString()
-            'os.type' = $osType
+            'host.isAzure' = (Get-CimInstance win32_systemenclosure).SMBIOSAssetTag -eq "7783-7084-3265-9085-8269-3286-77"
+            'host.os.type' = $osType
+            'host.os.build' = $r.CurrentBuildNumber
             'hw.type' = Get-PcSystemType -Id $hw.PCSystemType
         }
         if($level -eq "Full") {
             # OS
-            $extraProperties.'os.build' = $r.CurrentBuildNumber
+            $extraMetrics.'device.locale' = (Get-WinsystemLocale).Name
 
             # RAM
             $extraMetrics.'memory.total' = [Math]::Round(($hw.TotalPhysicalMemory)/1024KB, 0)
@@ -223,7 +225,6 @@ function New-TelemetryEvent {
             $extraProperties.'volume.fs' = $volume.FileSystemType
             $extraProperties.'disk.type' = $disk.MediaType
             $extraProperties.'disk.busType' = $disk.BusType
-            $extraProperties.'disk.model' = $disk.FriendlyName
         }
 
         $payload = @{
@@ -233,12 +234,12 @@ function New-TelemetryEvent {
             tags = @{ 
                 "ai.application.ver" = $wslabVersion
                 "ai.cloud.role" = Split-Path -Path $PSCommandPath -Leaf
-                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.0'
+                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.1'
                 "ai.session.id" = $TelemetrySessionId
-                "ai.device.locale" = (Get-WinsystemLocale).Name
                 "ai.user.id" = (((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash)
                 "ai.device.id" = $computerNameHash
                 "ai.device.type" = $extraProperties["hw.type"]
+                "ai.device.locale" = "" # not propagated anymore
                 "ai.device.os" = ""
                 "ai.device.osVersion" = ""
                 "ai.device.oemName" = ""
@@ -256,13 +257,8 @@ function New-TelemetryEvent {
         }
 
         if($level -eq "Full") {
-            $payload.tags.'ai.device.os' = $r.ProductName
-            $payload.tags.'ai.device.osVersion' = $osVersion
-            $payload.tags.'ai.device.oemName' = $hw.Manufacturer
-            $payload.tags.'ai.device.model' = $hw.Model
-            if($hw.Manufacturer -eq "Lenovo") { # Lenovo sets common name of the model to SystemFamily property
-                $payload.tags.'ai.device.model' = $hw.SystemFamily
-            }
+            $payload.tags.'ai.device.os' = $osVersion
+            $payload.tags.'ai.device.osVersion' = $build
         }
     
         $payload
@@ -320,8 +316,8 @@ function Read-TelemetryLevel {
         WriteInfo "Details about telemetry levels and the content of telemetry messages can be found in documentation https://aka.ms/wslab/telemetry"
         WriteInfo "Available telemetry levels are:"
         WriteInfo " * None  -- No information will be sent"
-        WriteInfo " * Basic -- Lab info will be sent (e.g. script execution time, number of VMs)"
-        WriteInfo " * Full  -- More details about the host machine and deployed VMs (e.g. guest OS)"
+        WriteInfo " * Basic -- Information about lab will be sent (e.g. script execution time, number of VMs, guest OSes)"
+        WriteInfo " * Full  -- Information about lab and the host machine (e.g. type of disk)"
         WriteInfo "Would you be OK with providing an information about your WSLab usage?"
         WriteInfo "`nTip: You can also configure telemetry settings explicitly in LabConfig.ps1 file or by setting an environmental variable and suppress this prompt."
 
@@ -330,7 +326,7 @@ function Read-TelemetryLevel {
           <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Basic", "Lab info will be sent (e.g. script execution time, number of VMs)"
           <# 2 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Full", "More details about the host machine and deployed VMs (e.g. guest OS)"
         )
-        $response = $host.UI.PromptForChoice("WSLab telemetry level", "Please choose a telemetry level for this WSLab instance. For more details please see WSLab documentation.", $options, 1 <#default option#>)
+        $response = $host.UI.PromptForChoice("WSLab telemetry level", "Please choose a telemetry level for this WSLab instance. For more details please see WSLab documentation.", $options, 0 <#default option#>)
 
         $telemetryLevel = $null
         switch($response) {
