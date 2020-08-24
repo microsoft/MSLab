@@ -178,7 +178,7 @@ function New-TelemetryEvent {
         $osVersion = "$($r.ProductName) ($build)"
         $hw = Get-CimInstance -ClassName Win32_ComputerSystem
         $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $computerNameHash = $env:computername | Get-StringHash
+        $machineHash = (((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash)
 
         if(-not $NickName) {
             $NickName = "?"
@@ -203,7 +203,7 @@ function New-TelemetryEvent {
         }
         if($level -eq "Full") {
             # OS
-            $extraMetrics.'device.locale' = (Get-WinsystemLocale).Name
+            $extraProperties.'device.locale' = (Get-WinsystemLocale).Name
 
             # RAM
             $extraMetrics.'memory.total' = [Math]::Round(($hw.TotalPhysicalMemory)/1024KB, 0)
@@ -232,12 +232,12 @@ function New-TelemetryEvent {
             time = $([System.dateTime]::UtcNow.ToString("o")) 
             iKey = $TelemetryInstrumentationKey
             tags = @{ 
+                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.1'
                 "ai.application.ver" = $wslabVersion
                 "ai.cloud.role" = Split-Path -Path $PSCommandPath -Leaf
-                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.1'
                 "ai.session.id" = $TelemetrySessionId
-                "ai.user.id" = (((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash)
-                "ai.device.id" = $computerNameHash
+                "ai.user.id" = $machineHash
+                "ai.device.id" = $machineHash
                 "ai.device.type" = $extraProperties["hw.type"]
                 "ai.device.locale" = "" # not propagated anymore
                 "ai.device.os" = ""
@@ -273,10 +273,21 @@ function Send-TelemetryObject {
 
     process {
         $json = "{0}" -f (($Data) | ConvertTo-Json -Depth 10 -Compress)
+
+        if($LabConfig.ContainsKey('TelemetryDebugLog')) {
+            Add-Content -Path "$ScriptRoot\Telemetry.log" -Value ((Get-Date -Format "s") + "`n" + $json)
+        }
+
         try {
-            Invoke-RestMethod -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
+            $response = Invoke-RestMethod -Uri 'https://dc.services.visualstudio.com/v2/track' -Method Post -UseBasicParsing -Body $json -TimeoutSec 20
         } catch { 
             WriteInfo "`tSending telemetry failed with an error: $($_.Exception.Message)"
+            $response = $_.Exception.Message
+        }
+
+        if($LabConfig.ContainsKey('TelemetryDebugLog')) {
+            Add-Content -Path "$ScriptRoot\Telemetry.log" -Value $response
+            Add-Content -Path "$ScriptRoot\Telemetry.log" -Value "`n------------------------------`n"
         }
     }
 }
