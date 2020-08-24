@@ -1570,7 +1570,7 @@ If (-not $isAdmin) {
 
     # Telemetry Event
     if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
-        WriteInfo "`t Sending telemetry info"
+        WriteInfo "Sending telemetry info"
         $metrics = @{
             'script.duration' = [Math]::Round(((Get-Date) - $StartDateTime).TotalSeconds, 2)
             'lab.vmsCount.active' = ($AllVMs | Measure-Object).Count # how many VMs are running
