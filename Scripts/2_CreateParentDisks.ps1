@@ -1112,7 +1112,6 @@ If (-not $isAdmin) {
         $metrics = @{
             'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
             'msu.count' = ($packages | Measure-Object).Count
-            'memory.available' = [Math]::Round($MemoryAvailableMB, 0)
         }
         if(-not $DCFilesExists) {
             $metrics['dc.duration'] = ($dcHydrationEndTime - $dcHydrationEndTime).TotalSeconds
@@ -1126,7 +1125,6 @@ If (-not $isAdmin) {
             'lab.scriptsRenamed' = $renamed
             'lab.installScvmm' = $LabConfig.InstallSCVMM
             'os.windowsInstallationType' = $WindowsInstallationType
-            'os.tz' = $TimeZone
         }
         $events = @()
 
@@ -1155,6 +1153,13 @@ If (-not $isAdmin) {
             $vhdProperties = @{
                 'vhd.name' = $status.Name
                 'vhd.kind' = $status.Kind
+            }
+            if($status.Kind -ne "Tools") {
+                $vhdProperties['vhd.os.build'] = $BuildNumber
+
+                if($LabConfig.TelemetryLevel -eq "Full") {
+                    $vhdProperties['vhd.os.language'] = $OSLanguage
+                }
             }
             $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName 
         }
