@@ -168,7 +168,7 @@ As you can see, VHD was mounted in read-only mode
 
 ![](/Scenarios/AppAttach/Screenshots/Diskmgmt01.png)
 
-It is actually mounted into "C:\ProgramData\AppAttach\" folder (junction link to \\?\Volume path)
+It is mounted into "C:\ProgramData\AppAttach\" folder (junction link to \\?\Volume path)
 
 ![](/Scenarios/AppAttach/Screenshots/Explorer03.png)
 
@@ -314,6 +314,17 @@ foreach ($item in $items){
 ```
 
 ![](/Scenarios/AppAttach/Screenshots/PowerShell03.png)
+
+### Configure Access based enumeration on FileShare
+
+Configure access based enumeration, so only users who have read access see app names.
+
+```powershell
+$ComputerName="DC"
+$Sharename="FileShare"
+Set-SmbShare -Name $Sharename -FolderEnumerationMode AccessBased -CimSession $ComputerName
+ 
+```
 
 ### Create task to add apps once user is logged on + every 10 minutes
 
