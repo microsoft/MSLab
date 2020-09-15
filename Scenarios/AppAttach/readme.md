@@ -65,6 +65,7 @@ If($openFiles.ShowDialog() -eq "OK"){
 }
 
 #Download MSIX Image tool if not available"
+New-Item -Path $folder -ItemType Directory -ErrorAction Ignore
 if (!(Test-Path "$folder\msixmgr\x64\msixmgr.exe")){
     Invoke-WebRequest -Uri https://aka.ms/msixmgr -OutFile "$folder\msixmgr.zip"
     Expand-Archive -Path "$folder\msixmgr.zip" -DestinationPath "$folder\msixmgr"
@@ -115,6 +116,8 @@ Copy-Item -Path C:\temp\*.vhdx -Destination \\dc\c$\Shares\FileShare
  
 ```
 
+![](/Scenarios/AppAttach/Screenshots/Explorer02.png)
+
 ### Stage application on Windows 10
 
 This step will mount all VHDs with application located in fileshare in read-only mode and create junction in c:\ProgramData\AppAttach (you can use any location). The next step is, that App will be staged (registered) into c:\program files\windows apps the same way as any other windows app. Since mounting VHD will not survive reboot, it's needed to run this script every reboot, and also every time you add new application into share.
@@ -161,6 +164,18 @@ foreach ($vhd in $VHDs){
  
 ```
 
+As you can see, VHD was mounted in read-only mode
+
+![](/Scenarios/AppAttach/Screenshots/Diskmgmt01.png
+
+It is actually mounted into "C:\ProgramData\AppAttach\" folder (junction link to \\?\Volume path)
+
+![](/Scenarios/AppAttach/Screenshots/Explorer03.png
+
+And then the application exists in "c:\Program Files\WindowsApps"
+
+![](/Scenarios/AppAttach/Screenshots/PowerShell02.png)
+
 ### Register App
 
 Following code will register app for current user, so user will see it in start menu. There can be multiple application names in variable, but in the example is only one. Run code from win10 machine
@@ -175,9 +190,13 @@ foreach ($application in $applications){
  
 ```
 
+![](/Scenarios/AppAttach/Screenshots/Desktop01.png)
+
 ## The Lab - real-world scenario
 
 In real world scenario you need to distribute different application to different users. You also need to make sure, staging is done every time VM starts and also right after you publish new app, it will be available to users.
+
+Run all code from DC or Management machine
 
 ### Create scheduled task to run AppAttachStaging script
 
@@ -232,7 +251,7 @@ $TaskName="AppAttachStagingTask"
 $ScriptPath="\\DC\FileShare\AppAttachStaging.ps1"
 
 
-$action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -file $ScriptPath"
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -file $ScriptPath"
 $trigger=@()
 $trigger += New-ScheduledTaskTrigger -AtStartup
 $trigger += New-ScheduledTaskTrigger -At "0:00" -RepetitionInterval "00:10" -RandomDelay "00:05"-Once
@@ -278,6 +297,8 @@ foreach ($vhd in $vhds){
  
 ```
 
+![](/Scenarios/AppAttach/Screenshots/Explorer04.png)
+
 ### Strip Permissions from files with 0 size (app names)
 
 ```powershell
@@ -285,10 +306,14 @@ Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module ntfssecurity -Force
 $items=Get-ChildItem -Path '\\dc\c$\shares\FileShare\' | where length -eq 0
 foreach ($item in $items){
+    $item | Disable-NTFSAccessInheritance
     $item | Get-NTFSAccess | Remove-NTFSAccess -Account "Corp\Domain Users"
+    $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users"
 }
  
 ```
+
+![](/Scenarios/AppAttach/Screenshots/PowerShell03.png)
 
 ### Create task to add apps once user is logged on + every 10 minutes
 
@@ -313,24 +338,37 @@ Schedule task on user logon + every 10 minutes
 ```powershell
 $ComputerName="Win10_1"
 $TaskName="AppAttachRegistrationTask"
+$TaskDescription="AppAttach Registration Task"
 $ScriptPath="\\DC\FileShare\AppAttachRegistration.ps1"
 
-$action = New-ScheduledTaskAction -Execute 'Powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -file $ScriptPath"
-$trigger=@()
-$trigger += New-ScheduledTaskTrigger -AtLogon
-$trigger += New-ScheduledTaskTrigger -At "0:00" -RepetitionInterval "00:10" -RandomDelay "00:05"-Once
-$task=Register-ScheduledTask -Action $action -TaskName $TaskName -trigger $trigger -CimSession $ComputerName
-$task.Settings.DisallowStartIfOnBatteries=$false
-$settings=$task.settings
-Set-ScheduledTask -CimSession $ComputerName -TaskName $TaskName -Settings $settings
-Start-ScheduledTask -CimSession $ComputerName -TaskName $TaskName
-$task=Get-ScheduledTask -CimSession $ComputerName -TaskName $TaskName
-while ($task.State -ne "Ready"){
-    $task=Get-ScheduledTask -CimSession $ComputerName -TaskName $TaskName
-    Start-Sleep 1
-    Write-Host "." -NoNewline
+#First create task that will be available for all users (no chance with PowerShell, COM is needed https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-objects)
+
+Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+    $ShedService = New-Object -comobject 'Schedule.Service'
+    $ShedService.Connect()
+
+    $Task = $ShedService.NewTask(0)
+    $Task.RegistrationInfo.Description = $using:TaskDescription
+    $Task.Settings.Enabled = $true
+    $Task.Settings.AllowDemandStart = $true
+    $Task.Settings.StopIfGoingOnBatteries = $false
+
+    $trigger = $task.triggers.Create(9)
+    $trigger.Enabled = $true
+
+    $action = $Task.Actions.Create(0)
+    $action.Path = 'PowerShell.exe'
+    $action.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -file $using:ScriptPath"
+
+    $taskFolder = $ShedService.GetFolder("\")
+    $taskFolder.RegisterTaskDefinition($using:TaskName, $Task , 6, 'Users', $null, 4)
 }
-#Unregister-ScheduledTask -CimSession $ComputerName -TaskName $TaskName -Confirm:0
+
+#modify existing task (add trigger)
+$task=Get-ScheduledTask -TaskName $TaskName -CimSession $ComputerName
+$triggers=$task.triggers
+$triggers+= New-ScheduledTaskTrigger -At "0:00" -RepetitionInterval "00:10" -RandomDelay "00:05"-Once
+Set-ScheduledTask -Trigger $triggers -TaskName $TaskName -CimSession $ComputerName
  
 ```
 
@@ -350,3 +388,12 @@ Add-NTFSAccess -Path "$fileshare\$appname" -Account "Corp\Bob" -AccessRights Rea
  
 ```
 
+![](/Scenarios/AppAttach/Screenshots/PowerShell04.png)
+
+After logon to Win10_1, Bob has PowerShell 7 available in start menu (notice Bob has read access to file - this determines if he should have app or not)
+
+![](/Scenarios/AppAttach/Screenshots/Desktop02.png)
+
+And Rob not.
+
+![](/Scenarios/AppAttach/Screenshots/Desktop03.png)
