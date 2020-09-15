@@ -166,11 +166,11 @@ foreach ($vhd in $VHDs){
 
 As you can see, VHD was mounted in read-only mode
 
-![](/Scenarios/AppAttach/Screenshots/Diskmgmt01.png
+![](/Scenarios/AppAttach/Screenshots/Diskmgmt01.png)
 
 It is actually mounted into "C:\ProgramData\AppAttach\" folder (junction link to \\?\Volume path)
 
-![](/Scenarios/AppAttach/Screenshots/Explorer03.png
+![](/Scenarios/AppAttach/Screenshots/Explorer03.png)
 
 And then the application exists in "c:\Program Files\WindowsApps"
 
