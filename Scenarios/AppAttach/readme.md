@@ -322,7 +322,7 @@ Configure access based enumeration, so only users who have read access see app n
 ```powershell
 $ComputerName="DC"
 $Sharename="FileShare"
-Set-SmbShare -Name $Sharename -FolderEnumerationMode AccessBased -CimSession $ComputerName
+Set-SmbShare -Name $Sharename -FolderEnumerationMode AccessBased -Force -CimSession $ComputerName
  
 ```
 
@@ -405,6 +405,6 @@ After logon to Win10_1, Bob has PowerShell 7 available in start menu (notice Bob
 
 ![](/Scenarios/AppAttach/Screenshots/Desktop02.png)
 
-And Rob not.
+And Rob not. Notice, that app name file is not even visible thanks to Access-based Enumeration.
 
 ![](/Scenarios/AppAttach/Screenshots/Desktop03.png)
