@@ -94,7 +94,6 @@ As result, you will find VHDx file under temp file (if you used script example a
 
 ![](/Scenarios/AppAttach/Screenshots/Explorer01.png)
 
-
 ### Create File Share and copy VHDx there
 
 Assuming you can run it from everywhere, following example is using invoke-command. It will create fileshare, where users and computers have read only access and copies all VHDs from c:\temp into it. Assuming you created your app in c:\temp
@@ -143,10 +142,10 @@ foreach ($vhd in $VHDs){
         #$msixDest = "\\?\Volume{" + $volumeGuid + "}\"
         if (!(Test-Path $msixJunction)){md $msixJunction}
         $packageName=$vhd.TrimEnd(".vhdx")
-        $msixJunction = $msixJunction + $packageName
-        cmd.exe /c mklink /j $msixJunction $msixDest
+        $junctionpath = $msixJunction + $packageName
+        cmd.exe /c mklink /j $junctionpath $msixDest
         #stage app into c:\program files\windowsapps
-        $path=(Get-ChildItem -Path $msixJunction | select -First 1).FullName
+        $path=(Get-ChildItem -Path $junctionpath | select -First 1).FullName
         [Windows.Management.Deployment.PackageManager,Windows.Management.Deployment,ContentType=WindowsRuntime] | Out-Null
         Add-Type -AssemblyName System.Runtime.WindowsRuntime
         $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where { $_.ToString() -eq 'System.Threading.Tasks.Task`1[TResult] AsTask[TResult,TProgress](Windows.Foundation.IAsyncOperationWithProgress`2[TResult,TProgress])'})[0]
@@ -205,10 +204,10 @@ $scriptblock=@'
             #$msixDest = "\\?\Volume{" + $volumeGuid + "}\"
             if (!(Test-Path $msixJunction)){md $msixJunction}
             $packageName=$vhd.TrimEnd(".vhdx")
-            $msixJunction = $msixJunction + $packageName
-            cmd.exe /c mklink /j $msixJunction $msixDest
+            $junctionpath = $msixJunction + $packageName
+            cmd.exe /c mklink /j $junctionpath $msixDest
             #stage app into c:\program files\windowsapps
-            $path=(Get-ChildItem -Path $msixJunction | select -First 1).FullName
+            $path=(Get-ChildItem -Path $junctionpath | select -First 1).FullName
             [Windows.Management.Deployment.PackageManager,Windows.Management.Deployment,ContentType=WindowsRuntime] | Out-Null
             Add-Type -AssemblyName System.Runtime.WindowsRuntime
             $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where { $_.ToString() -eq 'System.Threading.Tasks.Task`1[TResult] AsTask[TResult,TProgress](Windows.Foundation.IAsyncOperationWithProgress`2[TResult,TProgress])'})[0]

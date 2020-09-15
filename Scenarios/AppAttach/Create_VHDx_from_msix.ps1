@@ -44,7 +44,7 @@ foreach ($File in $openFiles.FileNames){
     #mount and format VHD
     $VHDMount=Mount-VHD $vhd.Path -Passthru
     $vhddisk = $vhdmount | Get-Disk
-    $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel MSIX
+    $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel $appname
 
     Start-Process -FilePath "$folder\msixmgr\x64\msixmgr.exe" -ArgumentList  "-Unpack -packagePath `"$File`" -destination $($vhddiskpart.driveletter):\ -applyacls" -Wait
 
