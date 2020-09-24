@@ -277,6 +277,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'W
     VMProcessorCount (Optional)
         Example VMProcessorCount=8
         Number of Processors in VM. If specified more than available in host, maximum possible number will be used.
+        If "Max" is specified, maximum number of VCPUs will be used (determined from host where wslab is running)
 
     Generation (Optional)
         Example Generation=1
