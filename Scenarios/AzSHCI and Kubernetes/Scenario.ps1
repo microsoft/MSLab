@@ -77,8 +77,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     # Temporarily enable CredSSP delegation to avoid double-hop issue
     foreach ($Server in $servers){
         Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
-        Invoke-Command -ComputerName $server -ScriptBlock { Enable-WSManCredSSP Server -Force }
     }
+    Invoke-Command -ComputerName $servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
     $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
     $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
@@ -110,13 +110,48 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 
     # Disable CredSSP
     Disable-WSManCredSSP -Role Client
-    Invoke-Command -ComputerName CA -ScriptBlock { Disable-WSManCredSSP Server }
+    Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
 #endregion
 
+
+#region create AKS HCI cluster
+$ClusterName="AzSHCI-Cluster"
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 #smallest possible VM
+}
 
 ######################################
 # following code is work-in-progress #
 ######################################
+
+#VM Sizes
+<#
+$global:vmSizeDefinitions =
+@(
+    # Name, CPU, MemoryGB
+    ([VmSize]::Default, "4", "4"),
+    ([VmSize]::Standard_A2_v2, "2", "4"),
+    ([VmSize]::Standard_A4_v2, "4", "8"),
+    ([VmSize]::Standard_D2s_v3, "2", "8"),
+    ([VmSize]::Standard_D4s_v3, "4", "16"),
+    ([VmSize]::Standard_D8s_v3, "8", "32"),
+    ([VmSize]::Standard_D16s_v3, "16", "64"),
+    ([VmSize]::Standard_D32s_v3, "32", "128"),
+    ([VmSize]::Standard_DS2_v2, "2", "7"),
+    ([VmSize]::Standard_DS3_v2, "2", "14"),
+    ([VmSize]::Standard_DS4_v2, "8", "28"),
+    ([VmSize]::Standard_DS5_v2, "16", "56"),
+    ([VmSize]::Standard_DS13_v2, "8", "56"),
+    ([VmSize]::Standard_K8S_v1, "4", "2"),
+    ([VmSize]::Standard_K8S2_v1, "2", "2"),
+    ([VmSize]::Standard_K8S3_v1, "4", "6"),
+    ([VmSize]::Standard_NK6, "6", "12"),
+    ([VmSize]::Standard_NV6, "6", "64"),
+    ([VmSize]::Standard_NV12, "12", "128")
+
+)
+#>
+#endregion
 
 #region Windows Admin Center on Win10
 
