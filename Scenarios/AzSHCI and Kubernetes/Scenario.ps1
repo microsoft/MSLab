@@ -42,14 +42,15 @@ Clear-DNSClientCache
 Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #endregion
 
-
-#Download AKS HCI module
+#region Download AKS HCI module
 $ProgressPreference='SilentlyContinue' #for faster download
 Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip"
 $ProgressPreference='Continue' #return progress preference back
 #unzip
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
+
+#endregion
 
 #region setup AKS (PowerShell)
     #Copy PowerShell module to nodes
@@ -113,12 +114,12 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
 #endregion
 
-
 #region create AKS HCI cluster
 $ClusterName="AzSHCI-Cluster"
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 #smallest possible VM
 }
+#endregion
 
 ######################################
 # following code is work-in-progress #
