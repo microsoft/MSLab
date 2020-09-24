@@ -103,6 +103,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
         Get-AksHciConfig
     }
 
+    #note: this step might need to run twice. As for first time it times out on https://github.com/Azure/aks-hci/issues/28
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-AksHci
     }
@@ -111,6 +112,11 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     Disable-WSManCredSSP -Role Client
     Invoke-Command -ComputerName CA -ScriptBlock { Disable-WSManCredSSP Server }
 #endregion
+
+
+######################################
+# following code is work-in-progress #
+######################################
 
 #region Windows Admin Center on Win10
 
