@@ -32,7 +32,7 @@ $LabConfig.VMs += @{ VMName = 'Win10'; ParentVHD = 'Win1020H1_G2.vhdx' ; AddTool
  
 ```
 
-![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/HVManager01.png)
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/hvmanager01.png)
 
 ## The lab
 
