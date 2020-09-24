@@ -123,6 +123,7 @@ $ClusterName="AzSHCI-Cluster"
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 #smallest possible VM
 }
+#endregion
 
 #VM Sizes
 <#
