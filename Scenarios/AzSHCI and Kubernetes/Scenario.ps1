@@ -1,15 +1,10 @@
-#region Create 2 node cluster
+#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 # LabConfig
 $Servers="AzsHCI1","AzSHCI2"
 $ClusterName="AzSHCI-Cluster"
 
 # Install features for management on server
-$WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-if ($WindowsInstallationType -eq "Server"){
-    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
-}elseif ($WindowsInstallationType -eq "Server Core"){
-    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
-}
+Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {
@@ -19,6 +14,8 @@ Invoke-Command -computername $Servers -ScriptBlock {
 
 # restart servers
 Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
+#failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
+Start-sleep 20
 
 # create vSwitch
 Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name vSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
@@ -58,6 +55,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     #Copy PowerShell module to nodes
     $ClusterName="AzSHCI-Cluster"
     $vSwitchName="vSwitch"
+    $VolumeName="AKS"
     $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
 
     #Copy module to nodes
@@ -90,14 +88,19 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     }
 
     #Create  volume for AKS
-    New-Volume -FriendlyName AKS -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
     #make sure failover clustering management tools are installed on nodes
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
     }
     #configure aks
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        Set-AksHciConfig -vnetName $using:vSwitchName -deploymentType MultiNode -wssdImageDir c:\clusterstorage\AKS\Images -cloudConfigLocation c:\clusterstorage\AKS\Config
+    Invoke-Command -ComputerName $servers[0] -ScriptBlock {
+        Set-AksHciConfig -vnetName $using:vSwitchName -deploymentType MultiNode -wssdDir c:\clusterstorage\$using:VolumeName\Images -wssdImageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
+    }
+
+    #validate config
+    Invoke-Command -ComputerName $servers[0] -ScriptBlock {
+        Get-AksHciConfig
     }
 
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
@@ -142,7 +145,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     # List Kubernetes extensions
     Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
 
-    # Install Kubernetes Extension
+    # Install Kubernetes Extension (still does not seems to be installed from GUI, bug?)
     $extension=Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
     Install-Extension -ExtensionId $extension.id
 
