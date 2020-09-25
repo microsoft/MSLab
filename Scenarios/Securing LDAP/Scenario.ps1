@@ -454,7 +454,7 @@ $CertsToEnrollList+=@{ServerName="Grafana";TemplateName="WebServerKSP_RSAExporta
 
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
-Install-Module -Name PSPKI -Force
+ Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 Import-Module PSPKI
 

@@ -392,7 +392,7 @@ To set permissions is PSPKI module needed. You can find more info here https://w
 ```PowerShell
 # Install PSPKI module for managing Certification Authority
     Install-PackageProvider -Name NuGet -Force
-    Install-Module -Name PSPKI -Force
+     Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
     Import-Module PSPKI
 
 #Set permissions on TPM Templates so all computers can autoenroll it
