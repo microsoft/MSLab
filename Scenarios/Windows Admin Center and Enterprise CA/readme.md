@@ -361,7 +361,7 @@ $TemplateName = "WACGW"
 
 # Install PSPKI module for managing Certification Authority
 Install-PackageProvider -Name NuGet -Force
- Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
+Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 Import-Module PSPKI
 
@@ -614,7 +614,7 @@ $Password = "LS1setup!"
 #make sure PSPKI is installed
     if (-not (Get-Module PSPKI)){
         Install-PackageProvider -Name NuGet -Forcet
-         Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
+        Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
         If ((Get-ExecutionPolicy) -eq "restricted"){
             Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
         }
@@ -879,7 +879,7 @@ $Password = "LS1setup!"
 #make sure PSPKI is installed
     if (-not (Get-Module PSPKI)){
         Install-PackageProvider -Name NuGet -Force
-         Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
+        Install-Module -Name PSPKI -Force -RequiredVersion 3.5  #explicit version because of this issue https://github.com/PKISolutions/PSPKI/issues/113
         If ((Get-ExecutionPolicy) -eq "restricted"){
             Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
         }
