@@ -93,3 +93,9 @@ This step will create cluster resources and AKS VMs
 If all goes OK, you will see following result
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell09.png)
+
+### Region create AKS HCI cluster
+
+Now AKS HCI cluster will be created. With one linux node, load balancer and control plane. The script will create the smallest possible VMs (4GB RAM) so it will fit lab cluster.
+
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Desktop01.png)
