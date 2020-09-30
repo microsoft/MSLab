@@ -114,17 +114,11 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
 #endregion
 
-######################################
-# following code is work-in-progress #
-######################################
-
 #region create AKS HCI cluster
 $ClusterName="AzSHCI-Cluster"
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
 }
-#endregion
-
 #VM Sizes
 <#
 $global:vmSizeDefinitions =
@@ -152,8 +146,15 @@ $global:vmSizeDefinitions =
 
 )
 #>
-
 #endregion
+
+#TBD: Create sample application
+#https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
+
+
+######################################
+# following code is work-in-progress #
+######################################
 
 #region Windows Admin Center on Win10
 
