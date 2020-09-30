@@ -16,7 +16,7 @@ https://aka.ms/AKSonHCI-Docs
 
 ## LabConfig with enabled telemetry (full)
 
-Note: please download latest [WSLab](https://aka.ms/wslabdownload) as there is new VMProcessorCount value Max, that will configure maximum available LP to VMs.
+Note: please download latest [WSLab](https://aka.ms/wslab/download) as there is new VMProcessorCount value Max, that will configure maximum available LP to VMs.
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!' ; <#Prefix = 'WSLab-'#> ; DCEdition='4'; Internet=$true ; TelemetryLevel='Full' ; TelemetryNickname='' ; AdditionalNetworksConfig=@(); VMs=@()}
