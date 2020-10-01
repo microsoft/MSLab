@@ -148,13 +148,109 @@ $global:vmSizeDefinitions =
 #>
 #endregion
 
-#TBD: Create sample application
-#https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
-
-
 ######################################
 # following code is work-in-progress #
 ######################################
+
+#region onboard cluster to Azure
+
+$ClusterName="AzSHCI-Cluster"
+
+#download Azure module
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
+    Install-Module -Name Az.StackHCI -Force
+}
+
+#login to azure
+#download Azure module
+if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+    Install-Module -Name Az.Accounts -Force
+}
+Login-AzAccount -UseDeviceAuthentication
+
+#select context if more available
+$context=Get-AzContext -ListAvailable
+if (($context).count -gt 1){
+    $context | Out-GridView -OutputMode Single | Set-AzContext
+}
+
+#select subscription
+$subscriptions=Get-AzSubscription
+if (($subscriptions).count -gt 1){
+    $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+}
+
+$subscriptionID=(Get-AzSubscription).ID
+
+#register Azure Stack HCI
+#first disable IE ESC
+$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
+Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
+#register
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+#or more complex
+<#
+#grab location
+if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force
+}
+$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
+Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
+#>
+
+#Install Azure Stack HCI RSAT Tools to all nodes
+$Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Install-WindowsFeature -Name RSAT-Azure-Stack-HCI
+}
+
+#Validate registration (query on just one node is needed)
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Get-AzureStackHCI
+}
+
+
+#register AKS
+#https://docs.microsoft.com/en-us/azure-stack/aks-hci/connect-to-arc
+
+if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force
+}
+
+$tenantID=(Get-AzContext).Tenant.Id
+$subscriptionID=(Get-AzSubscription).ID
+$resourcegroup="$ClusterName-rg"
+$location="westeurope"
+$AKSClusterName="demo"
+
+#create new service principal for cluster demo
+$servicePrincipalDisplayName="$($ClusterName)_AKS_$AKSClusterName"
+$sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope  "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup"
+$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
+$UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+$ClientID=$sp.Id
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
+}
+
+#check onboarding
+Invoke-Command -ComputerName $ClusterName {
+    & "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+}
+#endregion
+
+#region cleanup
+Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup #-Force
+$principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
+foreach ($principal in $principals){
+    Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
+}
+#endregion
+
+#TBD: Create sample application
+#https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
+
 
 #region Windows Admin Center on Win10
 
