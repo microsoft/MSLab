@@ -102,6 +102,8 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 
 ### Region onboard cluster to Azure ARC
 
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell10.png)
+
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge01.png)
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge02.png)
