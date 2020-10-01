@@ -152,7 +152,7 @@ $global:vmSizeDefinitions =
 # following code is work-in-progress #
 ######################################
 
-#region onboard cluster to Azure
+#region onboard cluster to Azure ARC
 
 $ClusterName="AzSHCI-Cluster"
 
@@ -187,7 +187,7 @@ $subscriptionID=(Get-AzSubscription).ID
 #first disable IE ESC
 $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
 Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-#register
+#register (needs to run 3 times and allow all web pages in IE)...
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
 #or more complex
 <#
@@ -217,7 +217,9 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
     Install-Module -Name Az.Resources -Force
 }
-
+if (!(Get-Azcontext)){
+    Login-AzAccount -UseDeviceAuthentication
+}
 $tenantID=(Get-AzContext).Tenant.Id
 $subscriptionID=(Get-AzSubscription).ID
 $resourcegroup="$ClusterName-rg"
@@ -225,6 +227,7 @@ $location="westeurope"
 $AKSClusterName="demo"
 
 #create new service principal for cluster demo
+#Connect-AzAccount -Tenant $tenantID
 $servicePrincipalDisplayName="$($ClusterName)_AKS_$AKSClusterName"
 $sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope  "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup"
 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
@@ -246,6 +249,7 @@ $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
 }
+Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 #endregion
 
 #TBD: Create sample application
