@@ -148,12 +148,8 @@ $global:vmSizeDefinitions =
 #>
 #endregion
 
-######################################
-# following code is work-in-progress #
-######################################
 
 #region onboard cluster to Azure ARC
-
 $ClusterName="AzSHCI-Cluster"
 
 #download Azure module
@@ -188,7 +184,9 @@ $subscriptionID=(Get-AzSubscription).ID
 $AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
 Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
 #register (needs to run 3 times and allow all web pages in IE)...
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+1..3 | foreach-object {
+    Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+}
 #or more complex
 <#
 #grab location
@@ -209,7 +207,6 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     Get-AzureStackHCI
 }
-
 
 #register AKS
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/connect-to-arc
@@ -233,6 +230,13 @@ $sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope 
 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
 $UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 $ClientID=$sp.ApplicationId
+
+
+#register namespace Microsoft.KubernetesConfiguration and Microsoft.Kubernetes
+Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
+Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
+
+#onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
 }
@@ -255,6 +259,9 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 #TBD: Create sample application
 #https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
 
+######################################
+# following code is work-in-progress #
+######################################
 
 #region Windows Admin Center on Win10
 
