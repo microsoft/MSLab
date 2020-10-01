@@ -232,7 +232,7 @@ $servicePrincipalDisplayName="$($ClusterName)_AKS_$AKSClusterName"
 $sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope  "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup"
 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
 $UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-$ClientID=$sp.Id
+$ClientID=$sp.ApplicationId
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
 }
