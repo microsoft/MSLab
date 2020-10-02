@@ -146,6 +146,7 @@ $global:vmSizeDefinitions =
 
 )
 #>
+<<<<<<< HEAD
 #endregion
 
 
@@ -254,11 +255,17 @@ foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
 }
 Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
+=======
+>>>>>>> master
 #endregion
 
 #TBD: Create sample application
 #https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 ######################################
 # following code is work-in-progress #
 ######################################

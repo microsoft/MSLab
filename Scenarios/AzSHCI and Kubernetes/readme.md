@@ -98,6 +98,7 @@ If all goes OK, you will see following result
 
 Now AKS HCI cluster will be created. With one linux node, load balancer and control plane. The script will create the smallest possible VMs (4GB RAM) so it will fit lab cluster.
 
+<<<<<<< HEAD
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Desktop01.png)
 
 ### Region onboard cluster to Azure ARC
@@ -111,3 +112,6 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge03.png)
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge04.png)
+=======
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Desktop01.png)
+>>>>>>> master
