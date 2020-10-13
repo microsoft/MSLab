@@ -90,6 +90,24 @@ New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -
 #add FileShare permissions for MDT Account
 Grant-SmbShareAccess -Name DeploymentShare$ -AccessRight Read -AccountName MDTUser -Confirm:$false
 
+#delegate djoin permissions
+$user = 'corp\MDTUser'
+$ou = 'OU=Workshop,DC=Corp,DC=contoso,DC=com'
+
+DSACLS $ou /R $user
+
+DSACLS $ou /I:S /G "$($user):GR;;computer"
+DSACLS $ou /I:S /G "$($user):CA;Reset Password;computer"
+DSACLS $ou /I:S /G "$($user):WP;pwdLastSet;computer"
+DSACLS $ou /I:S /G "$($user):WP;Logon Information;computer"
+DSACLS $ou /I:S /G "$($user):WP;description;computer"
+DSACLS $ou /I:S /G "$($user):WP;displayName;computer"
+DSACLS $ou /I:S /G "$($user):WP;sAMAccountName;computer"
+DSACLS $ou /I:S /G "$($user):WP;DNS Host Name Attributes;computer"
+DSACLS $ou /I:S /G "$($user):WP;Account Restrictions;computer"
+DSACLS $ou /I:S /G "$($user):WP;servicePrincipalName;computer"
+DSACLS $ou /I:S /G "$($user):CC;computer;organizationalUnit"
+
 #endregion
 
 #region configure Bootstrap ini and generate WinPE
@@ -271,7 +289,7 @@ if (-not (Get-MDTRole -name JoinDomain)){
     New-MDTRole -name JoinDomain -settings @{ 
         SkipComputerName    ='YES' 
         SkipDomainMembership='YES' 
-        JoinDomain          ='corp.contoso.COM' 
+        JoinDomain          ='corp.contoso.com' 
         DomainAdmin         ='MDTUser' 
         DomainAdminDomain   ='corp' 
         DomainAdminPassword ='LS1setup!' 
@@ -297,7 +315,7 @@ OSInstall=Y
 SkipCapture=YES
 SkipAdminPassword=NO
 SkipProductKey=YES
-EventService=http://DC:9800
+#EventService=http://DC:9800
 
 [CSettings]
 SQLServer=dc
@@ -491,10 +509,6 @@ Netlib=DBNMPNTW
 SQLShare=DeploymentShare$
 Table=RoleAdministrators
 Parameters=Role
-
-[Settings]
-Priority=CSettings, CPackages, CApps, CAdmins, CRoles, Locations, LSettings, LPackages, LApps, LAdmins, LRoles, MMSettings, MMPackages, MMApps, MMAdmins, MMRoles, RSettings, RPackages, RApps, RAdmins, 
-
 '@
 $content | Set-Content C:\DeploymentShare\Control\CustomSettings.ini
 
