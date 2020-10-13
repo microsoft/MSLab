@@ -283,6 +283,7 @@ if (-not (Get-MDTRole -name azshci)){
         SkipApplications    = 'YES'
         TaskSequenceID      = 'AZSHCI'
         SkipFinalSummary    = 'YES'
+        FinishAction        = 'LOGOFF'
     }
 }
 
