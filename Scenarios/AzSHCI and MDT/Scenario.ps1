@@ -249,6 +249,26 @@ foreach ($event in $events){
 
 #endregion
 
+#region create DHCP reservation for machines
+    #Create DHCP reservations for Hyper-V hosts
+        $DHCPServer="DC"
+        $ScopeID="10.0.0.0"
+        #install RSAT for DHCP
+        Install-WindowsFeature -Name RSAT-DHCP 
+
+        #Add DHCP Reservations
+        foreach ($HVHost in $HVHosts){
+            if (!(Get-DhcpServerv4Reservation -ErrorAction SilentlyContinue -ComputerName $DHCPServer -ScopeId $ScopeID -ClientId ($HVHost.MACAddress).Replace(":","") | Where-Object IPAddress -eq $HVHost.IPAddress)){
+                Add-DhcpServerv4Reservation -ComputerName $DHCPServer -ScopeId $ScopeID -IPAddress $HVHost.IPAddress -ClientId ($HVHost.MACAddress).Replace(":","")
+            }
+        }
+
+    #configure NTP server in DHCP (might be useful if Servers have issues with time)
+        if (!(get-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -ErrorAction SilentlyContinue)){
+            Set-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -Value "10.0.0.1"
+        }
+#endregion
+
 #region add deploy info to AD Object and MDT Database
 
 #download and unzip mdtdb
@@ -582,7 +602,6 @@ foreach ($HVHost in $HVHosts){
 }
 
 #TBD: 
-#remove from pxe boot as package in MDT
-#enable MDT monitoring with posh
+#remove from pxe boot as package in MDT (create app/package,delegate permissions on computers attribute, clean attribute...)
 #add real servers drivers
 #...
