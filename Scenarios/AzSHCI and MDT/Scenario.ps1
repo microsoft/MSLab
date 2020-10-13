@@ -90,7 +90,7 @@ New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -
 #add FileShare permissions for MDT Account
 Grant-SmbShareAccess -Name DeploymentShare$ -AccessRight Read -AccountName MDTUser -Confirm:$false
 
-#delegate djoin permissions
+#delegate djoin permissions https://www.sevecek.com/EnglishPages/Lists/Posts/Post.aspx?ID=48
 $user = 'corp\MDTUser'
 $ou = 'OU=Workshop,DC=Corp,DC=contoso,DC=com'
 
@@ -276,23 +276,24 @@ foreach ($HVHost in $HVHosts){
 
 #Configure MDT DB Roles
 if (-not (Get-MDTRole -name azshci)){
-    New-MDTRole -name AZSHCI -settings @{ 
-        SkipTaskSequence    = 'YES' 
-        SkipWizard          = 'YES' 
-        SkipSummary         = 'YES' 
-        SkipApplications    = 'YES' 
-        TaskSequenceID      = 'AZSHCI' 
+    New-MDTRole -name AZSHCI -settings @{
+        SkipTaskSequence    = 'YES'
+        SkipWizard          = 'YES'
+        SkipSummary         = 'YES'
+        SkipApplications    = 'YES'
+        TaskSequenceID      = 'AZSHCI'
+        SkipFinalSummary    = 'YES'
     }
 }
 
 if (-not (Get-MDTRole -name JoinDomain)){
-    New-MDTRole -name JoinDomain -settings @{ 
-        SkipComputerName    ='YES' 
-        SkipDomainMembership='YES' 
-        JoinDomain          ='corp.contoso.com' 
-        DomainAdmin         ='MDTUser' 
-        DomainAdminDomain   ='corp' 
-        DomainAdminPassword ='LS1setup!' 
+    New-MDTRole -name JoinDomain -settings @{
+        SkipComputerName    ='YES'
+        SkipDomainMembership='YES'
+        JoinDomain          ='corp.contoso.com'
+        DomainAdmin         ='MDTUser'
+        DomainAdminDomain   ='corp'
+        DomainAdminPassword ='LS1setup!'
     }
 }
 
@@ -315,7 +316,7 @@ OSInstall=Y
 SkipCapture=YES
 SkipAdminPassword=NO
 SkipProductKey=YES
-#EventService=http://DC:9800
+EventService=http://DC:9800
 
 [CSettings]
 SQLServer=dc
