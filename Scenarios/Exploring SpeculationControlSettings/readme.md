@@ -287,10 +287,10 @@ Display all info
 
 ```PowerShell
 #output info to Out-Gridview
-$ComputerObjects | Select-Object select PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Out-GridView
+$ComputerObjects | Select-Object PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Out-GridView
 
 #or into CSV
-$ComputerObjects | Select-Object select PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlExport.csv -Delimiter ";" -NoTypeInformation
+$ComputerObjects | Select-Object PSComputerName,Alive,Model,ProductName,InstallationType,ReleaseID,UBR,*windowssupportenabled*,*hardware* | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlExport.csv -Delimiter ";" -NoTypeInformation
 
 #or all info into CSV
 $ComputerObjects | Select-Object * | Export-CSV -Path $env:USERPROFILE\Downloads\SpeculationControlExportFull.csv -Delimiter ";" -NoTypeInformation
