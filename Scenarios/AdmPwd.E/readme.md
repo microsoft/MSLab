@@ -1,7 +1,6 @@
 <!-- TOC -->
 
 - [Scenario Introduction](#scenario-introduction)
-    - [LabConfig Windows Server 1709](#labconfig-windows-server-1709)
     - [LabConfig Windows Server 2016](#labconfig-windows-server-2016)
     - [The lab](#the-lab)
 - [Scenario](#scenario)
