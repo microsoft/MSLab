@@ -6,6 +6,26 @@ $ClusterName="AzSHCI-Cluster"
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
+# Update servers - if you will update, script will fail in install-akshci as it checks for free space. After updates will be free space less than 50GB
+<#
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    #Grab updates
+    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+    #apply updates (if not empty)
+    if ($ScanResult.Updates){
+        Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
+    }
+}
+
+# Check if restart is required and reboot
+$ServersToReboot=($result | Where-Object PendingReboot -eq $true).PSComputerName
+if ($ServersToReboot){
+    Restart-Computer -ComputerName $ServersToReboot -Protocol WSMan -Wait -For PowerShell
+    #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
+    Start-sleep 20
+}
+#>
+
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
@@ -104,8 +124,10 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
         Get-AksHciConfig
     }
 
-    #note: this step might need to run twice. As for first time it times out on https://github.com/Azure/aks-hci/issues/28
+    #note: this step might need to run twice. As for first time it times out on https://github.com/Azure/aks-hci/issues/28 . Before second attempt, unistall-akshci first and set config again
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        #Uninstall-AksHCI
+        #Set-AksHciConfig -vnetName $using:vSwitchName -deploymentType MultiNode -wssdDir c:\clusterstorage\$using:VolumeName\Images -wssdImageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
         Install-AksHci
     }
 
@@ -147,7 +169,6 @@ $global:vmSizeDefinitions =
 )
 #>
 #endregion
-
 
 #region onboard cluster to Azure ARC
 $ClusterName="AzSHCI-Cluster"
@@ -231,7 +252,6 @@ $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
 $UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 $ClientID=$sp.ApplicationId
 
-
 #register namespace Microsoft.KubernetesConfiguration and Microsoft.Kubernetes
 Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
 Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
@@ -258,6 +278,8 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 
 #TBD: Create sample application
 #https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
+#TBD: Enable monitoring
+#https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
 
 ######################################
 # following code is work-in-progress #
