@@ -15,9 +15,12 @@ To start using WSLab just download the latest version of scrips from [Releases](
 <!-- TOC -->
 
 - [WSLab](#wslab)
+    - [tl;dr](#tldr)
     - [Introduction](#introduction)
     - [Requirements](#requirements)
     - [Scripts](#scripts)
+    - [Data Collection](#data-collection)
+        - [How to get the Scripts](#how-to-get-the-scripts)
     - [Scenarios](#scenarios)
     - [Use cases](#use-cases)
         - [Prototyping](#prototyping)
@@ -47,6 +50,10 @@ Unlike other solutions, WSLab focuses on simplicity (all actions can be done wit
 The main part of WSLab are the [Scripts](https://aka.ms/wslabzip) that will help you preparing lab files ([Hydration Phase](Docs/wslab-hydration.md)). This phase is the most time consuming (1-2hours), but needs to be done only once. It will create virtual hard disks from of provided ISO and will create Domain Controller. [WSLab Deployment](Docs/wslab-deployment.md) takes only few minutes as it will just import Domain Controller and will add other Virtual Machines as specified in LabConfig.ps1
 
 ![](Docs/media/Explorer01.png)
+
+## Data Collection
+
+The software may collect information about you and your use of the software and send it to Microsoft. Microsoft may use this information to provide services and improve our products and services. You may turn off the telemetry as [described in the repository](http://aka.ms/wslab/telemetry). There are also some features in the software that may enable you and Microsoft to collect data from users of your applications. If you use these features, you must comply with applicable law, including providing appropriate notices to users of your applications together with a copy of Microsoft's privacy statement. Our privacy statement is located at https://go.microsoft.com/fwlink/?LinkID=824704. You can learn more about data collection and use in the help documentation and our privacy statement. Your use of the software operates as your consent to these practices.
 
 ### How to get the Scripts
 
