@@ -21,10 +21,12 @@ In following lab you deploy Azure Stack HCI Cluster using Cluster Creation in Wi
 Note: there is a known issue, that exposed virtualization extensions are not detected, so install Hyper-V feature (and Hyper-V PowerShell, or WAC Will not create vSwitches) first
 
 ```powershell
-Invoke-Command -computername (1..4 | % {"1AzSHCI$_"}) -ScriptBlock {
+$Computers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4","Site1AzSHCI1","Site1AzSHCI2","Site2AzSHCI1","Site2AzSHCI2"
+Invoke-Command -computername $Computers -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart
     Install-WindowsFeature -Name Hyper-V-PowerShell
 }
+ Restart-Computer -ComputerName $computers -protocol WSMan -wait -for PowerShell
  
 ```
 
@@ -60,10 +62,16 @@ $LabConfig.VMs += @{ VMName = 'Win10'; ParentVHD = 'Win1020H1_G2.vhdx' ; AddTool
 
 ```Powershell
     #configure sites and subnets in Active Directory
+    if ((Get-ComputerInfo).WindowsInstallationType -eq "Client"){
+        Add-WindowsCapability -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0 -Online
+    }else{
+        Add-WindowsFeature -Name RSAT-AD-PowerShell
+    }
     New-ADReplicationSite -Name "Site1-Redmond"
     New-ADReplicationSite -Name "Site2-Seattle"
     New-ADReplicationSubnet -Name "10.0.0.0/24" -Site "Site1-Redmond" -Location "Redmond, WA"
     New-ADReplicationSubnet -Name "10.0.1.0/24" -Site "Site2-Seattle" -Location "Seattle, WA"
+ 
 ```
 
 ## The lab
