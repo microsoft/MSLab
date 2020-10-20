@@ -14,6 +14,7 @@
         - [All events view](#all-events-view)
         - [Generate Views for each event](#generate-views-for-each-event)
         - [Allow firewall rule for Event logs, connect to Collector and enjoy](#allow-firewall-rule-for-event-logs-connect-to-collector-and-enjoy)
+    - [Explore Sysmon Tools](#explore-sysmon-tools)
 
 <!-- /TOC -->
 
@@ -303,7 +304,6 @@ $Queries += @{ Name="Sysmon ProcessTerminate" ; ID="5" }
 $Queries += @{ Name="Sysmon DriverLoad" ; ID="6" }
 $Queries += @{ Name="Sysmon ImageLoad" ; ID="7" }
 $Queries += @{ Name="Sysmon CreateRemoteThread" ; ID="8" }
-
 $Queries += @{ Name="Sysmon RawAccessRead" ; ID="9" }
 $Queries += @{ Name="Sysmon ProcessAccess" ; ID="10" }
 $Queries += @{ Name="Sysmon FileCreate" ; ID="11" }
@@ -314,6 +314,11 @@ $Queries += @{ Name="Sysmon FileCreateStreamHash" ; ID="15" }
 $Queries += @{ Name="Sysmon SysmonConfigChange" ; ID="16" }
 $Queries += @{ Name="Sysmon NamedPipeCreated" ; ID="17" }
 $Queries += @{ Name="Sysmon NamedPipeConnected" ; ID="18" }
+$Queries += @{ Name="Sysmon WMIFilter" ; ID="19" }
+$Queries += @{ Name="Sysmon WMIConsumer" ; ID="20" }
+$Queries += @{ Name="Sysmon WMIConsumerFilter" ; ID="21" }
+$Queries += @{ Name="Sysmon DNSQuery" ; ID="22" }
+$Queries += @{ Name="Sysmon FileDelete" ; ID="23" }
 
 foreach ($Query in $Queries){
     [xml]$xml=@"
@@ -350,3 +355,19 @@ eventvwr
 ```
 
 ![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/EventViewer.png)
+
+## Explore Sysmon Tools
+
+```powershell
+#Download and extract Sysmon View
+ $ProgressPreference="SilentlyContinue"
+Invoke-WebRequest -Uri https://github.com/nshalabi/SysmonTools/raw/master/SysmonView/64.zip -OutFile $env:userprofile\downloads\SysmonView.zip
+Expand-Archive -Path $env:userprofile\downloads\SysmonView.zip -DestinationPath $env:userprofile\downloads\
+
+#run SysmonView
+. $env:userprofile\downloads\64\SysmonView.exe
+```
+
+![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/EventViewer01.png)
+
+![](/Scenarios/Windows%20Event%20Forwarding/Sysmon/Screenshots/SysmonView01.png)
