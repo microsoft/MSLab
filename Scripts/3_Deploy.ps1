@@ -520,7 +520,7 @@ If (-not $isAdmin) {
             if ($VMConfig.VMProcessorCount -eq "Max"){
                 if ($NumberOfLogicalProcessors -gt 64){
                     WriteInfo "`t Processors Count $NumberOfLogicalProcessors and Max is specified. Configuring VM Processor Count to 64"
-                    VMTemp | Set-VMProcessor -Count 64
+                    $VMTemp | Set-VMProcessor -Count 64
                 }else{
                     WriteInfo "`t Configuring VM Processor Count to Max ($NumberOfLogicalProcessors)"
                     $VMTemp | Set-VMProcessor -Count $NumberOfLogicalProcessors
