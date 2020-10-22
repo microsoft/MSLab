@@ -40,6 +40,25 @@ Run all code from DC. Follow [Scenario.ps1](/Scenarios/AzSHCI%20and%20Kubernetes
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell_ISE01.png)
 
+Note: (optional) there is known issue, that when installing AKS, scripts checks for available space on C: drive (instead of cluster storage). Since it needs 50GB free space, it might not be enough if you run Windows Update on servers. If you want to expand disks, run following code
+
+```PowerSHell
+#run from Host to expand C: drives in VMs to 120GB
+$VMs=Get-VM -VMName WSLab*azshci*
+$VMs | Get-VMHardDiskDrive -ControllerLocation 0 | Resize-VHD -SizeBytes 120GB
+#VM Credentials
+$secpasswd = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$VMCreds = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin", $secpasswd)
+Foreach ($VM in $VMs){
+    Invoke-Command -VMname $vm.name -Credential $VMCreds -ScriptBlock {
+        $part=Get-Partition -DriveLetter c
+        $sizemax=($part |Get-PartitionSupportedSize).SizeMax
+        $part | Resize-Partition -Size $sizemax
+    }
+}
+ 
+```
+
 ### Region Create 2 node cluster
 
 This region will deploy minimum configuration possible to have 2 node cluster. It does not configure any sofisticated networking or spectre/meltdown mitigation etc. For real clusters follow [S2D HyperConverged Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
