@@ -1,3 +1,25 @@
+#############################
+### Run from Hyper-V Host ###
+#############################
+
+#run from Host to expand C: drives in VMs to 120GB. This is required as Install-AKSHCI checks free space on C (should check free space in CSV)
+$VMs=Get-VM -VMName WSLab*azshci*
+$VMs | Get-VMHardDiskDrive -ControllerLocation 0 | Resize-VHD -SizeBytes 120GB
+#VM Credentials
+$secpasswd = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$VMCreds = New-Object System.Management.Automation.PSCredential ("corp\LabAdmin", $secpasswd)
+Foreach ($VM in $VMs){
+    Invoke-Command -VMname $vm.name -Credential $VMCreds -ScriptBlock {
+        $part=Get-Partition -DriveLetter c
+        $sizemax=($part |Get-PartitionSupportedSize).SizeMax
+        $part | Resize-Partition -Size $sizemax
+    }
+}
+
+###################
+### Run from DC ###
+###################
+
 #region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 # LabConfig
 $Servers="AzsHCI1","AzSHCI2"
@@ -6,8 +28,7 @@ $ClusterName="AzSHCI-Cluster"
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
-# Update servers - if you will update, script will fail in install-akshci as it checks for free space. After updates will be free space less than 50GB
-<#
+# Update servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
     $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
@@ -24,7 +45,6 @@ if ($ServersToReboot){
     #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
     Start-sleep 20
 }
-#>
 
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {
@@ -64,10 +84,10 @@ Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 
 #region Download AKS HCI module
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip"
+Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
 $ProgressPreference='Continue' #return progress preference back
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -201,13 +221,16 @@ if (($subscriptions).count -gt 1){
 $subscriptionID=(Get-AzSubscription).ID
 
 #register Azure Stack HCI
-#first disable IE ESC
-$AdminKey = "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"
-Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0
-#register (needs to run 3 times and allow all web pages in IE)...
-1..3 | foreach-object {
-    Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
-}
+#add some trusted sites (to be able to authenticate with Register-AzStackHCI)
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
+#and register
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+
+
 #or more complex
 <#
 #grab location
@@ -285,6 +308,10 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 # following code is work-in-progress #
 ######################################
 
+######################
+### Run from Win10 ###
+######################
+
 #region Windows Admin Center on Win10
 
     #install WAC
@@ -310,25 +337,36 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 
 
     #add feed
+    #download nupgk (included in aks-hci module)
+    $ProgressPreference='SilentlyContinue' #for faster download
+    Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
+    $ProgressPreference='Continue' #return progress preference back
+    #unzip
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
     $Filename=Get-ChildItem -Path $env:userprofile\downloads\ | Where-Object Name -like "msft.sme.aks.*.nupkg"
     New-Item -Path "C:\WACFeeds\" -Name Feeds -ItemType Directory -Force
     Copy-Item -Path $FileName.FullName -Destination "C:\WACFeeds\"
     Add-Feed -GatewayEndpoint "https://localhost:6516/" -Feed "C:\WACFeeds\"
 
-    # List Kubernetes extensions
+    # List Kubernetes extensions (you need to log into WAC in Edge for this command to succeed)
     Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
 
-    # Install Kubernetes Extension (still does not seems to be installed from GUI, bug?)
+    # Install Kubernetes Extension
     $extension=Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
     Install-Extension -ExtensionId $extension.id
 
 #endregion
 
+###################
+### Run from DC ###
+###################
+
 #region Windows Admin Center on GW
 
 #Install Edge
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/40e309b4-5d46-4AE8-b839-bd74b4cff36e/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+Invoke-WebRequest -Uri "https://aka.ms/edge-msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 $ProgressPreference='Continue' #return progress preference back
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
@@ -376,10 +414,10 @@ foreach ($computer in $computers){
 
 #Download AKS HCI module
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip"
+Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
 $ProgressPreference='Continue' #return progress preference back
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-1.0.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 
 #copy nupkg to WAC
