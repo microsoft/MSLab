@@ -281,13 +281,27 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    #generage kubeconfig first
+    Get-AksHciCredential -clusterName demo
+    #onboard
     Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
 }
 
 #check onboarding
-Invoke-Command -ComputerName $ClusterName {
-    & "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+#generate kubeconfig (this step was already done)
+<#
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Get-AksHciCredential -clusterName demo
 }
+#>
+#copy kubeconfig
+$session=New-PSSession -ComputerName $ClusterName
+Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse
+#copy kubectl
+Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse
+#validate onboarding
+& "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+
 #endregion
 
 #region cleanup
