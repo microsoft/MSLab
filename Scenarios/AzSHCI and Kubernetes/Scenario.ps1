@@ -264,7 +264,7 @@ if (!(Get-Azcontext)){
 $tenantID=(Get-AzContext).Tenant.Id
 $subscriptionID=(Get-AzSubscription).ID
 $resourcegroup="$ClusterName-rg"
-$location="westeurope"
+$location="eastUS"
 $AKSClusterName="demo"
 
 #create new service principal for cluster demo
@@ -281,13 +281,74 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    #generage kubeconfig first
+    Get-AksHciCredential -clusterName demo
+    #onboard
     Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
 }
 
 #check onboarding
-Invoke-Command -ComputerName $ClusterName {
-    & "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+#generate kubeconfig (this step was already done)
+<#
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Get-AksHciCredential -clusterName demo
 }
+#>
+#copy kubeconfig
+$session=New-PSSession -ComputerName $ClusterName
+Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
+#copy kubectl
+Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
+#validate onboarding
+& "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+#endregion
+
+#region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
+$ClusterName="AzSHCI-Cluster"
+$servers=(Get-ClusterNode -Cluster $ClusterName).Name
+
+#install helm
+#install chocolatey
+Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+#install helm
+choco feature enable -n allowGlobalConfirmation
+cinst kubernetes-helm
+
+<#
+$ClusterName="AzSHCI-Cluster"
+$servers=(Get-ClusterNode -Cluster $ClusterName).name
+$ProgressPreference="SilentlyContinue"
+Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
+$ProgressPreference="Continue"
+Expand-Archive -Path $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip -DestinationPath $env:USERPROFILE\Downloads
+$sessions=New-PSSession -ComputerName $servers
+foreach ($session in $sessions){
+    Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
+}
+#>
+
+#install az cli
+$ProgressPreference="SilentlyContinue"
+Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile $env:userprofile\Downloads\AzureCLI.msi
+$ProgressPreference="Continue"
+Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+#restart powershell
+exit
+#login
+az login
+#create configuration
+$ClusterName="AzSHCI-Cluster"
+$KubernetesClusterName="demo"
+$resourcegroup="$ClusterName-rg"
+az k8sconfiguration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
+#az connectedk8s delete --name cluster-config --resource-group $resourcegroup
+
+#validate
+az k8sconfiguration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+& "c:\Program Files\AksHci\kubectl.exe" get ns --show-labels
+& "c:\Program Files\AksHci\kubectl.exe" -n cluster-config get deploy -o wide
+& "c:\Program Files\AksHci\kubectl.exe" -n team-a get cm -o yaml
+& "c:\Program Files\AksHci\kubectl.exe" -n itops get all
 #endregion
 
 #region cleanup
@@ -296,7 +357,7 @@ $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
 }
-Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
+Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication #-Force
 #endregion
 
 #TBD: Create sample application

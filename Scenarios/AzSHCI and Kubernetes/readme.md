@@ -130,3 +130,7 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge03.png)
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge04.png)
+
+### Region add sample configuration to the cluster
+
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge05.png)
