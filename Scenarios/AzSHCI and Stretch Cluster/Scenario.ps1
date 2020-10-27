@@ -458,8 +458,7 @@ $VHDPath = $openFile.FileName
 $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*).Name
 foreach ($CSV in $CSVs){
     1..$NumberOfVMsPerVolume | ForEach-Object {
-        $CSV=$CSV.Substring(22)
-        $CSV=$CSV.TrimEnd(")")
+        $CSV=($csv -split '\((.*?)\)')[1]
         $VMName="TestVM$($CSV)_$_"
         New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
         Start-BitsTransfer -Source $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
