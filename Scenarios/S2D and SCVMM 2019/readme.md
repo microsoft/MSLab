@@ -57,7 +57,8 @@ Run all code from DC. Run all code in one PowerShell windows to keep variables.
 
 ```PowerShell
 #Make sure SQL and VMM services are started
-Start-service -Name SCVMMService,MSSQLSERVER
+Start-service -Name MSSQLSERVER
+Start-service -Name SCVMMService
 
 #Make sure RSAT features are installed
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica,UpdateServices-RSAT,UpdateServices-UI
