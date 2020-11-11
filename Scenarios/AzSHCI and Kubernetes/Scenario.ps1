@@ -38,14 +38,6 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     }
 }
 
-# Check if restart is required and reboot
-$ServersToReboot=($result | Where-Object PendingReboot -eq $true).PSComputerName
-if ($ServersToReboot){
-    Restart-Computer -ComputerName $ServersToReboot -Protocol WSMan -Wait -For PowerShell
-    #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
-    Start-sleep 20
-}
-
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
