@@ -31,7 +31,7 @@ Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.admx -Destinatio
 Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.adml -Destination C:\Windows\PolicyDefinitions\en-US
 
 #grab recommended GPOs (original source https://github.com/shawntmeyer/WVD/tree/master/Image-Build/Customizations/GPOBackups)
-Invoke-WebRequest -Uri https://github.com/Microsoft/WSLab/raw/dev/FSLogix/WVD-GPO-Backups.zip -OutFile $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -UseBasicParsing
+Invoke-WebRequest -Uri https://github.com/microsoft/WSLab/raw/dev/Scenarios/FSLogix/WVD-GPO-Backups.zip -OutFile $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -UseBasicParsing
 #extract
 Expand-Archive -Path $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -DestinationPath $env:USERPROFILE\Downloads\WVDBackups\ -Force
 #import GPOs (and link)
