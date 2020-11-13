@@ -7,7 +7,7 @@ $accounts=@()
 $accounts+="corp\Domain Users"
 New-SmbShare -Name $FolderName -Path "c:\Shares\$FolderName" -FullAccess $accounts -CimSession $ComputerName
 
-#setup NTFS permissions
+#setup NTFS permissions https://docs.microsoft.com/en-us/fslogix/fslogix-storage-config-ht
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Module ntfssecurity -Force
 
@@ -15,11 +15,8 @@ $item=Get-Item -Path "\\$ComputerName\c$\shares\$foldername"
 $item | Disable-NTFSAccessInheritance
 $item | Get-NTFSAccess | Remove-NTFSAccess -Account "Corp\Domain Users"
 $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users"
-$item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights CreateDirectories
-$item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights CreateFiles
-$item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights ReadPermissions
-$item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights ListDirectory
-$item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights FullControl
+$item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights Modify -AppliesTo ThisFolderOnly
+$item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights Modify -AppliesTo SubfoldersAndFilesOnly
 
 #Download FSLogix and expand
 $ProgressPreference="SilentlyContinue"
