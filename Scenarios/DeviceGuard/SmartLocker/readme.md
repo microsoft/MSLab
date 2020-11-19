@@ -105,7 +105,7 @@ Microsoft recommends that you block the following Microsoft-signed applications 
 ```PowerShell
 #grab recommended xml blocklist from GitHub
 #[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$content=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/master/windows/security/threat-protection/windows-defender-application-control/microsoft-recommended-block-rules.md 
+$content=Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/MicrosoftDocs/windows-itpro-docs/public/windows/security/threat-protection/windows-defender-application-control/microsoft-recommended-block-rules.md
 
 #find start and end
 $XMLStart=$content.Content.IndexOf("<?xml version=")
