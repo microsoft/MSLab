@@ -219,18 +219,21 @@ New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFil
 Remove-Item $templateFile.FullName
 #endregion
 
-#region add Monitoring extension https://docs.microsoft.com/en-us/azure/azure-arc/servers/manage-vm-extensions-powershell
+#region add Monitoring extension and dependency agent extension https://docs.microsoft.com/en-us/azure/azure-arc/servers/manage-vm-extensions-powershell
 $WorkspaceName="WSLabWorkspace-$SubscriptionID"
 $ResourceGroupName="WSLabAzureArc"
 $server="Server1"
 
-$workspace=Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $WorkspaceResourceGroupName
-$keys=Get-AzOperationalInsightsWorkspaceSharedKey -Name $WorkspaceName -ResourceGroupName $WorkspaceResourceGroupName
+$workspace=Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName
+$keys=Get-AzOperationalInsightsWorkspaceSharedKey -Name $WorkspaceName -ResourceGroupName $ResourceGroupName
 
 $Setting = @{ "workspaceId" = "$($workspace.CustomerId.GUID)" }
 $protectedSetting = @{ "workspaceKey" = "$($keys.PrimarySharedKey)" }
 
-New-AzConnectedMachineExtension -Name "MicrosoftMonitoringAgent" -ResourceGroupName $ArcResourceGroupName -MachineName $server -Location $location -Publisher "Microsoft.EnterpriseCloud.Monitoring" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "MicrosoftMonitoringAgent" #-TypeHandlerVersion "1.0.18040.2"
+New-AzConnectedMachineExtension -Name "MicrosoftMonitoringAgent" -ResourceGroupName $ResourceGroupName -MachineName $server -Location $location -Publisher "Microsoft.EnterpriseCloud.Monitoring" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "MicrosoftMonitoringAgent" #-TypeHandlerVersion "1.0.18040.2"
+New-AzConnectedMachineExtension -Name "DependencyAgentWindows" -ResourceGroupName $ResourceGroupName -MachineName $server -Location $location -Publisher "Microsoft.Azure.Monitoring.DependencyAgent" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "DependencyAgentWindows"
+
+
 #endregion
 
 #region add extension at scale https://docs.microsoft.com/en-us/azure/azure-monitor/insights/vminsights-enable-policy
