@@ -210,7 +210,7 @@ if (($subscriptions).count -gt 1){
     $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
-$subscriptionID=(Get-AzSubscription).ID
+$subscriptionID=(Get-AzContext).Subscription.ID
 
 #register Azure Stack HCI
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
