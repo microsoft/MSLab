@@ -347,7 +347,7 @@ az k8sconfiguration show --name cluster-config --cluster-name $KubernetesCluster
 #Grab Insights Workspace if some already exists
 $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
 
-#Create workspace if not available
+#Create Log Analytics Workspace if not available
 if (-not ($Workspace)){
     $SubscriptionID=(Get-AzContext).Subscription.ID
     $WorkspaceName="WSLabWorkspace-$SubscriptionID"
@@ -378,6 +378,11 @@ $servicePrincipalClientSecret = [System.Net.NetworkCredential]::new("", $service
 $tenantId = (Get-AzSubscription -SubscriptionId $subscriptionId).TenantId
 $proxyendpoint=""
 & "$env:Userprofile\Downloads\enable-monitoring.ps1" -clusterResourceId $azureArcClusterResourceId -servicePrincipalClientId $servicePrincipalClientId -servicePrincipalClientSecret $servicePrincipalClientSecret -tenantId $tenantId -kubeContext $kubeContext -workspaceResourceId $logAnalyticsWorkspaceResourceId -proxyEndpoint $proxyEndpoint
+#endregion
+
+#region deploy app 
+& "c:\Program Files\AksHci\kubectl.exe" apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
+& "c:\Program Files\AksHci\kubectl.exe" get service
 #endregion
 
 #region cleanup
