@@ -141,7 +141,7 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 
 ### Region Enable monitoring
 
-![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge06.png)
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge07.png)
 
 ### Region deploy app
 
