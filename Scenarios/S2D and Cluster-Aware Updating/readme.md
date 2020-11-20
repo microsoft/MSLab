@@ -116,14 +116,12 @@ Note: script does not follow all best practices. For best practices visit [S2D H
 #Create VMs
     $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
     foreach ($CSV in $CSVs){
-        $CSV=$CSV.Substring(22)
-        $CSV=$CSV.TrimEnd(")")
+        $CSV=($csv -split '\((.*?)\)')[1]
         $VMName="TestVM$($CSV)"
         New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
         Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
         New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
         Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-
     }
     #Start all VMs
     Start-VM -VMName * -CimSession (Get-ClusterNode -Cluster $clustername).Name
@@ -165,7 +163,7 @@ foreach ($computer in $computers){
 
 #Install Edge
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/40e309b4-5d46-4AE8-b839-bd74b4cff36e/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
 #Install Edge
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge

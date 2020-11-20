@@ -880,8 +880,7 @@ Write-host "Script started at $StartDateTime"
     if ($realVMs -and $VHDPath){
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
-            $CSV=$CSV.Substring(22)
-            $CSV=$CSV.TrimEnd(")")
+            $CSV=($CSV -split '\((.*?)\)')[1]
             1..$NumberOfRealVMs | ForEach-Object {
                 $VMName="TestVM$($CSV)_$_"
                 New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
@@ -895,8 +894,7 @@ Write-host "Script started at $StartDateTime"
     }else{
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
-                $CSV=$CSV.Substring(22)
-                $CSV=$CSV.TrimEnd(")")
+                $CSV=($CSV -split '\((.*?)\)')[1]
                 1..3 | ForEach-Object {
                     $VMName="TestVM$($CSV)_$_"
                     Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {

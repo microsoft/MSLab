@@ -134,3 +134,15 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 ### Region add sample configuration to the cluster
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge05.png)
+
+### Region Create Log Analytics workspace
+
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge06.png)
+
+### Region Enable monitoring
+
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Edge06.png)
+
+### Region deploy app
+
+![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/DC02.png)

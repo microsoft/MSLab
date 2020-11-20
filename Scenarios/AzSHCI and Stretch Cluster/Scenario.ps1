@@ -458,8 +458,7 @@ $VHDPath = $openFile.FileName
 $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName | Where-Object Name -NotLike *Log*).Name
 foreach ($CSV in $CSVs){
     1..$NumberOfVMsPerVolume | ForEach-Object {
-        $CSV=$CSV.Substring(22)
-        $CSV=$CSV.TrimEnd(")")
+        $CSV=($csv -split '\((.*?)\)')[1]
         $VMName="TestVM$($CSV)_$_"
         New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
         Start-BitsTransfer -Source $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
@@ -569,7 +568,7 @@ foreach ($computer in $computers){
 
 #Install Edge
 $ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "http://dl.delivery.mp.microsoft.com/filestreamingservice/files/40e309b4-5d46-4AE8-b839-bd74b4cff36e/MicrosoftEdgeEnterpriseX64.msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge

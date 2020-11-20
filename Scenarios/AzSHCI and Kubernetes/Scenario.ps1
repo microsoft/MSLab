@@ -38,14 +38,6 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     }
 }
 
-# Check if restart is required and reboot
-$ServersToReboot=($result | Where-Object PendingReboot -eq $true).PSComputerName
-if ($ServersToReboot){
-    Restart-Computer -ComputerName $ServersToReboot -Protocol WSMan -Wait -For PowerShell
-    #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
-    Start-sleep 20
-}
-
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {
     Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
@@ -351,8 +343,51 @@ az k8sconfiguration show --name cluster-config --cluster-name $KubernetesCluster
 & "c:\Program Files\AksHci\kubectl.exe" -n itops get all
 #endregion
 
+#region Create Log Analytics workspace
+#Grab Insights Workspace if some already exists
+$Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
+
+#Create Log Analytics Workspace if not available
+if (-not ($Workspace)){
+    $SubscriptionID=(Get-AzContext).Subscription.ID
+    $WorkspaceName="WSLabWorkspace-$SubscriptionID"
+    $ResourceGroupName="WSLabAzureArc"
+    #Pick Region
+    $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single
+    if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
+        New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+    }
+    $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
+}
+#endregion
+
+#region Enable monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
+#download onboarding script
+Invoke-WebRequest https://aka.ms/enable-monitoring-powershell-script -OutFile "$env:Userprofile\Downloads\enable-monitoring.ps1"
+$resourcegroup="$ClusterName-rg"
+$SubscriptionID=(Get-AzContext).Subscription.ID
+$ClusterName="Demo"
+$azureArcClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup/providers/Microsoft.Kubernetes/connectedClusters/$Clustername"
+$kubecontext=""
+$LogAnalyticsWorkspaceResourceID=(Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace").ResourceID
+$ServicePrincipal=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
+New-AzRoleAssignment -RoleDefinitionName 'Log Analytics Contributor'  -ObjectId $servicePrincipal.Id -Scope  $logAnalyticsWorkspaceResourceId
+
+$servicePrincipalClientId =  $servicePrincipal.ApplicationId.ToString()
+$servicePrincipalClientSecret = [System.Net.NetworkCredential]::new("", $servicePrincipal.Secret).Password
+$tenantId = (Get-AzSubscription -SubscriptionId $subscriptionId).TenantId
+$proxyendpoint=""
+& "$env:Userprofile\Downloads\enable-monitoring.ps1" -clusterResourceId $azureArcClusterResourceId -servicePrincipalClientId $servicePrincipalClientId -servicePrincipalClientSecret $servicePrincipalClientSecret -tenantId $tenantId -kubeContext $kubeContext -workspaceResourceId $logAnalyticsWorkspaceResourceId -proxyEndpoint $proxyEndpoint
+#endregion
+
+#region deploy app 
+& "c:\Program Files\AksHci\kubectl.exe" apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
+& "c:\Program Files\AksHci\kubectl.exe" get service
+#endregion
+
 #region cleanup
 Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup #-Force
+Get-AzResourceGroup -Name "WSLabAzureArc" | Remove-AzResourceGroup #-Force
 $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id #-Force

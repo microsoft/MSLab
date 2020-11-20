@@ -800,17 +800,16 @@
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
     $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
     foreach ($CSV in $CSVs){
-            $CSV=$CSV.Substring(22)
-            $CSV=$CSV.TrimEnd(")")
-            1..3 | ForEach-Object {
-                $VMName="TestVM$($CSV)_$_"
-                Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
-                    param($CSV,$VMName);
-                    New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
-                }
-                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+        $CSV=($csv -split '\((.*?)\)')[1]
+        1..3 | ForEach-Object {
+            $VMName="TestVM$($CSV)_$_"
+            Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                param($CSV,$VMName);
+                New-VM -Name $VMName -NewVHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 32GB -SwitchName SETSwitch -Generation 2 -Path "c:\ClusterStorage\$CSV\"
             }
+            Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
         }
+    }
 #endregion
 
 #region add storage provider to VMM

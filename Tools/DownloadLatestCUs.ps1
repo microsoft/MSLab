@@ -4,7 +4,7 @@ If ((Get-ExecutionPolicy) -ne "RemoteSigned"){
 
 #download LatestUpdate module
 Write-Output "Checking if LatestUpdate PS Module is Installed"
-if (!(Get-InstalledModule -Name LatestUpdate)){
+if (!(Get-InstalledModule -Name LatestUpdate -ErrorAction Ignore)){
     # Verify Running as Admin
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
     If (!( $isAdmin )) {
