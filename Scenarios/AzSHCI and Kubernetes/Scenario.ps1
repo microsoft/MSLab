@@ -210,7 +210,7 @@ if (($subscriptions).count -gt 1){
     $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
 }
 
-$subscriptionID=(Get-AzContext).Subscription.ID
+$subscriptionID=(Get-AzSubscription).ID
 
 #register Azure Stack HCI
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
@@ -343,8 +343,46 @@ az k8sconfiguration show --name cluster-config --cluster-name $KubernetesCluster
 & "c:\Program Files\AksHci\kubectl.exe" -n itops get all
 #endregion
 
+#region Create Log Analytics workspace
+#Grab Insights Workspace if some already exists
+$Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
+
+#Create workspace if not available
+if (-not ($Workspace)){
+    $SubscriptionID=(Get-AzContext).Subscription.ID
+    $WorkspaceName="WSLabWorkspace-$SubscriptionID"
+    $ResourceGroupName="WSLabAzureArc"
+    #Pick Region
+    $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single
+    if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
+        New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+    }
+    $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
+}
+#endregion
+
+#region Enable monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
+#download onboarding script
+Invoke-WebRequest https://aka.ms/enable-monitoring-powershell-script -OutFile "$env:Userprofile\Downloads\enable-monitoring.ps1"
+$resourcegroup="$ClusterName-rg"
+$SubscriptionID=(Get-AzContext).Subscription.ID
+$ClusterName="Demo"
+$azureArcClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup/providers/Microsoft.Kubernetes/connectedClusters/$Clustername"
+$kubecontext=""
+$LogAnalyticsWorkspaceResourceID=(Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace").ResourceID
+$ServicePrincipal=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
+New-AzRoleAssignment -RoleDefinitionName 'Log Analytics Contributor'  -ObjectId $servicePrincipal.Id -Scope  $logAnalyticsWorkspaceResourceId
+
+$servicePrincipalClientId =  $servicePrincipal.ApplicationId.ToString()
+$servicePrincipalClientSecret = [System.Net.NetworkCredential]::new("", $servicePrincipal.Secret).Password
+$tenantId = (Get-AzSubscription -SubscriptionId $subscriptionId).TenantId
+$proxyendpoint=""
+& "$env:Userprofile\Downloads\enable-monitoring.ps1" -clusterResourceId $azureArcClusterResourceId -servicePrincipalClientId $servicePrincipalClientId -servicePrincipalClientSecret $servicePrincipalClientSecret -tenantId $tenantId -kubeContext $kubeContext -workspaceResourceId $logAnalyticsWorkspaceResourceId -proxyEndpoint $proxyEndpoint
+#endregion
+
 #region cleanup
 Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup #-Force
+Get-AzResourceGroup -Name "WSLabAzureArc" | Remove-AzResourceGroup #-Force
 $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
