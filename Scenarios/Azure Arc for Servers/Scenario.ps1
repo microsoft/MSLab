@@ -147,7 +147,7 @@ if (-not ($Workspace)){
 #region add Automation Account
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $WorkspaceName="WSLabWorkspace-$SubscriptionID"
-$ResourceGroupName="WSLabWinAnalytics"
+$ResourceGroupName="WSLabAzureArc"
 $AutomationAccountName="WSLabAutomationAccount"
 
 $location=(Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName).Location
