@@ -130,7 +130,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 #Grab Insights Workspace if some already exists
 $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
 
-#Create workspace if not available
+#region Create workspace if not available
 if (-not ($Workspace)){
     $SubscriptionID=(Get-AzContext).Subscription.ID
     $WorkspaceName="WSLabWorkspace-$SubscriptionID"
@@ -240,7 +240,7 @@ New-AzConnectedMachineExtension -Name "DependencyAgentWindows" -ResourceGroupNam
 #TBD with Posh
 #endregion
 
-#Add Key Vault Extension
+#region add Key Vault Extension
 $ResourceGroupName="WSLabAzureArc"
 $KeyVaultName="WSLabKeyVault"+"$(1..10000 | Get-Random)"
 $Location="westeurope"
