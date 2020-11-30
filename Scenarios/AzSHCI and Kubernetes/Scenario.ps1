@@ -289,10 +289,19 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #copy kubeconfig
 $session=New-PSSession -ComputerName $ClusterName
 Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
-#copy kubectl
-Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
+#install kubectl
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$req = Invoke-WebRequest -UseBasicParsing -Uri $uri
+$downloadlink = ($req.Links | where href -Match "kubectl.exe").href
+$downloadLocation="c:\Program Files\AksHci\"
+New-Item -Path $downloadLocation -ItemType Directory -Force
+Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlink" -Destination "$Downloadlocation\kubectl.exe"
+#add to enviromental variables
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+#alternatively copy kubectl from cluster
+#Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
 #validate onboarding
-& "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+kubectl logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
 #endregion
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
@@ -337,13 +346,18 @@ az k8sconfiguration create --name cluster-config --cluster-name $KubernetesClust
 
 #validate
 az k8sconfiguration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
-& "c:\Program Files\AksHci\kubectl.exe" get ns --show-labels
-& "c:\Program Files\AksHci\kubectl.exe" -n cluster-config get deploy -o wide
-& "c:\Program Files\AksHci\kubectl.exe" -n team-a get cm -o yaml
-& "c:\Program Files\AksHci\kubectl.exe" -n itops get all
+kubectl get ns --show-labels
+kubectl -n cluster-config get deploy -o wide
+kubectl -n team-a get cm -o yaml
+kubectl -n itops get all
 #endregion
 
 #region Create Log Analytics workspace
+#Install module
+if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+    Install-Module -Name Az.OperationalInsights -Force
+}
+
 #Grab Insights Workspace if some already exists
 $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
 
@@ -381,8 +395,36 @@ $proxyendpoint=""
 #endregion
 
 #region deploy app 
-& "c:\Program Files\AksHci\kubectl.exe" apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
-& "c:\Program Files\AksHci\kubectl.exe" get service
+kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
+kubectl get service
+#endregion
+
+#region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
+#download and install Azure Data CLI
+Start-BitsTransfer -Source https://aka.ms/azdata-msi -Destination "$env:USERPROFILE\Downloads\azdata-cli.msi"
+Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\azdata-cli.msi /quiet"
+
+#download and install Azure Data Studio https://docs.microsoft.com/en-us/sql/azure-data-studio/download-azure-data-studio?view=sql-server-ver15
+Start-BitsTransfer -Source https://go.microsoft.com/fwlink/?linkid=2148607 -Destination "$env:USERPROFILE\Downloads\azuredatastudio-windows-user-setup.exe"
+Start-Process "$env:USERPROFILE\Downloads\azuredatastudio-windows-user-setup.exe" -Wait -ArgumentList "/SILENT /MERGETASKS=!runcode"
+
+#download and install Azure CLI
+<#
+Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
+Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+#>
+
+#download and install Kubernetes CLI
+<#
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$req = Invoke-WebRequest -UseBasicParsing -Uri $uri
+$downloadlink = ($req.Links | where href -Match "kubectl.exe").href
+$downloadLocation="c:\Program Files\AksHci\"
+New-Item -Path $downloadLocation -ItemType Directory -Force
+Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlink" -Destination "$Downloadlocation\kubectl.exe"
+#add to enviromental variables
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+#>
 #endregion
 
 #region cleanup
