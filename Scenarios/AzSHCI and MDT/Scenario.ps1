@@ -6,7 +6,6 @@
 $downloadfolder="$env:USERPROFILE\Downloads"
 
 #Download files
-$ProgressPreference="SilentlyContinue"
 $files=@()
 $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2026036" ; FileName="adksetup.exe" ; Description="Windows 10 ADK 1809"}
 $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2022233" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE 1809"}
@@ -17,11 +16,10 @@ $Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI
 
 foreach ($file in $files){
     if (-not (Test-Path "$downloadfolder\$($file.filename)")){
-        Write-Output "Downloading $($file.Description)"
-        Invoke-WebRequest -UseBasicParsing -Uri $file.uri -OutFile "$downloadfolder\$($file.filename)"
+        Start-BitsTransfer -Source $file.uri -Destination "$downloadfolder\$($file.filename)" -DisplayName "Downloading: $($file.filename)"
     }
 }
-$ProgressPreference="Continue"
+
 #install ADK
 Start-Process -Wait -FilePath "$downloadfolder\adksetup.exe" -ArgumentList "/features OptionId.DeploymentTools OptionId.UserStateMigrationTool /quiet"
 #install ADK WinPE
