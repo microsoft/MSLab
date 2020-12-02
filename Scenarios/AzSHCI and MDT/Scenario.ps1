@@ -270,7 +270,7 @@ foreach ($event in $events){
 #region add deploy info to AD Object and MDT Database
 
 #download and unzip mdtdb
-Invoke-WebRequest -Uri https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -OutFile $env:USERPROFILE\Downloads\MDTDB.zip
+Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
 Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
 Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
 #Connect to DB

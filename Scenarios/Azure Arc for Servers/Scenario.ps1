@@ -56,9 +56,7 @@ if (-not(Get-AZADServicePrincipal -DisplayName $ServicePrincipalName)){
 $servers="Server1","Server2","Server3"
 
 # Download the package
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri https://aka.ms/AzureConnectedMachineAgent -OutFile "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
 
 #Copy ARC agent to nodes
 #increase max evenlope size first

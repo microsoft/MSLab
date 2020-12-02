@@ -22,8 +22,7 @@ if (!(Get-module -Name AZ -ListAvailable)){
 $GatewayServerName="WACGW"
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
     $ProgressPreference='Continue' #return progress preference back
 }
 #Create PS Session and copy install files to remote server
@@ -53,8 +52,7 @@ foreach ($computer in $computers){
 #endregion
 
 #region Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -99,9 +97,7 @@ if (-not(Get-AZADServicePrincipal -DisplayName $ServicePrincipalName)){
 $servers=1..4 | ForEach-Object {"S2D$_"} #or $servers="s2d1","s2d2","s2d3","s2d4"
 
 # Download the package
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri https://aka.ms/AzureConnectedMachineAgent -OutFile "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
 
 #Copy ARC agent to nodes
 #increase max evenlope size first
@@ -179,7 +175,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 $BaselinePath="$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL"
 $DSCDestinationFolder="$BaselinePath\DSC"
 #download GPOs and unzip
-Invoke-WebRequest -UseBasicParsing -Uri https://msdnshared.blob.core.windows.net/media/2018/11/Windows-10-1809-Security-Baseline-FINAL.zip -OutFile "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL.zip"
+Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/2018/11/Windows-10-1809-Security-Baseline-FINAL.zip -Destination "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL.zip"
 Expand-Archive -Path "$env:UserProfile\Downloads\Windows-10-1809-Security-Baseline-FINAL.zip" -DestinationPath $BaselinePath
 
 #install BaselineManagement module

@@ -19,8 +19,7 @@ $item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRigh
 $item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights Modify -AppliesTo SubfoldersAndFilesOnly
 
 #Download FSLogix and expand
-$ProgressPreference="SilentlyContinue"
-Invoke-WebRequest -Uri https://aka.ms/fslogix_download -OutFile $env:USERPROFILE\Downloads\FSLogix_Apps.zip -UseBasicParsing
+Start-BitsTransfer -Source https://aka.ms/fslogix_download -Destination $env:USERPROFILE\Downloads\FSLogix_Apps.zip
 Expand-Archive -Path $env:USERPROFILE\Downloads\FSLogix_Apps.zip -DestinationPath $env:USERPROFILE\Downloads\FSLogix_Apps -Force
 
 #install fslogix admx template
@@ -28,7 +27,7 @@ Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.admx -Destinatio
 Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.adml -Destination C:\Windows\PolicyDefinitions\en-US
 
 #grab recommended GPOs (original source https://github.com/shawntmeyer/WVD/tree/master/Image-Build/Customizations/GPOBackups)
-Invoke-WebRequest -Uri https://github.com/microsoft/WSLab/raw/dev/Scenarios/FSLogix/WVD-GPO-Backups.zip -OutFile $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -UseBasicParsing
+Start-BitsTransfer -Source https://github.com/microsoft/WSLab/raw/dev/Scenarios/FSLogix/WVD-GPO-Backups.zip -Destination $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip
 #extract
 Expand-Archive -Path $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -DestinationPath $env:USERPROFILE\Downloads\WVDBackups\ -Force
 #import GPOs (and link)

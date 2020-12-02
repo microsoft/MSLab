@@ -31,7 +31,7 @@ If($openFiles.ShowDialog() -eq "OK"){
 
 #Download MSIX Image tool if not available"
 if (!(Test-Path "$folder\msixmgr\x64\msixmgr.exe")){
-    Invoke-WebRequest -Uri https://aka.ms/msixmgr -OutFile "$folder\msixmgr.zip"
+    Start-BitsTransfer -Source https://aka.ms/msixmgr -Destination "$folder\msixmgr.zip"
     Expand-Archive -Path "$folder\msixmgr.zip" -DestinationPath "$folder\msixmgr"
 }
 

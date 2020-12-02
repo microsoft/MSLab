@@ -30,19 +30,17 @@
 #endregion
 
 #region download required files to downloads folder
-$ProgressPreference='SilentlyContinue' #for faster download
 #influxDB and telegraph
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.8.3_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip"
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.16.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip"
+Start-BitsTransfer -Source https://dl.influxdata.com/influxdb/releases/influxdb-1.8.3_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip"
+Start-BitsTransfer -Source https://dl.influxdata.com/telegraf/releases/telegraf-1.16.2_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip"
 #Grafana
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-7.3.4.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana-7.3.4.zip"
+Start-BitsTransfer -Source https://dl.grafana.com/oss/release/grafana-7.3.4.windows-amd64.zip -Destination "$env:USERPROFILE\Downloads\grafana-7.3.4.zip"
 #NSSM - the Non-Sucking Service Manager
-Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
+Start-BitsTransfer -Source https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -Destination "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
 
 #region Download and Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -652,8 +650,7 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
         #Grab DN
         $CAcert=(Get-CertificationAuthority).certificate
         #download OpenSSL and transfer to GrafanaServer
-        $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -Uri "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
+        Start-BitsTransfer -Source "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -Destination $env:USERPROFILE\Downloads\OpenSSL.zip
         #transfer OpenSSL to $GrafanaServer
         $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
         Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
@@ -809,7 +806,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 #endregion
 
 #region download and run Influx DB Studio https://github.com/CymaticLabs/InfluxDBStudio
-Invoke-WebRequest -UseBasicParsing -uri https://github.com/CymaticLabs/InfluxDBStudio/releases/download/v0.2.0-beta.1/InfluxDBStudio-0.2.0.zip -OutFile $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip
+Start-BitsTransfer -Source https://github.com/CymaticLabs/InfluxDBStudio/releases/download/v0.2.0-beta.1/InfluxDBStudio-0.2.0.zip -Destination $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip
 #unzip
 Expand-Archive -Path $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip -DestinationPath $env:userprofile\Downloads\ -Force
 #run

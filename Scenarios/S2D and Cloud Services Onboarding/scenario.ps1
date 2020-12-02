@@ -28,9 +28,7 @@ if (!(Get-Command -Name Login-AzAccount)){
 $GatewayServerName="WACGW"
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 }
 #Create PS Session and copy install files to remote server
 Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -62,8 +60,7 @@ foreach ($computer in $computers){
 
 #region Install Edge
 #install edge for azure portal and authentication (if code is running from DC)
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #Install Edge
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -109,11 +106,9 @@ if (-not ($Workspace)){
 $LAGatewayName="LAGateway01"
 
 #Download Log Analytics Gateway
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri https://download.microsoft.com/download/B/7/8/B78D4346-E25E-4923-AB71-3824E2480929/OMS%20Gateway.msi -OutFile "$env:USERPROFILE\Downloads\OMSGateway.msi" -UseBasicParsing
+Start-BitsTransfer -Source https://download.microsoft.com/download/B/7/8/B78D4346-E25E-4923-AB71-3824E2480929/OMS%20Gateway.msi -Destination "$env:USERPROFILE\Downloads\OMSGateway.msi"
 #Download MMA Agent
-Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -UseBasicParsing
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source https://go.microsoft.com/fwlink/?LinkId=828603 -Destination "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe"
 
 #Increase MaxEvenlope and create session to copy files to
 Invoke-Command -ComputerName $LAGatewayName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -241,9 +236,7 @@ Remove-Item $templateFile.FullName
 #Install MMA to Hybrid Runbook worker server
 #Download MMA Agent (if not yet downloaded)
 if (-not (Test-Path "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -UseBasicParsing
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://go.microsoft.com/fwlink/?LinkId=828603 -Destination "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe"
 }
 
 #Increase MaxEvenlope and create session to copy files to
@@ -335,9 +328,7 @@ $servers=1..4 | ForEach-Object {"S2D$_"}
 
 #Download MMA Agent (if not yet downloaded)
 if (-not (Test-Path "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe" -UseBasicParsing
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://go.microsoft.com/fwlink/?LinkId=828603 -OutFile "$env:USERPROFILE\Downloads\MMASetup-AMD64.exe"
 }
 
 #Copy MMA agent to nodes
@@ -378,9 +369,7 @@ $servers+="LAGateway01","HRWorker01"
 
 #download
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/dependencyagentwindows -OutFile "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://aka.ms/dependencyagentwindows -Destination "$env:USERPROFILE\Downloads\InstallDependencyAgent-Windows.exe"
 }
 
 #Copy Dependency Agent to servers

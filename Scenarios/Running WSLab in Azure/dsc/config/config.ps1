@@ -30,7 +30,7 @@ Configuration Config {
         {
             SetScript = {
                 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/wslab/download -OutFile d:\scripts.zip
+                Start-BitsTransfer -Source https://aka.ms/wslab/download -Destination d:\scripts.zip
             }
             TestScript = {Test-Path -Path d:\scripts.zip}
             GetScript = { @{Ensure = if (Test-Path -Path d:\scripts.zip) {'Present'} else {'Absent'}} }

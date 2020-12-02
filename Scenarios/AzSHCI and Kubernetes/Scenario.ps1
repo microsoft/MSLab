@@ -31,7 +31,9 @@ Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clusterin
 # Update servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
-    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+    $SearchCriteria = "IsInstalled=0"
+    #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
+    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
     #apply updates (if not empty)
     if ($ScanResult.Updates){
         Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
@@ -75,11 +77,9 @@ Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #endregion
 
 #region Download AKS HCI module
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -213,6 +213,8 @@ if (($subscriptions).count -gt 1){
 $subscriptionID=(Get-AzSubscription).ID
 
 #register Azure Stack HCI
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+<# without device authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
@@ -221,16 +223,15 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMa
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 #and register
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
-
-
-#or more complex
+#>
+#or with location picker
 <#
 #grab location
 if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
     Install-Module -Name Az.Resources -Force
 }
 $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
-Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
+Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName -UseDeviceAuthentication
 #>
 
 #Install Azure Stack HCI RSAT Tools to all nodes
@@ -329,9 +330,7 @@ foreach ($session in $sessions){
 #>
 
 #install az cli
-$ProgressPreference="SilentlyContinue"
-Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile $env:userprofile\Downloads\AzureCLI.msi
-$ProgressPreference="Continue"
+Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
 Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
 #restart powershell
 exit
@@ -377,7 +376,7 @@ if (-not ($Workspace)){
 
 #region Enable monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
 #download onboarding script
-Invoke-WebRequest https://aka.ms/enable-monitoring-powershell-script -OutFile "$env:Userprofile\Downloads\enable-monitoring.ps1"
+Start-BitsTransfer -Source https://aka.ms/enable-monitoring-powershell-script -Destination "$env:Userprofile\Downloads\enable-monitoring.ps1"
 $resourcegroup="$ClusterName-rg"
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $ClusterName="Demo"
@@ -455,9 +454,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
     #install WAC
     #Download Windows Admin Center if not present
     if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-        $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-        $ProgressPreference='Continue' #return progress preference back
+        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
     }
     #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
     Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
@@ -476,9 +473,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 
     #add feed
     #download nupgk (included in aks-hci module)
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
     #unzip
     Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
     Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
@@ -503,9 +498,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 #region Windows Admin Center on GW
 
 #Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -517,10 +510,7 @@ start-sleep 5
 $GatewayServerName="WACGW"
 
 #Download Windows Admin Center if not present
-if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 }
 #Create PS Session and copy install files to remote server
 Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -551,9 +541,7 @@ foreach ($computer in $computers){
  
 
 #Download AKS HCI module
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
 #unzip
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
