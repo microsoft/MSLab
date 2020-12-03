@@ -61,7 +61,7 @@ Foreach ($VM in $VMs){
 
 ### Region Create 2 node cluster
 
-This region will deploy minimum configuration possible to have 2 node cluster. It does not configure any sofisticated networking or spectre/meltdown mitigation etc. For real clusters follow [S2D HyperConverged Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
+This region will deploy minimum configuration possible to have 2 node cluster. It does not configure any sophisticated networking or spectre/meltdown mitigation etc. For real clusters follow [S2D HyperConverged Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 
 As result, you will have 2 node cluster "AzSHCI-Cluster" with file share witness configured and with virtual switch with name "vSwitch"
 
@@ -81,21 +81,19 @@ First of all is needed to copy PowerShell module to nodes as we want to execute 
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Explorer02.png)
 
-Next step is to enable credSSP as executed commands will connect to another node. Thus [double-hop issue](https://blogs.technet.microsoft.com/ashleymcglone/2016/08/30/powershell-remoting-kerberos-double-hop-solved-securely/) is introduced.
+Next step is to enable credSSP as executed commands will connect to another node, therefore [double-hop issue](https://blogs.technet.microsoft.com/ashleymcglone/2016/08/30/powershell-remoting-kerberos-double-hop-solved-securely/) is introduced.
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell02.png)
 
-The next step is to run Initialize-AksHciNode. This step will validate if all if all is configured correctly. As you can see, vnetName is wrong (name of switch), so it needs to be adjusted.
+The next step is to run Initialize-AksHciNode. It makes sure all prerequisites are met.
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell03.png)
-
-![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell04.png)
 
 The next step will first create volume where AKS will be stored and then run configuration.
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell05.png)
 
-As you can see on below screenshot, some config was changed as per powershell above.
+As you can see on below screenshot, config was changed as per powershell above.
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell06.png)
 
@@ -120,6 +118,8 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Desktop01.png)
 
 ### Region onboard cluster to Azure ARC
+
+Note: registering Azure Stack HCI cluster to Azure (Register-AzStackHCI) will fail if you will not be on November Cumulative Update Preview. You would have to manually install it or wait till December CU.
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell10.png)
 
