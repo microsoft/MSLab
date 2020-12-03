@@ -177,12 +177,11 @@ $EventsArray = @(
 )
 
 #Download SDK
-$ProgressPreference='SilentlyContinue' #for faster download
 #Download Windows 10 RS5 SDK
-Invoke-WebRequest -UseBasicParsing -Uri https://go.microsoft.com/fwlink/p/?LinkID=2033908 -OutFile "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe"
+Start-BitsTransfer -Source https://go.microsoft.com/fwlink/p/?LinkID=2033908 -Destination "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe"
 #Install SDK RS5
 Start-Process -Wait -FilePath "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe" -ArgumentList "/features OptionId.DesktopCPPx64 /quiet"
- 
+
 #Generate XML
 $EventsArrayFinal = foreach ($Event in $EventsArray) {
     $channels = foreach ($channel in $Event.Channels) {

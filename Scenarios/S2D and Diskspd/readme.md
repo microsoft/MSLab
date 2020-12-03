@@ -43,7 +43,7 @@ Collapse all regions with ctrl+m, select first 9 regions and paste into elevated
 Following test will be done with DiskSpd. This utility was downloaded already into tools.vhdx, therefore it's located on D: drive on DC. Optionally you can download it with following code
 
 ```PowerShell
-Invoke-WebRequest -UseBasicParsing -Uri https://gallery.technet.microsoft.com/DiskSpd-A-Robust-Storage-6ef84e62/file/199535/2/DiskSpd-2.0.21a.zip -OutFile $env:USERPROFILE\Downloads\Diskspd.zip
+Start-BitsTransfer -Source https://gallery.technet.microsoft.com/DiskSpd-A-Robust-Storage-6ef84e62/file/199535/2/DiskSpd-2.0.21a.zip -Destination $env:USERPROFILE\Downloads\Diskspd.zip
 Expand-Archive -Path $env:USERPROFILE\Downloads\Diskspd.zip -DestinationPath $env:USERPROFILE\Downloads\Diskspd -Force
  
 ```
@@ -157,9 +157,8 @@ $Output | Sort-Object PsComputerName, InterfaceDescription | Format-Table PsComp
 While logged on Management machine, install Windows Admin Center and navigate to network monitoring
 
 ```PowerShell
-$ProgressPreference='SilentlyContinue' #for faster download
 #Download Windows Admin Center to downloads
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 
 #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
     Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"

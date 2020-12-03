@@ -64,11 +64,11 @@ Next step is to download LAPS install files. Following script will download it i
 ```PowerShell
 #Download files
     #download LAPS install file x64
-    Invoke-WebRequest -UseBasicParsing -Uri https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -OutFile "$env:UserProfile\Downloads\LAPS.x64.msi"
+    Start-BitsTransfer -Source https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi -Destination "$env:UserProfile\Downloads\LAPS.x64.msi"
 
     #optional: download documentation
     "LAPS_TechnicalSpecification.docx","LAPS_OperationsGuide.docx" | ForEach-Object {
-        Invoke-WebRequest -UseBasicParsing -Uri "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/$_" -OutFile "$env:UserProfile\Downloads\$_"
+        Start-BitsTransfer -Source "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/$_" -Destination "$env:UserProfile\Downloads\$_"
     }
  
 ```

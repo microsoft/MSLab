@@ -535,9 +535,7 @@ $GatewayServerName="WACGW"
 
 #Download Windows Admin Center if not present
 if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
 }
 #Create PS Session and copy install files to remote server
 Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
@@ -567,8 +565,7 @@ foreach ($computer in $computers){
 }
 
 #Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge

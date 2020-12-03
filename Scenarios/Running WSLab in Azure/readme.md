@@ -4,13 +4,13 @@
 - [Creating VM with PowerShell](#creating-vm-with-powershell)
 - [Creating VM with JSON in UI](#creating-vm-with-json-in-ui)
     - [Windows Server 2019](#windows-server-2019)
-    - [Windows 10 20H1](#windows-10-20h1)
+    - [Windows 10 20H2](#windows-10-20h2)
 - [Creating VM with JSON and PowerShell](#creating-vm-with-json-and-powershell)
     - [Windows Server 2019](#windows-server-2019-1)
-    - [Windows 10 20H1](#windows-10-20h1-1)
+    - [Windows 10 20H2](#windows-10-20h2-1)
 - [Cleanup the VM and resources](#cleanup-the-vm-and-resources)
     - [Windows Server 2019](#windows-server-2019-2)
-    - [Windows 10 20H1](#windows-10-20h1-2)
+    - [Windows 10 20H2](#windows-10-20h2-2)
 - [Creating VM Manually](#creating-vm-manually)
     - [Adding premium disk (bit pricey)](#adding-premium-disk-bit-pricey)
 - [Overall experience](#overall-experience)
@@ -25,7 +25,7 @@ You can find here several options on how to create a VM in Azure that is capable
 
 **Note:** I recommend reverse engineering [JSON](/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json) as you can learn how to configure VMs in Azure.
 
-I also added Windows 10 20H1 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
+I also added Windows 10 20H2 machine. You will see provisioning errors, but all works well (looks like it does not evaluate state correctly after enabling Hyper-V with DISM PowerShell module)
 
 # Creating VM with PowerShell
 
@@ -78,7 +78,7 @@ mstsc /v:((Get-AzPublicIpAddress -ResourceGroupName WSLabRG).IpAddress)
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLab.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLab.json)
 
-## Windows 10 20H1
+## Windows 10 20H2
 
 [![](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FWSLab%2Fdev%2FScenarios%2FRunning%2520WSLab%2520in%2520Azure%2FWSLabwin10.json)
 [![](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com/Microsoft/WSLab/master/Scenarios/Running%20WSLab%20in%20Azure/WSLabwin10.json)
@@ -113,7 +113,7 @@ Login-AzAccount -UseDeviceAuthentication
  
 ```
 
-## Windows 10 20H1
+## Windows 10 20H2
 
 ```PowerShell
 #set-execution policy to remote signed for current process
@@ -152,7 +152,7 @@ Get-AzResourceGroup | Where-Object resourcegroupname -eq WSLabRG | Remove-AzReso
  
 ```
 
-## Windows 10 20H1
+## Windows 10 20H2
 
 ```PowerShell
 Get-AzVM -Name WSLabwin10 -ResourceGroupName WSLabwin10RG | Remove-AzVM -verbose #-Force

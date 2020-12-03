@@ -336,7 +336,7 @@
                     "imageReference": {
                         "publisher": "MicrosoftWindowsDesktop",
                         "offer": "Windows-10",
-                        "sku": "20h1-pro",
+                        "sku": "20h2-pro",
                         "version": "latest"
                     },
                     "osDisk": {

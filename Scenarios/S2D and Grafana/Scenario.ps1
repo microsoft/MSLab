@@ -30,19 +30,17 @@
 #endregion
 
 #region download required files to downloads folder
-$ProgressPreference='SilentlyContinue' #for faster download
 #influxDB and telegraph
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/influxdb/releases/influxdb-1.8.0_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\influxdb.zip"
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.influxdata.com/telegraf/releases/telegraf-1.14.2_windows_amd64.zip -OutFile "$env:USERPROFILE\Downloads\telegraf.zip"
+Start-BitsTransfer -Source https://dl.influxdata.com/influxdb/releases/influxdb-1.8.3_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip"
+Start-BitsTransfer -Source https://dl.influxdata.com/telegraf/releases/telegraf-1.16.2_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip"
 #Grafana
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.7.3.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+Start-BitsTransfer -Source https://dl.grafana.com/oss/release/grafana-7.3.4.windows-amd64.zip -Destination "$env:USERPROFILE\Downloads\grafana-7.3.4.zip"
 #NSSM - the Non-Sucking Service Manager
-Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
+Start-BitsTransfer -Source https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -Destination "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
 
 #region Download and Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -419,20 +417,21 @@ renewServerCertificate: 1
     $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
     $InfluxDBSession=New-PSSession -ComputerName $InfluxDBServerName
 
-    Copy-Item -Path "$env:USERPROFILE\Downloads\influxdb.zip" -Destination "$env:temp\influxdb.zip" -tosession $InfluxDBSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\grafana.zip" -Destination "$env:temp\grafana.zip" -tosession $GrafanaSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip" -Destination "$env:temp\influxdb-1.8.3-1.zip" -tosession $InfluxDBSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\grafana-7.3.4.zip" -Destination "$env:temp\grafana-7.3.4.zip" -tosession $GrafanaSession
     Copy-Item -Path "$env:USERPROFILE\Downloads\NSSM.zip" -Destination "$env:temp\NSSM.zip" -tosession $GrafanaSession
     Copy-Item -Path "$env:USERPROFILE\Downloads\NSSM.zip" -Destination "$env:temp\NSSM.zip" -tosession $InfluxDBSession
 
     #extract zip files and copy to destination folder
     invoke-command -Session $InfluxDBSession -scriptblock {
-        Expand-Archive -Path "$env:temp\influxdb.zip" -DestinationPath "$env:temp" -Force
+        Expand-Archive -Path "$env:temp\influxdb-1.8.3-1.zip" -DestinationPath "$env:temp" -Force
+        Rename-Item -Path "$env:temp\influxdb-1.8.3-1" -NewName "InfluxDB"
         Expand-Archive -Path "$env:temp\NSSM.zip" -DestinationPath "$env:temp" -Force
         #rename folder to remove version
         Get-ChildItem -Path $env:temp  | Where-Object name -like influxdb-* | Rename-Item -NewName InfluxDB
         Get-ChildItem -Path $env:temp  | Where-Object name -like nssm-* | Rename-Item -NewName NSSM
         #move to program files
-        Move-Item -Path $env:temp\InfluxDB -Destination $env:ProgramFiles -Force
+        Move-Item -Path "$env:temp\InfluxDB" -Destination $env:ProgramFiles -Force
         #copy nssm to system32
         get-childitem -Path "$env:temp\NSSM" -recurse | Where-Object FullName -like "*win64*nssm.exe" | copy-item -destination "$env:SystemRoot\system32"
         #remove nssm folder
@@ -442,7 +441,8 @@ renewServerCertificate: 1
     }
 
     invoke-command -Session $GrafanaSession -scriptblock {
-        Expand-Archive -Path "$env:temp\grafana.zip" -DestinationPath "$env:temp" -Force
+        Expand-Archive -Path "$env:temp\grafana-7.3.4.zip" -DestinationPath "$env:temp" -Force
+        Rename-Item -Path "$env:temp\grafana-7.3.4.zip" -NewName "Grafana"
         Expand-Archive -Path "$env:temp\NSSM.zip" -DestinationPath "$env:temp" -Force
         #rename folder to remove version
         Get-ChildItem -Path $env:temp  | Where-Object name -like grafana-* | Rename-Item -NewName Grafana
@@ -650,8 +650,7 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
         #Grab DN
         $CAcert=(Get-CertificationAuthority).certificate
         #download OpenSSL and transfer to GrafanaServer
-        $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -Uri "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
+        Start-BitsTransfer -Source "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -Destination $env:USERPROFILE\Downloads\OpenSSL.zip
         #transfer OpenSSL to $GrafanaServer
         $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
         Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
@@ -726,7 +725,8 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
     $clusters=@("S2D-Cluster")
 
     #expand telegraf
-    Expand-Archive -Path "$env:USERPROFILE\Downloads\Telegraf.zip" -DestinationPath "$env:temp" -Force
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip" -DestinationPath "$env:temp" -Force
+    Rename-Item -Path "$env:temp\telegraf-1.16.2" -NewName "telegraf"
 
     #provide your telegraf and config
     $posh = Get-Content -Path $env:userprofile\Downloads\telegraf.ps1 -ErrorAction Ignore
@@ -806,7 +806,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 #endregion
 
 #region download and run Influx DB Studio https://github.com/CymaticLabs/InfluxDBStudio
-Invoke-WebRequest -UseBasicParsing -uri https://github.com/CymaticLabs/InfluxDBStudio/releases/download/v0.2.0-beta.1/InfluxDBStudio-0.2.0.zip -OutFile $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip
+Start-BitsTransfer -Source https://github.com/CymaticLabs/InfluxDBStudio/releases/download/v0.2.0-beta.1/InfluxDBStudio-0.2.0.zip -Destination $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip
 #unzip
 Expand-Archive -Path $env:userprofile\Downloads\InfluxDBStudio-0.2.0.zip -DestinationPath $env:userprofile\Downloads\ -Force
 #run

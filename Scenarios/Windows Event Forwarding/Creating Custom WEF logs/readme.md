@@ -24,9 +24,9 @@ Run all code from DC or Management machine
  
 ```PowerShell
 #Download SDK
-$ProgressPreference='SilentlyContinue' #for faster download
+
 #Download Windows 8.1 SDK - only needed for ecmangen.exe (Last SDK where ecmangen was present is Windows 10 SDK ver. 10.0.15063. 8.1 can coexist with 10)
-#Invoke-WebRequest -UseBasicParsing -Uri https://go.microsoft.com/fwlink/p/?LinkId=323507 -OutFile "$env:USERPROFILE\Downloads\SDK81_Setup.exe"
+#Start-BitsTransfer -Source https://go.microsoft.com/fwlink/p/?LinkId=323507 -Destination "$env:USERPROFILE\Downloads\SDK81_Setup.exe"
 #Install SDK 8.1
 #Start-Process -Wait -FilePath "$env:USERPROFILE\Downloads\SDK81_Setup.exe" -ArgumentList "/features OptionID.WindowsDesktopSoftwareDevelopmentKit /quiet"
  

@@ -31,7 +31,9 @@ Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clusterin
 # Update servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
-    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria="IsInstalled=0"}
+    $SearchCriteria = "IsInstalled=0"
+    #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
+    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
     #apply updates (if not empty)
     if ($ScanResult.Updates){
         Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
@@ -75,11 +77,9 @@ Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #endregion
 
 #region Download AKS HCI module
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -127,8 +127,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
     }
     #configure aks
-    Invoke-Command -ComputerName $servers[0] -ScriptBlock {
-        Set-AksHciConfig -vnetName $using:vSwitchName -deploymentType MultiNode -wssdDir c:\clusterstorage\$using:VolumeName\Images -wssdImageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
+    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Set-AksHciConfig -vnetName $using:vSwitchName -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
     }
 
     #validate config
@@ -139,7 +139,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     #note: this step might need to run twice. As for first time it times out on https://github.com/Azure/aks-hci/issues/28 . Before second attempt, unistall-akshci first and set config again
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         #Uninstall-AksHCI
-        #Set-AksHciConfig -vnetName $using:vSwitchName -deploymentType MultiNode -wssdDir c:\clusterstorage\$using:VolumeName\Images -wssdImageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
+        #Set-AksHciConfig -vnetName $using:vSwitchName -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
         Install-AksHci
     }
 
@@ -213,6 +213,8 @@ if (($subscriptions).count -gt 1){
 $subscriptionID=(Get-AzSubscription).ID
 
 #register Azure Stack HCI
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+<# without device authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
@@ -221,16 +223,15 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMa
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 #and register
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
-
-
-#or more complex
+#>
+#or with location picker
 <#
 #grab location
 if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
     Install-Module -Name Az.Resources -Force
 }
 $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
-Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
+Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName -UseDeviceAuthentication
 #>
 
 #Install Azure Stack HCI RSAT Tools to all nodes
@@ -289,10 +290,19 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #copy kubeconfig
 $session=New-PSSession -ComputerName $ClusterName
 Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
-#copy kubectl
-Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
+#install kubectl
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$req = Invoke-WebRequest -UseBasicParsing -Uri $uri
+$downloadlink = ($req.Links | where href -Match "kubectl.exe").href
+$downloadLocation="c:\Program Files\AksHci\"
+New-Item -Path $downloadLocation -ItemType Directory -Force
+Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlink" -Destination "$Downloadlocation\kubectl.exe"
+#add to enviromental variables
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+#alternatively copy kubectl from cluster
+#Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
 #validate onboarding
-& "c:\Program Files\AksHci\kubectl.exe" logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+kubectl logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
 #endregion
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
@@ -320,13 +330,17 @@ foreach ($session in $sessions){
 #>
 
 #install az cli
-$ProgressPreference="SilentlyContinue"
-Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile $env:userprofile\Downloads\AzureCLI.msi
-$ProgressPreference="Continue"
+Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
 Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
 #restart powershell
 exit
 #login
+#add some trusted sites (to be able to authenticate with Register-AzStackHCI)
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 az login
 #create configuration
 $ClusterName="AzSHCI-Cluster"
@@ -337,13 +351,19 @@ az k8sconfiguration create --name cluster-config --cluster-name $KubernetesClust
 
 #validate
 az k8sconfiguration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
-& "c:\Program Files\AksHci\kubectl.exe" get ns --show-labels
-& "c:\Program Files\AksHci\kubectl.exe" -n cluster-config get deploy -o wide
-& "c:\Program Files\AksHci\kubectl.exe" -n team-a get cm -o yaml
-& "c:\Program Files\AksHci\kubectl.exe" -n itops get all
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+kubectl get ns --show-labels
+kubectl -n cluster-config get deploy -o wide
+kubectl -n team-a get cm -o yaml
+kubectl -n itops get all
 #endregion
 
 #region Create Log Analytics workspace
+#Install module
+if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+    Install-Module -Name Az.OperationalInsights -Force
+}
+
 #Grab Insights Workspace if some already exists
 $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
 
@@ -363,7 +383,7 @@ if (-not ($Workspace)){
 
 #region Enable monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
 #download onboarding script
-Invoke-WebRequest https://aka.ms/enable-monitoring-powershell-script -OutFile "$env:Userprofile\Downloads\enable-monitoring.ps1"
+Start-BitsTransfer -Source https://aka.ms/enable-monitoring-powershell-script -Destination "$env:Userprofile\Downloads\enable-monitoring.ps1"
 $resourcegroup="$ClusterName-rg"
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $ClusterName="Demo"
@@ -381,8 +401,36 @@ $proxyendpoint=""
 #endregion
 
 #region deploy app 
-& "c:\Program Files\AksHci\kubectl.exe" apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
-& "c:\Program Files\AksHci\kubectl.exe" get service
+kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
+kubectl get service
+#endregion
+
+#region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
+#download and install Azure Data CLI
+Start-BitsTransfer -Source https://aka.ms/azdata-msi -Destination "$env:USERPROFILE\Downloads\azdata-cli.msi"
+Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\azdata-cli.msi /quiet"
+
+#download and install Azure Data Studio https://docs.microsoft.com/en-us/sql/azure-data-studio/download-azure-data-studio?view=sql-server-ver15
+Start-BitsTransfer -Source https://go.microsoft.com/fwlink/?linkid=2148607 -Destination "$env:USERPROFILE\Downloads\azuredatastudio-windows-user-setup.exe"
+Start-Process "$env:USERPROFILE\Downloads\azuredatastudio-windows-user-setup.exe" -Wait -ArgumentList "/SILENT /MERGETASKS=!runcode"
+
+#download and install Azure CLI
+<#
+Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
+Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+#>
+
+#download and install Kubernetes CLI
+<#
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$req = Invoke-WebRequest -UseBasicParsing -Uri $uri
+$downloadlink = ($req.Links | where href -Match "kubectl.exe").href
+$downloadLocation="c:\Program Files\AksHci\"
+New-Item -Path $downloadLocation -ItemType Directory -Force
+Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlink" -Destination "$Downloadlocation\kubectl.exe"
+#add to enviromental variables
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+#>
 #endregion
 
 #region cleanup
@@ -413,9 +461,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
     #install WAC
     #Download Windows Admin Center if not present
     if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-        $ProgressPreference='SilentlyContinue' #for faster download
-        Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-        $ProgressPreference='Continue' #return progress preference back
+        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
     }
     #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
     Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
@@ -434,9 +480,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 
     #add feed
     #download nupgk (included in aks-hci module)
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-    $ProgressPreference='Continue' #return progress preference back
+    Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
     #unzip
     Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
     Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
@@ -461,9 +505,7 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 #region Windows Admin Center on GW
 
 #Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -475,11 +517,8 @@ start-sleep 5
 $GatewayServerName="WACGW"
 
 #Download Windows Admin Center if not present
-if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-    $ProgressPreference='SilentlyContinue' #for faster download
-    Invoke-WebRequest -UseBasicParsing -Uri https://aka.ms/WACDownload -OutFile "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    $ProgressPreference='Continue' #return progress preference back
-}
+Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+
 #Create PS Session and copy install files to remote server
 Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 $Session=New-PSSession -ComputerName $GatewayServerName
@@ -509,9 +548,7 @@ foreach ($computer in $computers){
  
 
 #Download AKS HCI module
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/aks-hci-download" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
-$ProgressPreference='Continue' #return progress preference back
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
 #unzip
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force

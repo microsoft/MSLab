@@ -297,9 +297,7 @@ foreach ($TemplateName in $TemplateNames){
 #endregion
 
 #region Download and Install Edge
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri "https://aka.ms/edge-msi"
-$ProgressPreference='Continue' #to set it back
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
 #start install
 Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
 #start Edge
@@ -309,12 +307,10 @@ start-sleep 5
 #endregion
 
 #region download files for Grafana
-$ProgressPreference='SilentlyContinue' #for faster download
 #Grafana
-Invoke-WebRequest -UseBasicParsing -Uri https://dl.grafana.com/oss/release/grafana-6.6.0.windows-amd64.zip -OutFile "$env:USERPROFILE\Downloads\grafana.zip"
+Start-BitsTransfer -Source https://dl.grafana.com/oss/release/grafana-6.6.0.windows-amd64.zip -Destination "$env:USERPROFILE\Downloads\grafana.zip"
 #NSSM - the Non-Sucking Service Manager
-Invoke-WebRequest -UseBasicParsing -Uri https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -OutFile "$env:USERPROFILE\Downloads\NSSM.zip"
-$ProgressPreference='Continue' #to set it back
+Start-BitsTransfer -Source https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -Destination "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
 
 #region Install Grafana
@@ -479,8 +475,7 @@ $GrafanaServerName="Grafana"
 #Grab DN
 $CAcert=(Get-CertificationAuthority).certificate
 #download OpenSSL and transfer to GrafanaServer
-$ProgressPreference='SilentlyContinue' #for faster download
-Invoke-WebRequest -Uri Invoke-WebRequest -Uri https://indy.fulgan.com/SSL/Archive/openssl-1.0.2p-x64_86-win64.zip -OutFile $env:USERPROFILE\Downloads\OpenSSL.zip -UseBasicParsing
+Start-BitsTransfer -Source https://indy.fulgan.com/SSL/Archive/openssl-1.0.2p-x64_86-win64.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip
 #transfer OpenSSL to $GrafanaServer
 $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
 Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
@@ -535,10 +530,9 @@ $CustomEventChannelsFileName="CustomEventChannels"
 $CustomEventsFilesLocation="$env:UserProfile\Downloads\ECMan"
 
 #Download SDK
-$ProgressPreference='SilentlyContinue' #for faster download
 #Download Windows 10 RS5 SDK
-Invoke-WebRequest -UseBasicParsing -Uri https://go.microsoft.com/fwlink/p/?LinkID=2033908 -OutFile "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe"
-$ProgressPreference='Continue' #switching back
+Start-BitsTransfer -Source https://go.microsoft.com/fwlink/p/?LinkID=2033908 -Destination "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe"
+
 #Install SDK RS5
 Start-Process -Wait -FilePath "$env:USERPROFILE\Downloads\SDKRS5_Setup.exe" -ArgumentList "/features OptionId.DesktopCPPx64 /quiet"
 
