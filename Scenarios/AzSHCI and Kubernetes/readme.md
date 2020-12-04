@@ -61,7 +61,7 @@ Foreach ($VM in $VMs){
 
 ### Region Create 2 node cluster
 
-This region will deploy minimum configuration possible to have 2 node cluster. It does not configure any sofisticated networking or spectre/meltdown mitigation etc. For real clusters follow [S2D HyperConverged Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
+This region will deploy minimum configuration possible to have 2 node cluster. It does not configure any sophisticated networking or spectre/meltdown mitigation etc. For real clusters follow [S2D HyperConverged Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 
 As result, you will have 2 node cluster "AzSHCI-Cluster" with file share witness configured and with virtual switch with name "vSwitch"
 

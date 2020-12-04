@@ -29,6 +29,7 @@ $ClusterName="AzSHCI-Cluster"
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
 # Update servers
+<#
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
     $SearchCriteria = "IsInstalled=0"
@@ -38,6 +39,36 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     if ($ScanResult.Updates){
         Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
     }
+}
+#>
+
+# Update servers with all updates (including preview)
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+    Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+} -ErrorAction Ignore
+# Run Windows Update via ComObject.
+Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+    $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+    $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                            IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+                            IsPresent=1 and DeploymentAction='Uninstallation' or
+                            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+    $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+    $Session = New-Object -ComObject Microsoft.Update.Session
+    $Downloader = $Session.CreateUpdateDownloader()
+    $Downloader.Updates = $SearchResult
+    $Downloader.Download()
+    $Installer = New-Object -ComObject Microsoft.Update.Installer
+    $Installer.Updates = $SearchResult
+    $Result = $Installer.Install()
+    $Result
+}
+#remove temporary PSsession config
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+    Remove-Item -Path $env:TEMP\VirtualAccount.pssc
 }
 
 # Install features on servers
@@ -99,7 +130,6 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
             Copy-Item -Path $folder.FullName -Destination $env:ProgramFiles\windowspowershell\modules -ToSession $PSSession -Recurse -Force
         }
     }
-
 
     #why this does not work? Why I need to login ot server to run initialize AKSHCINode???
     <#Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -434,13 +464,15 @@ Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlin
 #endregion
 
 #region cleanup
-Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup #-Force
-Get-AzResourceGroup -Name "WSLabAzureArc" | Remove-AzResourceGroup #-Force
+<#
+Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
+Get-AzResourceGroup -Name "WSLabAzureArc" | Remove-AzResourceGroup -Force
 $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
-    Remove-AzADServicePrincipal -ObjectId $principal.id #-Force
+    Remove-AzADServicePrincipal -ObjectId $principal.id -Force
 }
-Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication #-Force
+Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication -Force
+#>
 #endregion
 
 #TBD: Create sample application
