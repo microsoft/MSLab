@@ -24,7 +24,9 @@ $LabConfig.VMs += @{ VMName = 'Win10_1' ; ParentVHD = 'Win1020H1_G2.vhdx'; MGMTN
 Run following code from DC or Management machine
 
 ```powershell
-Start-BitsTransfer -Source "https://github.com/PowerShell/PowerShell/releases/download/v7.0.2/PowerShell-7.0.2-win-x64.msix" -Destination "$env:USERPROFILE\Downloads\PowerShell-7.0.2-win-x64.msix"
+$ProgressPreference="SilentlyContinue"
+Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.0.2/PowerShell-7.0.2-win-x64.msix" -UseBasicParsing -OutFile "$env:USERPROFILE\Downloads\PowerShell-7.0.2-win-x64.msix"
+$ProgressPreference="Continue"
  
 ```
 
@@ -65,7 +67,7 @@ If($openFiles.ShowDialog() -eq "OK"){
 #Download MSIX Image tool if not available"
 New-Item -Path $folder -ItemType Directory -ErrorAction Ignore
 if (!(Test-Path "$folder\msixmgr\x64\msixmgr.exe")){
-    Start-BitsTransfer -Source https://aka.ms/msixmgr -Destination "$folder\msixmgr.zip"
+    Invoke-WebRequest -Uri https://aka.ms/msixmgr -OutFile "$folder\msixmgr.zip"
     Expand-Archive -Path "$folder\msixmgr.zip" -DestinationPath "$folder\msixmgr"
 }
 
