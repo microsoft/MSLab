@@ -16,8 +16,11 @@
     #Cluster-Aware-Updating role name
         $CAURoleName="AzSHCI-Cl-CAU"
 
-    #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS)
-        $DistributedManagementPoint=$True
+    #Cluster IP
+        $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used). If $DistributedManagementPoint is true, then IP is not used
+
+    #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS). If $ClusterIP is set, then $clusterIP will be ignored).
+        $DistributedManagementPoint=$true
 
     #Witness type
         $WitnessType="FileShare" #or Cloud
@@ -36,8 +39,7 @@
 
     ## Networking ##
         $vSwitchName="vSwitch"
-        $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used)
-
+        
         $NumberOfStorageNets=1 #1 or 2
 
         #IF Stornet is 1
