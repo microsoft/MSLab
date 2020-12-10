@@ -1,0 +1,186 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "imageTemplateName": {
+        "type": "string"
+        },
+        "api-version": {
+          "type": "string"
+        },
+        "svclocation": {
+            "type": "string"
+        }
+    },
+    
+    "variables": {
+    },
+
+
+    "resources": [
+      {
+        "name": "[parameters('imageTemplateName')]",
+        "type": "Microsoft.VirtualMachineImages/imageTemplates",
+        "apiVersion": "[parameters('api-version')]",
+        "location": "[parameters('svclocation')]",
+        "dependsOn": [],
+        "tags": {
+            "imagebuilderTemplate": "AzureImageBuilderSIG",
+            "userIdentity": "enabled"
+                },
+            "identity": {
+                "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                        "<imgBuilderId>": {}
+                            
+                    }
+                    },
+        
+        "properties": {
+            "buildTimeoutInMinutes" : 100,
+
+            "vmProfile": 
+                    {
+                    "vmSize": "Standard_D2_v2",
+                    "osDiskSizeGB": 127
+                    },
+        
+            "source": {
+                "type": "PlatformImage",
+                    "publisher": "MicrosoftWindowsDesktop",
+                    "offer": "windows-10",
+                    "sku": "20h2-evd",
+                    "version": "latest"
+                
+            },
+            "customize": [
+
+                    {
+                        "type": "PowerShell",
+                        "name": "InstallOneDrive",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "New-Item -Path C:\\ -Name Temp -ItemType Directory -ErrorAction SilentlyContinue",
+                            "Start-BitsTransfer -Source 'https://go.microsoft.com/fwlink/p/?linkid=2121808' -Destination 'c:\\Temp\\onedrivesetup.exe'",
+                            "Start-Process -FilePath $env:WinDir\\SysWow64\\OneDriveSetup.exe -ArgumentList '/uninstall' -wait",
+                            "reg add HKLM\\Software\\Microsoft\\OneDrive /v 'AllUsersInstall /t REG_DWORD /d 1",
+                            "Start-Process -FilePath 'c:\\Temp\\onedrivesetup.exe' -ArgumentList '/allusers' -Wait",
+                            "Remove-Item -Path C:\\temp\\ -Recurse -Force"
+                                ]
+                    },
+
+                    {
+                        "type": "PowerShell",
+                        "name": "InstallTeamsVDI",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "New-Item -Path C:\\ -Name Temp -ItemType Directory -ErrorAction SilentlyContinue",
+                            "Start-BitsTransfer -Source 'https://aka.ms/vs/16/release/vc_redist.x64.exe' -Destination 'c:\\Temp\\vc_redist.x64.exe'",
+                            "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\vc_redist.x64.exe /quiet' -Wait",
+                            "Start-BitsTransfer -Source 'https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE4AQBt' -Destination 'c:\\Temp\\MsRdcWebRTCSvc_HostSetup_1.0.2006.11001_x64.msi'",
+                            "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\MsRdcWebRTCSvc_HostSetup_1.0.2006.11001_x64.msi /quiet' -Wait",
+                            "Start-BitsTransfer -Source 'https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true' -Destination 'c:\\Temp\\Teams_windows_x64.msi'",
+                            "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\Teams_windows_x64.msi /quiet /l*v C:\\temp\\teamsinstall.log ALLUSER=1 ALLUSERS=1' -Wait",
+                            "Remove-Item -Path C:\\temp\\ -Recurse -Force"
+                                ]
+                    },
+
+                    {
+                        "type": "PowerShell",
+                        "name": "InstallFSLogix",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "New-Item -Path C:\\ -Name Temp -ItemType Directory -ErrorAction SilentlyContinue",
+                            "Start-BitsTransfer -Source 'https://aka.ms/fslogix_download' -Destination 'c:\\Temp\\fslogix.zip'",
+                            "Expand-Archive -Path 'C:\\temp\\fslogix.zip' -DestinationPath 'C:\\temp\\fslogix\\' -Force",
+                            "Start-Process -FilePath 'C:\\temp\\fslogix\\x64\\Release\\FSLogixAppsSetup.exe' -ArgumentList '/install /quiet /norestart' -Wait",
+                            "Remove-Item -Path C:\\temp\\ -Recurse -Force"
+                                ]
+                    },
+
+                    {
+                        "type": "PowerShell",
+                        "name": "downloadWvdOptimizer",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "write-host 'Downloading Download WVD Optimizer starting'",
+                            "New-Item -Path C:\\ -Name Optimize -ItemType Directory -ErrorAction SilentlyContinue",
+                            "$LocalPath = 'C:\\Optimize'",
+                            "$WVDOptimizeURL = 'https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool/archive/master.zip'",
+                            "$WVDOptimizeInstaller = 'Windows_10_VDI_Optimize-master.zip'",
+                            "Invoke-WebRequest -Uri $WVDOptimizeURL -OutFile '$Localpath$WVDOptimizeInstaller'",
+                            "write-host 'Downloading Download WVD Optimizer finished'"
+                                ]
+                    },
+
+                    {
+                        "type": "PowerShell",
+                        "name": "prepForWVDOptimize",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "write-host 'Prep for WVD Optimize starting'",
+                            "Expand-Archive -LiteralPath 'C:\\Optimize\\Windows_10_VDI_Optimize-master.zip' -DestinationPath '$Localpath' -Force -Verbose",
+                            "Set-Location -Path C:\\Optimize\\Virtual-Desktop-Optimization-Tool-master",
+                            "write-host 'Prep for WVD Optimize finished'"
+                                ]
+                    },
+
+                    {
+                        "type": "PowerShell",
+                        "name": "runWVDOptimizeScript",
+                        "runElevated": true,
+                        "runAsSystem": true,
+                        "inline": [
+                            "write-host 'Run WVD Optimize Script starting'",
+                            "New-Item -Path C:\\Optimize\\ -Name install.log -ItemType File -Force",
+                            "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force -Verbose",
+                            "add-content c:\\Optimize\\install.log 'Starting Optimizations'",
+                            ".\\Win10_VirtualDesktop_Optimize.ps1 -WindowsVersion 2004 -Verbose",
+                            "write-host 'Run WVD Optimize Script finished'"
+                                ]
+                    },
+
+                    {
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "add-content c:\\Optimize\\install.log 'restarting post Optimizations'",
+                        "restartTimeout": "5m"
+                    },
+                        
+                    {
+                        "type": "WindowsUpdate",
+                        "searchCriteria": "IsInstalled=0",
+                        "filters": [
+                            "exclude:$_.Title -like '*Preview*'",
+                            "include:$true"
+                                    ],
+                        "updateLimit": 40
+                    }
+
+            ],
+            "distribute": 
+            [
+                {   
+                    "type": "SharedImage",
+                    "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>",
+                    "runOutputName": "<runOutputName>",
+                    "artifactTags": {
+                        "source": "wvd10",
+                        "baseosimg": "windows10"
+                    },
+                    "replicationRegions": [
+                      "<region1>"
+
+                    ]
+                }
+            ]
+            }
+        }
+
+    
+    ]
+}    

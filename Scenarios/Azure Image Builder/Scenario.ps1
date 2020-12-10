@@ -154,7 +154,7 @@
     #Define JSON
     $templateFilePath="$env:TEMP\armTemplateWinSIG.json"
     #grab json for Windows 10 20H2 WVD
-    $JSON=(Invoke-WebRequest -Uri https://raw.githubusercontent.com/danielsollondon/azvmimagebuilder/master/solutions/14_Building_Images_WVD/armTemplateWVD.json -UseBasicParsing).Content
+    $JSON=(Invoke-WebRequest -Uri https://raw.githubusercontent.com/microsoft/WSLab/dev/Scenarios/Azure%20Image%20Builder/armTemplateWVD.json -UseBasicParsing).Content
 
     #customize json
     $json=($json).replace("<subscriptionID>",$subscriptionID)
