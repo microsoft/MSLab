@@ -29,7 +29,6 @@ $ClusterName="AzSHCI-Cluster"
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
 # Update servers
-<#
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
     $SearchCriteria = "IsInstalled=0"
@@ -40,9 +39,10 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
         Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
     }
 }
-#>
+
 
 # Update servers with all updates (including preview)
+<#
 Invoke-Command -ComputerName $servers -ScriptBlock {
     New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
     Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
@@ -70,6 +70,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
     Unregister-PSSessionConfiguration -Name 'VirtualAccount'
     Remove-Item -Path $env:TEMP\VirtualAccount.pssc
 }
+#>
 
 # Install features on servers
 Invoke-Command -computername $Servers -ScriptBlock {

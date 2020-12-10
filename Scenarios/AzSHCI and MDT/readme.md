@@ -28,6 +28,8 @@ In this lab you will learn how to deploy Azure Stack HCI nodes with Microsoft De
 
 This demonstration is simplified, as in real world scenarios you will need to inject drivers, install software and configure OS. This scenario is great start for designing production deployments! All runs from DC (demonstrating installation on remote computer would introduce additional complexity, and it would be harder to understand scenario itself).
 
+[![WSLab in MVPDays](/Docs/media/Deploying_AzSHCI_with_MDT.png)](https://youtu.be/Vipbhkv9wyM)
+
 ## LabConfig with enabled telemetry (Full)
 
 ```powershell

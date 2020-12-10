@@ -62,7 +62,7 @@ New-AzVM `
     -PublicIpAddressName "WSLabPubIP" `
     -OpenPorts 80,3389 `
     -ImageName Win2019Datacenter `
-    -Size Standard_D16s_v3 `
+    -Size Standard_E16_v3 `
     -Credential (Get-Credential) `
     -Verbose
 
