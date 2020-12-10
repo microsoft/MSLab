@@ -11,7 +11,7 @@ $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2026036" ; FileName="adks
 $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2022233" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE 1809"}
 $Files+=@{Uri="https://download.microsoft.com/download/3/3/9/339BE62D-B4B8-4956-B58D-73C4685FC492/MicrosoftDeploymentToolkit_x64.msi" ; FileName="MicrosoftDeploymentToolkit_x64.msi" ; Description="Microsoft Deployment Toolkit"}
 $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=866658" ; FileName="SQL2019-SSEI-Expr.exe" ; Description="Microsoft Deployment Toolkit"}
-$Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI_17784.1068_EN-US.iso" ; FileName="AzureStackHCI_17784.1068_EN-US.iso" ; Description="Azure Stack HCI ISO"}
+$Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI_17784.1408_EN-US.iso" ; FileName="AzureStackHCI_17784.1408_EN-US.iso" ; Description="Azure Stack HCI ISO"}
 #$Files+=@{Uri="https://aka.ms/ssmsfullsetup" ; FileName="SSMS-Setup-ENU.exe" ; Description="SQL Management Studio"}
 
 foreach ($file in $files){
@@ -60,7 +60,7 @@ new-MDTDatabase -path "DS001:" -SQLServer "$env:COMPUTERNAME" -Instance "SQLExpr
 #New-MDTDatabase -path "DS001:" -SQLServer "$env:COMPUTERNAME" -Port "1433" -Netlib "DBMSSOCN" -Database "MDTDB" -Verbose
 
 #Import Operating System
-$ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_17784.1068_EN-US.iso" -PassThru
+$ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_17784.1408_EN-US.iso" -PassThru
 $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
 Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Azure Stack HCI SERVERAZURESTACKHCICORE x64" -Verbose
 
