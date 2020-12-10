@@ -183,7 +183,8 @@
     -ResourceGroupName $ResourceGroupName `
     -ResourceType Microsoft.VirtualMachineImages/imageTemplates `
     -ApiVersion "2020-02-14" `
-    -Action Run
+    -Action Run `
+    -Force
 
     #validate deployment
     (Get-AzResource –ResourceGroupName $ResourceGroupName -ResourceType Microsoft.VirtualMachineImages/imageTemplates -Name $ImageTemplateName).Properties.lastRunStatus

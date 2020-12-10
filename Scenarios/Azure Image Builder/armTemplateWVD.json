@@ -64,7 +64,7 @@
                             "New-Item -Path C:\\ -Name Temp -ItemType Directory -ErrorAction SilentlyContinue",
                             "Start-BitsTransfer -Source 'https://go.microsoft.com/fwlink/p/?linkid=2121808' -Destination 'c:\\Temp\\onedrivesetup.exe'",
                             "Start-Process -FilePath $env:WinDir\\SysWow64\\OneDriveSetup.exe -ArgumentList '/uninstall' -wait",
-                            "reg add HKLM\\Software\\Microsoft\\OneDrive /v 'AllUsersInstall /t REG_DWORD /d 1",
+                            "reg add HKLM\\Software\\Microsoft\\OneDrive /v AllUsersInstall /t REG_DWORD /d 1",
                             "Start-Process -FilePath 'c:\\Temp\\onedrivesetup.exe' -ArgumentList '/allusers' -Wait",
                             "Remove-Item -Path C:\\temp\\ -Recurse -Force"
                                 ]
@@ -140,7 +140,7 @@
                             "New-Item -Path C:\\Optimize\\ -Name install.log -ItemType File -Force",
                             "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force -Verbose",
                             "add-content c:\\Optimize\\install.log 'Starting Optimizations'",
-                            ".\\Win10_VirtualDesktop_Optimize.ps1 -WindowsVersion 2004 -Verbose",
+                            ".\\Win10_VirtualDesktop_Optimize.ps1 -WindowsVersion 2009 -Verbose",
                             "write-host 'Run WVD Optimize Script finished'"
                                 ]
                     },
