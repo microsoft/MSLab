@@ -88,7 +88,8 @@
     $RoleDefinitionJSON | Out-File "$env:TEMP\aibRoleImageCreation.json"
     # Create the  role definition
     New-AzRoleDefinition -InputFile "$env:TEMP\aibRoleImageCreation.json"
-
+    Start-Sleep 20
+    
     # Grant role definition to image builder service principal
     New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $RoleDefinitionName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 
@@ -193,7 +194,8 @@
 #region cleanup
 <#
     Get-AzUserAssignedIdentity -Name $identityName -ResourceGroupName $ResourceGroupName
-    Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName | Remove-AzUserAssignedIdentity -Confirm:0
+    Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName | Remove-AzUserAssignedIdentity -Force
     Get-AzRoleAssignment -RoleDefinitionName $RoleDefinitionName | Remove-AzRoleAssignment -Confirm:0
+    Get-AzResourceGroup -ResourceGroupName $ResourceGroupName | Remove-AzResourceGroup -Force
 #>
 #endregion
