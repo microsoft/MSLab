@@ -40,3 +40,13 @@ This regin just installs Az modules that will be required in scenario, will log 
 Build in progress (temporary VM is created)
 
 ![](/Scenarios/Azure%20Image%20Builder/Screenshots/Edge07.png)
+
+And there are 3 statuses you can observe in PowerShell
+
+![](/Scenarios/Azure%20Image%20Builder/Screenshots/PowerShell02.png)
+
+Once completed, image is available in Shared Gallery
+
+![](/Scenarios/Azure%20Image%20Builder/Screenshots/Edge08.png)
+
+![](/Scenarios/Azure%20Image%20Builder/Screenshots/Edge09.png)
