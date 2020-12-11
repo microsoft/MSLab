@@ -77,12 +77,13 @@
                         "runAsSystem": true,
                         "inline": [
                             "New-Item -Path C:\\ -Name Temp -ItemType Directory -ErrorAction SilentlyContinue",
+                            "reg add HKLM\\SOFTWARE\\Microsoft\\Teams /v IsWVDEnvironment /t REG_DWORD /d 1",
                             "Start-BitsTransfer -Source 'https://aka.ms/vs/16/release/vc_redist.x64.exe' -Destination 'c:\\Temp\\vc_redist.x64.exe'",
                             "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\vc_redist.x64.exe /quiet' -Wait",
                             "Start-BitsTransfer -Source 'https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE4AQBt' -Destination 'c:\\Temp\\MsRdcWebRTCSvc_HostSetup_1.0.2006.11001_x64.msi'",
                             "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\MsRdcWebRTCSvc_HostSetup_1.0.2006.11001_x64.msi /quiet' -Wait",
                             "Start-BitsTransfer -Source 'https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true' -Destination 'c:\\Temp\\Teams_windows_x64.msi'",
-                            "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\Teams_windows_x64.msi /quiet /l*v C:\\temp\\teamsinstall.log ALLUSER=1 ALLUSERS=1' -Wait",
+                            "Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i c:\\Temp\\Teams_windows_x64.msi /quiet /l*v C:\\temp\\teamsinstall.log ALLUSER=1' -Wait",
                             "Remove-Item -Path C:\\temp\\ -Recurse -Force"
                                 ]
                     },
