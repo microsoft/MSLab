@@ -2,6 +2,9 @@ If ((Get-ExecutionPolicy) -ne "RemoteSigned"){
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
 }
 
+#set TLS 1.2 for github downloads
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 #download LatestUpdate module
 Write-Output "Checking if LatestUpdate PS Module is Installed"
 if (!(Get-InstalledModule -Name LatestUpdate -ErrorAction Ignore)){
