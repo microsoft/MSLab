@@ -243,9 +243,21 @@ if (($subscriptions).count -gt 1){
 
 $subscriptionID=(Get-AzSubscription).ID
 
-#register Azure Stack HCI
+#Register AZSHCi without prompting for creds
+$armTokenItemResource = "https://management.core.windows.net/"
+$graphTokenItemResource = "https://graph.windows.net/"
+$azContext = Get-AzContext
+$authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+$graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+$armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+$id = $azContext.Account.Id
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+
+#register Azure Stack HCI with device authentication
+<#
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
-<# without device authentication
+#>
+<# with standard authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
