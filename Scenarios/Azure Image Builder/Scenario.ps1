@@ -1,5 +1,3 @@
-#source https://docs.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-powershell,https://github.com/danielsollondon/azvmimagebuilder/tree/master/quickquickstarts/2_Creating_a_Custom_Win_Shared_Image_Gallery_Image_from_SIG, https://github.com/danielsollondon/azvmimagebuilder,
-
 #region prereqs
     $ModuleNames="Az.Accounts","Az.Resources","Az.ManagedServiceIdentity","Az.Compute","Az.ImageBuilder"
 
@@ -89,7 +87,7 @@
     # Create the  role definition
     New-AzRoleDefinition -InputFile "$env:TEMP\aibRoleImageCreation.json"
     Start-Sleep 20
-    
+
     # Grant role definition to image builder service principal
     New-AzRoleAssignment -ObjectId $identityNamePrincipalId -RoleDefinitionName $RoleDefinitionName -Scope "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroupName"
 

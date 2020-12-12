@@ -11,6 +11,16 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!' ; <#Prefix =
  
 ```
 
+## Resources
+
+* [Official Documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/image-builder-powershell)
+
+* [QuickStarts](https://github.com/danielsollondon/azvmimagebuilder/tree/master/quickquickstarts/)
+
+* [Daniel Sol (PM) Github](https://github.com/danielsollondon/azvmimagebuilder)
+
+* [WVD Arm Template Source](https://github.com/danielsollondon/azvmimagebuilder/blob/master/solutions/14_Building_Images_WVD/armTemplateWVD.json)
+
 ## The Lab
 
 ### Region Prereqs
