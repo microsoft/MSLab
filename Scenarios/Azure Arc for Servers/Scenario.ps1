@@ -113,22 +113,19 @@ Start-Sleep 60
 Invoke-Command -ComputerName $Servers -ScriptBlock {
     Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:password --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
 }
-#endregion
 
-#region Validate if agents are connected
-
+#Validate if agents are connected
 $servers="Server1","Server2","Server3"
 Invoke-Command -ComputerName $Servers -ScriptBlock {
     & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
 }
-
 #endregion
 
 #region Create Log Analytics workspace
 #Grab Insights Workspace if some already exists
 $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
 
-#region Create workspace if not available
+#Create workspace if not available
 if (-not ($Workspace)){
     $SubscriptionID=(Get-AzContext).Subscription.ID
     $WorkspaceName="WSLabWorkspace-$SubscriptionID"
