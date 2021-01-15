@@ -272,7 +272,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 
 #region create AKS HCI cluster
 $ClusterName="AzSHCI-Cluster"
-Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+$ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Get-Random
+Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
     New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
 }
 #VM Sizes
@@ -617,7 +618,6 @@ foreach ($computer in $computers){
     $computerObject = Get-ADComputer -Identity $computer
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
- 
 
 #Download AKS HCI module
 Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
