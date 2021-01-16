@@ -117,7 +117,7 @@
         Install-Module -Name Az.Storage -Force
 
         #login to Azure
-        Login-AzAccount -UseDeviceAuthentication
+        Connect-AzAccount -UseDeviceAuthentication
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
@@ -305,7 +305,7 @@ if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
 if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
     Install-Module -Name Az.Accounts -Force
 }
-Login-AzAccount -UseDeviceAuthentication
+Connect-AzAccount -UseDeviceAuthentication
 <# or download edge and do it without device authentication
 #download
 Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
@@ -314,7 +314,7 @@ Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Dow
 #start Edge
 start-sleep 5
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-Login-AzAccount
+Connect-AzAccount
 #>
 <#or use IE for autentication
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
@@ -322,7 +322,7 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMa
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
-Login-AzAccount
+Connect-AzAccount
 #>
 #select context if more available
 $context=Get-AzContext -ListAvailable
@@ -330,13 +330,8 @@ if (($context).count -gt 1){
     $context | Out-GridView -OutputMode Single | Set-AzContext
 }
 
-#select subscription
-$subscriptions=Get-AzSubscription
-if (($subscriptions).count -gt 1){
-    $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
-}else{
-    $subscriptionID=(Get-AzSubscription).ID
-}
+#grab subscription ID
+$subscriptionID=(Get-AzContext).Subscription.id
 
 #Register AZSHCi without prompting for creds
 $armTokenItemResource = "https://management.core.windows.net/"
@@ -380,7 +375,6 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     Get-AzureStackHCI
 }
-
 #endregion
 
 #region Create Volumes
