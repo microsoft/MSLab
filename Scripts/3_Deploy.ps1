@@ -1157,6 +1157,12 @@ If (-not $isAdmin) {
         }
     }
 
+    #connect add VLAN to internet adapter if requested
+        if ($Labconfig.Internet -and $LabConfig.InternetVLAN){
+            WriteInfo "`t Configuring Internet VLAN for DC"
+            $DC | Get-VMNetworkAdapter -Name Internet | Set-VMNetworkAdapterVlan -Access -VlanId $LabConfig.InternetVLAN
+        }
+
 #endregion
 
 #region Test DC to come up
