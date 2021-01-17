@@ -267,10 +267,19 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 
 #region create AKS HCI cluster
 $ClusterName="AzSHCI-Cluster"
-$ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Get-Random
+$ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
     New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
 }
+
+#distribute kubeconfig to other nodes (just to make it symmetric)
+$ClusterNodes=(Get-ClusterNode -Cluster $clustername).Name
+$FirstSession=New-PSSession -ComputerName ($ClusterNodes | Select-Object -First 1)
+$OtherSessions=New-PSSession -ComputerName ($ClusterNodes | Select-Object -Skip 1)
+Foreach ($OtherSession in $OtherSessions){
+    Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $FirstSession -ToSession $OtherSession -Recurse -Force
+}
+
 #VM Sizes
 <#
 $global:vmSizeDefinitions =
