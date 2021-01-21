@@ -42,7 +42,7 @@ Run all code from DC. Follow [Scenario.ps1](/Scenarios/AzSHCI%20and%20Kubernetes
 
 Note: (optional) there is known issue, that when installing AKS, scripts checks for available space on C: drive (instead of cluster storage). Since it needs 50GB free space, it might not be enough if you run Windows Update on servers. If you want to expand disks, run following code
 
-```PowerSHell
+```PowerShell
 #run from Host to expand C: drives in VMs to 120GB
 $VMs=Get-VM -VMName WSLab*azshci*
 $VMs | Get-VMHardDiskDrive -ControllerLocation 0 | Resize-VHD -SizeBytes 120GB
@@ -66,6 +66,10 @@ This region will deploy minimum configuration possible to have 2 node cluster. I
 As result, you will have 2 node cluster "AzSHCI-Cluster" with file share witness configured and with virtual switch with name "vSwitch"
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Cluadmin01.png)
+
+### Region Register Azure Stack HCI to Azure
+
+This step will add Azure Stack HCI to Azure as a resource. It will then enable you to create VMs as cluster resources. Otherwise AKS setup would fail.
 
 ### Region Download AKS HCI module
 
@@ -117,9 +121,7 @@ Now AKS HCI cluster will be created. With one linux node, load balancer and cont
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/Desktop01.png)
 
-### Region onboard cluster to Azure ARC
-
-Note: registering Azure Stack HCI cluster to Azure (Register-AzStackHCI) will fail if you will not be on November Cumulative Update Preview. You would have to manually install it or wait till December CU.
+### Region onboard AKS cluster to Azure ARC
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell10.png)
 

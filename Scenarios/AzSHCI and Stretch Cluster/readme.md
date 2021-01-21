@@ -11,13 +11,13 @@
     - [Region configure Cluster-Aware-Updating](#region-configure-cluster-aware-updating)
     - [Region Configure Fault Domains (commented - just an example)](#region-configure-fault-domains-commented---just-an-example)
     - [Region Enable Cluster S2D and check Pool and Tiers](#region-enable-cluster-s2d-and-check-pool-and-tiers)
+    - [Region Register Azure Stack HCI with Azure and validate](#region-register-azure-stack-hci-with-azure-and-validate)
     - [Region create volumes](#region-create-volumes)
     - [Region Enable SR for volumes](#region-enable-sr-for-volumes)
     - [Region create some VMs](#region-create-some-vms)
     - [Region move odd CSVs and it's respective VMs to site1 and even to site2](#region-move-odd-csvs-and-its-respective-vms-to-site1-and-even-to-site2)
     - [Region configure Affinity rules](#region-configure-affinity-rules)
     - [Region install Windows Admin Center Gateway](#region-install-windows-admin-center-gateway)
-    - [Region Register Azure Stack HCI with Azure and validate](#region-register-azure-stack-hci-with-azure-and-validate)
 
 <!-- /TOC -->
 
@@ -131,6 +131,14 @@ Notice, that Storage Tiers created twice (for each pool). This is also probably 
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell06.png)
 
+### Region Register Azure Stack HCI with Azure and validate
+
+In this region your Azure Stack HCI cluster will be registered to Azure
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/AzurePortal01.png)
+
+![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell11.png)
+
 ### Region create volumes
 
 In this region, multiple volumes will be created (2 data + 2 log volumes for each node). In single S2D cluster you want to have the same amount of virtual disks as you have nodes to evenly distribute workload. In this case, there is one virtual disk online on every node + it's replica + 2 log disks.
@@ -156,7 +164,6 @@ As you can see, Storage Replica Constraints are configured.
 And also here is neat script to validate replication status
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell08.png)
-
 
 ### Region create some VMs
 
@@ -192,10 +199,3 @@ In this region will install Windows Admin Center into WACGW server and install E
 
 ![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/WAC02.png)
 
-### Region Register Azure Stack HCI with Azure and validate
-
-In this region your Azure Stack HCI cluster will be registered to Azure
-
-![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/AzurePortal01.png)
-
-![](/Scenarios/AzSHCI%20and%20Stretch%20Cluster/Screenshots/PowerShell11.png)

@@ -117,7 +117,7 @@
         Install-Module -Name Az.Storage -Force
 
         #login to Azure
-        Login-AzAccount -UseDeviceAuthentication
+        Connect-AzAccount -UseDeviceAuthentication
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
@@ -289,6 +289,92 @@ do{Start-Sleep 5}until(
     Get-VirtualDisk -FriendlyName ClusterPerformanceHistory -CimSession $clustername -ErrorAction Ignore
 )
 
+#endregion
+
+#region register AzSHCI to Azure
+$ClusterName="AzSHCI-S-Clus"
+
+#download Azure module
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
+    Install-Module -Name Az.StackHCI -Force
+}
+
+#login to azure
+#download Azure module
+if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+    Install-Module -Name Az.Accounts -Force
+}
+Connect-AzAccount -UseDeviceAuthentication
+<# or download edge and do it without device authentication
+#download
+Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+#start install
+Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+#start Edge
+start-sleep 5
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+Connect-AzAccount
+#>
+<#or use IE for autentication
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
+Connect-AzAccount
+#>
+#select context if more available
+$context=Get-AzContext -ListAvailable
+if (($context).count -gt 1){
+    $context | Out-GridView -OutputMode Single | Set-AzContext
+}
+
+#grab subscription ID
+$subscriptionID=(Get-AzContext).Subscription.id
+
+#Register AZSHCi without prompting for creds
+$armTokenItemResource = "https://management.core.windows.net/"
+$graphTokenItemResource = "https://graph.windows.net/"
+$azContext = Get-AzContext
+$authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+$graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+$armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+$id = $azContext.Account.Id
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+
+<# or register Azure Stack HCI with device authentication
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+#>
+<# or with standard authentication
+#add some trusted sites (to be able to authenticate with Register-AzStackHCI)
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
+#and register
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
+#>
+<# or with location picker
+#grab location
+if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force
+}
+$Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
+Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName -UseDeviceAuthentication
+#>
+
+#Install Azure Stack HCI RSAT Tools to all nodes
+$Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Install-WindowsFeature -Name RSAT-Azure-Stack-HCI
+}
+
+#Validate registration (query on just one node is needed)
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Get-AzureStackHCI
+}
 #endregion
 
 #region Create Volumes
@@ -575,58 +661,4 @@ start-sleep 5
 #Install SR RSAT on WAC GW
 Install-WindowsFeature -name RSAT-Storage-Replica -ComputerName $GatewayServerName
 
-#endregion
-
-#region register AzSHCI to Azure
-    $ClusterName="AzSHCI-S-Clus"
-    
-    #download Azure module
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
-        Install-Module -Name Az.StackHCI -Force
-    }
-
-    #login to azure
-    #download Azure module
-    if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
-        Install-Module -Name Az.Accounts -Force
-    }
-    Login-AzAccount -UseDeviceAuthentication
-
-    #select context if more available
-    $context=Get-AzContext -ListAvailable
-    if (($context).count -gt 1){
-        $context | Out-GridView -OutputMode Single | Set-AzContext
-    }
-
-    #select subscription
-    $subscriptions=Get-AzSubscription
-    if (($subscriptions).count -gt 1){
-        $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
-    }
-
-    $subscriptionID=(Get-AzSubscription).ID
-
-    #register Azure Stack HCI
-    Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName
-    #or more complex
-    <#
-    #grab location
-    if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
-        Install-Module -Name Az.Resources -Force
-    }
-    $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single
-    Register-AzStackHCI -SubscriptionID $subscriptionID -Region $location.location -ComputerName $ClusterName
-    #>
-
-    #Install Azure Stack HCI RSAT Tools to all nodes
-    $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Install-WindowsFeature -Name RSAT-Azure-Stack-HCI
-    }
-
-    #Validate registration (query on just one node is needed)
-    Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-        Get-AzureStackHCI
-    }
 #endregion
