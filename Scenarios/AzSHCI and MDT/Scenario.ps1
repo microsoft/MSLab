@@ -322,6 +322,10 @@ foreach ($HVHost in $HVHosts){
     Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
     #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
 }
+
+#Mitigate issue with Variable Window Extension
+Wdsutil /Set-TransportServer /EnableTftpVariableWindowExtension:No
+
 #endregion
 
 #region replace customsettings.ini with all DB data to query (wizard output)
