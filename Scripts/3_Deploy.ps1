@@ -1532,7 +1532,12 @@ If (-not $isAdmin) {
     #Enable Guest services on all VMs if integration component if configured
     if ($labconfig.EnableGuestServiceInterface){
         WriteInfo "`t Enabling Guest Service Interface"
-        Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} | Enable-VMIntegrationService -Name "Guest Service Interface"
+        $vms = Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} 
+        foreach ($vm in $vms) {
+            $guestServiceId = 'Microsoft:{0}\6C09BB55-D683-4DA0-8931-C9BF705F6480' -f $vm.Id
+            $guestService = $vm | Get-VMIntegrationService | Where-Object -FilterScript {$_.Id -eq $guestServiceId}
+            $guestService | Enable-VMIntegrationService
+        }
         $TempVMs=Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -ne "Running" -and $_.state -ne "Off"}
         if ($TempVMs){
             WriteInfoHighlighted "`t`t Following VMs cannot be configured, as the state is not running or off"
