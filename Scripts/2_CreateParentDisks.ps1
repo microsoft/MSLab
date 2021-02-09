@@ -164,7 +164,12 @@ If (-not $isAdmin) {
 
 #region Check prerequisites
 
-    #check Hyper-V    
+    #Check if not running in root folder
+    if (($PSScriptRoot).Length -eq 3) {
+        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+    }
+
+    #check Hyper-V
         WriteInfoHighlighted "Checking if Hyper-V is installed"
         if ((Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).state -eq "Enabled"){
             WriteSuccess "`t Hyper-V is Installed"

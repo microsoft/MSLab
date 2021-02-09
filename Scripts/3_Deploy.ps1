@@ -763,6 +763,11 @@ If (-not $isAdmin) {
 
 #region Some Additional checks and prereqs configuration
 
+    # Checking if not running in root folder
+    if (($PSScriptRoot).Length -eq 3) {
+        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+    }
+
     # Checking for Compatible OS
         WriteInfoHighlighted "Checking if OS is Windows 10 1511 (10586)/Server 2016 or newer"
         $BuildNumber=Get-WindowsBuildNumber
