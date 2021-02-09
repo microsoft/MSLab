@@ -371,6 +371,10 @@ Read-Host
 
 Since deploying operating system with SCVMM is bit complex task, it's well explained within [WSLab scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM).
 
+## MDT
+
+Unlike SCVMM, Microsoft Deployment toolkit is a free tool. Together with SQL Express with database of your asset, you can perform Zero Touch Installation. See more in [WSLab scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/AzSHCI%20and%20MDT).
+
 ## Useful tools in install media
 
 ### shift+F10

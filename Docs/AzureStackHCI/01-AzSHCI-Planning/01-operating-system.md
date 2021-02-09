@@ -13,7 +13,9 @@
 
 # Planning Operating System
 
-Storage Spaces Direct is technology, that is contained in both Azure Stack HCI OS and Windows Server Datacenter. It enables you to create hyperconverged cluster. Both Operating Systems are easy to use for Windows Server admins as both can (should) be domain joined and managed with traditional tools (such as Server Manager, MMC and new Windows Admin Center).
+Storage Spaces Direct is technology, that is contained in both Azure Stack HCI OS and Windows Server Datacenter. It enables you to create hyperconverged cluster. Both Operating Systems are easy to use for Windows Server admins as both can (should) be domain joined and managed with traditional tools (such as Server Manager, MMC and new Windows Admin Center). While both Windows Server and Azure Stack HCI operating systems can run on virtualization host, going forward the main focus will be Azure Stack HCI OS for hosts and Windows Server for guest workloads (https://youtu.be/EWv5JUHDR1k?t=423).
+
+![](01-Operating-System/media/ppt01.png)
 
 ## Azure Stack HCI
 
@@ -30,7 +32,6 @@ Because the billing is managed through Microsoft Azure we can leverage the tools
 ## Windows Server
 
 ### Licensing
-
 
 ### Installation options
 
@@ -91,6 +92,7 @@ Following PowerShell command adds ServerCore.AppCompatibility feature to running
 
 ```powershell
 Add-WindowsCapability -Online -Name ServerCore.AppCompatibility~~~~0.0.1.0
+ 
 ```
 
 **Downloadable Features on Demand from Visual Studio Subscriptions**

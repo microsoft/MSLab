@@ -35,7 +35,7 @@ With increased number of nodes, there might be a congestion in TOR switches inte
 
 ![](04-Network-Architecture/media/topology03.png)
 
-TOR Switches will be configured with Trunk and native VLAN for management with one slight difference from single subnet. Each subnet for SMB traffic will have it's own VLAN. This will also help discover improper physical connections ().
+TOR Switches will be configured with Trunk and native VLAN for management with one slight difference from single subnet. Each subnet for SMB traffic will have it's own VLAN. This will also help discover improper physical connections (https://youtu.be/JxKMSqnGwKw?t=204).
 
 ![](04-Network-Architecture/media/topology04.png)
 
@@ -88,16 +88,16 @@ If Congestion control mechanisms are not correctly implemented, it can lead to h
 
 This design is most common as it is simplest and requires just two ports. Since RDMA can be enabled on vNICs. In the example below is one VLAN used for SMB vNICs. As mentioned in above text, you may consider using two VLANs and two subnets for SMB vNICs to control traffic flow.
 
-![](04-Network-Architecture/media/topology05.png)
+![](04-Network-Architecture/media/topology04.png)
 
 ### Dedicated NICs for East-West traffic
 
 Some customers prefer to dedicate physical network adapters for east west traffic. In example below all physical ports on physical switch are configured the same (for simplicity). Also just two physical switches are used. You can also have dedicated switches for east-west traffic (for SMB). If DCB is configured, VLANs are mandatory for SMB adapters. In example below one VLAN for SMB is used. Two VLANs and two subnets can be used to better control traffic.
 
-![](04-Network-Architecture/media/topology06.png)
+![](04-Network-Architecture/media/topology05.png)
 
 ### Dedicated NICs for East-West traffic and management
 
 Some customers even prefer to have dedicated network cards (ports) for management. One of the reason can be customers requirements to have dedicated physical switches for management.
 
-![](04-Network-Architecture/media/topology07.png)
+![](04-Network-Architecture/media/topology06.png)
