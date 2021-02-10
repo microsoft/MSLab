@@ -26,15 +26,14 @@ function  Get-WindowsBuildNumber {
 
 #region Initialization
 
-
 # grab Time and start Transcript
-    Start-Transcript -Path "$ScriptRoot\Prereq.log"
+    Start-Transcript -Path "$PSScriptRoot\Prereq.log"
     $StartDateTime = Get-Date
     WriteInfo "Script started at $StartDateTime"
     WriteInfo "`nWSLab Version $wslabVersion"
 
 #Load LabConfig....
-    . "$ScriptRoot\LabConfig.ps1"
+    . "$PSScriptRoot\LabConfig.ps1"
 
 # Telemetry Event
     if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
@@ -57,6 +56,12 @@ function  Get-WindowsBuildNumber {
 #endregion
 
 #region OS checks and folder build
+
+# Check if not running in root folder
+    if (($psscriptroot).Length -eq 3) {
+        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+    }
+
 # Checking for Compatible OS
     WriteInfoHighlighted "Checking if OS is Windows 10 1511 (10586)/Server 2016 or newer"
 
