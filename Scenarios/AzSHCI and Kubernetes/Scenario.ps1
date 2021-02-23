@@ -195,9 +195,9 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #endregion
 
 #region Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip"
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Feb-2021.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Dec-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Feb-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -208,6 +208,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     $vSwitchName="vSwitch"
     $VolumeName="AKS"
     $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+    $VIPPoolStart="10.0.0.100"
+    $VIPPoolEnd="10.0.0.200"
 
     #Copy module to nodes
     $PSSessions=New-PSSession -ComputerName $Servers
@@ -245,7 +247,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     }
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Set-AksHciConfig -vnetName $using:vSwitchName -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
+        $vnet = New-AksHciNetworkSetting -vnetName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
+        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize = 'default' # Get-AksHciVmSize
     }
 
     #validate config
@@ -269,7 +272,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
-    New-AksHciCluster -clusterName demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
+    New-AksHciCluster -Name demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -EnableADAuth -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
@@ -285,30 +288,27 @@ Foreach ($OtherSession in $OtherSessions){
 
 #VM Sizes
 <#
-$global:vmSizeDefinitions =
-@(
-    # Name, CPU, MemoryGB
-    ([VmSize]::Default, "4", "4"),
-    ([VmSize]::Standard_A2_v2, "2", "4"),
-    ([VmSize]::Standard_A4_v2, "4", "8"),
-    ([VmSize]::Standard_D2s_v3, "2", "8"),
-    ([VmSize]::Standard_D4s_v3, "4", "16"),
-    ([VmSize]::Standard_D8s_v3, "8", "32"),
-    ([VmSize]::Standard_D16s_v3, "16", "64"),
-    ([VmSize]::Standard_D32s_v3, "32", "128"),
-    ([VmSize]::Standard_DS2_v2, "2", "7"),
-    ([VmSize]::Standard_DS3_v2, "2", "14"),
-    ([VmSize]::Standard_DS4_v2, "8", "28"),
-    ([VmSize]::Standard_DS5_v2, "16", "56"),
-    ([VmSize]::Standard_DS13_v2, "8", "56"),
-    ([VmSize]::Standard_K8S_v1, "4", "2"),
-    ([VmSize]::Standard_K8S2_v1, "2", "2"),
-    ([VmSize]::Standard_K8S3_v1, "4", "6"),
-    ([VmSize]::Standard_NK6, "6", "12"),
-    ([VmSize]::Standard_NV6, "6", "64"),
-    ([VmSize]::Standard_NV12, "12", "128")
+Get-AksHciVmSize
 
-)
+          VmSize CPU MemoryGB
+          ------ --- --------
+         Default 4   4
+  Standard_A2_v2 2   4
+  Standard_A4_v2 4   8
+ Standard_D2s_v3 2   8
+ Standard_D4s_v3 4   16
+ Standard_D8s_v3 8   32
+Standard_D16s_v3 16  64
+Standard_D32s_v3 32  128
+ Standard_DS2_v2 2   7
+ Standard_DS3_v2 2   14
+ Standard_DS4_v2 8   28
+ Standard_DS5_v2 16  56
+Standard_DS13_v2 8   56
+ Standard_K8S_v1 4   2
+Standard_K8S2_v1 2   2
+Standard_K8S3_v1 4   6
+
 #>
 #endregion
 
@@ -347,9 +347,9 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     #generage kubeconfig first
-    Get-AksHciCredential -clusterName demo
+    Get-AksHciCredential -Name demo
     #onboard
-    Install-AksHciArcOnboarding -clusterName $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
+    Install-AksHciArcOnboarding -Name $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
 }
 
 #check onboarding
