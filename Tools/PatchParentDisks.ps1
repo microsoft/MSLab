@@ -71,6 +71,13 @@ If (-not $isAdmin) {
     }else{
         WriteErrorAndExit "No update package selected, exitting"
     }
+
+    #sort packages by size (to apply Servicing Stack Update first)
+    if ($msupackages.Filenames){
+        $files=@()
+        foreach ($Filename in $msupackages.FileNames){$files+=Get-ChildItem -Path $filename}
+        $packages=($files |Sort-Object -Property Length).Fullname
+    }
 #endregion
 
 # region mount and patch VHD
@@ -80,8 +87,8 @@ If (-not $isAdmin) {
         #Grab letter
         $DriveLetter=(Get-Disk -Number $Mount.Number |Get-Partition | Where-Object Driveletter).DriveLetter
         #Patch
-        foreach ($msupackage in $msupackages){
-            Add-WindowsPackage -PackagePath $msupackage.filename -Path "$($DriveLetter):\"
+        foreach ($package in $packages){
+            Add-WindowsPackage -PackagePath $package -Path "$($DriveLetter):\"
         }
         #Dismount
         $Mount | Dismount-VHD
