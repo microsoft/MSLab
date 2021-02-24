@@ -11,11 +11,11 @@ You can interactively install or upgrade Windows by using the Windows product me
 ### Manual steps needed after interactive setup
 
 > [!TIP]
-> You can test this in [WSLab](https://aka.ms/WSLab) with following VMs in labconfig:
+> You can test this in [MSLab](https://aka.ms/MSLab) with following VMs in labconfig:
 >
 > 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; HDDNumber = 12; HDDSize= 4TB ; **Unattend="None"**}}
 >
->To test environment without dhcp, just stop dhcp server with **Stop-Service DHCPServer** on WSLab DC
+>To test environment without dhcp, just stop dhcp server with **Stop-Service DHCPServer** on MSLab DC
 
 if DHCP is not enabled, it's necessary to configure IP and domain join machines. The easiest is to run sconfig that will pop up wizard. Following are powershell examples to configure the same
 
@@ -369,11 +369,11 @@ Read-Host
 
 ## SCVMM
 
-Since deploying operating system with SCVMM is bit complex task, it's well explained within [WSLab scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM).
+Since deploying operating system with SCVMM is bit complex task, it's well explained within [MSLab scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Bare%20Metal%20with%20SCVMM).
 
 ## MDT
 
-Unlike SCVMM, Microsoft Deployment toolkit is a free tool. Together with SQL Express with database of your asset, you can perform Zero Touch Installation. See more in [WSLab scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/AzSHCI%20and%20MDT).
+Unlike SCVMM, Microsoft Deployment toolkit is a free tool. Together with SQL Express with database of your asset, you can perform Zero Touch Installation. See more in [MSLab scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20and%20MDT).
 
 ## Useful tools in install media
 

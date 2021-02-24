@@ -44,7 +44,7 @@ If (-not $isAdmin) {
     if (!(Test-Path "$PSScriptRoot\Convert-WindowsImage.ps1")){
         WriteInfo "`t Downloading Convert-WindowsImage"
         try {
-            Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/WSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Convert-WindowsImage.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Convert-WindowsImage.ps1"
         } catch {
             WriteErrorAndExit "`t Failed to download Convert-WindowsImage.ps1!"
         }

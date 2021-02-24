@@ -6,7 +6,7 @@ To complete following steps it is necessary, that servers are [domain joined](\0
 
 It is also necessary to configure physical switches correctly. In general there should be multiple VLANs configured on ports (for Management,Storage and Virtual Machines) with one access VLAN (management). It is also mandatory to configure PfC/ETS when RoCE RDMA is used (DCB Priority Flow Control with priorities 0,3 and 7 with ETS enabled). See [network architecture part](/AzureStackHCI/01-AzSHCI-Planning/04-network-architecture.md). Great switch configuration examples were published by PFE Jan Mortensen at [s2d.dk](http://www.s2d.dk).
 
-There are multiple ways to deploy networking in Azure Stack HCI clusters. Following guidance is for converged setup with one or two SMB subnets. Additional scenarios are covered in WSLab in [S2D and Network Deep Dive scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Networks%20deep%20dive) and [S2D and Direct Connectivity Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Direct%20Connectivity)
+There are multiple ways to deploy networking in Azure Stack HCI clusters. Following guidance is for converged setup with one or two SMB subnets. Additional scenarios are covered in MSLab in [S2D and Network Deep Dive scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Networks%20deep%20dive) and [S2D and Direct Connectivity Scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Direct%20Connectivity)
 
 ## Disable unused adapters
 
@@ -61,7 +61,7 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 
 ### Validate
 
-Note: following example is inside VMs (WSLab), therefore IOV does not work.
+Note: following example is inside VMs (MSLab), therefore IOV does not work.
 
 ```powershell
 $Servers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
