@@ -589,8 +589,8 @@ If (-not $isAdmin) {
         if ($VMVersion.Build -ge 17763){
             $oeminformation=@"
             <OEMInformation>
-             <SupportProvider>WSLab</SupportProvider>
-             <SupportURL>https://aka.ms/wslab</SupportURL>
+             <SupportProvider>MSLab</SupportProvider>
+             <SupportURL>https://aka.ms/mslab</SupportURL>
            </OEMInformation>
 "@
         }else{
@@ -674,7 +674,7 @@ If (-not $isAdmin) {
 
     $StartDateTime = Get-Date
     WriteInfoHighlighted "Script started at $StartDateTime"
-    WriteInfo "`nWSLab Version $wslabVersion"
+    WriteInfo "`nMSLab Version $mslabVersion"
 
 
     ##Load LabConfig....
@@ -765,7 +765,7 @@ If (-not $isAdmin) {
 
     # Checking if not running in root folder
     if (($PSScriptRoot).Length -eq 3) {
-        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+        WriteErrorAndExit "`t MSLab canot run in root folder. Please put MSLab scripts into a folder. Exiting"
     }
 
     # Checking for Compatible OS
@@ -872,8 +872,8 @@ If (-not $isAdmin) {
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
-        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
-        $mountdir="$env:Temp\WSLAbMountDir"
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir" 
+        $mountdir="$env:Temp\MSLabMountDir"
         $VolumeFileSystem="CSVFS"
     }else{
         $mountdir="$PSScriptRoot\Temp\MountDir"
