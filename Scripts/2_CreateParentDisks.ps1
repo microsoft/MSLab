@@ -95,7 +95,7 @@ If (-not $isAdmin) {
         Start-Transcript -Path "$PSScriptRoot\CreateParentDisks.log"
         $StartDateTime = Get-Date
         WriteInfo "Script started at $StartDateTime"
-        WriteInfo "`nWSLab Version $wslabVersion"
+        WriteInfo "`nMSLab Version $mslabVersion"
 
     #Load LabConfig....
         . "$PSScriptRoot\LabConfig.ps1"
@@ -166,7 +166,7 @@ If (-not $isAdmin) {
 
     #Check if not running in root folder
     if (($PSScriptRoot).Length -eq 3) {
-        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+        WriteErrorAndExit "`t MSLab canot run in root folder. Please put MSLab scripts into a folder. Exiting"
     }
 
     #check Hyper-V
@@ -245,8 +245,8 @@ If (-not $isAdmin) {
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
-        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\WSLAbMountdir" 
-        $mountdir="$env:Temp\WSLAbMountdir"
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir" 
+        $mountdir="$env:Temp\MSLabMountdir"
         $VolumeFileSystem="CSVFS"
     }else{
         $mountdir="$PSScriptRoot\Temp\MountDir"
@@ -595,8 +595,8 @@ If (-not $isAdmin) {
             if ($VMVersion.Build -ge 17763){
                 $oeminformation=@"
                 <OEMInformation>
-                    <SupportProvider>WSLab</SupportProvider>
-                    <SupportURL>https://aka.ms/wslab</SupportURL>
+                    <SupportProvider>MSLab</SupportProvider>
+                    <SupportURL>https://aka.ms/mslab</SupportURL>
                 </OEMInformation>
 "@
             }else{

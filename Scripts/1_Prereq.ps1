@@ -30,7 +30,7 @@ function  Get-WindowsBuildNumber {
     Start-Transcript -Path "$PSScriptRoot\Prereq.log"
     $StartDateTime = Get-Date
     WriteInfo "Script started at $StartDateTime"
-    WriteInfo "`nWSLab Version $wslabVersion"
+    WriteInfo "`nMSLab Version $mslabVersion"
 
 #Load LabConfig....
     . "$PSScriptRoot\LabConfig.ps1"
@@ -59,7 +59,7 @@ function  Get-WindowsBuildNumber {
 
 # Check if not running in root folder
     if (($psscriptroot).Length -eq 3) {
-        WriteErrorAndExit "`t WSLab canot run in root folder. Please put WSLab scripts into a folder. Exiting"
+        WriteErrorAndExit "`t MSLab canot run in root folder. Please put MSLab scripts into a folder. Exiting"
     }
 
 # Checking for Compatible OS
@@ -90,7 +90,7 @@ function  Get-WindowsBuildNumber {
             WriteSuccess "`t $Filename is present, skipping download"
         }else{
             $FileContent=$null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$Filename.ps1").Content
             if ($FileContent){
                 $script = New-Item $Path -type File -Force
                 $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
@@ -109,7 +109,7 @@ function  Get-WindowsBuildNumber {
         WriteSuccess "`t $Filename is present, skipping download"
     }else{
         $FileContent = $null
-        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$Filename.ps1").Content
+        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$Filename.ps1").Content
         if ($FileContent){
             $script = New-Item $Path -type File -Force
             $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
@@ -128,7 +128,7 @@ function  Get-WindowsBuildNumber {
             WriteSuccess "`t $Filename is present, skipping download"
         }else{
             $FileContent = $null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/WSLab/master/Tools/$FileName.ps1").Content
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
             if ($FileContent){
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
@@ -145,7 +145,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 }else{ 
     WriteInfo "`t Downloading Convert-WindowsImage"
     try {
-        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/WSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
+        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
     } catch {
         WriteError "`t Failed to download Convert-WindowsImage.ps1!"
     }
