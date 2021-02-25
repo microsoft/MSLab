@@ -7,7 +7,7 @@ To complete following steps it is necessary, that servers are domain joined and 
 ![](03-OS-Configuration/media/MinimumInfrastructure01.png)
 
 > [!TIP]
-> You can test OS Configuration in [WSLab](https://aka.ms/WSLab) with following VMs in labconfig:
+> You can test OS Configuration in [MSLab](https://aka.ms/MSLab) with following VMs in labconfig:
 > 1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; HDDNumber = 12; HDDSize= 4TB }}
 
 ## Install management tools on management machine
@@ -69,7 +69,7 @@ if ($InstallationType -eq "Client"){
 
 ## Perform Windows Update on Servers
 
-Assuming Server Names are S2D1,S2D2,S2D3 and S2D4 (defined in variable $Servers). In WSLab is one [scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/Windows%20Update), that explains how to invoke Windows Update using WMI/CIM methods. There are different classes in Windows Server 2016 and Windows Server 2019. Therefore in following code is releaseID checked and then depending on that different CIM namespace used. In Deep Dive Scenario you can see, that slightly different argument is used (with AutoSelectOnWebSites=1). [AutoSelectOnWebSites = 1](https://docs.microsoft.com/en-us/windows/win32/api/wuapi/nf-wuapi-iupdatesearcher-search) will also find updates that are flagged to be automatically selected by windows update.
+Assuming Server Names are S2D1,S2D2,S2D3 and S2D4 (defined in variable $Servers). In MSLab is one [scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/Windows%20Update), that explains how to invoke Windows Update using WMI/CIM methods. There are different classes in Windows Server 2016 and Windows Server 2019. Therefore in following code is releaseID checked and then depending on that different CIM namespace used. In Deep Dive Scenario you can see, that slightly different argument is used (with AutoSelectOnWebSites=1). [AutoSelectOnWebSites = 1](https://docs.microsoft.com/en-us/windows/win32/api/wuapi/nf-wuapi-iupdatesearcher-search) will also find updates that are flagged to be automatically selected by windows update.
 
 ### Configure
 
@@ -129,7 +129,7 @@ Invoke-Command -ComputerName $servers -ScriptBlock {
 
 ## Configure Spectre/Meltdown mitigations
 
-It is recommended to review [settings](https://support.microsoft.com/en-us/help/4072698/windows-server-speculative-execution-side-channel-vulnerabilities) that will prevent exploiting Speculative Execution Side Channel vulnerabilities. Settings configuration can be validated using [Speculation Control Module](https://aka.ms/SpeculationControlPS) that is also described in [dedicated WSLab Scenario](https://github.com/microsoft/WSLab/tree/master/Scenarios/Exploring%20SpeculationControlSettings)
+It is recommended to review [settings](https://support.microsoft.com/en-us/help/4072698/windows-server-speculative-execution-side-channel-vulnerabilities) that will prevent exploiting Speculative Execution Side Channel vulnerabilities. Settings configuration can be validated using [Speculation Control Module](https://aka.ms/SpeculationControlPS) that is also described in [dedicated MSLab Scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/Exploring%20SpeculationControlSettings)
 
 Following guidance is applicable to Intel processors.
 
@@ -241,7 +241,7 @@ $result | Sort-Object PSComputerName | Format-Table -GroupBy PSComputerName
 
 ## Install Agents
 
-This part will just demonstrate how to push and install Local Admin Password Solution (LAPS). Other agents can be installed similar way using PowerShell. Full WSLab scenario is located [here](https://github.com/microsoft/WSLab/tree/master/Scenarios/LAPS).
+This part will just demonstrate how to push and install Local Admin Password Solution (LAPS). Other agents can be installed similar way using PowerShell. Full MSLab scenario is located [here](https://github.com/microsoft/MSLab/tree/master/Scenarios/LAPS).
 
 ```powershell
 $Servers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"

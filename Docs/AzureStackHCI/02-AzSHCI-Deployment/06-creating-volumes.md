@@ -2,13 +2,13 @@
 
 ## Some theory
 
-When creating volumes, there are several factors to consider. One is, that due to overhead from [CSV redirection](https://github.com/microsoft/WSLab/tree/master/Scenarios/TestingCSVRedirection) (CSV is FileSystem redirected if REFS used and even if NTFS is used, Storage Spaces are File redirected). Therefore you want to have at least the same number of volumes as you have nodes (or multiple) to effectively distribute IOPS. Another factor is size of volume itself. While it is supported to create 64TB volume, it might be challenging to restore entire volume in reasonable time if something goes wrong.
+When creating volumes, there are several factors to consider. One is, that due to overhead from [CSV redirection](https://github.com/microsoft/MSLab/tree/master/Scenarios/TestingCSVRedirection) (CSV is FileSystem redirected if REFS used and even if NTFS is used, Storage Spaces are File redirected). Therefore you want to have at least the same number of volumes as you have nodes (or multiple) to effectively distribute IOPS. Another factor is size of volume itself. While it is supported to create 64TB volume, it might be challenging to restore entire volume in reasonable time if something goes wrong.
 
-Another aspect is if using [tiers](https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Tiers%20deep%20dive) (templates) or not. Tiers are mandatory for Multi-Resilient volumes (Mirror-Accelerated Parity) - anytime you want to create a volume that consist of more than 1 kind (different tiers). If using system, where are both SSDs and HDDs for capacity, it is wise to either use tiers, or specify mediatype for created volume. For mor information about volumes see [Volume Deep Dive](https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive)
+Another aspect is if using [tiers](https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Tiers%20deep%20dive) (templates) or not. Tiers are mandatory for Multi-Resilient volumes (Mirror-Accelerated Parity) - anytime you want to create a volume that consist of more than 1 kind (different tiers). If using system, where are both SSDs and HDDs for capacity, it is wise to either use tiers, or specify mediatype for created volume. For mor information about volumes see [Volume Deep Dive](https://github.com/Microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive)
 
 ## Create volumes
 
-Following example is based on [AzSHCI Deployment Scenario](https://github.com/microsoft/WSLab/blob/master/Scenarios/AzSHCI%20Deployment/Scenario.ps1)
+Following example is based on [AzSHCI Deployment Scenario](https://github.com/microsoft/MSLab/blob/master/Scenarios/AzSHCI%20Deployment/Scenario.ps1)
 
 ### Calculate reserve
 

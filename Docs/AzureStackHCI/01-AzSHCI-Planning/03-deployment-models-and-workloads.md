@@ -28,7 +28,7 @@ Technically all VMs are located on SOFS share that is presented using DFS-N name
 
 ## User Profile Disks host (Windows Server Only)
 
-Azure Stack HCI can also host user profile disks (UPDs). Since UPD is VHD (both native Windows Server functionality and [FSLogix](https://github.com/microsoft/WSLab/tree/master/Scenarios/FSLogix)), Scale-Out File Server can be used as workload pattern is the same as for Virtual Machines.
+Azure Stack HCI can also host user profile disks (UPDs). Since UPD is VHD (both native Windows Server functionality and [FSLogix](https://github.com/microsoft/MSLab/tree/master/Scenarios/FSLogix)), Scale-Out File Server can be used as workload pattern is the same as for Virtual Machines.
 
 ## SQL
 
