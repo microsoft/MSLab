@@ -32,10 +32,10 @@ If (-not $isAdmin) {
             $RunSynchronous
         )
 
-        if ( Test-Path "Unattend.xml" ) {
-        Remove-Item .\Unattend.xml
+        if ( Test-Path "$PSScriptRoot\unattend.xml" ) {
+            Remove-Item "$PSScriptRoot\unattend.xml"
         }
-        $unattendFile = New-Item "Unattend.xml" -type File
+        $unattendFile = New-Item "$PSScriptRoot\unattend.xml" -type File
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -105,10 +105,10 @@ If (-not $isAdmin) {
             $AdditionalAccount
         )
 
-            if ( Test-Path "Unattend.xml" ) {
-            Remove-Item .\Unattend.xml
+            if ( Test-Path "$PSScriptRoot\unattend.xml" ) {
+                Remove-Item "$PSScriptRoot\unattend.xml"
             }
-            $unattendFile = New-Item "Unattend.xml" -type File
+            $unattendFile = New-Item "$PSScriptRoot\unattend.xml" -type File
             $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -170,10 +170,10 @@ If (-not $isAdmin) {
             [string]
             $DomainName
         )
-        if ( Test-Path "Unattend.xml" ) {
-            Remove-Item .\Unattend.xml
+        if ( Test-Path "$PSScriptRoot\unattend.xml" ) {
+            Remove-Item "$PSScriptRoot\unattend.xml"
         }
-        $unattendFile = New-Item "Unattend.xml" -type File
+        $unattendFile = New-Item "$PSScriptRoot\unattend.xml" -type File
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
