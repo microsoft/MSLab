@@ -42,7 +42,7 @@
             "vmProfile": 
                     {
                     "vmSize": "Standard_DS2_v2",
-                    "osDiskSizeGB": 127
+                    "osDiskSizeGB": 0
                     },
         
             "source": {
