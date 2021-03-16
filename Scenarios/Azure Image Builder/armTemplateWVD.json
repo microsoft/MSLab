@@ -49,7 +49,7 @@
                 "type": "PlatformImage",
                     "publisher": "MicrosoftWindowsDesktop",
                     "offer": "windows-10",
-                    "sku": "20h2-evd",
+                    "sku": "20h2-evd-g2",
                     "version": "latest"
                 
             },

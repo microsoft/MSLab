@@ -104,7 +104,7 @@
     #location
     $location="westeurope"
     # ImageDefinitionName 
-    $imageDefName ="Windows10_20H2_WVD"
+    $imageDefName ="Win10_20H2_WVD_G2"
     #Subscription ID
     $subscriptionID = (Get-AzContext).Subscription.Id
     # Create the gallery
@@ -121,8 +121,8 @@
         OsType = 'Windows'
         Publisher = 'WSLab-MicrosoftWindowsDesktop'
         Offer = 'WSLab-office-365'
-        Sku = 'WSLab-20h2-evd-o365pp'
-        HyperVGeneration = 'V1'
+        Sku = 'WSLab-20h2-evd-g2-o365pp'
+        HyperVGeneration = 'V2'
       }
       New-AzGalleryImageDefinition @GalleryParams
     
@@ -134,7 +134,7 @@
     #name of Identity for Azure Image Builder Service
     $identityName="AzureImageBuilderService"
     # ImageDefinitionName 
-    $imageDefName ="Windows10_20H2_WVD"
+    $imageDefName ="Win10_20H2_WVD_G2"
     #Image gallery name
     $sigGalleryName= "AzureImageBuilderSharedGallery"
     #grab identity
@@ -144,8 +144,8 @@
     # Azure replication region
     $replocation = 'northeurope'
     # Name of the image to be created
-    $date=get-date -Format "dd-MM-yy"
-    $imageTemplateName = "Windows10_20H2_WVD_$date"
+    $date=get-date -Format "yyMMdd"
+    $imageTemplateName = "Win10_20H2_WVD_G2_$date"
     # Distribution properties of the managed image upon completion
     $runOutputName = 'myDistResults'
     # Grab Subscription ID
