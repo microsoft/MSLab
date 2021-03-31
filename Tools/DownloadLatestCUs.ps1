@@ -11,7 +11,7 @@ if(!$folder){$folder=$PSScriptRoot}
 #do you want preview?
 $preview=Read-Host -Prompt "Do you want to download preview updates? Y/N, default N"
 if($preview -eq "y"){$
-    preview = $true
+    $preview = $true
 }else{
     $preview=$false
 }
@@ -64,8 +64,7 @@ foreach ($item in $CleanedList){
         }else{
             $format="MMMM d, yyyy"
         }
-        $Date=([datetime]::ParseExact($DateString,$format,$null))
-
+        $Date=([datetime]::ParseExact($DateString,$format,[Globalization.CultureInfo]::CreateSpecificCulture('en-US')))
         if ($item -like "*Preview*"){
             $ReleaseType="Preview"
         }elseif ($item -like "*Out-Of-Band*"){
@@ -123,8 +122,8 @@ if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
 #region Download update
 Write-Output "Downloading Updates"
 Foreach ($item in $Result){
-    $DateFolderName=($result | where Product -eq $item.Product | where ReleaseType -ne ServicingStackUpdate).Date | Get-Date -Format "dd-MMM-yy"
-    $Path="C:\temp\$($item.Product)\$DateFolderName"
+    $DateFolderName=($result | Where-Object Product -eq $item.Product | where ReleaseType -ne ServicingStackUpdate).Date | Get-Date -Format "dd-MMM-yy"
+    $Path="$folder\$($item.Product)\$DateFolderName"
     New-Item -Path $Path -ItemType Directory -ErrorAction Ignore
     $UpdateCandidate=Get-MSCatalogUpdate -Search $item.kb | Where-Object Title -Like "*x64*"
     if ($UpdateCandidate.count -eq 1){
@@ -132,11 +131,11 @@ Foreach ($item in $Result){
     }elseif ($item.Product -like "Azure Stack*"){
         $UpdateCandidate | Where-Object Products -Like "*Azure Stack*" | Save-MSCatalogUpdate -UseBits -Destination $Path
     }elseif ($item.Product -like "*Windows Server*"){
-        $update=$UpdateCandidate | Where Title -Like "*Windows Server*"
+        $update=$UpdateCandidate | Where-Object Title -Like "*Windows Server*"
         if ($update.count -eq 1){
             $update | Save-MSCatalogUpdate -UseBits -Destination $Path
         }else{
-            $update | Where-Object Title -Like "*$($item.Version)*" | Save-MSCatalogUpdate
+            $update | Where-Object Title -Like "*$($item.Version)*" | Save-MSCatalogUpdate -UseBits -Destination $Path
         }
     }
 }
