@@ -10,7 +10,7 @@ if(!$folder){$folder=$PSScriptRoot}
 
 #do you want preview?
 $preview=Read-Host -Prompt "Do you want to download preview updates? Y/N, default N"
-if($preview -eq "y"){$
+if($preview -eq "y"){
     $preview = $true
 }else{
     $preview=$false
@@ -18,8 +18,8 @@ if($preview -eq "y"){$
 
 #URLs with list of latest updates
 $URLs=@()
-$URLs+=@{Product="Windows10";URL="https://support.microsoft.com/en-us/topic/release-notes-for-azure-stack-hci-64c79b7f-d536-015d-b8dd-575f01090efd"}
-$URLs+=@{Product="AzureStackHCI";URL="https://support.microsoft.com/en-us/topic/windows-10-update-history-7dd3071a-3906-fa2c-c342-f7f86728a6e3"}
+$URLs+=@{Product="AzureStackHCI";URL="https://support.microsoft.com/en-us/topic/release-notes-for-azure-stack-hci-64c79b7f-d536-015d-b8dd-575f01090efd"}
+$URLs+=@{Product="Windows10";URL="https://support.microsoft.com/en-us/topic/windows-10-update-history-7dd3071a-3906-fa2c-c342-f7f86728a6e3"}
 
 $UpdatesList=@()
 $Titles=@()
@@ -37,16 +37,15 @@ foreach ($url in $urls){
 #clean white space
 $CleanedList=@()
 Foreach ($item in $UpdatesList){
+    $item=$item.Replace(" "," ")
     $CleanedList+=$item.Trim()
 }
-
-#remove initial win10
-$Titles=$Titles | Where-Object {$_.textcontent -notlike "*initial version*"}
 
 #clean white space
 $CleanedListTitles=@()
 Foreach ($Title in $Titles){
-    $CleanedListTitles+=$Title.TextContent.Trim()
+    $Title=$Title.textcontent.Replace(" "," ")
+    $CleanedListTitles+=$Title.Trim()
 }
 
 #Process data
@@ -54,7 +53,7 @@ Write-Output "Processing data"
 $i=0
 $Output=@()
 foreach ($item in $CleanedList){
-    if ($item -match $CleanedListTitles[$i]){
+    if ($item -eq $CleanedListTitles[$i]){
         $Title=$CleanedListTitles[$i]
         $i++
     }else{
@@ -74,16 +73,25 @@ foreach ($item in $CleanedList){
         }else{
             $ReleaseType="Standard"
         }
-        $Product=$Title.Replace(", version","").Replace(" update history","").Replace(", and"," and")
+        if ($title -like "*initial*"){
+            $Version="Initial Release"
+        }else{
+            $Version=([Regex]::Match($Title,"(?<=version\ )\w{4}")).Value
+        }
+        $Product=$Title.Replace(", version $version and Windows Server, version $version update history"," $Version").Replace(", version 1809, Windows Server, version 1809,"," 1809").Replace(", version $version"," $version").Replace(" update history","")
         #$Product="$(([Regex]::Match($Title,'^.+?(?=,)')).Value)$(([Regex]::Match($Title,'\ and\ .+?(?=,)')).value) $(([Regex]::Match($Title,"(?<=version\ )\w{4}")).Value)"
-        $Output += [PSCustomObject]@{
-            "Product"=$Product
-            "Version"=([Regex]::Match($Title,"(?<=version\ )\w{4}")).Value
-            "NavCategoryTitle"=$Title
-            "Date"= $Date
-            "KB" = ([Regex]::Match($item,'KB\d*')).Value
-            "Build" = ([Regex]::Match($item,'\d*\.\d*')).Value
-            "ReleaseType" = $ReleaseType
+        #skip mobile
+        if ($item -notlike "*Windows 10 Mobile*"){
+            $Output += [PSCustomObject]@{
+                "Product"=$Product
+                "Version"=$Version
+                "Date"= $Date
+                "KB" = ([Regex]::Match($item,'KB\d*')).Value
+                "Build" = ([Regex]::Match($item,'\d*\.\d*')).Value
+                "ReleaseType" = $ReleaseType
+                "NavCategoryTitle"=$Title
+                "NavArticle"=$item
+            }
         }
     }
 }
