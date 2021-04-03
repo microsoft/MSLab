@@ -1,8 +1,10 @@
-If ((Get-ExecutionPolicy) -ne "RemoteSigned"){
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
-}
-
-#region variables
+$Products=@()
+$Products+=@{Product="Azure Stack HCI 20H2";SearchString="Cumulative Update for Azure Stack HCI, version 20H2"                ;PreviewSearchString="Cumulative Update Preview for Azure Stack HCI"                              ;SSUSearchString="Servicing Stack Update for Azure Stack HCI, version 20H2 for x64-based Systems"}
+$Products+=@{Product="Windows Server 2019" ;SearchString="Cumulative Update for Windows Server 2019 for x64-based Systems"    ;PreviewSearchString="Cumulative Update Preview for Windows Server 2019 for x64-based Systems"    ;SSUSearchString="Servicing Stack Update for Windows Server 2019 for x64-based Systemss"}
+$Products+=@{Product="Windows Server 2016" ;SearchString="Cumulative Update for Windows Server 2019 for x64-based Systems"    ;PreviewSearchString="Cumulative Update Preview for Windows Server 2019 for x64-based Systems"    ;SSUSearchString="Servicing Stack Update for Windows Server 2019 for x64-based Systemss"}
+$Products+=@{Product="Windows 10 20H2"     ;SearchString="Cumulative Update for Windows 10 Version 20H2 for x64-based Systems";PreviewSearchString="Cumulative Update Preview for Windows 10 Version 20H2 for x64-based Systems";SSUSearchString="Servicing Stack Update for Windows 10 Version 20H2 for x64-based Systems"}
+$Products+=@{Product="Windows 10 2004"     ;SearchString="Cumulative Update for Windows 10 Version 2004 for x64-based Systems";PreviewSearchString="Cumulative Update Preview for Windows 10 Version 2004 for x64-based Systems";SSUSearchString="Servicing Stack Update for Windows 10 Version 2004 for x64-based Systems"}
+$Products+=@{Product="Windows 10 1909"     ;SearchString="Cumulative Update for Windows 10 Version 1909 for x64-based Systems";PreviewSearchString="Cumulative Update Preview for Windows 10 Version 1909 for x64-based Systems";SSUSearchString="Servicing Stack Update for Windows 10 Version 1909 for x64-based Systems"}
 
 #grab folder to download to
 $folder=Read-Host -Prompt "Please type path to download. For example `"c:\temp`" (if nothing specified, $PSScriptRoot is used)"
@@ -16,100 +18,8 @@ if($preview -eq "y"){
     $preview=$false
 }
 
-#URLs with list of latest updates
-$URLs=@()
-$URLs+=@{Product="AzureStackHCI";URL="https://support.microsoft.com/en-us/topic/release-notes-for-azure-stack-hci-64c79b7f-d536-015d-b8dd-575f01090efd"}
-$URLs+=@{Product="Windows10";URL="https://support.microsoft.com/en-us/topic/windows-10-update-history-7dd3071a-3906-fa2c-c342-f7f86728a6e3"}
-
-$UpdatesList=@()
-$Titles=@()
-#endregion
-
-#region process
-#download content
-Write-Output "Downloading content of latest update sites"
-foreach ($url in $urls){
-    $content=Invoke-WebRequest -Uri $url.url
-    $UpdatesList+=($content.ParsedHtml.getElementsByClassName("supLeftNavArticle") | Select-Object OuterText).OuterText
-    $Titles+=$content.ParsedHtml.getElementsByClassName("supLeftNavCategoryTitle") | Select-Object textcontent
-}
-
-#clean white space
-$CleanedList=@()
-Foreach ($item in $UpdatesList){
-    $item=$item.Replace(" "," ")
-    $CleanedList+=$item.Trim()
-}
-
-#clean white space
-$CleanedListTitles=@()
-Foreach ($Title in $Titles){
-    $Title=$Title.textcontent.Replace(" "," ")
-    $CleanedListTitles+=$Title.Trim()
-}
-
-#Process data
-Write-Output "Processing data"
-$i=0
-$Output=@()
-foreach ($item in $CleanedList){
-    if ($item -eq $CleanedListTitles[$i]){
-        $Title=$CleanedListTitles[$i]
-        $i++
-    }else{
-        $DateString=([Regex]::Match($item,'\w*\ \d*,\ \d*')).Value
-        if (($DateString -split " ")[1].Length -eq 3){
-            $format="MMMM dd, yyyy"
-        }else{
-            $format="MMMM d, yyyy"
-        }
-        $Date=([datetime]::ParseExact($DateString,$format,[Globalization.CultureInfo]::CreateSpecificCulture('en-US')))
-        if ($item -like "*Preview*"){
-            $ReleaseType="Preview"
-        }elseif ($item -like "*Out-Of-Band*"){
-            $ReleaseType="Out-Of-Band"
-        }elseif ($item -like "*servicing*"){
-            $ReleaseType="ServicingStackUpdate"
-        }else{
-            $ReleaseType="Standard"
-        }
-        if ($title -like "*initial*"){
-            $Version="Initial Release"
-        }else{
-            $Version=([Regex]::Match($Title,"(?<=version\ )\w{4}")).Value
-        }
-        $Product=$Title.Replace(", version $version and Windows Server, version $version update history"," $Version").Replace(", version 1809, Windows Server, version 1809,"," 1809").Replace(", version $version"," $version").Replace(" update history","")
-        #$Product="$(([Regex]::Match($Title,'^.+?(?=,)')).Value)$(([Regex]::Match($Title,'\ and\ .+?(?=,)')).value) $(([Regex]::Match($Title,"(?<=version\ )\w{4}")).Value)"
-        #skip mobile
-        if ($item -notlike "*Windows 10 Mobile*"){
-            $Output += [PSCustomObject]@{
-                "Product"=$Product
-                "Version"=$Version
-                "Date"= $Date
-                "KB" = ([Regex]::Match($item,'KB\d*')).Value
-                "Build" = ([Regex]::Match($item,'\d*\.\d*')).Value
-                "ReleaseType" = $ReleaseType
-                "NavCategoryTitle"=$Title
-                "NavArticle"=$item
-            }
-        }
-    }
-}
-
-
-$Products=$Output | Select-Object Product -Unique | Out-GridView -Title "Please select Products you want to download latest updates for" -OutputMode Multiple
-
-$Result=@()
-Foreach ($Product in $products){
-    if ($preview -eq $true){
-        $result+=$Output | Where-Object {$_.Product -eq $Product.Product -and $_.ReleaseType -notlike "ServicingStackUpdate"} | Select-Object -First 1
-        $result+=$Output | Where-Object {$_.Product -eq $Product.Product -and $_.ReleaseType -eq "ServicingStackUpdate"} | Select-Object -First 1
-    }else{
-        $result+=$Output | Where-Object {$_.Product -eq $Product.Product -and $_.ReleaseType -eq "Standard"} | Select-Object -First 1
-        $result+=$Output | Where-Object {$_.Product -eq $Product.Product -and $_.ReleaseType -eq "ServicingStackUpdate"} | Select-Object -First 1
-    }
-}
-#endregion
+#let user choose products
+$SelectedProducts=$Products.Product | Out-GridView -OutputMode Multiple -Title "Please select products to download Cumulative Updates and Servicing Stack Updates"
 
 #region download MSCatalog module
 Write-Output "Checking if MSCatalog PS Module is Installed"
@@ -127,27 +37,28 @@ if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
 
 #endregion
 
-#region Download update
-Write-Output "Downloading Updates"
-Foreach ($item in $Result){
-    $DateFolderName=($result | Where-Object Product -eq $item.Product | where ReleaseType -ne ServicingStackUpdate).Date | Get-Date -Format "dd-MMM-yy"
-    $Path="$folder\$($item.Product)\$DateFolderName"
-    New-Item -Path $Path -ItemType Directory -ErrorAction Ignore
-    $UpdateCandidate=Get-MSCatalogUpdate -Search $item.kb | Where-Object Title -Like "*x64*"
-    if ($UpdateCandidate.count -eq 1){
-        $UpdateCandidate | Save-MSCatalogUpdate -UseBits -Destination $Path
-    }elseif ($item.Product -like "Azure Stack*"){
-        $UpdateCandidate | Where-Object Products -Like "*Azure Stack*" | Save-MSCatalogUpdate -UseBits -Destination $Path
-    }elseif ($item.Product -like "*Windows Server*"){
-        $update=$UpdateCandidate | Where-Object Title -Like "*Windows Server*"
-        if ($update.count -eq 1){
-            $update | Save-MSCatalogUpdate -UseBits -Destination $Path
-        }else{
-            $update | Where-Object Title -Like "*$($item.Version)*" | Save-MSCatalogUpdate -UseBits -Destination $Path
-        }
-    }
+#region download products
+Foreach($SelectedProduct in $SelectedProducts){
+   $item=$Products | Where-Object product -eq $SelectedProduct
+   #Download CU
+   If ($preview){
+        $update=Get-MSCatalogUpdate -Search $item.previewsearchstring | Select -First 1
+        $DestinationFolder="$folder\$SelectedProduct\$($update.title.Substring(0,7))"
+        New-Item -Path $DestinationFolder -ItemType Directory -ErrorAction Ignore | Out-Null
+        Write-Output "Downloading $($update.title) to $destinationFolder"
+        $update | Save-MSCatalogUpdate -Destination "$folder\$DateFolder" -UseBits
+   }else{
+        $update=Get-MSCatalogUpdate -Search $item.searchstring | where Title -like "*$($item.SearchString)*" | Select -First 1
+        $DestinationFolder="$folder\$SelectedProduct\$($update.title.Substring(0,7))"
+        New-Item -Path $DestinationFolder -ItemType Directory -ErrorAction Ignore | Out-Null
+        Write-Output "Downloading $($update.title) to $destinationFolder"
+        $update | Save-MSCatalogUpdate -Destination "$folder\$DateFolder" -UseBits
+   }
+   #Download SSU
+        $update=Get-MSCatalogUpdate -Search $item.SSUSearchString | Select -First 1
+        Write-Output "Downloading $($update.title) to $destinationFolder"
+        $update | Save-MSCatalogUpdate -Destination $DestinationFolder -UseBits
 }
-
 #endregion
 
 Write-Host "Job finished. Press enter to continue" -ForegroundColor Green
