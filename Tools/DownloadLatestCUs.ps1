@@ -39,25 +39,25 @@ if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
 
 #region download products
 Foreach($SelectedProduct in $SelectedProducts){
-   $item=$Products | Where-Object product -eq $SelectedProduct
-   #Download CU
-   If ($preview){
-        $update=Get-MSCatalogUpdate -Search $item.previewsearchstring | Select -First 1
+    $item=$Products | Where-Object product -eq $SelectedProduct
+    #Download CU
+    If ($preview){
+        $update=Get-MSCatalogUpdate -Search $item.previewsearchstring | Select-Object -First 1
         $DestinationFolder="$folder\$SelectedProduct\$($update.title.Substring(0,7))"
         New-Item -Path $DestinationFolder -ItemType Directory -ErrorAction Ignore | Out-Null
         Write-Output "Downloading $($update.title) to $destinationFolder"
-        $update | Save-MSCatalogUpdate -Destination "$folder\$DateFolder" -UseBits
-   }else{
-        $update=Get-MSCatalogUpdate -Search $item.searchstring | where Title -like "*$($item.SearchString)*" | Select -First 1
+        $update | Save-MSCatalogUpdate -Destination "$DestinationFolder" -UseBits
+    }else{
+        $update=Get-MSCatalogUpdate -Search $item.searchstring | Where-Object Title -like "*$($item.SearchString)*" | Select-Object -First 1
         $DestinationFolder="$folder\$SelectedProduct\$($update.title.Substring(0,7))"
         New-Item -Path $DestinationFolder -ItemType Directory -ErrorAction Ignore | Out-Null
         Write-Output "Downloading $($update.title) to $destinationFolder"
-        $update | Save-MSCatalogUpdate -Destination "$folder\$DateFolder" -UseBits
-   }
-   #Download SSU
-        $update=Get-MSCatalogUpdate -Search $item.SSUSearchString | Select -First 1
-        Write-Output "Downloading $($update.title) to $destinationFolder"
-        $update | Save-MSCatalogUpdate -Destination $DestinationFolder -UseBits
+        $update | Save-MSCatalogUpdate -Destination "$DestinationFolder" -UseBits
+    }
+    #Download SSU
+    $update=Get-MSCatalogUpdate -Search $item.SSUSearchString | Select-Object -First 1
+    Write-Output "Downloading $($update.title) to $destinationFolder"
+    $update | Save-MSCatalogUpdate -Destination $DestinationFolder -UseBits
 }
 #endregion
 
