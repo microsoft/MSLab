@@ -104,7 +104,7 @@
     #location
     $location="westeurope"
     # ImageDefinitionName 
-    $imageDefName ="Windows10_20H2_WVD"
+    $imageDefName ="Win10_20H2_WVD"
     #Subscription ID
     $subscriptionID = (Get-AzContext).Subscription.Id
     # Create the gallery
@@ -134,7 +134,7 @@
     #name of Identity for Azure Image Builder Service
     $identityName="AzureImageBuilderService"
     # ImageDefinitionName 
-    $imageDefName ="Windows10_20H2_WVD"
+    $imageDefName ="Win10_20H2_WVD"
     #Image gallery name
     $sigGalleryName= "AzureImageBuilderSharedGallery"
     #grab identity
@@ -144,8 +144,8 @@
     # Azure replication region
     $replocation = 'northeurope'
     # Name of the image to be created
-    $date=get-date -Format "dd-MM-yy"
-    $imageTemplateName = "Windows10_20H2_WVD_$date"
+    $date=get-date -Format "yyMMdd"
+    $imageTemplateName = "Win10_20H2_WVD_$date"
     # Distribution properties of the managed image upon completion
     $runOutputName = 'myDistResults'
     # Grab Subscription ID

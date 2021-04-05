@@ -195,9 +195,9 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #endregion
 
 #region Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Feb-2021.zip"
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Mar-2021.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Feb-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Mar-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -248,7 +248,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         $vnet = New-AksHciNetworkSetting -vnetName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
-        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize = 'default' # Get-AksHciVmSize
+        #Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize = 'default' # Get-AksHciVmSize
+        Set-AksHciConfig -vnet $vnet -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize = 'default' # Get-AksHciVmSize
     }
 
     #validate config
@@ -256,10 +257,8 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
         Get-AksHciConfig
     }
 
-    #note: this step might need to run twice. As for first time it times out on https://github.com/Azure/aks-hci/issues/28 . Before second attempt, unistall-akshci first and set config again
+    #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        #Uninstall-AksHCI
-        #Set-AksHciConfig -vnetName $using:vSwitchName -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS"
         Install-AksHci
     }
 

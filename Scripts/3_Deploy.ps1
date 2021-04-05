@@ -32,10 +32,10 @@ If (-not $isAdmin) {
             $RunSynchronous
         )
 
-        if ( Test-Path "Unattend.xml" ) {
-        Remove-Item .\Unattend.xml
+        if ( Test-Path "$PSScriptRoot\Temp\unattend.xml" ) {
+            Remove-Item "$PSScriptRoot\Temp\unattend.xml"
         }
-        $unattendFile = New-Item "Unattend.xml" -type File
+        $unattendFile = New-Item "$PSScriptRoot\Temp\unattend.xml" -type File
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -105,10 +105,10 @@ If (-not $isAdmin) {
             $AdditionalAccount
         )
 
-            if ( Test-Path "Unattend.xml" ) {
-            Remove-Item .\Unattend.xml
+            if ( Test-Path "$PSScriptRoot\Temp\unattend.xml" ) {
+                Remove-Item "$PSScriptRoot\Temp\unattend.xml"
             }
-            $unattendFile = New-Item "Unattend.xml" -type File
+            $unattendFile = New-Item "$PSScriptRoot\Temp\unattend.xml" -type File
             $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -170,10 +170,10 @@ If (-not $isAdmin) {
             [string]
             $DomainName
         )
-        if ( Test-Path "Unattend.xml" ) {
-            Remove-Item .\Unattend.xml
+        if ( Test-Path "$PSScriptRoot\Temp\unattend.xml" ) {
+            Remove-Item "$PSScriptRoot\Temp\unattend.xml"
         }
-        $unattendFile = New-Item "Unattend.xml" -type File
+        $unattendFile = New-Item "$PSScriptRoot\Temp\unattend.xml" -type File
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -1518,11 +1518,8 @@ If (-not $isAdmin) {
 
     #a bit cleanup
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
-        if (Test-Path "$PSScriptRoot\unattend.xml") {
-            remove-item "$PSScriptRoot\unattend.xml"
-        }
 
-    #set MacSpoofing and AllowTeaming (for SET switch in VMs to work properly with vNICs)
+        #set MacSpoofing and AllowTeaming (for SET switch in VMs to work properly with vNICs)
         WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
 

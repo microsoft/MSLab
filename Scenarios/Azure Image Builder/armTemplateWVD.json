@@ -41,7 +41,7 @@
 
             "vmProfile": 
                     {
-                    "vmSize": "Standard_D2_v2",
+                    "vmSize": "Standard_D2s_v4",
                     "osDiskSizeGB": 127
                     },
         
