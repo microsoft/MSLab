@@ -3,7 +3,8 @@
 #############################
 
 #run from Host to expand C: drives in VMs to 120GB. This is required as Install-AKSHCI checks free space on C (should check free space in CSV)
-$VMs=Get-VM -VMName WSLab*azshci*
+#script grabs all VMs starting with "MSLab" (and containing azshci), so modify line below accordingly
+$VMs=Get-VM -VMName MSLab*azshci*
 $VMs | Get-VMHardDiskDrive -ControllerLocation 0 | Resize-VHD -SizeBytes 120GB
 #VM Credentials
 $secpasswd = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
@@ -195,9 +196,9 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #endregion
 
 #region Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Mar-2021.zip"
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Mar-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
 
 #endregion
@@ -206,12 +207,15 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     #Copy PowerShell module to nodes
     $ClusterName="AzSHCI-Cluster"
     $vSwitchName="vSwitch"
+    $vNetName="aksvnet"
     $VolumeName="AKS"
     $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
     $VIPPoolStart="10.0.0.100"
     $VIPPoolEnd="10.0.0.200"
+    $resourcegroupname="$ClusterName-rg"
 
     #Copy module to nodes
+    #JaromirK note: it would be nice to skip this step and keep management tools only on management machine - in this case DC
     $PSSessions=New-PSSession -ComputerName $Servers
     foreach ($PSSession in $PSSessions){
         $Folders=Get-ChildItem -Path $env:USERPROFILE\Downloads\AksHci.Powershell\ 
@@ -220,10 +224,14 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
         }
     }
 
-    #why this does not work? Why I need to login ot server to run initialize AKSHCINode???
-    <#Invoke-Command -ComputerName $servers -ScriptBlock {
-        Initialize-AksHciNode
-    }#>
+    #copy module locally
+    $Folders=Get-ChildItem -Path $env:USERPROFILE\Downloads\AksHci.Powershell\ 
+    foreach ($Folder in $Folders){
+        Copy-Item -Path $folder.FullName -Destination $env:ProgramFiles\windowspowershell\modules -Recurse -Force
+    }
+
+
+    #JaromirK note: it would be great if I could simply run "Initialize-AksHciNode -ComputerName $ClusterName". I could simply skip credssp. Same applies for AksHciConfig and AksHciRegistration
 
     #Enable CredSSP
     # Temporarily enable CredSSP delegation to avoid double-hop issue
@@ -234,6 +242,21 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 
     $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
     $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+    #add required modules (parsing required modules from kva.psd - it also requires certain version of modules)
+    #JaromirK note: it would be great if this dependency was downloaded automagically or if you would be ok with latest version (or some minimumversion)
+    $item=Get-ChildItem -Path "C:\Program Files\WindowsPowerShell\Modules\Kva" -Recurse | Where-Object name -eq kva.psd1
+    $RequiredModules=(Import-LocalizedData -BaseDirectory $item.Directory -FileName $item.Name).RequiredModules
+
+    Invoke-Command -ComputerName $Servers {
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        Install-Module -Name PowershellGet -Force -Confirm:$false -SkipPublisherCheck
+        foreach ($RequiredModule in $using:RequiredModules){
+            if (!(Get-InstalledModule -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -ErrorAction Ignore)){
+                Install-Module -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -Force
+            }
+        }
+    }
 
     Invoke-Command -ComputerName $servers -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Initialize-AksHciNode
@@ -247,14 +270,34 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     }
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        $vnet = New-AksHciNetworkSetting -vnetName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
-        #Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize 'default' # Get-AksHciVmSize
-        Set-AksHciConfig -vnet $vnet -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -enableDiagnosticData -controlPlaneVmSize 'default' # Get-AksHciVmSize
+        $vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
+        #Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
+        Set-AksHciConfig -vnet $vnet -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
     }
 
     #validate config
     Invoke-Command -ComputerName $servers[0] -ScriptBlock {
         Get-AksHciConfig
+    }
+
+    #register in Azure
+    if (-not (Get-AzContext)){
+        Connect-AzAccount -UseDeviceAuthentication
+    }
+    #grab subscription ID
+    $subscriptionID=(Get-AzContext).Subscription.id
+
+    #Register AZSHCi without prompting for creds
+    $armTokenItemResource = "https://management.core.windows.net/"
+    $graphTokenItemResource = "https://graph.windows.net/"
+    $azContext = Get-AzContext
+    $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+    $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+    $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+    $id = $azContext.Account.Id
+
+    Invoke-Command -computername $servers[0] -ScriptBlock {
+        Set-AksHciRegistration -SubscriptionID $using:subscriptionID -GraphAccessToken $using:graphToken -ArmAccessToken $using:armToken -AccountId $using:id -ResourceGroupName $using:resourcegroupname
     }
 
     #Install
@@ -268,6 +311,7 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 #endregion
 
 #region create AKS HCI cluster
+#Jaromirk note: it would be great if I could specify HCI Cluster (like New-AksHciCluster -ComputerName)
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
@@ -275,6 +319,7 @@ Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
+#Jaromirk note: I think this would be useful to do with new-akshcicluster
 $ClusterNodes=(Get-ClusterNode -Cluster $clustername).Name
 $FirstSession=New-PSSession -ComputerName ($ClusterNodes | Select-Object -First 1)
 $OtherSessions=New-PSSession -ComputerName ($ClusterNodes | Select-Object -Skip 1)
@@ -553,9 +598,9 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 
     #add feed
     #download nupgk (included in aks-hci module)
-    Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -OutFile "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
+    Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
     #unzip
-    Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
     Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
     $Filename=Get-ChildItem -Path $env:userprofile\downloads\ | Where-Object Name -like "msft.sme.aks.*.nupkg"
     New-Item -Path "C:\WACFeeds\" -Name Feeds -ItemType Directory -Force
@@ -620,9 +665,9 @@ foreach ($computer in $computers){
 }
 
 #Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip"
+Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
 #unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Oct-2020.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
+Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
 
 #copy nupkg to WAC
