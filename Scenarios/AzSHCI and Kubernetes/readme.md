@@ -44,7 +44,7 @@ Note: (optional) there is known issue, that when installing AKS, scripts checks 
 
 ```PowerShell
 #run from Host to expand C: drives in VMs to 120GB
-$VMs=Get-VM -VMName WSLab*azshci*
+$VMs=Get-VM -VMName MSLab*azshci*
 $VMs | Get-VMHardDiskDrive -ControllerLocation 0 | Resize-VHD -SizeBytes 120GB
 #VM Credentials
 $secpasswd = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
