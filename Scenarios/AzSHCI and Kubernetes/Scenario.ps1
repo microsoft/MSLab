@@ -1,3 +1,6 @@
+<# 
+Not needed anymore. Keeping it if someone wants to recycle
+
 #############################
 ### Run from Hyper-V Host ###
 #############################
@@ -16,6 +19,8 @@ Foreach ($VM in $VMs){
         $part | Resize-Partition -Size $sizemax
     }
 }
+#>
+
 
 ###################
 ### Run from DC ###
@@ -109,7 +114,7 @@ Clear-DNSClientCache
 Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #endregion
 
-#region Register Azure Stack HCI to Azure
+#region Register Azure Stack HCI to Azure - if not registered, VMs are not added as cluster resources = AKS script will fail
 $ClusterName="AzSHCI-Cluster"
 
 #download Azure module
@@ -142,10 +147,10 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMa
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 Connect-AzAccount
 #>
-#select context if more available
-$context=Get-AzContext -ListAvailable
-if (($context).count -gt 1){
-    $context | Out-GridView -OutputMode Single | Set-AzContext
+#select subscription if more available
+$subscription=Get-AzSubscription
+if (($subscription).count -gt 1){
+    $subscription | Out-GridView -OutputMode Single | Set-AzContext
 }
 
 #grab subscription ID
@@ -195,16 +200,44 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 }
 #endregion
 
-#region Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
-#unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
+#region Install required modules for AKSHCI https://docs.microsoft.com/en-us/azure-stack/aks-hci/kubernetes-walkthrough-powershell
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Install-Module -Name PowershellGet -Force -Confirm:$false -SkipPublisherCheck
+Update-Module -Name PowerShellGet
+#Install-Module -Name Az.Accounts -Repository PSGallery -RequiredVersion 2.2.4 -Force
+#Install-Module -Name Az.Resources -Repository PSGallery -RequiredVersion 3.2.0 -Force
+#Install-Module -Name AzureAD -Repository PSGallery -RequiredVersion 2.0.2.128 -Force
+#to be able to install AKSHCI, powershellget 2.2.5 needs to be used - to this posh restart is needed
+Start-Process -FilePath PowerShell -ArgumentList {
+    Install-Module -Name AksHci -Repository PSGallery -Force -AcceptLicense
+}
+#add required modules (parsing required modules from kva.psd - it also requires certain version of modules)
+#JaromirK note: it would be great if this dependency was downloaded automagically or if you would be ok with latest version (or some minimumversion)
+$item=Get-ChildItem -Path "C:\Program Files\WindowsPowerShell\Modules\Kva" -Recurse | Where-Object name -eq kva.psd1
+$RequiredModules=(Import-LocalizedData -BaseDirectory $item.Directory -FileName $item.Name).RequiredModules
+foreach ($RequiredModule in $RequiredModules){
+    if (!(Get-InstalledModule -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -ErrorAction Ignore)){
+        Install-Module -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -Force
+    }
+}
 
+#distribute modules to cluster nodes
+$ClusterName="AzSHCI-Cluster"
+$Servers=(Get-ClusterNode -Cluster $Clustername).Name
+$ModuleNames="AksHci","Moc","Kva"
+$PSSessions=New-PSSession -ComputerName $Servers
+Foreach ($PSSession in $PSSessions){
+    Foreach ($ModuleName in $ModuleNames){
+        Copy-Item -Path $env:ProgramFiles\windowspowershell\modules\$ModuleName -Destination $env:ProgramFiles\windowspowershell\modules -ToSession $PSSession -Recurse -Force
+    }
+    Foreach ($ModuleName in $RequiredModules.ModuleName){
+        Copy-Item -Path $env:ProgramFiles\windowspowershell\modules\$ModuleName -Destination $env:ProgramFiles\windowspowershell\modules -ToSession $PSSession -Recurse -Force
+    }
+}
 #endregion
 
 #region setup AKS (PowerShell)
-    #Copy PowerShell module to nodes
+    #set variables
     $ClusterName="AzSHCI-Cluster"
     $vSwitchName="vSwitch"
     $vNetName="aksvnet"
@@ -213,23 +246,6 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     $VIPPoolStart="10.0.0.100"
     $VIPPoolEnd="10.0.0.200"
     $resourcegroupname="$ClusterName-rg"
-
-    #Copy module to nodes
-    #JaromirK note: it would be nice to skip this step and keep management tools only on management machine - in this case DC
-    $PSSessions=New-PSSession -ComputerName $Servers
-    foreach ($PSSession in $PSSessions){
-        $Folders=Get-ChildItem -Path $env:USERPROFILE\Downloads\AksHci.Powershell\ 
-        foreach ($Folder in $Folders){
-            Copy-Item -Path $folder.FullName -Destination $env:ProgramFiles\windowspowershell\modules -ToSession $PSSession -Recurse -Force
-        }
-    }
-
-    #copy module locally
-    $Folders=Get-ChildItem -Path $env:USERPROFILE\Downloads\AksHci.Powershell\ 
-    foreach ($Folder in $Folders){
-        Copy-Item -Path $folder.FullName -Destination $env:ProgramFiles\windowspowershell\modules -Recurse -Force
-    }
-
 
     #JaromirK note: it would be great if I could simply run "Initialize-AksHciNode -ComputerName $ClusterName". I could simply skip credssp. Same applies for AksHciConfig and AksHciRegistration
 
@@ -242,21 +258,6 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
 
     $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
     $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
-
-    #add required modules (parsing required modules from kva.psd - it also requires certain version of modules)
-    #JaromirK note: it would be great if this dependency was downloaded automagically or if you would be ok with latest version (or some minimumversion)
-    $item=Get-ChildItem -Path "C:\Program Files\WindowsPowerShell\Modules\Kva" -Recurse | Where-Object name -eq kva.psd1
-    $RequiredModules=(Import-LocalizedData -BaseDirectory $item.Directory -FileName $item.Name).RequiredModules
-
-    Invoke-Command -ComputerName $Servers {
-        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        Install-Module -Name PowershellGet -Force -Confirm:$false -SkipPublisherCheck
-        foreach ($RequiredModule in $using:RequiredModules){
-            if (!(Get-InstalledModule -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -ErrorAction Ignore)){
-                Install-Module -Name $RequiredModule.ModuleName -RequiredVersion $RequiredModule.RequiredVersion -Force
-            }
-        }
-    }
 
     Invoke-Command -ComputerName $servers -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Initialize-AksHciNode
@@ -284,8 +285,28 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     if (-not (Get-AzContext)){
         Connect-AzAccount -UseDeviceAuthentication
     }
-    #grab subscription ID
+    $subscription=Get-AzSubscription
+    if (($subscription).count -gt 1){
+        $subscription | Out-GridView -OutputMode Single | Set-AzContext
+    }
     $subscriptionID=(Get-AzContext).Subscription.id
+
+    #make sure Kubernetes resource providers are registered
+    if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+        Install-Module -Name Az.Resources -Force
+    }
+    Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
+    Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
+
+    #wait until resource providers are registered
+    $Providers="Microsoft.Kubernetes","Microsoft.KubernetesConfiguration"
+    foreach ($Provider in $Providers){
+        do {
+            $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+            Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+            Start-Sleep 1
+        } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+    }
 
     #Register AZSHCi without prompting for creds
     $armTokenItemResource = "https://management.core.windows.net/"
@@ -299,6 +320,13 @@ Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -Destina
     Invoke-Command -computername $servers[0] -ScriptBlock {
         Set-AksHciRegistration -SubscriptionID $using:subscriptionID -GraphAccessToken $using:graphToken -ArmAccessToken $using:armToken -AccountId $using:id -ResourceGroupName $using:resourcegroupname
     }
+
+    #or with Device Authentication
+    <#
+    Invoke-Command -computername $servers[0] -ScriptBlock {
+        Set-AksHciRegistration -SubscriptionID $using:subscriptionID -ResourceGroupName $using:resourcegroupname -UseDeviceAuthentication
+    }
+    #>
 
     #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
@@ -355,6 +383,11 @@ Standard_K8S3_v1 4   6
 
 #>
 #endregion
+
+############################################################################
+# Tested until here - GA AKS
+############################################################################
+
 
 #region onboard AKS cluster to Azure ARC
 $ClusterName="AzSHCI-Cluster"
