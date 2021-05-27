@@ -194,8 +194,11 @@ If (-not $isAdmin) {
                     19041 {
                         "WinServer20H1_G2.vhdx"
                     }
+                    20348 {
+                        "Win2022Core_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -gt 18362){
+                if ($BuildNumber -gt 20348){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
                 }
             }elseif($Edition -like "Hyper-V*"){
@@ -233,8 +236,11 @@ If (-not $isAdmin) {
                     17763 {
                         "Win2019_G2.vhdx"
                     }
+                    20348 {
+                        "Win2022_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 18362){
+                if ($BuildNumber -GT 20348){
                     $tempvhdname="WinSrvInsider_$BuildNumber.vhdx"
                 }
             }else{
@@ -253,7 +259,6 @@ If (-not $isAdmin) {
                     }
                     10240 {
                         "Win10TH1_G2.vhdx"
-
                     }
                     10586 {
                         "Win10TH2_G2.vhdx"

@@ -384,6 +384,20 @@ If (-not $isAdmin) {
             VHDName="Win2019Core_G2.vhdx"
             Size=30GB
         }
+    }elseif ($BuildNumber -eq 20348){
+        #Windows Server 2022
+        $ServerVHDs += @{
+            Kind = "Full"
+            Edition="4" 
+            VHDName="Win2022_G2.vhdx"
+            Size=60GB
+        }
+        $ServerVHDs += @{
+            Kind = "Core"
+            Edition="3" 
+            VHDName="Win2022Core_G2.vhdx"
+            Size=30GB
+        }
     }elseif ($BuildNumber -ge 17744 -and $SAC){
         $ServerVHDs += @{
             Kind = "Core"
