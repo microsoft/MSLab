@@ -150,4 +150,43 @@ $ClusterName="AzSHCI-Cluster"
 
 #region configure networking with Network ATC https://docs.microsoft.com/en-us/azure-stack/hci/deploy/network-atc
 
+$ClusterName="AzSHCI-Cluster"
+$Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+
+#Install Network ATC feature and DCB
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging
+    }
+
+#since ATC is not available on managment machine, credssp needs to be used
+#Enable CredSSP
+# Temporarily enable CredSSP delegation to avoid double-hop issue
+    foreach ($Server in $servers){
+        Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
+    }
+    Invoke-Command -ComputerName $servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+#add network intent
+    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Add-NetIntent -Name ConvergedIntent -Management -Compute -Storage -ClusterName $using:ClusterName -AdapterName "Ethernet","Ethernet 2"
+    }
+
+#validate status
+    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Get-NetIntentStatus -clustername azshci-cluster |select *
+    }
+
+#validate what was/was not configured
+    Get-VMSwitch -CimSession $servers
+    Get-VMNetworkAdapter -CimSession $servers -ManagementOS
+    Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
+
+#in WSLab it unfortunately does not work, therefore let's remove intent and cleanup vSwitch
+    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Remove-NetIntent -Name ConvergedIntent -ClusterName $using:ClusterName 
+    }
+    Get-VMSwitch -CimSession $Servers | Remove-VMSwitch -Force
 #endregion
