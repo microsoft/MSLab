@@ -100,13 +100,30 @@ $RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
         Get-PreviewChannel
     }
 
+#unload module for next step
+Remove-Module -Name ClusterAwareUpdating
+
+Read-Host "Posh will now exit. Press a key"
+exit
+
 #endregion
 
 #region perform Rolling Upgrade
 $ClusterName="AzSHCI-Cluster"
 
+#copy CAU plugin from cluster
+    #download NTFSSecurity module to replace permissions to be able to delete existing version
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module NTFSSecurity -Force
+    $items=Get-ChildItem -Path "c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating"
+    $items | Set-NTFSOwner -Account $env:USERNAME
+    $items | Get-NTFSAccess | Add-NTFSAccess -Account "Administrators" -AccessRights FullControl
+    Remove-Item c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Recurse -Force
+    $session=New-PSSession -ComputerName $ClusterName
+    Copy-Item -FromSession $Session -Path c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Destination C:\Windows\system32\WindowsPowerShell\v1.0\Modules\ -Recurse
+    Import-Module -Name ClusterAwareUpdating
     $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
-    $scan | Select NodeName,UpdateTitle | Out-GridView
+    $scan.upgradeinstallproperties.WuUpdatesInfo | Out-GridView
 
     Invoke-CauRun -ClusterName $ClusterName -Force -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
 
