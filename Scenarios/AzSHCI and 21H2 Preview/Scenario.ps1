@@ -112,7 +112,8 @@ exit
 $ClusterName="AzSHCI-Cluster"
 
 #copy CAU plugin from cluster
-    #download NTFSSecurity module to replace permissions to be able to delete existing version
+
+#download NTFSSecurity module to replace permissions to be able to delete existing version
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module NTFSSecurity -Force
     $items=Get-ChildItem -Path "c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating"
@@ -122,9 +123,31 @@ $ClusterName="AzSHCI-Cluster"
     $session=New-PSSession -ComputerName $ClusterName
     Copy-Item -FromSession $Session -Path c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Destination C:\Windows\system32\WindowsPowerShell\v1.0\Modules\ -Recurse
     Import-Module -Name ClusterAwareUpdating
+
+#perform update
     $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
     $scan.upgradeinstallproperties.WuUpdatesInfo | Out-GridView
 
     Invoke-CauRun -ClusterName $ClusterName -Force -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
+
+#validate version
+Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name DisplayVersion
+}
+#endregion
+
+#region validate cluster version and upgrade functional level
+
+$ClusterName="AzSHCI-Cluster"
+#version before upgrade
+    Get-Cluster -Name $ClusterName | Select-Object Cluster*
+# upgrade Cluster version
+    Update-ClusterFunctionalLevel -Cluster $ClusterName -Force
+#and version after upgrade
+    Get-Cluster -Name $ClusterName | Select-Object Cluster*
+
+#endregion
+
+#region configure networking with Network ATC https://docs.microsoft.com/en-us/azure-stack/hci/deploy/network-atc
 
 #endregion
