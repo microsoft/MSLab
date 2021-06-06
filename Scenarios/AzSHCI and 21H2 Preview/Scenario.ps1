@@ -2,57 +2,80 @@
 # Run from DC or Management VM #
 ################################
 
-#region update machines to 21H2
-
-#Variables
+#region Create cluster and perform CAU to push cluster to preview
     $Servers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
+    $ClusterName="AzSHCI-Cluster"
+    $CAURoleName="AzSHCI-Cl-CAU"
 
-# Update servers - this will install updates and also latest SSU
+#install features for management remote cluster
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+
+#install roles and features to servers
+    #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
     Invoke-Command -ComputerName $servers -ScriptBlock {
-        #Grab updates
-        $SearchCriteria = "IsInstalled=0"
-        #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
-        $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
-        #apply updates (if not empty)
-        if ($ScanResult.Updates){
-            Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
+        $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+        if ($result.ExitCode -eq "failed"){
+            Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
         }
     }
-
-#restart and wait for computers
+    #define features
+    $features="Failover-Clustering","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+    #install features
+    Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+    #restart and wait for computers
     Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+    Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
-# Update servers with all updates (including preview - 5C - that will enable 21H2 preview as an option)
-    #configure virtual acount to avoid using CredSSP
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
-        Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
-    } -ErrorAction Ignore
+#Create Cluster
+    New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
 
-    # Run Windows Update via ComObject.
-    Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
-        $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-        $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+#configure Witness on DC
+    #Create new directory
+        $WitnessName=$Clustername+"Witness"
+        Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+        $accounts=@()
+        $accounts+="corp\$ClusterName$"
+        $accounts+="corp\Domain Admins"
+        New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+    #Set NTFS permissions 
+        Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+    #Set Quorum
+        Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+        #Install required features on nodes.
+        $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+        foreach ($ClusterNode in $ClusterNodes){
+            Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+        }
+    #add role
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+
+#endregion
+
+#region invoke CAU update including preview updates
+    $ClusterName="AzSHCI-Cluster"
+
+    $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.WindowsUpdatePlugin" -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
                                 IsInstalled=0 and DeploymentAction='OptionalInstallation' or
                                 IsPresent=1 and DeploymentAction='Uninstallation' or
                                 IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
-        $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-        $Session = New-Object -ComObject Microsoft.Update.Session
-        $Downloader = $Session.CreateUpdateDownloader()
-        $Downloader.Updates = $SearchResult
-        $Downloader.Download()
-        $Installer = New-Object -ComObject Microsoft.Update.Installer
-        $Installer.Updates = $SearchResult
-        $Result = $Installer.Install()
-        $Result
-    }
+                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
+    $scan | Select NodeName,UpdateTitle | Out-GridView
 
-#restart and wait for computers
-    Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+    Invoke-CauRun -ClusterName $ClusterName -MaxFailedNodes 0 -MaxRetriesPerNode 1 -RequireAllNodesOnline -Force -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
+                                IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+                                IsPresent=1 and DeploymentAction='Uninstallation' or
+                                IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
+
+#endregion
+
+#region configure AzSHCI preview channel
+
+$Servers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
 
 #validate if at least 5C update was installed https://support.microsoft.com/en-us/topic/may-20-2021-preview-update-kb5003237-0c870dc9-a599-4a69-b0d2-2e635c6c219c
-    $RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
+$RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
         Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name UBR
     }
 
@@ -63,7 +86,6 @@
             Write-Output "UBR is $item, you're good to go"
         }
     }
-
 
 #once updated to at least 1737, you can configure preview channel
     Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -78,35 +100,14 @@
         Get-PreviewChannel
     }
 
-#install Feature Update 
-    # Run Windows Update via ComObject.
-    Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
-        $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-        $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
-                                IsInstalled=0 and DeploymentAction='OptionalInstallation' or
-                                IsPresent=1 and DeploymentAction='Uninstallation' or
-                                IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
-        $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-        $Session = New-Object -ComObject Microsoft.Update.Session
-        $Downloader = $Session.CreateUpdateDownloader()
-        $Downloader.Updates = $SearchResult
-        $Downloader.Download()
-        $Installer = New-Object -ComObject Microsoft.Update.Installer
-        $Installer.Updates = $SearchResult
-        $Result = $Installer.Install()
-        $Result
-        #Commit
-        $Committer = $Session.CreateUpdateInstaller()
-        $Committer.Updates = $SearchResult
-        $Committer.Commit(0)
-    }
+#endregion
 
-#remove temporary PSsession config
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        Unregister-PSSessionConfiguration -Name 'VirtualAccount'
-        Remove-Item -Path $env:TEMP\VirtualAccount.pssc
-    }
+#region perform Rolling Upgrade
+$ClusterName="AzSHCI-Cluster"
 
-#reboot machines to apply
-    Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+    $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
+    $scan | Select NodeName,UpdateTitle | Out-GridView
+
+    Invoke-CauRun -ClusterName $ClusterName -Force -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
+
+#endregion
