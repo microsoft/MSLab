@@ -158,35 +158,26 @@ $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
         Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging
     }
 
-#since ATC is not available on managment machine, credssp needs to be used
-#Enable CredSSP
-# Temporarily enable CredSSP delegation to avoid double-hop issue
-    foreach ($Server in $servers){
-        Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
+#since ATC is not available on managment machine, PowerShell module needs to be copied
+    $session=New-PSSession -ComputerName $ClusterName
+    $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll"
+    foreach ($item in $items){
+        Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
     }
-    Invoke-Command -ComputerName $servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
-
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
-
+    Import-Module NetworkATC
 #add network intent
-    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Add-NetIntent -Name ConvergedIntent -Management -Compute -Storage -ClusterName $using:ClusterName -AdapterName "Ethernet","Ethernet 2"
-    }
+    Add-NetIntent -Name ConvergedIntent -Management -Compute -Storage -ClusterName $ClusterName -AdapterName "Ethernet","Ethernet 2"
 
 #validate status
-    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Get-NetIntentStatus -clustername azshci-cluster |select *
-    }
+    Get-NetIntentStatus -clustername azshci-cluster | Select-Object *
 
 #validate what was/was not configured
     Get-VMSwitch -CimSession $servers
     Get-VMNetworkAdapter -CimSession $servers -ManagementOS
     Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
 
-#in WSLab it unfortunately does not work, therefore let's remove intent and cleanup vSwitch
-    Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Remove-NetIntent -Name ConvergedIntent -ClusterName $using:ClusterName 
-    }
+#in MSLab it unfortunately does not work, therefore let's remove intent and cleanup vSwitch
+    Remove-NetIntent -Name ConvergedIntent -ClusterName $ClusterName 
     Get-VMSwitch -CimSession $Servers | Remove-VMSwitch -Force
 #endregion
+
