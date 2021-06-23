@@ -153,7 +153,7 @@ If (-not $isAdmin) {
             }
 
             #Generate vhdx name
-            if ($edition -like "*Azure Stack HCI"){
+            if ($edition -like "*Azure Stack HCI*"){
                 $tempvhdname = switch ($BuildNumber){
                     17784 {
                         "AzSHCI20H2_G2.vhdx"
