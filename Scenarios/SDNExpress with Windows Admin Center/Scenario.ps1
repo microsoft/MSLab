@@ -30,8 +30,7 @@ $MgmtVM = Get-VM | Where-Object {$_.Name -like "$($labconfig.Prefix)*Management"
 if (Test-Path .\ParentDisks\WinServerCore.vhdx) {
     $VHDPath = (get-item .\ParentDisks\WinServerCore.vhdx).FullName
     $VHDName = (get-item .\ParentDisks\WinServerCore.vhdx).Name
-}
-else {
+} else {
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
     $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
         Title = "Please select parent VHDx for SDN VMs (2016 or RS3)." # You can copy it from parentdisks on the Hyper-V hosts somewhere into the lab and then browse for it"
@@ -319,8 +318,7 @@ if ($DisableNetBIOS) {
         $output = Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $vNIC.PSComputerName | Where-Object Description -eq $vNIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipNetBIOS -ArgumentList 2
         if ($output.Returnvalue -eq 0) {
             Write-Host "`t Success" -ForegroundColor Green
-        }
-        else {
+        } else {
             Write-Host "`t Failure"
         }
     }
