@@ -440,7 +440,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 $session=New-PSSession -ComputerName $ClusterName
 Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
 #install kubectl
-$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"
 $req = Invoke-WebRequest -UseBasicParsing -Uri $uri
 $downloadlink = ($req.Links | where href -Match "kubectl.exe").href
 $downloadLocation="c:\Program Files\AksHci\"
