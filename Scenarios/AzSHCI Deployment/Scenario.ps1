@@ -798,38 +798,6 @@
     start-sleep 10
 #endregion
 
-#region Create some VMs (3 per each CSV disk) https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bulk%20VM%20creation
-    Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
-    if ($realVMs -and $VHDPath){
-        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-        foreach ($CSV in $CSVs){
-            $CSV=($CSV -split '\((.*?)\)')[1]
-            1..$NumberOfRealVMs | ForEach-Object {
-                $VMName="TestVM$($CSV)_$_"
-                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
-                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
-                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
-                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-            }
-        }
-        #Start all VMs
-        Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
-    }else{
-        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
-        foreach ($CSV in $CSVs){
-                $CSV=($CSV -split '\((.*?)\)')[1]
-                1..3 | ForEach-Object {
-                    $VMName="TestVM$($CSV)_$_"
-                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
-                        #create some fake VMs
-                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
-                    }
-                    Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-                }
-        }
-    }
-#endregion
-
 #region Register Azure Stack HCI to Azure
     #download Azure module
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -896,6 +864,38 @@
     UnRegister-AzStackHCI -ComputerName $ClusterName -Confirm:0 -UseDeviceAuthentication
     Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
     #>
+#endregion
+
+#region Create some VMs (3 per each CSV disk) https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bulk%20VM%20creation
+    Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
+    if ($realVMs -and $VHDPath){
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+        foreach ($CSV in $CSVs){
+            $CSV=($CSV -split '\((.*?)\)')[1]
+            1..$NumberOfRealVMs | ForEach-Object {
+                $VMName="TestVM$($CSV)_$_"
+                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
+                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
+                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+            }
+        }
+        #Start all VMs
+        Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
+    }else{
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+        foreach ($CSV in $CSVs){
+                $CSV=($CSV -split '\((.*?)\)')[1]
+                1..3 | ForEach-Object {
+                    $VMName="TestVM$($CSV)_$_"
+                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                        #create some fake VMs
+                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
+                    }
+                    Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+                }
+        }
+    }
 #endregion
 
 #region (optional) Install Windows Admin Center Gateway https://github.com/microsoft/WSLab/tree/master/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA#gw-mode-installation-with-self-signed-cert
