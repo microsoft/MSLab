@@ -224,7 +224,7 @@ foreach ($RequiredModule in $RequiredModules){
 #distribute modules to cluster nodes
 $ClusterName="AzSHCI-Cluster"
 $Servers=(Get-ClusterNode -Cluster $Clustername).Name
-$ModuleNames="AksHci","Moc","Kva"
+$ModuleNames="AksHci","Moc","Kva","TraceProvider"
 $PSSessions=New-PSSession -ComputerName $Servers
 Foreach ($PSSession in $PSSessions){
     Foreach ($ModuleName in $ModuleNames){
@@ -330,7 +330,7 @@ Foreach ($PSSession in $PSSessions){
 
     #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Install-AksHci
+        Install-AksHci -Verbose
     }
 
     # Disable CredSSP
@@ -440,7 +440,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 $session=New-PSSession -ComputerName $ClusterName
 Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
 #install kubectl
-$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"
 $req = Invoke-WebRequest -UseBasicParsing -Uri $uri
 $downloadlink = ($req.Links | where href -Match "kubectl.exe").href
 $downloadLocation="c:\Program Files\AksHci\"
@@ -571,7 +571,7 @@ Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\Az
 
 #download and install Kubernetes CLI
 <#
-$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"
 $req = Invoke-WebRequest -UseBasicParsing -Uri $uri
 $downloadlink = ($req.Links | where href -Match "kubectl.exe").href
 $downloadLocation="c:\Program Files\AksHci\"
