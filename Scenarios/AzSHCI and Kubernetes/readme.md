@@ -2,6 +2,8 @@
 
 ## About the lab
 
+Note: I updated scenario.ps1 several times, so readme.md might be bit outdated (JaromirK)
+
 In following lab you will deploy Azure Kubernetes Service into Azure Stack HCI cluster. There are currently two options. From PowerShell and from Windows Admin Center. Windows Admin Center can be installed on Windows 10 or on Windows Server in Gateway mode.
 
 Note: there is a known issue, that deploying Azure Kubernetes Server from Windows Admin Center in Gateway mode does not work (importing extension succeeds, but then it is not able to display it).

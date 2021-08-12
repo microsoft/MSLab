@@ -34,7 +34,7 @@ $ClusterName="AzSHCI-Cluster"
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
-# Update servers
+# Update servers (does not work on Windows Server 2022 and 21H2 azure stack as WindowsUpdate namespace no longer exists)
 Invoke-Command -ComputerName $servers -ScriptBlock {
     #Grab updates
     $SearchCriteria = "IsInstalled=0"
@@ -208,7 +208,7 @@ Update-Module -Name PowerShellGet
 #Install-Module -Name Az.Resources -Repository PSGallery -RequiredVersion 3.2.0 -Force
 #Install-Module -Name AzureAD -Repository PSGallery -RequiredVersion 2.0.2.128 -Force
 #to be able to install AKSHCI, powershellget 2.2.5 needs to be used - to this posh restart is needed
-Start-Process -FilePath PowerShell -ArgumentList {
+Start-Process -Wait -FilePath PowerShell -ArgumentList {
     Install-Module -Name AksHci -Repository PSGallery -Force -AcceptLicense
 }
 #add required modules (parsing required modules from kva.psd - it also requires certain version of modules)
@@ -224,7 +224,7 @@ foreach ($RequiredModule in $RequiredModules){
 #distribute modules to cluster nodes
 $ClusterName="AzSHCI-Cluster"
 $Servers=(Get-ClusterNode -Cluster $Clustername).Name
-$ModuleNames="AksHci","Moc","Kva"
+$ModuleNames="AksHci","Moc","Kva","TraceProvider"
 $PSSessions=New-PSSession -ComputerName $Servers
 Foreach ($PSSession in $PSSessions){
     Foreach ($ModuleName in $ModuleNames){
@@ -328,6 +328,11 @@ Foreach ($PSSession in $PSSessions){
     }
     #>
 
+    #validate registration
+    Invoke-Command -computername $servers[0] -ScriptBlock {
+        Get-AksHciRegistration
+    }    
+
     #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-AksHci
@@ -384,11 +389,6 @@ Standard_K8S3_v1 4   6
 #>
 #endregion
 
-############################################################################
-# Tested until here - GA AKS
-############################################################################
-
-
 #region onboard AKS cluster to Azure ARC
 $ClusterName="AzSHCI-Cluster"
 
@@ -416,6 +416,9 @@ $sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope 
 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
 $UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 $ClientID=$sp.ApplicationId
+#create credentials
+$SecureSecret= ConvertTo-SecureString $UnsecureSecret -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ($ClientID.Guid , $SecureSecret)
 
 #register namespace Microsoft.KubernetesConfiguration and Microsoft.Kubernetes
 Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
@@ -423,11 +426,12 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-    #generage kubeconfig first
-    Get-AksHciCredential -Name demo
+    #Generate kubeconfig
+    Get-AksHciCredential -clusterName demo
     #onboard
-    Install-AksHciArcOnboarding -Name $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -clientId $using:ClientID -clientSecret $using:UnsecureSecret
+    Enable-AksHciArcConnection -Name $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:Credentials
 }
+
 
 #check onboarding
 #generate kubeconfig (this step was already done)
@@ -440,7 +444,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 $session=New-PSSession -ComputerName $ClusterName
 Copy-Item -Path "$env:userprofile\.kube" -Destination $env:userprofile -FromSession $session -Recurse -Force
 #install kubectl
-$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl/"
+$uri = "https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/"
 $req = Invoke-WebRequest -UseBasicParsing -Uri $uri
 $downloadlink = ($req.Links | where href -Match "kubectl.exe").href
 $downloadLocation="c:\Program Files\AksHci\"
@@ -450,8 +454,8 @@ Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlin
 [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
 #alternatively copy kubectl from cluster
 #Copy-Item -Path $env:ProgramFiles\AksHCI\ -Destination $env:ProgramFiles -FromSession $session -Recurse -Force
-#validate onboarding
-kubectl logs job/azure-arc-onboarding -n azure-arc-onboarding --follow
+#validate
+kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
@@ -599,70 +603,17 @@ Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication 
 #TBD: Enable monitoring
 #https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
 
-######################################
-# following code is work-in-progress #
-######################################
-
-######################
-### Run from Win10 ###
-######################
-
-#region Windows Admin Center on Win10
-
-    #install WAC
-    #Download Windows Admin Center if not present
-    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    }
-    #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
-    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
-    #Open Windows Admin Center
-    Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
-
-#endregion
-
-#region setup AKS (win10)
-    #import wac module
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process -Force
-    Import-Module "$env:ProgramFiles\windows admin center\PowerShell\Modules\ExtensionTools"
-    # List feeds
-    Get-Feed "https://localhost:6516/"
-
-
-    #add feed
-    #download nupgk (included in aks-hci module)
-    Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
-    #unzip
-    Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
-    Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads\AksHci.Powershell" -Force
-    $Filename=Get-ChildItem -Path $env:userprofile\downloads\ | Where-Object Name -like "msft.sme.aks.*.nupkg"
-    New-Item -Path "C:\WACFeeds\" -Name Feeds -ItemType Directory -Force
-    Copy-Item -Path $FileName.FullName -Destination "C:\WACFeeds\"
-    Add-Feed -GatewayEndpoint "https://localhost:6516/" -Feed "C:\WACFeeds\"
-
-    # List Kubernetes extensions (you need to log into WAC in Edge for this command to succeed)
-    Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
-
-    # Install Kubernetes Extension
-    $extension=Get-Extension "https://localhost:6516/" | where title -like *kubernetes*
-    Install-Extension -ExtensionId $extension.id
-
-#endregion
-
-###################
-### Run from DC ###
-###################
-
 #region Windows Admin Center on GW
 
 #Install Edge
-Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-#start install
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
-#start Edge
-start-sleep 5
-& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-
+if (-not (test-path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")){
+    Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+    #start install
+    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+    #start Edge
+    start-sleep 5
+    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+}
 
 #install WAC
 $GatewayServerName="WACGW"
@@ -682,7 +633,7 @@ Invoke-Command -Session $session -ScriptBlock {
 
 $Session | Remove-PSSession
 
-#add certificate to trusted root certs
+#add certificate to trusted root certs (not recommended for production)
 start-sleep 10
 $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
 $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
@@ -697,80 +648,22 @@ foreach ($computer in $computers){
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
 
-#Download AKS HCI module
-Start-BitsTransfer -Source "https://aka.ms/aks-hci-download" -Destination "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip"
-#unzip
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AKS-HCI-Public-Preview-Apr-2021.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
-Expand-Archive -Path "$env:USERPROFILE\Downloads\AksHci.Powershell.zip" -DestinationPath "$env:USERPROFILE\Downloads" -Force
-
-#copy nupkg to WAC
-$GatewayServerName="WACGW1"
-$PSSession=New-PSSession -ComputerName $GatewayServerName
-$Filename=Get-ChildItem -Path $env:userprofile\downloads\ | where Name -like "msft.sme.aks.*.nupkg"
-Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
-    New-Item -Path "C:\WACFeeds\" -Name Feeds -ItemType Directory -Force
-}
-Copy-Item -Path $FileName.FullName -Destination "C:\WACFeeds\" -ToSession $PSSession
-
-#grab WAC Posh from GW
-Copy-Item -Recurse -Force -Path "$env:ProgramFiles\windows admin center\PowerShell\Modules\ExtensionTools" -Destination "$env:ProgramFiles\windows admin center\PowerShell\Modules\" -FromSession $PSSession
-
-#import wac module
-Import-Module "$env:ProgramFiles\windows admin center\PowerShell\Modules\ExtensionTools"
-
-# List feeds
-Get-Feed "https://$GatewayServerName"
-#add feed
-Add-Feed -GatewayEndpoint "https://$GatewayServerName" -Feed "C:\WACFeeds\"
-
-# List all extensions Does not work
-Get-Extension "https://$GatewayServerName"
-
-<#
-PS C:\Windows\system32> Get-Extension "https://$GatewayServerName"
-Invoke-WebRequest : {"error":{"code":"PathTooLongException","message":"The specified path, file name, or both are too
-long. The fully qualified file name must be less than 260 characters, and the directory name must be less than 248
-characters."}}
-At C:\Program Files\windows admin center\PowerShell\Modules\ExtensionTools\ExtensionTools.psm1:236 char:17
-+     $response = Invoke-WebRequest @params
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-WebRequest], WebExc
-   eption
-    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand
-Failed to get the extensions
-At C:\Program Files\windows admin center\PowerShell\Modules\ExtensionTools\ExtensionTools.psm1:238 char:9
-+         throw "Failed to get the extensions"
-+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : OperationStopped: (Failed to get the extensions:String) [], RuntimeException
-    + FullyQualifiedErrorId : Failed to get the extensions
-#>
-
 #endregion
 
-<#setup AKS (WAC GW) - does not work, bug
-    #copy nupkg to WAC
-    $GatewayServerName="WACGW1"
-    $PSSession=New-PSSession -ComputerName $GatewayServerName
-    $Filename=Get-ChildItem -Path $env:userprofile\downloads\ | where Name -like "msft.sme.aks.*.nupkg"
-    Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {
-        New-Item -Path "C:\WACFeeds\" -Name Feeds -ItemType Directory -Force
+######################
+### Run from Win10 ###
+######################
+
+#region Windows Admin Center on Win10
+
+    #install WAC
+    #Download Windows Admin Center if not present
+    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
     }
-    Copy-Item -Path $FileName.FullName -Destination "C:\WACFeeds\" -ToSession $PSSession
+    #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
+    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
+    #Open Windows Admin Center
+    Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
 
-
-    #grab WAC Posh from GW
-    Copy-Item -Recurse -Force -Path "$env:ProgramFiles\windows admin center\PowerShell\Modules\ExtensionTools" -Destination "$env:ProgramFiles\windows admin center\PowerShell\Modules\" -FromSession $PSSession
-
-    #import wac module
-    Import-Module "$env:ProgramFiles\windows admin center\PowerShell\Modules\ExtensionTools"
-
-    # List feeds
-    Get-Feed "https://$GatewayServerName"
-    #add feed
-    Add-Feed -GatewayEndpoint "https://$GatewayServerName" -Feed "C:\WACFeeds\"
-
-    # List all extensions Does not work
-    Get-Extension "https://$GatewayServerName"
-
-#>
-
+#endregion
