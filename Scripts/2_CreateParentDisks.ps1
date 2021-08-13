@@ -1108,9 +1108,12 @@ If (-not $isAdmin) {
 #region finishing
     WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
-    WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders?"
+    WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders? Deault (Y)"
     WriteInfo "`t (.\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
-    If ((Read-host "`t Please type Y or N") -like "*Y"){
+    If ((Read-host "`t Please type Y or N") -like "*N"){
+        $renamed = $false
+        WriteInfo "`t You typed N, skipping cleanup"
+    }else{
         $renamed = $true
         WriteInfo "`t `t Cleaning unnecessary items"
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse 
@@ -1120,9 +1123,6 @@ If (-not $isAdmin) {
         } 
         WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
-    }else{
-        $renamed = $false
-        WriteInfo "`t You did not type Y, skipping cleanup"
     }
 
     # Telemetry Event
