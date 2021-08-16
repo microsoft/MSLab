@@ -26,7 +26,7 @@ Foreach ($VM in $VMs){
 ### Run from DC ###
 ###################
 
-#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20Hyperconverged)
+#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 # LabConfig
 $Servers="AzsHCI1","AzSHCI2"
 $ClusterName="AzSHCI-Cluster"
@@ -335,7 +335,7 @@ Foreach ($PSSession in $PSSessions){
 
     #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Install-AksHci
+        Install-AksHci -Verbose
     }
 
     # Disable CredSSP
@@ -523,8 +523,8 @@ $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Ou
 #Create Log Analytics Workspace if not available
 if (-not ($Workspace)){
     $SubscriptionID=(Get-AzContext).Subscription.ID
-    $WorkspaceName="WSLabWorkspace-$SubscriptionID"
-    $ResourceGroupName="WSLabAzureArc"
+    $WorkspaceName="MSLabWorkspace-$SubscriptionID"
+    $ResourceGroupName="MSLabAzureArc"
     #Pick Region
     $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single
     if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
@@ -589,7 +589,7 @@ Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlin
 #region cleanup
 <#
 Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
-Get-AzResourceGroup -Name "WSLabAzureArc" | Remove-AzResourceGroup -Force
+Get-AzResourceGroup -Name "MSLabAzureArc" | Remove-AzResourceGroup -Force
 $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
     Remove-AzADServicePrincipal -ObjectId $principal.id -Force
