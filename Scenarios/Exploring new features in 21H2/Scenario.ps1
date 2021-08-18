@@ -15,12 +15,12 @@
                 }
             }
         #define features
-        $features="Failover-Clustering","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+        $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
         #install features
         Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
         #restart and wait for computers
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
-        Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force #force is needed as there is a ?bug that prevents restarting older versions of OS from Windows Server 2022
+        Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
         #Create Cluster
             New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
@@ -132,7 +132,7 @@
             Set-PreviewChannel
         }
     #reboot machines to apply
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
 
     #validate if all is OK
         Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -199,6 +199,241 @@
         #version after upgrade
         Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
 
+    #register cluster to Azure again, to unlock newest features
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
+        }
+        #select subscription
+        $subscriptions=Get-AzSubscription
+        if (($subscriptions).count -gt 1){
+            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+        }
+        $subscriptionID=(Get-AzSubscription).ID
+        #Register AZSHCi without prompting for creds
+        $armTokenItemResource = "https://management.core.windows.net/"
+        $graphTokenItemResource = "https://graph.windows.net/"
+        $azContext = Get-AzContext
+        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+        $id = $azContext.Account.Id
+        Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+
+#endregion
+
+#region Azure Stack HCI and Azure Arc - Prereqs
+    $Servers="Arc1","Arc2","Arc3","Arc4"
+    $ClusterName="Arc-Cluster"
+
+    #Configure S2D
+        #install features for management remote cluster
+            Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+
+        #install roles and features to servers
+            #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+                if ($result.ExitCode -eq "failed"){
+                    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
+                }
+            }
+        #define features
+        $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+        #install features
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+        #restart and wait for computers
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+
+        #Create Cluster
+            New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+
+        #configure Witness on DC
+            #Create new directory
+                $WitnessName=$Clustername+"Witness"
+                Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+                $accounts=@()
+                $accounts+="corp\$ClusterName$"
+                $accounts+="corp\Domain Admins"
+                New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+            #Set NTFS permissions 
+                Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+            #Set Quorum
+                Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+        #enable S2D
+            Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+
+#endregion
+
+#region Azure Stack HCI and Azure Arc - The Lab
+    $ClusterName="Arc-Cluster"
+
+    #register cluster to Azure
+        #download Azure module
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
+            Install-Module -Name Az.StackHCI -Force
+        }
+
+        #login to azure
+        #download Azure module
+        if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+            Install-Module -Name Az.Accounts -Force
+        }
+        Login-AzAccount -UseDeviceAuthentication
+
+        #select context if more available
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context | Out-GridView -OutputMode Single | Set-AzContext
+        }
+
+        #select subscription
+        $subscriptions=Get-AzSubscription
+        if (($subscriptions).count -gt 1){
+            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+        }
+
+        $subscriptionID=(Get-AzSubscription).ID
+
+        #register Azure Stack HCI
+        #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+
+        #Register AZSHCi without prompting for creds again
+        $armTokenItemResource = "https://management.core.windows.net/"
+        $graphTokenItemResource = "https://graph.windows.net/"
+        $azContext = Get-AzContext
+        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+        $id = $azContext.Account.Id
+        Register-AzStackHCI -Verbose -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+
+    #Create Log Analytics Workspace if not available
+        #Install module
+        if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+            Install-Module -Name Az.OperationalInsights -Force
+        }
+        #Grab Insights Workspace if some already exists
+            if (-not (Get-AzContext)){
+                Login-AzAccount -UseDeviceAuthentication
+            }
+            $SubscriptionID=(Get-AzContext).Subscription.ID
+            $WorkspaceName="MSLabWorkspace-$SubscriptionID"
+            $ResourceGroupName="MSLabAzureArc"
+            $Workspace=Get-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -ErrorAction Ignore
+            if (-not($Workspace)){
+                #Pick Region
+                $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single -Title "Please select location where Insights workspace will be created"
+                if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
+                    New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+                }
+                $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
+            }
+        #add automation account to workspace (not needed for now)
+        <#
+            $AutomationAccountName="MSLabAutomationAccount"
+            $location=$Workspace.Location
+            #Install module
+            if (!(Get-InstalledModule -Name Az.Automation -ErrorAction Ignore)){
+                Install-Module -Name Az.Automation -Force
+            }
+
+            New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $ResourceGroupName -Location $Location -Plan Free 
+
+            #link workspace to Automation Account (via an ARM template deployment)
+            $json = @"
+{
+    "`$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace_name": {
+            "type": "string"
+        },
+        "automation_name": {
+            "type": "string"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspace_name')]",
+            "apiVersion": "2015-11-01-preview",
+            "location": "[resourceGroup().location]",
+            "resources": [
+                {
+                    "name": "Automation",
+                    "type": "linkedServices",
+                    "apiVersion": "2015-11-01-preview",
+                    "dependsOn": [
+                        "[parameters('workspace_name')]"
+                    ],
+                    "properties": {
+                        "resourceId": "[resourceId(resourceGroup().name, 'Microsoft.Automation/automationAccounts', parameters('automation_name'))]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.OperationsManagement/solutions",
+            "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+            "apiVersion": "2015-11-01-preview",
+            "location": "[resourceGroup().location]",
+            "plan": {
+                "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+                "promotionCode": "",
+                "product": "OMSGallery/Updates",
+                "publisher": "Microsoft"
+            },
+            "properties": {
+                "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace_name'))]"
+            },
+            "dependsOn": [
+                "[parameters('workspace_name')]"
+            ]
+        }
+    ]
+}
+"@
+
+                $templateFile = New-TemporaryFile
+                Set-Content -Path $templateFile.FullName -Value $json
+
+                $templateParameterObject = @{
+                    workspace_name = $WorkspaceName
+                    automation_name = $AutomationAccountName
+                }
+                New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+                Remove-Item $templateFile.FullName
+        #>
+    #Enable monitoring (it's easiest to do it in portal) https://docs.microsoft.com/en-us/azure-stack/hci/manage/monitor-azure-portal
+        #add Monitoring extension and dependency agent extension https://docs.microsoft.com/en-us/azure/azure-arc/servers/manage-vm-extensions-powershell
+            <#
+            $WorkspaceName="MSLabWorkspace-$SubscriptionID"
+            $servers=(Get-ClusterNode -Cluster $ClusterName).Name
+
+            #Install module
+            if (!(Get-InstalledModule -Name Az.ConnectedMachine -ErrorAction Ignore)){
+                Install-Module -Name Az.ConnectedMachine -Force
+            }
+
+            $workspace=Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $ResourceGroupName
+            $keys=Get-AzOperationalInsightsWorkspaceSharedKey -Name $WorkspaceName -ResourceGroupName $ResourceGroupName
+
+            $Setting = @{ "workspaceId" = "$($workspace.CustomerId.GUID)" }
+            $protectedSetting = @{ "workspaceKey" = "$($keys.PrimarySharedKey)" }
+
+            foreach ($Server in $Servers){
+                $machine=Get-AzConnectedMachine | Where-Object Name -eq $server
+                $location=$machine.location
+                $ResourceGroupName=$machine.id.Split("/") | Select-Object -First 5 | Select-Object -Last 1
+                New-AzConnectedMachineExtension -Name "MicrosoftMonitoringAgent"-ResourceGroupName $ResourceGroupName -MachineName $server -Location $location -Publisher "Microsoft.EnterpriseCloud.Monitoring"       -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "MicrosoftMonitoringAgent" #-TypeHandlerVersion "1.0.18040.2"
+                New-AzConnectedMachineExtension -Name "DependencyAgentWindows"  -ResourceGroupName $ResourceGroupName -MachineName $server -Location $location -Publisher "Microsoft.Azure.Monitoring.DependencyAgent" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "DependencyAgentWindows"
+            }
+            #>
+        #or add extension at scale https://docs.microsoft.com/en-us/azure/azure-monitor/insights/vminsights-enable-policy (TBD)
+
 #endregion
 
 #region Network ATC - Prereqs
@@ -217,12 +452,12 @@
             }
         }
         #define features
-        $features="Failover-Clustering","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+        $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
         #install features
         Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
         #restart and wait for computers
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
-        Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
     #Create Cluster
         New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
@@ -305,12 +540,12 @@
                 }
             }
             #define features
-            $features="Failover-Clustering","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+            $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
             #install features
             Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
             #restart and wait for computers
-            Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
-            Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+            Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+            Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
         #Create Cluster
             New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
@@ -342,6 +577,123 @@
     New-Volume -CimSession $ClusterName -FriendlyName ThinVolume02 -Size 1TB -StoragePoolFriendlyName "S2D on $ClusterName"
     #validate
     Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,ProvisioningType
+#endregion
+
+#region Other features - Prereqs
+    $Servers="Other1","Other2","Other3","Other4"
+    $ClusterName="Other-Cluster"
+    $CAURoleName="Other-Cl-CAU"
+    #Configure S2D and create some VMs
+        #install features for management remote cluster
+            Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
+
+        #install roles and features to servers
+            #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+                if ($result.ExitCode -eq "failed"){
+                    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
+                }
+            }
+        #define features
+        $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+        #install features
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+        #restart and wait for computers
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
+
+        #Create Cluster
+            New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+
+    #configure Witness on DC
+        #Create new directory
+            $WitnessName=$Clustername+"Witness"
+            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+            $accounts=@()
+            $accounts+="corp\$ClusterName$"
+            $accounts+="corp\Domain Admins"
+            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+        #Set NTFS permissions 
+            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+        #Set Quorum
+            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+    #add CAU role
+        #Install required features on nodes.
+            $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+            foreach ($ClusterNode in $ClusterNodes){
+                Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+            }
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+
+    #enable S2D
+        Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+
+    #create volumes
+        1..4 | Foreach-Object {
+            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size 10TB -FriendlyName "Volume$_" -ProvisioningType Thin
+        }
+
+    #register cluster to Azure
+        #download Azure module
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
+            Install-Module -Name Az.StackHCI -Force
+        }
+
+        #login to azure
+        #download Azure module
+        if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+            Install-Module -Name Az.Accounts -Force
+        }
+        Login-AzAccount -UseDeviceAuthentication
+
+        #select context if more available
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context | Out-GridView -OutputMode Single | Set-AzContext
+        }
+
+        #select subscription
+        $subscriptions=Get-AzSubscription
+        if (($subscriptions).count -gt 1){
+            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+        }
+
+        $subscriptionID=(Get-AzSubscription).ID
+
+        #Register AZSHCi without prompting for creds again
+        $armTokenItemResource = "https://management.core.windows.net/"
+        $graphTokenItemResource = "https://graph.windows.net/"
+        $azContext = Get-AzContext
+        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+        $id = $azContext.Account.Id
+        Register-AzStackHCI -Verbose -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+
+    #create some VMs
+        $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
+        foreach ($CSV in $CSVs){
+            $CSV=($CSV -split '\((.*?)\)')[1]
+            1..2 | ForEach-Object {
+                $VMName="TestVM$($CSV)_$_"
+                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
+                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
+                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
+                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+            }
+        }
+        #Start all VMs
+        Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
+
+#endregion
+
+#region Other features - Prereqs
+#endregion
+
+#region Other features - The Lab
 #endregion
 
 #region Storage bus cache with Storage Spaces on standalone servers https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-storage-bus-cache
@@ -417,3 +769,49 @@
     Get-Content C:\Windows\system32\WindowsPowerShell\v1.0\Modules\StorageBusCache\StorageBusCache.psm1
 
 #endregion
+
+#region Install Windows Admin Center in GW Mode (with self-signed cert)
+    $GatewayServerName="WACGW"
+    #Download Windows Admin Center if not present
+    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    }
+    #Create PS Session and copy install files to remote server
+    Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+    $Session=New-PSSession -ComputerName $GatewayServerName
+    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+    #Install Windows Admin Center
+    Invoke-Command -Session $session -ScriptBlock {
+        Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+    }
+
+    $Session | Remove-PSSession
+
+    #add certificate to trusted root certs
+    start-sleep 20
+    $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+    $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+    Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
+    #Configure Resource-Based constrained delegation on all AD computers
+    $gatewayObject = Get-ADComputer -Identity $GatewayServerName
+    $computers = (Get-ADComputer -Filter *).Name
+
+    foreach ($computer in $computers){
+        $computerObject = Get-ADComputer -Identity $computer
+        Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
+    }
+#endregion
+
+#region Install Windows Admin Center on Windows 11 machine (run from Windows 11)
+    #Download Windows Admin Center to downloads
+    Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+
+    #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
+        Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
+
+    #Open Windows Admin Center
+        Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
+#endregion
+
