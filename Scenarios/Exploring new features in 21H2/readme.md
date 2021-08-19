@@ -9,4 +9,13 @@ Recommended reading:
 * https://docs.microsoft.com/en-us/azure-stack/hci/manage/preview-channel
 * https://www.youtube.com/watch?v=TsCOQu0bksA
 
-## TBD
+## Rolling Cluster Upgrade
+
+## Azure Arc
+
+## Network ATC
+
+## Thin provisioned volumes
+
+## Other features
+

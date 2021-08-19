@@ -75,10 +75,10 @@
         #select subscription
         $subscriptions=Get-AzSubscription
         if (($subscriptions).count -gt 1){
-            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
+        }else{
+            $subscriptionID=$subscriptions.ID
         }
-
-        $subscriptionID=(Get-AzSubscription).ID
 
         #register Azure Stack HCI
         Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
@@ -94,7 +94,7 @@
 #endregion
 
 #region Rolling Cluster Upgrade - The Lab
-    $Servers="Rolling1","Rolling2"
+    $Servers="Rolling1","Rolling2","Rolling3","Rolling4"
     $ClusterName="Roll-Cluster"
 
     #invoke CAU update including preview updates (optional)
@@ -206,9 +206,11 @@
         #select subscription
         $subscriptions=Get-AzSubscription
         if (($subscriptions).count -gt 1){
-            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
+        }else{
+            $subscriptionID=$subscriptions.ID
         }
-        $subscriptionID=(Get-AzSubscription).ID
+
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
         $graphTokenItemResource = "https://graph.windows.net/"
@@ -292,10 +294,10 @@
         #select subscription
         $subscriptions=Get-AzSubscription
         if (($subscriptions).count -gt 1){
-            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
+        }else{
+            $subscriptionID=$subscriptions.ID
         }
-
-        $subscriptionID=(Get-AzSubscription).ID
 
         #register Azure Stack HCI
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
@@ -493,34 +495,167 @@
         $status | Select-Object *
 
     #validate what was/was not configured. Since Enable-NetAdapterQos does not work in virtual environment, QoS will not be enabled...
-        #validate vSwitch
-        Get-VMSwitch -CimSession $servers
-        #validate vNICs
-        Get-VMNetworkAdapter -CimSession $servers -ManagementOS
-        #validate vNICs to pNICs mapping
-        Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter
-        #validate JumboFrames setting
-        Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
-        #verify RDMA settings
-        Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
-        #validate if VLANs were set
-        Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
-        #Validate DCBX setting
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
-        #validate policy (no result since it's not available in VM)
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
-        #Validate QOS Policies
-        Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
-        #validate flow control setting
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
-        #validate QoS Traffic Classes
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+            #validate vSwitch
+            Get-VMSwitch -CimSession $servers
+            #validate vNICs
+            Get-VMNetworkAdapter -CimSession $servers -ManagementOS
+            #validate vNICs to pNICs mapping
+            Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter
+            #validate JumboFrames setting
+            Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
+            #verify RDMA settings
+            Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+            #validate if VLANs were set
+            Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
+            #Validate DCBX setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
+            #validate policy (no result since it's not available in VM)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+            #Validate QOS Policies
+            Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
+            #validate flow control setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
+            #validate QoS Traffic Classes
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+            #verify ip config 
+            Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputerName | Format-Table PSComputerName,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+            #verify cluster network names
+            Get-ClusterNetwork -Cluster $clustername
+            #verify live migration networks configured in cluster
+            Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -notlike (Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value
+            #verify Live Migration option (should be SMB)
+            Get-VMHost -cimsession $servers | Select-Object Name,VirtualMachineMigrationPerformanceOption
+            #verify bandwidth limit for SMB
+            Get-SmbBandwidthLimit -Category LiveMigration -CimSession $servers
 
     #in MSLab it unfortunately does not work, therefore let's remove intent and cleanup vSwitches
         Remove-NetIntent -Name ConvergedIntent -ClusterName $ClusterName 
         Get-VMSwitch -CimSession $Servers | Remove-VMSwitch -Force
         Get-NetQosPolicy -CimSession $servers | Remove-NetQosPolicy -Confirm:0
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass | Remove-NetQosTrafficClass -Confirm:0}
+
+    #let's do the same "manually" (+ let's configure other networking settings as per best practice).
+    #in regular deployment it's recommended to do this before cluster is created (because of disconnections)
+        $ClusterName="NetATC-Cluster"
+        $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+        $vSwitchName="ConvergedSwitch"
+        $StorNet1="172.16.1."
+        $StorNet2="172.16.2."
+        $StorVLAN1=711
+        $StorVLAN2=712
+        $IP=1 #Start IP for SMB adapters
+
+        Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+        Start-Sleep 5
+        Clear-DnsClientCache
+        #Check VMSwitches
+        Get-VMSwitch -CimSession $Servers
+
+        $Servers | ForEach-Object {
+            #Configure vNICs
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -ComputerName $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
+            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
+
+            #configure IP Addresses
+            New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+            New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+            $IP++
+        }
+
+        #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+        Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
+        Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
+
+        #Restart each host vNIC adapter so that the Vlan is active.
+        Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
+        Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
+
+        #Enable RDMA on the host vNIC adapters
+        Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
+
+        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
+            Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+            Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+        }
+        #configure JumboFrames
+        Set-NetAdapterAdvancedProperty -CimSession $Servers  -DisplayName "Jumbo Packet" -RegistryValue 9014
+
+        #Configure DCB
+            #Cinstall DCB feature
+                foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+            #Configure QoS
+                New-NetQosPolicy "SMB_Direct"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "Cluster"          -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
+            #Turn on Flow Control for SMB
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+            #Disable flow control for other traffic than 3 (pause frames should go only from prio 3)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+            #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+            #Configure IeeePriorityTag
+                #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+            #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch. This fails in MSLab (since NICs are virtual)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+            #This value needs to match physical switch configuration. Value might vary based on your needs.
+            #If connected directly (in 2 node configuration) skip this step.
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB_Direct" -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "Cluster"    -Priority 7 -BandwidthPercentage 2 -Algorithm ETS}
+
+        #configure cluster networks
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB01"
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB02"
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq ClusterAndClient).Name="Management"
+
+        #configure Live Migration
+            Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -eq "ClusterAndClient"}).ID))
+            Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+
+        #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+            #install feature
+            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+            #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+            $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+            $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+            Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+
+        #validate what was/was not configured. Since Enable-NetAdapterQos does not work in virtual environment, QoS will not be enabled...
+            #validate vSwitch
+            Get-VMSwitch -CimSession $servers
+            #validate vNICs
+            Get-VMNetworkAdapter -CimSession $servers -ManagementOS
+            #validate vNICs to pNICs mapping
+            Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter
+            #validate JumboFrames setting
+            Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
+            #verify RDMA settings
+            Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+            #validate if VLANs were set
+            Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
+            #Validate DCBX setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
+            #validate policy (no result since it's not available in VM)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+            #Validate QOS Policies
+            Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
+            #validate flow control setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
+            #validate QoS Traffic Classes
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+            #verify ip config 
+            Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputerName | Format-Table PSComputerName,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+            #verify cluster network names
+            Get-ClusterNetwork -Cluster $clustername
+            #verify live migration networks configured in cluster
+            Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -notlike (Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value
+            #verify Live Migration option (should be SMB)
+            Get-VMHost -cimsession $servers | Select-Object Name,VirtualMachineMigrationPerformanceOption
+            #verify bandwidth limit for SMB
+            Get-SmbBandwidthLimit -Category LiveMigration -CimSession $servers
 #endregion
 
 #region Thin provisioning - Prereqs
@@ -658,10 +793,10 @@
         #select subscription
         $subscriptions=Get-AzSubscription
         if (($subscriptions).count -gt 1){
-            $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
+        }else{
+            $subscriptionID=$subscriptions.ID
         }
-
-        $subscriptionID=(Get-AzSubscription).ID
 
         #Register AZSHCi without prompting for creds again
         $armTokenItemResource = "https://management.core.windows.net/"
@@ -688,9 +823,6 @@
         #Start all VMs
         Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
 
-#endregion
-
-#region Other features - Prereqs
 #endregion
 
 #region Other features - The Lab
