@@ -427,7 +427,7 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     #Generate kubeconfig
-    Get-AksHciCredential -clusterName demo
+    Get-AksHciCredential -Name demo
     #onboard
     Enable-AksHciArcConnection -Name $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:Credentials
 }
