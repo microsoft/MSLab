@@ -69,16 +69,11 @@
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
-            $context | Out-GridView -OutputMode Single | Set-AzContext
+            $context=$context | Out-GridView -OutputMode Single
+            $context | Set-AzContext
         }
 
-        #select subscription
-        $subscriptions=Get-AzSubscription
-        if (($subscriptions).count -gt 1){
-            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
-        }else{
-            $subscriptionID=$subscriptions.ID
-        }
+        $subscriptionID=$context.subscription.id
 
         #register Azure Stack HCI
         Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
@@ -132,7 +127,7 @@
             Set-PreviewChannel
         }
     #reboot machines to apply
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
 
     #validate if all is OK
         Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -203,13 +198,14 @@
         if (-not (Get-AzContext)){
             Login-AzAccount -UseDeviceAuthentication
         }
-        #select subscription
-        $subscriptions=Get-AzSubscription
-        if (($subscriptions).count -gt 1){
-            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
-        }else{
-            $subscriptionID=$subscriptions.ID
+        #select context
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context=$context | Out-GridView -OutputMode Single
+            $context | Set-AzContext
         }
+
+        $subscriptionID=$context.subscription.id
 
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
@@ -288,16 +284,11 @@
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
-            $context | Out-GridView -OutputMode Single | Set-AzContext
+            $context=$context | Out-GridView -OutputMode Single
+            $context | Set-AzContext
         }
 
-        #select subscription
-        $subscriptions=Get-AzSubscription
-        if (($subscriptions).count -gt 1){
-            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
-        }else{
-            $subscriptionID=$subscriptions.ID
-        }
+        $subscriptionID=$context.subscription.id
 
         #register Azure Stack HCI
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
@@ -321,7 +312,13 @@
             if (-not (Get-AzContext)){
                 Login-AzAccount -UseDeviceAuthentication
             }
-            $SubscriptionID=(Get-AzContext).Subscription.ID
+            #select context
+            $context=Get-AzContext -ListAvailable
+            if (($context).count -gt 1){
+                $context=$context | Out-GridView -OutputMode Single
+                $context | Set-AzContext
+            }
+            $subscriptionID=$context.subscription.id
             $WorkspaceName="MSLabWorkspace-$SubscriptionID"
             $ResourceGroupName="MSLabAzureArc"
             $Workspace=Get-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -ErrorAction Ignore
@@ -787,16 +784,11 @@
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
-            $context | Out-GridView -OutputMode Single | Set-AzContext
+            $context=$context | Out-GridView -OutputMode Single
+            $context | Set-AzContext
         }
 
-        #select subscription
-        $subscriptions=Get-AzSubscription
-        if (($subscriptions).count -gt 1){
-            $subscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).ID
-        }else{
-            $subscriptionID=$subscriptions.ID
-        }
+        $subscriptionID=$context.subscription.id
 
         #Register AZSHCi without prompting for creds again
         $armTokenItemResource = "https://management.core.windows.net/"
@@ -826,6 +818,7 @@
 #endregion
 
 #region Other features - The Lab
+
 #endregion
 
 #region Storage bus cache with Storage Spaces on standalone servers https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-storage-bus-cache
