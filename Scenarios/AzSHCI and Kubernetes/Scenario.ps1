@@ -26,12 +26,13 @@ Foreach ($VM in $VMs){
 ### Run from DC ###
 ###################
 
+#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
+
 # Set DHCP Server lease time to 90 days for reserving IP dynamicly allocated to AKS management/working cluster control plane & working nodes.
 Invoke-Command -ComputerName DC -ScriptBlock {
     Set-DhcpServerv4Scope -ScopeId 10.0.0.0 -LeaseDuration 90.00:00:00
 }
 
-#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 # LabConfig
 $Servers="AzsHCI1","AzSHCI2"
 $ClusterName="AzSHCI-Cluster"
