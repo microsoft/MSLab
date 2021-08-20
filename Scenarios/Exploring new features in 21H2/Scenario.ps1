@@ -135,28 +135,25 @@
         }
 
     #perform Rolling Upgrade
-    $ClusterName="AzSHCI-Cluster"
-    $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
-
         #copy CAU plugin from cluster (only if your management machine is 2019. If it's 2022 or newer, you are good to go)
-        if (-not (Get-CauPlugin Microsoft.RollingUpgradePlugin)){
-            #unload module for next step
-            Remove-Module -Name ClusterAwareUpdating
-            Read-Host "Posh will now exit. Press a key"
-            exit
-        }
-        if (-not (Get-CauPlugin Microsoft.RollingUpgradePlugin)){
-            #download NTFSSecurity module to replace permissions to be able to delete existing version
-            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-            Install-Module NTFSSecurity -Force
-            $items=Get-ChildItem -Path "c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating" -Recurse
-            $items | Set-NTFSOwner -Account $env:USERNAME
-            $items | Get-NTFSAccess | Add-NTFSAccess -Account "Administrators" -AccessRights FullControl
-            Remove-Item c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Recurse -Force
-            $session=New-PSSession -ComputerName $ClusterName
-            Copy-Item -FromSession $Session -Path c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Destination C:\Windows\system32\WindowsPowerShell\v1.0\Modules\ -Recurse
-            Import-Module -Name ClusterAwareUpdating
-        }
+            if (-not (Get-CauPlugin Microsoft.RollingUpgradePlugin)){
+                #unload module for next step
+                Remove-Module -Name ClusterAwareUpdating
+                Read-Host "Posh will now exit. Press a key"
+                exit
+            }
+            if (-not (Get-CauPlugin Microsoft.RollingUpgradePlugin)){
+                #download NTFSSecurity module to replace permissions to be able to delete existing version
+                Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+                Install-Module NTFSSecurity -Force
+                $items=Get-ChildItem -Path "c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating" -Recurse
+                $items | Set-NTFSOwner -Account $env:USERNAME
+                $items | Get-NTFSAccess | Add-NTFSAccess -Account "Administrators" -AccessRights FullControl
+                Remove-Item c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Recurse -Force
+                $session=New-PSSession -ComputerName $ClusterName
+                Copy-Item -FromSession $Session -Path c:\Windows\system32\WindowsPowerShell\v1.0\Modules\ClusterAwareUpdating -Destination C:\Windows\system32\WindowsPowerShell\v1.0\Modules\ -Recurse
+                Import-Module -Name ClusterAwareUpdating
+            }
 
         #perform update
             $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
@@ -191,6 +188,7 @@
         #update VMs
         #Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name | Update-VMVersion -Confirm:0
         Invoke-Command -ComputerName (Get-ClusterNode -Cluster $ClusterName).Name -ScriptBlock {Get-VM | Update-VMVersion -Confirm:0}
+        Start-Sleep 10
         #version after upgrade
         Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name
 
@@ -290,6 +288,9 @@
 
         $subscriptionID=$context.subscription.id
 
+        #enable debug logging in case something goes wrong
+            $servers=(Get-ClusterNode -Cluster $ClusterName).Name
+            Invoke-Command -ComputerName $servers -ScriptBlock {wevtutil.exe sl /q /e:true Microsoft-AzureStack-HCI/Debug}
         #register Azure Stack HCI
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
 
@@ -303,6 +304,14 @@
         $id = $azContext.Account.Id
         Register-AzStackHCI -Verbose -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
 
+        #grab logs if something went wrong
+            $lognames = "Microsoft-AzureStack-HCI/Debug", "Microsoft-AzureStack-HCI/Admin", "Microsoft-Windows-Kernel-Boot/Operational", "Microsoft-Windows-Kernel-IO/Operational"
+            $events=foreach ($logname in $Lognames){
+                Invoke-Command -ComputerName $Servers -ScriptBlock {Get-WinEvent -LogName $using:logname -oldest}   
+            }
+            $events | Out-File $env:USERPROFILE\Downloads\events.txt
+            $events | Export-Clixml -Path $env:USERPROFILE\Downloads\events.xml
+            
     #Create Log Analytics Workspace if not available
         #Install module
         if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
