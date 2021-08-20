@@ -43,27 +43,27 @@ Prereqs will create simple cluster with one Volume and 3 VMs. It will register A
 
 You will see Azure Stack HCI cluster registered under Azure Arc in Portal. However Arc capabilities are not yet available as it's only Azure Stack HCI build 17784.1884 (20H2)
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Portal01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal01.png)
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Portal02.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal02.png)
 
 You can also notice, that there is no Server Arc Agent installed
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Portal01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal01.png)
 
 More details about cluster you can find in Cluadmin.msc
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Cluadmin01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Cluadmin01.png)
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Cluadmin02.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Cluadmin02.png)
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Cluadmin03.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Cluadmin03.png)
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Cluadmin04.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Cluadmin04.png)
 
 Or if you will deploy Windows Admin Center (see two last scenario regions), you can connect to your cluster and manage it from there.
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/WAC01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_WAC01.png)
 
 ### Region Rolling Cluster Upgrade - The Lab
 
@@ -71,33 +71,35 @@ Lab demonstrates how to update to latest update using CAU (it's commented sectio
 
 Rolling upgrade in progress
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell01.png)
 
 Rolling upgrade in finished
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell02.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell02.png)
 
 As you can see, all nodes were upgraded
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell03.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell03.png)
 
 Cluster version needs to be updated
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell04.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell04.png)
 
 Also Pool version
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell05.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell05.png)
 
 VM version
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/PowerShell05.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell05.png)
 
 And Cluster registration
 
 Before
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Portal02.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal02.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal03.png)
 
 After
 

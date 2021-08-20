@@ -205,6 +205,10 @@
 
         $subscriptionID=$context.subscription.id
 
+        $ResourceGroupName="AzureStackHCIClusters"
+        If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+            New-AzResourceGroup -Name $ResourceGroupName -Location (Get-AzLocation | Out-GridView -OutputMode Single -Title "Please select Location").Location
+        }
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
         $graphTokenItemResource = "https://graph.windows.net/"
@@ -213,7 +217,101 @@
         $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
         $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
         $id = $azContext.Account.Id
-        Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+        #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+        Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
+
+        #if it ended up with issue registering clustered scheduled task, you can fix it simply by running this code (there is a known bug, which will be fixed hopefully soon)
+            $ArcRegistrationTaskName = "ArcRegistrationTask"
+            $registerArcScript = {
+                try
+                {
+                    # Params for Enable-AzureStackHCIArcIntegration
+                    $AgentInstaller_WebLink                  = 'https://aka.ms/AzureConnectedMachineAgent'
+                    $AgentInstaller_Name                     = 'AzureConnectedMachineAgent.msi'
+                    $AgentInstaller_LogFile                  = 'ConnectedMachineAgentInstallationLog.txt'
+                    $AgentExecutable_Path                    =  $Env:Programfiles + '\AzureConnectedMachineAgent\azcmagent.exe'
+
+                    $DebugPreference = 'Continue'
+
+                    # Setup Directory.
+                    $LogFileDir = $env:windir + '\Tasks\ArcForServers'
+                    if (-Not $(Test-Path $LogFileDir))
+                    {
+                        New-Item -Type Directory -Path $LogFileDir
+                    }
+
+                    # Delete log files older than 15 days
+                    Get-ChildItem -Path $LogFileDir -Recurse | Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-15))} | Remove-Item
+
+                    # Setup Log file name.
+                    $date = Get-Date
+                    $datestring = '{0}{1:d2}{2:d2}' -f $date.year,$date.month,$date.day
+                    $LogFileName = $LogFileDir + '\RegisterArc_' + $datestring + '.log'
+                
+                    Start-Transcript -LiteralPath $LogFileName -Append | Out-Null
+
+                    Write-Information 'Triggering Arc For Servers registration cmdlet'
+                    $arcStatus = Get-AzureStackHCIArcIntegration
+
+                    if ($arcStatus.ClusterArcStatus -eq 'Enabled')
+                    {
+                        $nodeStatus = $arcStatus.NodesArcStatus
+                
+                        if ($nodeStatus.Keys -icontains ($env:computername))
+                        {
+                            if ($nodeStatus[$env:computername.ToLowerInvariant()] -ne 'Enabled')
+                            {
+                                Write-Information 'Registering Arc for servers.'
+                                Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
+                                Sync-AzureStackHCI
+                            }
+                            else
+                            {
+                                Write-Information 'Node is already registered.'
+                            }
+                        }
+                        else
+                        {
+                            # New node added case.
+                            Write-Information 'Registering Arc for servers.'
+                            Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
+                            Sync-AzureStackHCI
+                        }
+                    }
+                    else
+                    {
+                        Write-Information ('Cluster Arc status is not enabled. ClusterArcStatus:' + $arcStatus.ClusterArcStatus.ToString())
+                    }
+                }
+                catch
+                {
+                    Write-Error -Exception $_.Exception -Category OperationStopped
+                    # Get script line number, offset and Command that resulted in exception. Write-Error with the exception above does not write this info.
+                    $positionMessage = $_.InvocationInfo.PositionMessage
+                    Write-Error ('Exception occured in RegisterArcScript : ' + $positionMessage) -Category OperationStopped
+                }
+                finally
+                {
+                    try{ Stop-Transcript } catch {}
+                }
+            }
+
+            $task =  Get-ScheduledTask -CimSession $clustername -TaskName $ArcRegistrationTaskName -ErrorAction SilentlyContinue
+            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $registerArcScript"
+                        
+            # Repeat the script every hour of every day, starting from now.
+            $date = Get-Date
+            $dailyTrigger = New-ScheduledTaskTrigger -Daily -At $date
+            $hourlyTrigger = New-ScheduledTaskTrigger -Once -At $date -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Hours 23 -Minutes 55)
+            $dailyTrigger.Repetition = $hourlyTrigger.Repetition
+
+            if (-Not $task)
+            {
+                Register-ClusteredScheduledTask -Cluster $ClusterName -TaskName $ArcRegistrationTaskName -TaskType ClusterWide -Action $action -Trigger $dailyTrigger
+            }else{
+                # Update cluster schedule task.
+                Set-ClusteredScheduledTask -TaskName $ArcRegistrationTaskName -Action $action -Trigger $dailyTrigger
+            }
 
 #endregion
 
@@ -292,17 +390,21 @@
             $servers=(Get-ClusterNode -Cluster $ClusterName).Name
             Invoke-Command -ComputerName $servers -ScriptBlock {wevtutil.exe sl /q /e:true Microsoft-AzureStack-HCI/Debug}
         #register Azure Stack HCI
-        #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+            $ResourceGroupName="AzureStackHCIClusters"
+            If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+                New-AzResourceGroup -Name $ResourceGroupName -Location (Get-AzLocation | Out-GridView -OutputMode Single -Title "Please select Location").Location
+            }
+            #Register AZSHCi without prompting for creds
+            $armTokenItemResource = "https://management.core.windows.net/"
+            $graphTokenItemResource = "https://graph.windows.net/"
+            $azContext = Get-AzContext
+            $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+            $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+            $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+            $id = $azContext.Account.Id
+            #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+            Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
 
-        #Register AZSHCi without prompting for creds again
-        $armTokenItemResource = "https://management.core.windows.net/"
-        $graphTokenItemResource = "https://graph.windows.net/"
-        $azContext = Get-AzContext
-        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
-        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
-        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
-        $id = $azContext.Account.Id
-        Register-AzStackHCI -Verbose -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
 
         #grab logs if something went wrong
             $lognames = "Microsoft-AzureStack-HCI/Debug", "Microsoft-AzureStack-HCI/Admin", "Microsoft-Windows-Kernel-Boot/Operational", "Microsoft-Windows-Kernel-IO/Operational"
@@ -311,7 +413,100 @@
             }
             $events | Out-File $env:USERPROFILE\Downloads\events.txt
             $events | Export-Clixml -Path $env:USERPROFILE\Downloads\events.xml
-            
+
+        #if it ended up with issue registering clustered scheduled task, you can fix it simply by running this code (there is a known bug, which will be fixed hopefully soon)
+            $ArcRegistrationTaskName = "ArcRegistrationTask"
+            $registerArcScript = {
+                try
+                {
+                    # Params for Enable-AzureStackHCIArcIntegration
+                    $AgentInstaller_WebLink                  = 'https://aka.ms/AzureConnectedMachineAgent'
+                    $AgentInstaller_Name                     = 'AzureConnectedMachineAgent.msi'
+                    $AgentInstaller_LogFile                  = 'ConnectedMachineAgentInstallationLog.txt'
+                    $AgentExecutable_Path                    =  $Env:Programfiles + '\AzureConnectedMachineAgent\azcmagent.exe'
+
+                    $DebugPreference = 'Continue'
+
+                    # Setup Directory.
+                    $LogFileDir = $env:windir + '\Tasks\ArcForServers'
+                    if (-Not $(Test-Path $LogFileDir))
+                    {
+                        New-Item -Type Directory -Path $LogFileDir
+                    }
+
+                    # Delete log files older than 15 days
+                    Get-ChildItem -Path $LogFileDir -Recurse | Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-15))} | Remove-Item
+
+                    # Setup Log file name.
+                    $date = Get-Date
+                    $datestring = '{0}{1:d2}{2:d2}' -f $date.year,$date.month,$date.day
+                    $LogFileName = $LogFileDir + '\RegisterArc_' + $datestring + '.log'
+                
+                    Start-Transcript -LiteralPath $LogFileName -Append | Out-Null
+
+                    Write-Information 'Triggering Arc For Servers registration cmdlet'
+                    $arcStatus = Get-AzureStackHCIArcIntegration
+
+                    if ($arcStatus.ClusterArcStatus -eq 'Enabled')
+                    {
+                        $nodeStatus = $arcStatus.NodesArcStatus
+                
+                        if ($nodeStatus.Keys -icontains ($env:computername))
+                        {
+                            if ($nodeStatus[$env:computername.ToLowerInvariant()] -ne 'Enabled')
+                            {
+                                Write-Information 'Registering Arc for servers.'
+                                Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
+                                Sync-AzureStackHCI
+                            }
+                            else
+                            {
+                                Write-Information 'Node is already registered.'
+                            }
+                        }
+                        else
+                        {
+                            # New node added case.
+                            Write-Information 'Registering Arc for servers.'
+                            Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
+                            Sync-AzureStackHCI
+                        }
+                    }
+                    else
+                    {
+                        Write-Information ('Cluster Arc status is not enabled. ClusterArcStatus:' + $arcStatus.ClusterArcStatus.ToString())
+                    }
+                }
+                catch
+                {
+                    Write-Error -Exception $_.Exception -Category OperationStopped
+                    # Get script line number, offset and Command that resulted in exception. Write-Error with the exception above does not write this info.
+                    $positionMessage = $_.InvocationInfo.PositionMessage
+                    Write-Error ('Exception occured in RegisterArcScript : ' + $positionMessage) -Category OperationStopped
+                }
+                finally
+                {
+                    try{ Stop-Transcript } catch {}
+                }
+            }
+
+            $task =  Get-ScheduledTask -CimSession $clustername -TaskName $ArcRegistrationTaskName -ErrorAction SilentlyContinue
+            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $registerArcScript"
+                        
+            # Repeat the script every hour of every day, starting from now.
+            $date = Get-Date
+            $dailyTrigger = New-ScheduledTaskTrigger -Daily -At $date
+            $hourlyTrigger = New-ScheduledTaskTrigger -Once -At $date -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Hours 23 -Minutes 55)
+            $dailyTrigger.Repetition = $hourlyTrigger.Repetition
+
+            if (-Not $task)
+            {
+                Register-ClusteredScheduledTask -Cluster $ClusterName -TaskName $ArcRegistrationTaskName -TaskType ClusterWide -Action $action -Trigger $dailyTrigger
+            }else{
+                # Update cluster schedule task.
+                Set-ClusteredScheduledTask -TaskName $ArcRegistrationTaskName -Action $action -Trigger $dailyTrigger
+            }
+
     #Create Log Analytics Workspace if not available
         #Install module
         if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
