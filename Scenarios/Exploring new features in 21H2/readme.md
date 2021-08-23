@@ -49,7 +49,7 @@ You will see Azure Stack HCI cluster registered under Azure Arc in Portal. Howev
 
 You can also notice, that there is no Server Arc Agent installed
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal01.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal03.png)
 
 More details about cluster you can find in Cluadmin.msc
 
@@ -91,9 +91,11 @@ Also Pool version
 
 VM version
 
-![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell05.png)
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell06.png)
 
 And Cluster registration
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_PowerShell07.png)
 
 Before
 
@@ -101,12 +103,80 @@ Before
 
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal03.png)
 
-After
+After (enable monitoring is available and Arc Agent is installed)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal04.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal05.png)
+
 
 ## Azure Arc
 
+In this lab you will explore how to register Azure Stack HCI to Azure at scale and with different options.
+
+Unlike Rolling Cluster, this cluster will demonstrate registration to Azure without prompting credentials again. It will ultimately fail, because cluster is configured with Distributed Server Name. [Az.StackHCI](https://www.powershellgallery.com/packages/Az.StackHCI/0.9.0) has a bug that uses invoke-command against clustername and inside script is again clustername. This works if clustername resolves to one IP, but not if it resolves to multiple as it will introduce double-jump.
+
+This will enable us to explore registration process more in detail.
+
+### Region Azure Arc - Prereqs
+
+Prereqs region is simplified cluster deployment with enabled S2D and File Share witness. Notice, that cluster name is configured as Distributed Server Name.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Cluadmin01.png)
+
+### Region Azure Arc - The Lab
+
+Before registration the debug log is enabled using wevtutil.exe
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_mmc01.png)
+
+The registration process itself will (most likely) fail with error registering clustered scheduled task 
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_PowerShell01.png)
+
+Let's explore what was configured before the task failed.
+
+Available commands (unfortunately there is not much documentation available)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_PowerShell02.png)
+
+And as you can see all seems to be fine
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_PowerShell03.png)
+
+However Scheduled Task is not there
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_PowerShell04.png)
+
+After manual registration it's there and cluster is fine in portal
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal01.png)
+
+After script will Log Analytics workspace, you can enable monitoring by clicking on Enable on Monitoring tab
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal02.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal03.png)
+
+It will simply push Arc Extensions to nodes (with Workspace configuration)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal04.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal05.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal06.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Arc_Portal07.png)
+
 ## Network ATC
 
+In this lab you will explore new Azure Stack HCI 21H2 feature [Network ATC](https://docs.microsoft.com/en-us/azure-stack/hci/deploy/network-atc). It's bit complicated to simulate in virtual environment (it will ultimately fail to apply configuration due to lack of features available in physical environment) but it will give you nice overview of how the feature works and how different it is from configuring network "manually"
+
+### Region Azure Arc - Prereqs
+
+Prereqs region is simplified cluster deployment with enabled S2D and File Share witness. Notice, that cluster name is configured as Distributed Server Name.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_Cluadmin01.png)
 ## Thin provisioned volumes
 
 ## Other features

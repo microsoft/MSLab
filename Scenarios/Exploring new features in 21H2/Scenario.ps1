@@ -22,8 +22,10 @@
         Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force #force is needed as there is a ?bug that prevents restarting older versions of OS from Windows Server 2022
         Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
-        #Create Cluster
-            New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+        #Create Cluster (we will skip DDN for now as there is a bug in Az.StackHCI module version 0.9.0)
+            New-Cluster -Name $ClusterName -Node $servers #-ManagementPointNetworkType "Distributed"
+            Start-Sleep 5
+            Clear-DnsClientCache
 
     #configure Witness on DC
         #Create new directory
@@ -39,12 +41,14 @@
             Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
 
     #add CAU role (Optional)
+        <#
         #Install required features on nodes.
             $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
             foreach ($ClusterNode in $ClusterNodes){
                 Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
             }
-        #Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+        #>
 
     #enable S2D
         Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
@@ -76,7 +80,16 @@
         $subscriptionID=$context.subscription.id
 
         #register Azure Stack HCI
-        Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+        $ResourceGroupName="AzureStackHCIClusters"
+        if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+            Install-Module -Name Az.Resources -Force
+        }
+        #choose location for cluster (and RG)
+        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
+        If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+            New-AzResourceGroup -Name $ResourceGroupName -Location $region
+        }
+        Register-AzStackHCI -Region $region -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication -ResourceGroupName $ResourceGroupName
     #create some dummy VMs
         1..3 | ForEach-Object {
             $VMName="TestVM$_"
@@ -92,47 +105,55 @@
     $Servers="Rolling1","Rolling2","Rolling3","Rolling4"
     $ClusterName="Roll-Cluster"
 
-    #invoke CAU update including preview updates (optional)
-        <#
-        $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.WindowsUpdatePlugin" -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
-                                    IsInstalled=0 and DeploymentAction='OptionalInstallation' or
-                                    IsPresent=1 and DeploymentAction='Uninstallation' or
-                                    IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                                    IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
-        $scan | Select-Object NodeName,UpdateTitle | Out-GridView
-
-        Invoke-CauRun -ClusterName $ClusterName -MaxFailedNodes 0 -MaxRetriesPerNode 1 -RequireAllNodesOnline -Force -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
-                                    IsInstalled=0 and DeploymentAction='OptionalInstallation' or
-                                    IsPresent=1 and DeploymentAction='Uninstallation' or
-                                    IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                                    IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
-        #>
-    #configure AzSHCI preview channel
-
-    #validate if at least 5C update was installed https://support.microsoft.com/en-us/topic/may-20-2021-preview-update-kb5003237-0c870dc9-a599-4a69-b0d2-2e635c6c219c
-    $RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
+    #invoke CAU update including preview updates if build is lower than 1737
+        $RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
             Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name UBR
         }
-
+        $UpdateNeeded=$null
         foreach ($item in $RevisionNumbers) {
             if ($item -lt 1737){
-                Write-Output "Something went wrong. UBR is $item. Should be higher thah 1737"
-            }else{
-                Write-Output "UBR is $item, you're good to go"
+                $UpdateNeeded=$true
             }
         }
+        if ($UpdateNeeded){
+            $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.WindowsUpdatePlugin" -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
+                                        IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+                                        IsPresent=1 and DeploymentAction='Uninstallation' or
+                                        IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                        IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
+            $scan | Select-Object NodeName,UpdateTitle | Out-GridView
 
-    #once updated to at least 1737, you can configure preview channel
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Set-PreviewChannel
+            Invoke-CauRun -ClusterName $ClusterName -MaxFailedNodes 0 -MaxRetriesPerNode 1 -RequireAllNodesOnline -Force -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
+                                        IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+                                        IsPresent=1 and DeploymentAction='Uninstallation' or
+                                        IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                        IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
         }
-    #reboot machines to apply
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
+    #configure AzSHCI preview channel
+        #validate if at least 5C update was installed https://support.microsoft.com/en-us/topic/may-20-2021-preview-update-kb5003237-0c870dc9-a599-4a69-b0d2-2e635c6c219c
+        $RevisionNumbers=Invoke-Command -ComputerName $Servers -ScriptBlock {
+                Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name UBR
+            }
 
-    #validate if all is OK
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Get-PreviewChannel
-        }
+            foreach ($item in $RevisionNumbers) {
+                if ($item -lt 1737){
+                    Write-Output "Something went wrong. UBR is $item. Should be higher thah 1737"
+                }else{
+                    Write-Output "UBR is $item, you're good to go"
+                }
+            }
+
+        #once updated to at least 1737, you can configure preview channel
+            Invoke-Command -ComputerName $Servers -ScriptBlock {
+                Set-PreviewChannel
+            }
+        #reboot machines to apply
+            Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
+
+        #validate if all is OK
+            Invoke-Command -ComputerName $Servers -ScriptBlock {
+                Get-PreviewChannel
+            }
 
     #perform Rolling Upgrade
         #copy CAU plugin from cluster (only if your management machine is 2019. If it's 2022 or newer, you are good to go)
@@ -158,13 +179,13 @@
         #perform update
             $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose
             #display updates that will be applied
-            $scan.upgradeinstallproperties.WuUpdatesInfo | Out-GridView
+            $scan.upgradeinstallproperties.WuUpdatesInfo | Out-GridView -Title "List of Updates that will be applied"
             Invoke-CauRun -ClusterName $ClusterName -Force -CauPluginName "Microsoft.RollingUpgradePlugin" -CauPluginArguments @{'WuConnected'='true';} -Verbose -EnableFirewallRules
 
     #validate version after rolling upgrade
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name DisplayVersion
-    }
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name DisplayVersion
+        }
 
     #validate version of cluster
         #version before upgrade
@@ -205,10 +226,12 @@
 
         $subscriptionID=$context.subscription.id
 
-        $ResourceGroupName="AzureStackHCIClusters"
+        #choose location for cluster (and RG)
+        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
         If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
-            New-AzResourceGroup -Name $ResourceGroupName -Location (Get-AzLocation | Out-GridView -OutputMode Single -Title "Please select Location").Location
+            New-AzResourceGroup -Name $ResourceGroupName -Location $region
         }
+
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
         $graphTokenItemResource = "https://graph.windows.net/"
@@ -218,100 +241,7 @@
         $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
         $id = $azContext.Account.Id
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-        Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
-
-        #if it ended up with issue registering clustered scheduled task, you can fix it simply by running this code (there is a known bug, which will be fixed hopefully soon)
-            $ArcRegistrationTaskName = "ArcRegistrationTask"
-            $registerArcScript = {
-                try
-                {
-                    # Params for Enable-AzureStackHCIArcIntegration
-                    $AgentInstaller_WebLink                  = 'https://aka.ms/AzureConnectedMachineAgent'
-                    $AgentInstaller_Name                     = 'AzureConnectedMachineAgent.msi'
-                    $AgentInstaller_LogFile                  = 'ConnectedMachineAgentInstallationLog.txt'
-                    $AgentExecutable_Path                    =  $Env:Programfiles + '\AzureConnectedMachineAgent\azcmagent.exe'
-
-                    $DebugPreference = 'Continue'
-
-                    # Setup Directory.
-                    $LogFileDir = $env:windir + '\Tasks\ArcForServers'
-                    if (-Not $(Test-Path $LogFileDir))
-                    {
-                        New-Item -Type Directory -Path $LogFileDir
-                    }
-
-                    # Delete log files older than 15 days
-                    Get-ChildItem -Path $LogFileDir -Recurse | Where-Object {($_.LastWriteTime -lt (Get-Date).AddDays(-15))} | Remove-Item
-
-                    # Setup Log file name.
-                    $date = Get-Date
-                    $datestring = '{0}{1:d2}{2:d2}' -f $date.year,$date.month,$date.day
-                    $LogFileName = $LogFileDir + '\RegisterArc_' + $datestring + '.log'
-                
-                    Start-Transcript -LiteralPath $LogFileName -Append | Out-Null
-
-                    Write-Information 'Triggering Arc For Servers registration cmdlet'
-                    $arcStatus = Get-AzureStackHCIArcIntegration
-
-                    if ($arcStatus.ClusterArcStatus -eq 'Enabled')
-                    {
-                        $nodeStatus = $arcStatus.NodesArcStatus
-                
-                        if ($nodeStatus.Keys -icontains ($env:computername))
-                        {
-                            if ($nodeStatus[$env:computername.ToLowerInvariant()] -ne 'Enabled')
-                            {
-                                Write-Information 'Registering Arc for servers.'
-                                Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
-                                Sync-AzureStackHCI
-                            }
-                            else
-                            {
-                                Write-Information 'Node is already registered.'
-                            }
-                        }
-                        else
-                        {
-                            # New node added case.
-                            Write-Information 'Registering Arc for servers.'
-                            Enable-AzureStackHCIArcIntegration -AgentInstallerWebLink $AgentInstaller_WebLink -AgentInstallerName $AgentInstaller_Name -AgentInstallerLogFile $AgentInstaller_LogFile -AgentExecutablePath $AgentExecutable_Path
-                            Sync-AzureStackHCI
-                        }
-                    }
-                    else
-                    {
-                        Write-Information ('Cluster Arc status is not enabled. ClusterArcStatus:' + $arcStatus.ClusterArcStatus.ToString())
-                    }
-                }
-                catch
-                {
-                    Write-Error -Exception $_.Exception -Category OperationStopped
-                    # Get script line number, offset and Command that resulted in exception. Write-Error with the exception above does not write this info.
-                    $positionMessage = $_.InvocationInfo.PositionMessage
-                    Write-Error ('Exception occured in RegisterArcScript : ' + $positionMessage) -Category OperationStopped
-                }
-                finally
-                {
-                    try{ Stop-Transcript } catch {}
-                }
-            }
-
-            $task =  Get-ScheduledTask -CimSession $clustername -TaskName $ArcRegistrationTaskName -ErrorAction SilentlyContinue
-            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command $registerArcScript"
-                        
-            # Repeat the script every hour of every day, starting from now.
-            $date = Get-Date
-            $dailyTrigger = New-ScheduledTaskTrigger -Daily -At $date
-            $hourlyTrigger = New-ScheduledTaskTrigger -Once -At $date -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Hours 23 -Minutes 55)
-            $dailyTrigger.Repetition = $hourlyTrigger.Repetition
-
-            if (-Not $task)
-            {
-                Register-ClusteredScheduledTask -Cluster $ClusterName -TaskName $ArcRegistrationTaskName -TaskType ClusterWide -Action $action -Trigger $dailyTrigger
-            }else{
-                # Update cluster schedule task.
-                Set-ClusteredScheduledTask -TaskName $ArcRegistrationTaskName -Action $action -Trigger $dailyTrigger
-            }
+        Register-AzStackHCI -region $region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
 
 #endregion
 
@@ -341,6 +271,8 @@
 
         #Create Cluster
             New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+            Start-Sleep 5
+            Clear-DnsClientCache
 
         #configure Witness on DC
             #Create new directory
@@ -391,8 +323,13 @@
             Invoke-Command -ComputerName $servers -ScriptBlock {wevtutil.exe sl /q /e:true Microsoft-AzureStack-HCI/Debug}
         #register Azure Stack HCI
             $ResourceGroupName="AzureStackHCIClusters"
+            if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+                Install-Module -Name Az.Resources -Force
+            }
+            #choose location for cluster (and RG)
+            $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
             If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
-                New-AzResourceGroup -Name $ResourceGroupName -Location (Get-AzLocation | Out-GridView -OutputMode Single -Title "Please select Location").Location
+                New-AzResourceGroup -Name $ResourceGroupName -Location $region
             }
             #Register AZSHCi without prompting for creds
             $armTokenItemResource = "https://management.core.windows.net/"
@@ -403,10 +340,26 @@
             $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
             $id = $azContext.Account.Id
             #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-            Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
 
+        #validate registration status
+            #grab available commands for registration
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-Command -Module AzureStackHCI}
+            #validate cluster registration
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCI}
+            #validate certificates
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCIRegistrationCertificate}
+            #validate Arc integration
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCIArcIntegration}
 
-        #grab logs if something went wrong
+            #from above it looks fine, but assuming clustered registration fails, there will not be any registered clustered scheduled task (or any task)
+            $ArcRegistrationTaskName = "ArcRegistrationTask"
+            #empty output - no ArcRegistrationTask
+            Get-ClusteredScheduledTask -Cluster $ClusterName -TaskName $ArcRegistrationTaskName
+            #and no "ArcRegistrationTask" listed at all...
+            Get-ClusteredScheduledTask -Cluster $ClusterName
+
+            #grab logs if something went wrong (in case of failed clustered task registration it will be empty)
             $lognames = "Microsoft-AzureStack-HCI/Debug", "Microsoft-AzureStack-HCI/Admin", "Microsoft-Windows-Kernel-Boot/Operational", "Microsoft-Windows-Kernel-IO/Operational"
             $events=foreach ($logname in $Lognames){
                 Invoke-Command -ComputerName $Servers -ScriptBlock {Get-WinEvent -LogName $using:logname -oldest}   
@@ -506,6 +459,67 @@
                 # Update cluster schedule task.
                 Set-ClusteredScheduledTask -TaskName $ArcRegistrationTaskName -Action $action -Trigger $dailyTrigger
             }
+
+    #Validate task and start it
+        $ArcRegistrationTaskName = "ArcRegistrationTask"
+        Get-ClusteredScheduledTask -Cluster $ClusterName -TaskName $ArcRegistrationTaskName
+        Get-ScheduledTask -CimSession (Get-ClusterNode -Cluster $ClusterName).Name -TaskName $ArcRegistrationTaskName | Start-ScheduledTask
+
+    #explore arc install logs
+        Invoke-Command -ComputerName $ClusterName -Scriptblock {Get-ChildItem -Path c:\windows\Tasks\ArcForServers | Get-Content}
+
+    #if you still see issues, you might need to re-initialize Azure Stack Integration
+        <#
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
+        }
+        function Get-GraphAccessToken{
+            param(
+                [string] $TenantId,
+                [string] $EnvironmentName
+                )
+            
+                # Below commands ensure there is graph access token in cache
+                Get-AzADApplication -DisplayName SomeApp1 -ErrorAction Ignore | Out-Null
+            
+                $graphTokenItemResource = (Get-AzContext).Environment.GraphUrl
+            
+                $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+                $azContext = Get-AzContext
+                $graphTokenItem = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource)
+                return $graphTokenItem.AccessToken
+            }
+            
+        $azContext = Get-AzContext
+        $TenantId = $azContext.Tenant.Id
+        $AccountId = $azContext.Account.Id
+        $GraphAccessToken = Get-GraphAccessToken -TenantId $TenantId -EnvironmentName $EnvironmentName
+        
+        Connect-AzureAD -TenantId $TenantId -AadAccessToken $GraphAccessToken -AccountId $AccountId | Out-Null
+        
+        $arcStatus = Invoke-Command -computername $ClusterName -ScriptBlock { Get-AzureStackHCIArcIntegration }
+        $arcAppId = $arcStatus.ApplicationId
+        $app=Get-AzureADApplication -Filter "AppId eq '$arcAppId'"
+        $sp=Get-AzureADServicePrincipal -Filter "AppId eq '$arcAppId'"
+        #create password
+        $start = Get-Date
+        $end = $start.AddYears(300)
+        $pw = Retry-Command -ScriptBlock { New-AzureADServicePrincipalPasswordCredential -ObjectId $sp.ObjectId -StartDate $start -EndDate $end }
+        
+        $Region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -Title "Please select Location").Location
+        $ResourceGroupName="AzureStackHCIClusters"
+        
+        $ArcRegistrationParams = @{
+            AppId = $app.appid
+            Secret = $pw.value
+            TenantId = $TenantId
+            SubscriptionId = $SubscriptionId
+            Region = $Region
+            ResourceGroup = $ResourceGroupName
+        }
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock { Initialize-AzureStackHCIArcIntegration @Using:ArcRegistrationParams }
+        #>
+
 
     #Create Log Analytics Workspace if not available
         #Install module
@@ -664,6 +678,9 @@
 
     #Create Cluster
         New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+        Start-Sleep 5
+        Clear-DnsClientCache
+
 #endregion
 
 #region Network ATC - The Lab
@@ -885,6 +902,8 @@
 
         #Create Cluster
             New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+            Start-Sleep 5
+            Clear-DnsClientCache
 
         #enable S2D
             Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
@@ -941,6 +960,8 @@
 
         #Create Cluster
             New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+            Start-Sleep 5
+            Clear-DnsClientCache
 
     #configure Witness on DC
         #Create new directory
