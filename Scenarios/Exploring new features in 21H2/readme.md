@@ -243,9 +243,29 @@ Manual configuration result:
 
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell14.png)
 
-
-
 ## Thin provisioned volumes
+
+In this lab you will explore new Azure Stack HCI 21H2 feature [Storage Thin Provisioning](https://docs.microsoft.com/en-us/azure-stack/hci/manage/thin-provisioning).
+
+### Region Thin provisioned volumes - Prereqs
+
+This region will create simplest Cluster as possible. The only thing we want is to be able to create a volume.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Thin_Cluadmin01.png)
+
+### Region Thin provisioned volumes - The Lab
+
+Let's create 1TB fixed volume. As expected, it will consume 3TB (three-way mirror)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Thin_PowerShell01.png)
+
+On other hand, 1TB thin volume is consuming much less.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Thin_PowerShell02.png)
+
+Once Pool property ProvisioningTypeDefault is modified, if provisioningtype not specified, thin volume is created
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Thin_PowerShell03.png)
 
 ## Other features
 

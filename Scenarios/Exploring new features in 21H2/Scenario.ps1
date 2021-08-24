@@ -914,16 +914,21 @@
     $ClusterName="Thin-Cluster"
     #check Storage Pool (and AllocatedSize)
     Get-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName"
-    #create thick volume
-    New-Volume -CimSession $ClusterName -FriendlyName ThickVolume01 -Size 1TB -StoragePoolFriendlyName "S2D on $ClusterName"
+    #create fixed volume
+    New-Volume -CimSession $ClusterName -FriendlyName FixedVolume01 -Size 1TB -StoragePoolFriendlyName "S2D on $ClusterName"
     #check pool again
     Get-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName"
+    #check virtualdisk itself
+    Get-VirtualDisk -CimSession $ClusterName -FriendlyName FixedVolume01
+
     #and now let's create thin provisioned volume
     New-Volume -CimSession $ClusterName -FriendlyName ThinVolume01 -Size 1TB -StoragePoolFriendlyName "S2D on $ClusterName" -ProvisioningType Thin
     #let's compare sizes
+    Get-VirtualDisk -Cimsession $ClusterName
     $FootPrintOnPool=@{label="FootPrintOnPool(TB)";expression={$_.FootPrintOnPool/1TB}}
     $Size=@{label="Size(TB)";expression={$_.Size/1TB}}
     Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,$Size,$FootprintOnPool,ProvisioningType
+
     #let's explore default settings in Pool
     Get-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName" | Select-Object ProvisioningTypeDefault
     #and let's set default to Thin
