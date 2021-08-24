@@ -1,5 +1,24 @@
 # Exploring new features in 21H2
 
+<!-- TOC -->
+
+- [Exploring new features in 21H2](#exploring-new-features-in-21h2)
+    - [About lab](#about-lab)
+        - [Requirements](#requirements)
+    - [Rolling Cluster Upgrade](#rolling-cluster-upgrade)
+        - [Region Rolling Cluster Upgrade - Prereqs](#region-rolling-cluster-upgrade---prereqs)
+        - [Region Rolling Cluster Upgrade - The Lab](#region-rolling-cluster-upgrade---the-lab)
+    - [Azure Arc](#azure-arc)
+        - [Region Azure Arc - Prereqs](#region-azure-arc---prereqs)
+        - [Region Azure Arc - The Lab](#region-azure-arc---the-lab)
+    - [Network ATC](#network-atc)
+        - [Region Network ATC - Prereqs](#region-network-atc---prereqs)
+        - [Region Network ATC - The Lab](#region-network-atc---the-lab)
+    - [Thin provisioned volumes](#thin-provisioned-volumes)
+    - [Other features](#other-features)
+
+<!-- /TOC -->
+
 ## About lab
 
 In this lab we will demonstrate new featues in Windows Server 2022 and Azure Stack HCI 21H2. 
@@ -107,6 +126,8 @@ After (enable monitoring is available and Arc Agent is installed)
 
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal04.png)
 
+Also notice, that during registration App identity was created (to be able to register Arc Agents using a secret)
+
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Roll_Portal05.png)
 
 
@@ -172,11 +193,58 @@ It will simply push Arc Extensions to nodes (with Workspace configuration)
 
 In this lab you will explore new Azure Stack HCI 21H2 feature [Network ATC](https://docs.microsoft.com/en-us/azure-stack/hci/deploy/network-atc). It's bit complicated to simulate in virtual environment (it will ultimately fail to apply configuration due to lack of features available in physical environment) but it will give you nice overview of how the feature works and how different it is from configuring network "manually"
 
-### Region Azure Arc - Prereqs
+### Region Network ATC - Prereqs
 
-Prereqs region is simplified cluster deployment with enabled S2D and File Share witness. Notice, that cluster name is configured as Distributed Server Name.
+Prereqs region is very simple cluster with enabled S2D.
 
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_Cluadmin01.png)
+
+### Region Network ATC - The Lab
+
+Configuration created with module copied from Azure Stack HCI nodes to Windows Server 2022
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell01.png)
+
+Converged intent will be provisioned
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell02.png)
+
+And script will wait until configuration will be fully applied, or eventually fail (will take some time)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell03.png)
+
+Notice failed ConfigurationStatus
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell04.png)
+
+Let's explore what was configured
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell05.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell06.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell07.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell08.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell09.png)
+
+Since it did not end well (and there are still several network configurations that netATC does not cover) config will be cleaned up and deployed manually.
+
+Manual configuration result:
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell10.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell11.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell12.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell13.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/ATC_PowerShell14.png)
+
+
+
 ## Thin provisioned volumes
 
 ## Other features
