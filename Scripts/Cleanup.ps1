@@ -26,6 +26,9 @@ If (-not $isAdmin) {
         if (-not ($LabConfig.Prefix)){
             $labconfig.Prefix="$($PSScriptRoot | Split-Path -Leaf)-"
         }
+        if (-not ($LabConfig.SwitchName)){
+            $labconfig.SwitchName="LabSwitch"
+        }
 
     #grab all VMs, switches and DC
         $VMs=Get-VM -Name "$($LabConfig.Prefix)*" | Where-Object Name -ne "$($LabConfig.Prefix)DC" -ErrorAction SilentlyContinue | Sort-Object -Property Name

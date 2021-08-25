@@ -912,7 +912,7 @@ If (-not $isAdmin) {
                     $vSwitches | Select-Object Name,NetAdapterInterfaceDescriptions
                     WriteErrorAndExit "At least one NIC is connected to existing Virtual Switch, different than specified in Labconfig ($SwitchName)"
                 }else{
-                    New-VMSwitch -SwitchType External -Name $SwitchName -EnableEmbeddedTeaming $true -EnableIov $true -NetAdapterName $LabConfig.SwitchNics -AllowManagementOS $False
+                    New-VMSwitch -Name $SwitchName -EnableEmbeddedTeaming $true -EnableIov $true -NetAdapterName $LabConfig.SwitchNics -AllowManagementOS $False
                 }
             }else{
                 New-VMSwitch -SwitchType Private -Name $SwitchName
@@ -958,7 +958,7 @@ If (-not $isAdmin) {
                     WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
                 }else{
                     WriteInfo "`t Detecting external VMSwitch"
-                    $ExtSwitch=Get-VMSwitch -SwitchType External
+                    $ExtSwitch=Get-VMSwitch -SwitchType External | Where-Object Name -NotLike $SwitchName
                     if (!$ExtSwitch){
                         WriteInfoHighlighted "`t No External Switch detected. Will create one "
                         $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
