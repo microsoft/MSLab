@@ -1,3 +1,18 @@
+#region download MSCatalog module
+Write-Output "Checking if MSCatalog PS Module is Installed"
+if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
+    # Verify Running as Admin
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+    If (!( $isAdmin )) {
+        Write-Host "-- Restarting as Administrator to install Modules" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        exit
+    }
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-Module -Name MSCatalog -Force
+}
+#endregion
+
 $Products=@()
 $Products+=@{Product="Azure Stack HCI 20H2";SearchString="Cumulative Update for Azure Stack HCI, version 20H2"                ;SSUSearchString="Servicing Stack Update for Azure Stack HCI, version 20H2 for x64-based Systems" ; ID="Azure Stack HCI"}
 $Products+=@{Product="Windows Server 2019" ;SearchString="Cumulative Update for Windows Server 2019 for x64-based Systems"    ;SSUSearchString="Servicing Stack Update for Windows Server 2019 for x64-based Systems"           ; ID="Windows Server 2019"}
@@ -21,22 +36,6 @@ if($preview -eq "y"){
 
 #let user choose products
 $SelectedProducts=$Products.Product | Out-GridView -OutputMode Multiple -Title "Please select products to download Cumulative Updates and Servicing Stack Updates"
-
-#region download MSCatalog module
-Write-Output "Checking if MSCatalog PS Module is Installed"
-if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
-    # Verify Running as Admin
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-    If (!( $isAdmin )) {
-        Write-Host "-- Restarting as Administrator to install Modules" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
-        exit
-    }
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name MSCatalog -Force
-}
-
-#endregion
 
 #region download products
 Foreach($SelectedProduct in $SelectedProducts){

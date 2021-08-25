@@ -897,9 +897,26 @@ If (-not $isAdmin) {
         WriteInfoHighlighted "Creating Switch"
         WriteInfo "`t Checking if $SwitchName already exists..."
 
-        if ((Get-VMSwitch -Name $SwitchName -ErrorAction Ignore) -eq $Null){ 
+        if (-not (Get-VMSwitch -Name $SwitchName -ErrorAction Ignore)){ 
             WriteInfo "`t Creating $SwitchName..."
-            New-VMSwitch -SwitchType Private -Name $SwitchName
+            if ($LabConfig.SwitchNICs){
+                #test if NICs are not already connected to another switch
+                $VMSComponentStatus=Get-NetAdapterBinding -Name $LabConfig.SwitchNICs -ComponentID vms_pp
+                if (($VMSComponentStatus).Enabled -contains $true){
+                    $BoundNICs=$VMSComponentStatus | Where-Object Enabled -eq $true
+                    $InterfaceGUIDs=(Get-NetAdapter -Name $BoundNICs.Name).InterfaceGUID
+                    $vSwitches=ForEach ($InterfaceGUID in $InterfaceGUIDs){Get-VMSwitch | Where-Object NetAdapterInterfaceGuid -Contains $InterfaceGuid}
+                    WriteError "Following NICs are already bound to a Virtual Switch:"
+                    $BoundNICs
+                    WriteError "Virtual Switch list:"
+                    $vSwitches | Select-Object Name,NetAdapterInterfaceDescriptions
+                    WriteErrorAndExit "At least one NIC is connected to existing Virtual Switch, different than specified in Labconfig ($SwitchName)"
+                }else{
+                    New-VMSwitch -Name $SwitchName -EnableEmbeddedTeaming $true -EnableIov $true -NetAdapterName $LabConfig.SwitchNics -AllowManagementOS $False
+                }
+            }else{
+                New-VMSwitch -SwitchType Private -Name $SwitchName
+            }
         }else{
             $SwitchNameExists=$True
             WriteInfo "`t $SwitchName exists. Looks like lab with same prefix exists. "
@@ -941,7 +958,7 @@ If (-not $isAdmin) {
                     WriteSuccess "`t External vSwitch  $ExternalSwitchName detected"
                 }else{
                     WriteInfo "`t Detecting external VMSwitch"
-                    $ExtSwitch=Get-VMSwitch -SwitchType External
+                    $ExtSwitch=Get-VMSwitch -SwitchType External | Where-Object Name -NotLike $SwitchName
                     if (!$ExtSwitch){
                         WriteInfoHighlighted "`t No External Switch detected. Will create one "
                         $TempNetAdapters=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up
