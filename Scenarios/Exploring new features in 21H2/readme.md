@@ -346,9 +346,9 @@ Exploring results in report
 
 This lab is just for "academic" tryout. As the standalone storage space with SBC refuses to create, it will be attempted manuallu (without success). BUt it is good enough to provide insights into how SBC on Standalone server works
 
-As this is hyper-v environment, we will attempt to simulate different mediatype by setting smaller disk to SSD mediatype and larger to HDD. Unfortunately this "trick" will not work
-
 ### SBC: The Lab
+
+As this is hyper-v environment, we will attempt to simulate different mediatype by setting smaller disk to SSD mediatype and larger to HDD. Unfortunately this "trick" will not work
 
 ![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell01.png)
 
