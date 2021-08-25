@@ -1575,7 +1575,9 @@ If (-not $isAdmin) {
         } elseif($LabConfig.AutoStartAfterDeploy -eq "DeployedOnly") {
             $startVMs = 2
         }
-        
+
+        $CheckPointTime=Get-Date
+
         if(-not $LabConfig.ContainsKey("AutoStartAfterDeploy") -and $AllVMs.Count -gt 0) {
             $options = [System.Management.Automation.Host.ChoiceDescription[]] @(
                 <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "No VM will be started."
@@ -1610,7 +1612,7 @@ If (-not $isAdmin) {
     if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
         WriteInfo "Sending telemetry info"
         $metrics = @{
-            'script.duration' = [Math]::Round(((Get-Date) - $StartDateTime).TotalSeconds, 2)
+            'script.duration' = [Math]::Round(($CheckPointTime - $StartDateTime).TotalSeconds, 2)
             'lab.vmsCount.active' = ($AllVMs | Measure-Object).Count # how many VMs are running
             'lab.vmsCount.provisioned' = ($provisionedVMs | Measure-Object).Count # how many VMs were created by this script run
         }
@@ -1626,7 +1628,7 @@ If (-not $isAdmin) {
     }
 
     #write how much it took to deploy
-        WriteInfo "Script finished at $(Get-Date) and took $(((Get-Date) - $StartDateTime).TotalMinutes) Minutes"
+        WriteInfo "Script finished at $CheckPointTime and took $(($CheckPointTime - $StartDateTime).TotalMinutes) Minutes"
 
     Stop-Transcript
 
