@@ -16,14 +16,14 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
 #region Same as above, but with more explanation
     <#
     $LabConfig=@{
-        DomainAdminName='LabAdmin';                  # Used during 2_CreateParentDisks (no affect if changed after this step)
-        AdminPassword='LS1setup!';                   # Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
-        Prefix = 'MSLab-';                           # (Optional) All VMs and vSwitch are created with this prefix, so you can identify the lab. If not specified, Lab folder name is used
-        SwitchName = 'LabSwitch';                    # (Optional) Name of vSwitch
-        SwitchNICs = 'NIC1",NIC2" ;                  # (Optional) Adds these NICs to vSwitch (without connecting hostOS).
+        DomainAdminName="LabAdmin";                  # Used during 2_CreateParentDisks (no affect if changed after this step)
+        AdminPassword="LS1setup!";                   # Used during 2_CreateParentDisks. If changed after, it will break the functionality of 3_Deploy.ps1
+        Prefix = "MSLab-";                           # (Optional) All VMs and vSwitch are created with this prefix, so you can identify the lab. If not specified, Lab folder name is used
+        SwitchName = "LabSwitch";                    # (Optional) Name of vSwitch
+        SwitchNICs = "NIC1","NIC2";                  # (Optional) Adds these NICs to vSwitch (without connecting hostOS).
         SecureBoot=$true;                            # (Optional) Useful when testing unsigned builds (Useful for MS developers for daily builds)
-        DCEdition='4';                               # 4 for DataCenter or 3 for DataCenterCore
-        InstallSCVMM='No';                           # (Optional) Yes/Prereqs/SQL/ADK/No
+        DCEdition="4";                               # 4 for DataCenter or 3 for DataCenterCore
+        InstallSCVMM="No";                           # (Optional) Yes/Prereqs/SQL/ADK/No
         AdditionalNetworksInDC=$false;               # (Optional) If Additional networks should be added also to DC
         DomainNetbiosName="Corp";                    # (Optional) If set, custom domain NetBios name will be used. if not specified, Default "corp" will be used
         DomainName="Corp.contoso.com";               # (Optional) If set, custom DomainName will be used. If not specified, Default "Corp.contoso.com" will be used

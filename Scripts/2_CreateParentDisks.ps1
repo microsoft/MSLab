@@ -1108,11 +1108,15 @@ If (-not $isAdmin) {
 #region finishing
     WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
-    WriteInfoHighlighted "Do you want to cleanup unnecessary files and folders? Deault (Y)"
-    WriteInfo "`t (.\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy to just deploy)"
-    If ((Read-host "`t Please type Y or N") -like "*N"){
+    $options = [System.Management.Automation.Host.ChoiceDescription[]] @(
+        <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Cleanup .\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy.ps1 to just deploy.ps1"
+        <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Keep files (in case DC was not created sucessfully)"
+    )
+    $response = $host.UI.PromptForChoice("Unnecessary files cleanup","Do you want to cleanup unnecessary files and folders?", $options, 0 <#default option#>)
+
+    If ($response -eq 1){
         $renamed = $false
-        WriteInfo "`t You typed N, skipping cleanup"
+        WriteInfo "Skipping cleanup"
     }else{
         $renamed = $true
         WriteInfo "`t `t Cleaning unnecessary items"
