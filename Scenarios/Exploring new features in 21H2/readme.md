@@ -15,7 +15,16 @@
         - [Region Network ATC - Prereqs](#region-network-atc---prereqs)
         - [Region Network ATC - The Lab](#region-network-atc---the-lab)
     - [Thin provisioned volumes](#thin-provisioned-volumes)
+        - [Region Thin provisioned volumes - Prereqs](#region-thin-provisioned-volumes---prereqs)
+        - [Region Thin provisioned volumes - The Lab](#region-thin-provisioned-volumes---the-lab)
     - [Other features](#other-features)
+        - [Other features - Prereqs](#other-features---prereqs)
+        - [Other features - The Lab](#other-features---the-lab)
+            - [Dynamic Processor Compatibility](#dynamic-processor-compatibility)
+            - [Adjustable repair speed](#adjustable-repair-speed)
+            - [Kernel Soft Reboot](#kernel-soft-reboot)
+    - [Storage bus cache with Storage Spaces on standalone servers](#storage-bus-cache-with-storage-spaces-on-standalone-servers)
+        - [SBC: The Lab](#sbc-the-lab)
 
 <!-- /TOC -->
 
@@ -269,3 +278,102 @@ Once Pool property ProvisioningTypeDefault is modified, if provisioningtype not 
 
 ## Other features
 
+This lab just combines all knowledge mentioned above, so you can experiment with "Other features" - such as [Dynamic CPU Compatibility](https://docs.microsoft.com/en-us/azure-stack/hci/manage/processor-compatibility-mode), [Adjustable Repair Speed](https://docs.microsoft.com/en-us/azure-stack/hci/manage/storage-repair-speed) and [Kernel Soft Reboot](https://docs.microsoft.com/en-us/azure-stack/hci/manage/kernel-soft-reboot), 
+
+It deploys cluster almost like the real (production) cluster. However if you want to see real scenario, take a look at [AzSHCI Deployment](/Scenarios/AzSHCI%20Deployment/)
+
+### Other features - Prereqs
+
+Prereqs region will setup cluster end-to-end - with CSVs, VMs, CAU, complete network config...
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_Cluadmin01.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_Cluadmin02.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_Cluadmin03.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_Cluadmin04.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_Cluadmin05.png)
+
+### Other features - The Lab
+
+#### Dynamic Processor Compatibility
+
+As you can see, by default is processor compatibility disabled and configured for CommonClusterFeatureSet
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell01.png)
+
+If you try to modify the settings while VMs running, it will fail
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell02.png)
+
+You can simply shut down VMs one by one and configure settings while VM is off.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell03.png)
+
+#### Adjustable repair speed
+
+The lab is simple - it will show you current QD, you will try some different number than supported and then supported value.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell04.png)
+
+#### Kernel Soft Reboot
+
+Let's explore KSR configuration
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell05.png)
+
+And let's scan for some updates to test KSR
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell06.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell07.png)
+
+As you can see on below screenshot, boottype is SoftBoot and SoftBootStatus is Succeeded.
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell08.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell09.png)
+
+Exploring results in report
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell10.png)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/Other_PowerShell11.png)
+
+## Storage bus cache with Storage Spaces on standalone servers
+
+This lab is just for "academic" tryout. As the standalone storage space with SBC refuses to create, it will be attempted manuallu (without success). BUt it is good enough to provide insights into how SBC on Standalone server works
+
+As this is hyper-v environment, we will attempt to simulate different mediatype by setting smaller disk to SSD mediatype and larger to HDD. Unfortunately this "trick" will not work
+
+### SBC: The Lab
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell01.png)
+
+and all disks will fall back to unspecified mediatype again
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell02.png)
+
+Anyway, let's see if we can enable SBC Manually (please, don't do this in production, totally unsupported!)
+
+As you can see, the process is very similar to enabling S2D. We will create Pool that contains both SSDs and HDDs. Unlike S2D, the disks are all listed as Auto-Select usage (in S2D is faster tier dedicated to cache = Journal)
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell03.png)
+
+Since we are doing everything manually, let's also create tiers
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell04.png)
+
+Let's see if SBC is using any disks.. Well, there are no bindings since disks are virtual and fails when tried to update
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell05.png)
+
+And it did not help as well
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell06.png)
+
+But here these examples will work the same way in real environments
+
+![](/Scenarios/Exploring%20new%20features%20in%2021H2/Screenshots/SBC_PowerShell07.png)

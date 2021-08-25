@@ -943,6 +943,13 @@
     $Servers="Other1","Other2","Other3","Other4"
     $ClusterName="Other-Cluster"
     $CAURoleName="Other-Cl-CAU"
+    $vSwitchName="ConvergedSwitch"
+    $StorNet1="172.16.1."
+    $StorNet2="172.16.2."
+    $StorVLAN1=711
+    $StorVLAN2=712
+    $IP=10 #Start IP for SMB adapters
+
     #Configure S2D and create some VMs
         #install features for management remote cluster
             Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
@@ -963,39 +970,120 @@
         Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
         Start-Sleep 30 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
 
+        #configure network
+        
+            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+            Start-Sleep 5
+            Clear-DnsClientCache
+            #Check VMSwitches
+            Get-VMSwitch -CimSession $Servers
+
+            $Servers | ForEach-Object {
+                #Configure vNICs
+                Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -ComputerName $_
+                Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
+                Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
+
+                #configure IP Addresses
+                New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
+                New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
+                $IP++
+            }
+
+            #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
+
+            #Restart each host vNIC adapter so that the Vlan is active.
+            Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
+            Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
+
+            #Enable RDMA on the host vNIC adapters
+            Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
+
+            #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+            }
+            #configure JumboFrames
+            Set-NetAdapterAdvancedProperty -CimSession $Servers  -DisplayName "Jumbo Packet" -RegistryValue 9014
+
+            #Configure DCB
+                #Cinstall DCB feature
+                    foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+                #Configure QoS
+                    New-NetQosPolicy "SMB_Direct"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                    New-NetQosPolicy "Cluster"          -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
+                #Turn on Flow Control for SMB
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+                #Disable flow control for other traffic than 3 (pause frames should go only from prio 3)
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+                #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+                #Configure IeeePriorityTag
+                    #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+                #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch. This fails in MSLab (since NICs are virtual)
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+                #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+                #This value needs to match physical switch configuration. Value might vary based on your needs.
+                #If connected directly (in 2 node configuration) skip this step.
+                    Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB_Direct" -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                    Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "Cluster"    -Priority 7 -BandwidthPercentage 2 -Algorithm ETS}
+
+                #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+                    #install feature
+                    Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+                    #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+                    $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+                    $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+                    Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+
         #Create Cluster
-            New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
+            New-Cluster -Name $ClusterName -Node $servers #-ManagementPointNetworkType "Distributed"
             Start-Sleep 5
             Clear-DnsClientCache
 
-    #configure Witness on DC
-        #Create new directory
-            $WitnessName=$Clustername+"Witness"
-            Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
-            $accounts=@()
-            $accounts+="corp\$ClusterName$"
-            $accounts+="corp\Domain Admins"
-            New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
-        #Set NTFS permissions 
-            Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
-        #Set Quorum
-            Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+        #configure cluster networks
+            #configure cluster networks names
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB01"
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB02"
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq ClusterAndClient).Name="Management"
 
-    #add CAU role
-        #Install required features on nodes.
-            $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
-            foreach ($ClusterNode in $ClusterNodes){
-                Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+            #configure Live Migration
+            Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -eq "ClusterAndClient"}).ID))
+            Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+
+        #configure Witness on DC
+            #Create new directory
+                $WitnessName=$Clustername+"Witness"
+                Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+                $accounts=@()
+                $accounts+="corp\$ClusterName$"
+                $accounts+="corp\Domain Admins"
+                New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+            #Set NTFS permissions 
+                Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+            #Set Quorum
+                Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+        #add CAU role
+            #Install required features on nodes.
+                $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+                foreach ($ClusterNode in $ClusterNodes){
+                    Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+                }
+            Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+
+        #enable S2D
+            Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
+
+        #create volumes
+            1..4 | Foreach-Object {
+                New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size 10TB -FriendlyName "Volume$_" -ProvisioningType Thin
             }
-        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
-
-    #enable S2D
-        Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
-
-    #create volumes
-        1..4 | Foreach-Object {
-            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size 10TB -FriendlyName "Volume$_" -ProvisioningType Thin
-        }
 
     #register cluster to Azure
         #download Azure module
@@ -1017,30 +1105,41 @@
             $context=$context | Out-GridView -OutputMode Single
             $context | Set-AzContext
         }
-
         $subscriptionID=$context.subscription.id
 
-        #Register AZSHCi without prompting for creds again
-        $armTokenItemResource = "https://management.core.windows.net/"
-        $graphTokenItemResource = "https://graph.windows.net/"
-        $azContext = Get-AzContext
-        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
-        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
-        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
-        $id = $azContext.Account.Id
-        Register-AzStackHCI -Verbose -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+        #register Azure Stack HCI
+            $ResourceGroupName="AzureStackHCIClusters"
+            if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+                Install-Module -Name Az.Resources -Force
+            }
+            #choose location for cluster (and RG)
+            $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
+            If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+                New-AzResourceGroup -Name $ResourceGroupName -Location $region
+            }
+            #Register AZSHCi without prompting for creds
+            $armTokenItemResource = "https://management.core.windows.net/"
+            $graphTokenItemResource = "https://graph.windows.net/"
+            $azContext = Get-AzContext
+            $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+            $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+            $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+            $id = $azContext.Account.Id
+            #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
 
     #create some VMs
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name
         foreach ($CSV in $CSVs){
-            $CSV=($CSV -split '\((.*?)\)')[1]
-            1..2 | ForEach-Object {
-                $VMName="TestVM$($CSV)_$_"
-                New-Item -Path "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks" -ItemType Directory
-                Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" 
-                New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$CSV\" -VHDPath "c:\ClusterStorage\$CSV\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
-                Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-            }
+                $CSV=($CSV -split '\((.*?)\)')[1]
+                1..3 | ForEach-Object {
+                    $VMName="TestVM$($CSV)_$_"
+                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ScriptBlock {
+                        #create some empty VMs
+                        New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 128GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
+                    }
+                    Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
+                }
         }
         #Start all VMs
         Start-VM -VMname * -CimSession (Get-ClusterNode -Cluster $clustername).Name
@@ -1048,6 +1147,78 @@
 #endregion
 
 #region Other features - The Lab
+    #explore Dynamic Processor Compatibility https://docs.microsoft.com/en-us/azure-stack/hci/manage/processor-compatibility-mode
+        $ClusterName="Other-Cluster"
+        $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
+
+        #explore settings
+        Get-VMProcessor -VMName * -CimSession $Servers | Select-Object VMName,CompatibilityForMigration*,ComputerName
+
+        #let's enable ComatibilityForMigration
+        Set-VMProcessor -VMName * -CimSession $Servers -CompatibilityForMigrationEnabled $true
+
+        #you can see, that it's not possible to modify this parameter when machine is turned off. To minimize impact, let's configure feature machine by machine
+        $VMs=Get-VM -CimSession $Servers
+        foreach ($VM in $VMs){
+            $VM | Stop-VM -Force #as there is no OS, it will turn it off with force
+            $VM | Set-VMProcessor -CompatibilityForMigrationEnabled $true
+            $VM | Start-VM
+        }
+
+        #explore settings again
+        Get-VMProcessor -VMName * -CimSession $Servers | Select-Object VMName,CompatibilityForMigration*,ComputerName
+
+    #explore Adjustable Repair Speed https://docs.microsoft.com/en-us/azure-stack/hci/manage/storage-repair-speed
+        $ClusterName="Other-Cluster"
+        Get-StorageSubSystem -CimSession $ClusterName -FriendlyName "Clustered Windows Storage on $ClusterName" | Select-Object FriendlyName,VirtualDiskRepairQueueDepth
+        #as you can see, default value is 4. You can set numbers 1,2,4,8,16 where 16 is Most resources for repair/resync and 1 is most resources for workload
+
+        #let's adjust it to different than supported value (will fail)
+        Set-StorageSubSystem -CimSession $ClusterName -FriendlyName "Clustered Windows Storage on $ClusterName" -VirtualDiskRepairQueueDepth 3
+
+        #let's try 8 (will succeed)
+        Set-StorageSubSystem -CimSession $ClusterName -FriendlyName "Clustered Windows Storage on $ClusterName" -VirtualDiskRepairQueueDepth 8
+        Get-StorageSubSystem -CimSession $ClusterName -FriendlyName "Clustered Windows Storage on $ClusterName" | Select-Object FriendlyName,VirtualDiskRepairQueueDepth
+
+    #explore Kernel Soft Reboot
+        $ClusterName="Other-Cluster"
+        #list cluster parameters - as you can see, CauEnableSoftReboot does not exist
+        Get-Cluster -Name $ClusterName | Get-ClusterParameter
+        #let's create the value and validate
+        Get-Cluster -Name $ClusterName | Set-ClusterParameter -Name CauEnableSoftReboot -Value 1 -Create
+        Get-Cluster -Name $ClusterName | Get-ClusterParameter
+        #to delete it again you can run following command
+        Get-Cluster -Name $ClusterName | Set-ClusterParameter -Name CauEnableSoftReboot -Delete
+        Get-Cluster -Name $ClusterName | Get-ClusterParameter
+
+        #let's attempt CAU run with KSR
+            #make sure Cluster parameter is set
+            if (-not((Get-Cluster -Name $ClusterName | Get-ClusterParameter -Name CauEnableSoftReboot -ErrorAction Ignore).Value -eq 1)){
+                Write-Output "CAUEnableSoftReboot not configured, configuring"
+                Get-Cluster -Name $ClusterName | Set-ClusterParameter -Name CauEnableSoftReboot -Value 1 -Create
+                Get-Cluster -Name $ClusterName | Get-ClusterParameter
+            }
+            #run scan
+            $scan=Invoke-CauScan -ClusterName $ClusterName -CauPluginName "Microsoft.WindowsUpdatePlugin" -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
+            IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+            IsPresent=1 and DeploymentAction='Uninstallation' or
+            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
+
+            #list available updates
+            $scan | Select-Object NodeName,UpdateTitle | Out-GridView
+
+            #run install
+            Invoke-CauRun -ClusterName $ClusterName -AttemptSoftReboot -MaxFailedNodes 0 -MaxRetriesPerNode 1 -RequireAllNodesOnline -Force -CauPluginArguments @{QueryString = "IsInstalled=0 and DeploymentAction='Installation' or
+            IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+            IsPresent=1 and DeploymentAction='Uninstallation' or
+            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"}
+
+        #explore result
+            $report=Get-CauReport -ClusterName $ClusterName -Last -Detailed
+            $report
+            $report.ClusterResult.NodeResults
 
 #endregion
 
@@ -1094,9 +1265,11 @@
     New-StorageTier -CimSession $ServerName -StoragePoolFriendlyName "Storage Bus Cache on $ServerName" -FriendlyName "MirrorOnHDD" -MediaType HDD  -ResiliencySettingName Mirror -NumberOfDataCopies 2
     New-StorageTier -CimSession $ServerName -StoragePoolFriendlyName "Storage Bus Cache on $ServerName" -FriendlyName "ParityOnSSD" -MediaType SSD  -ResiliencySettingName Parity
     New-StorageTier -CimSession $ServerName -StoragePoolFriendlyName "Storage Bus Cache on $ServerName" -FriendlyName "MirrorOnSSD" -MediaType SSD  -ResiliencySettingName Mirror -NumberOfDataCopies 2
+    #validate
+    Get-StorageTier -CimSession $ServerName
 
     #the last step would be to validate cache binding
-    Invoke-Command -ComputerName $ServerName -ScriptBlock {Get-StorageBusCache}
+    Invoke-Command -ComputerName $ServerName -ScriptBlock {Get-StorageBusBinding}
     #as you can see, there is no binding
 
     #let's try to update binding
@@ -1104,6 +1277,10 @@
     #as you can see, it fails as disks are just virtual
 
     #let's try to add disks manually
+    $SSDs=Get-PhysicalDisk -CimSession $ServerName | Where-Object Mediatype -eq "SSD"
+    $SSDs
+    $HDDs=Get-PhysicalDisk -CimSession $ServerName | Where-Object Mediatype -eq "HDD"
+    $HDDs
     Invoke-Command -ComputerName $ServerName -ScriptBlock {New-StorageBusBinding -CacheNumber $using:SSDs[0].DeviceID -CapacityNumber $using:HDDs[0].DeviceID}
     Invoke-Command -ComputerName $ServerName -ScriptBlock {New-StorageBusBinding -CacheNumber $using:SSDs[1].DeviceID -CapacityNumber $using:HDDs[1].DeviceID}
     Invoke-Command -ComputerName $ServerName -ScriptBlock {New-StorageBusBinding -CacheNumber $using:SSDs[0].DeviceID -CapacityNumber $using:HDDs[2].DeviceID}
