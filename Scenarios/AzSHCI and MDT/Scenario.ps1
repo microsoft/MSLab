@@ -19,6 +19,8 @@
     #download and install binaries
         #Download files
         $files=@()
+        #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2026036" ; FileName="adksetup.exe" ; Description="Windows 10 ADK 1809"}
+        #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2022233" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE 1809"}
         $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2165884" ; FileName="adksetup.exe" ; Description="Windows 11 21H2 ADK"}
         $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2166133" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE for Windows 11 21H2"}
         $Files+=@{Uri="https://download.microsoft.com/download/3/3/9/339BE62D-B4B8-4956-B58D-73C4685FC492/MicrosoftDeploymentToolkit_x64.msi" ; FileName="MicrosoftDeploymentToolkit_x64.msi" ; Description="Microsoft Deployment Toolkit"}
@@ -86,6 +88,7 @@
 #region configure MDT
     $MDTServer="MDT"
     $DeploymentShareLocation="D:\DeploymentShare"
+    $Connection="TCPIP" #or "NamedPipes"
 
     #import MDT Module
     Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
@@ -102,35 +105,65 @@
     #map MDT deployment share as PSDrive
     New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
 
-    #Enable Named Pipes for SQLServer
+    #Configure SQL Services
+
     Invoke-Command -ComputerName $MDTServer -scriptblock {
-        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Np\" -Name Enabled -Value 1
-        #Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\" -Name Enabled -Value 1
-        #Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\IPAll" -Name TcpPort -Value 1433
+        if ($using:Connection -eq "NamedPipes"){
+            #Named Pipes
+            Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Np\" -Name Enabled -Value 1
+        }
+
+        if ($using:Connection -eq "TCPIP"){
+            #TCP
+            Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\" -Name Enabled -Value 1
+            Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\IPAll" -Name TcpPort -Value 1433
+        }
+
         Restart-Service 'MSSQL$SQLEXPRESS'
         Set-Service -Name SQLBrowser -StartupType Automatic
         Start-Service -Name SQLBrowser
     }
 
-    #create Firewall rule for SQL Browser binary
-        New-NetFirewallRule `
+    #create Firewall rule for SQL Server
+
+        if ($Connection -eq "TCPIP"){
+            New-NetFirewallRule `
             -CimSession $MDTServer `
             -Action Allow `
-            -Name "SQLBrowser-In-UDP" `
-            -DisplayName "SQLBrowser (SQL-In-UDP)" `
-            -Description "Inbound rule for SQLBrowser. [UDP-1434]" `
+            -Name "SQLExpress-In-TCP" `
+            -DisplayName "SQLExpress (SQL-In)" `
+            -Description "Inbound rule for SQL. [TCP-1433]" `
             -Enabled True `
             -Direction Inbound `
-            -Program "%ProgramFiles% (x86)\Microsoft SQL Server\90\Shared\sqlbrowser.exe" `
-            -Protocol UDP `
-            -LocalPort 1434 `
+            -Program "%ProgramFiles%\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQL\Binn\sqlservr.exe" `
+            -Protocol TCP `
+            -LocalPort 1433 `
             -Profile Any `
             -Group "SQL Express" `
             -RemoteAddress Any
+        }
+
+        New-NetFirewallRule `
+        -CimSession $MDTServer `
+        -Action Allow `
+        -Name "SQLBrowser-In-UDP" `
+        -DisplayName "SQLBrowser (SQL-In-UDP)" `
+        -Description "Inbound rule for SQLBrowser. [UDP-1434]" `
+        -Enabled True `
+        -Direction Inbound `
+        -Program "%ProgramFiles% (x86)\Microsoft SQL Server\90\Shared\sqlbrowser.exe" `
+        -Protocol UDP `
+        -LocalPort 1434 `
+        -Profile Any `
+        -Group "SQL Express" `
+        -RemoteAddress Any
 
     #create DB in MDT
-    New-MDTDatabase -path "DS001:" -SQLServer $MDTServer -Instance "SQLExpress" -Netlib "DBNMPNTW" -Database "MDTDB" -SQLShare "DeploymentShare$" -Verbose
-    #New-MDTDatabase -path "DS001:" -SQLServer $MDTServer  -Port "1433" -Netlib "DBMSSOCN" -Database "MDTDB" -Verbose
+    if ($Connection -eq "NamedPipes"){
+        New-MDTDatabase -path "DS001:" -SQLServer $MDTServer -Instance "SQLExpress" -Netlib "DBNMPNTW" -Database "MDTDB" -SQLShare "DeploymentShare$" -Verbose
+    }elseif ($Connection -eq "TCPIP"){
+        New-MDTDatabase -path "DS001:" -SQLServer $MDTServer  -Port "1433" -Netlib "DBMSSOCN" -Database "MDTDB" -Verbose
+    }
 
     #Import Operating System
     $ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_17784.1408_EN-US.iso" -PassThru
@@ -201,7 +234,7 @@ SkipBDDWelcome=YES
 "@
     $content | Set-Content -Path "$DeploymentShare\Control\Bootstrap.ini"
 
-    #update deployment share
+    #update deployment share to generate new WIM for WDS
     if (-not(get-module MicrosoftDeploymentToolkit)){
         Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
     }
@@ -330,9 +363,8 @@ New-NetFirewallRule `
 # Run from Management VM (Win11) or DC #
 ########################################
 
-$MDTServer="MDT"
-
 #region Create hash table out of machines that attempted boot last 5 minutes
+    $MDTServer="MDT"
 
     #in real world scenairos you can have hash table like this:
     <#
@@ -397,7 +429,8 @@ $MDTServer="MDT"
     }
     Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
     #Connect to DB
-    Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
+    #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
+    Connect-MDTDatabase -drivePath "DS001:\"
 
     #add hosts to MDT DB
     foreach ($HVHost in $HVHosts){
@@ -456,8 +489,19 @@ $MDTServer="MDT"
 #region replace customsettings.ini with all DB data to query (wizard output)
     $MDTServer="MDT"
     $DeploymentShareLocation="D:\DeploymentShare"
+    $Connection="TCPIP" #or "NamedPipes"
 
-    $content=@"
+    if ($Connection -eq "NamedPipes"){
+        $Netlib="DBNMPNTW"
+    }elseif($Connection -eq "TCPIP"){
+        $Netlib="DBMSSOCN"
+        $Creds=@"
+DBID=MDTSQLUser
+DBPwd=LS1setup!
+"@
+    }
+
+$content=@"
 [Settings]
 Priority=CSettings, CPackages, CApps, CAdmins, CRoles, Locations, LSettings, LPackages, LApps, LAdmins, LRoles, MMSettings, MMPackages, MMApps, MMAdmins, MMRoles, RSettings, RPackages, RApps, RAdmins, Default
 Properties=MyCustomProperty
@@ -470,20 +514,22 @@ SkipProductKey=YES
 EventService=http://$($MDTServer):9800
 
 [CSettings]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=ComputerSettings
 Parameters=UUID, AssetTag, SerialNumber, MacAddress
 ParameterCondition=OR
 
 [CPackages]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=ComputerPackages
 Parameters=UUID, AssetTag, SerialNumber, MacAddress
@@ -491,10 +537,11 @@ ParameterCondition=OR
 Order=Sequence
 
 [CApps]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=ComputerApplications
 Parameters=UUID, AssetTag, SerialNumber, MacAddress
@@ -502,162 +549,179 @@ ParameterCondition=OR
 Order=Sequence
 
 [CAdmins]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=ComputerAdministrators
 Parameters=UUID, AssetTag, SerialNumber, MacAddress
 ParameterCondition=OR
 
 [CRoles]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=ComputerRoles
 Parameters=UUID, AssetTag, SerialNumber, MacAddress
 ParameterCondition=OR
 
 [Locations]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=Locations
 Parameters=DefaultGateway
 
 [LSettings]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=LocationSettings
 Parameters=DefaultGateway
 
 [LPackages]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=LocationPackages
 Parameters=DefaultGateway
 Order=Sequence
 
 [LApps]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=LocationApplications
 Parameters=DefaultGateway
 Order=Sequence
 
 [LAdmins]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=LocationAdministrators
 Parameters=DefaultGateway
 
 [LRoles]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=LocationRoles
 Parameters=DefaultGateway
 
 [MMSettings]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=MakeModelSettings
 Parameters=Make, Model
 
 [MMPackages]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=MakeModelPackages
 Parameters=Make, Model
 Order=Sequence
 
 [MMApps]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=MakeModelApplications
 Parameters=Make, Model
 Order=Sequence
 
 [MMAdmins]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=MakeModelAdministrators
 Parameters=Make, Model
 
 [MMRoles]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=MakeModelRoles
 Parameters=Make, Model
 
 [RSettings]
+$creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=RoleSettings
 Parameters=Role
 
 [RPackages]
+$Creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=RolePackages
 Parameters=Role
 Order=Sequence
 
 [RApps]
+$creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=RoleApplications
 Parameters=Role
 Order=Sequence
 
 [RAdmins]
+$creds
 SQLServer=$MDTServer
 Instance=SQLExpress
 Database=MDTDB
-Netlib=DBNMPNTW
+Netlib=$Netlib
 SQLShare=DeploymentShare$
 Table=RoleAdministrators
 Parameters=Role
@@ -668,45 +732,16 @@ Parameters=Role
     }
 #endregion
 
-#region configure SQL to be able to access it remotely using MDTUser account
-
-    #create Firewall rule for SQL Server, so client can access settings (already done)
-    <#
-    New-NetFirewallRule `
-    -CimSession $MDTServer `
-    -Action Allow `
-    -Name "SQLExpress-In-TCP" `
-    -DisplayName "SQLExpress (SQL-In)" `
-    -Description "Inbound rule for SQL. [TCP-1433]" `
-    -Enabled True `
-    -Direction Inbound `
-    -Program "%ProgramFiles%\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQL\Binn\sqlservr.exe" `
-    -Protocol TCP `
-    -LocalPort 1433 `
-    -Profile Any `
-    -Group "SQL Express" `
-    -RemoteAddress Any
-    #>
-    <#
-    New-NetFirewallRule
-    -CimSession $MDTServer `
-    -Action Allow `
-    -Name "SQLBrowser-In-UDP" `
-    -DisplayName "SQLBrowser (SQL-In-UDP)" `
-    -Description "Inbound rule for SQLBrowser. [UDP-1434]" `
-    -Enabled True `
-    -Direction Inbound `
-    -Program "%ProgramFiles% (x86)\Microsoft SQL Server\90\Shared\sqlbrowser.exe" `
-    -Protocol UDP `
-    -LocalPort 1434 `
-    -Profile Any `
-    -Group "SQL Express" `
-    -RemoteAddress Any
-    #>
+#region configure SQL to be able to access it remotely using MDTUser account(NamedPipes) or create dedicated SQL user (TCPIP)
+    $MDTServer="MDT"
+    $Connection="TCPIP" #or "NamedPipes"
 
     #Add permissions for MDT account to sql database
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name sqlserver -AllowClobber -Force
+
+    if ($Connection -eq "NamedPipes"){
+            #Named Pipes
     $sqlscript=@'
 USE [master]
 GO
@@ -720,10 +755,36 @@ USE [MDTDB]
 GO
 ALTER ROLE [db_datareader] ADD MEMBER [corp\mdtuser]
 GO
+
 '@
+        Invoke-Sqlcmd -ServerInstance $MDTServer\sqlexpress -Database MDTDB -Query $sqlscript
 
-    Invoke-Sqlcmd -ServerInstance $MDTServer\sqlexpress -Database MDTDB -Query $sqlscript
+    }elseif($Connection -eq "TCPIP"){
+        #TCP (add user and change authentication mode to be able to use both SQL and Windows Auth
+        $sqlscript=@'
+USE [master]
+GO
+CREATE LOGIN [MDTSQLUser] WITH PASSWORD='LS1setup!', DEFAULT_DATABASE=[MDTDB]
+GO
+USE [MDTDB]
+GO
+CREATE USER [MDTSQLUser] FOR LOGIN [MDTSQLUser]
+GO
+ALTER ROLE [db_datareader] ADD MEMBER [MDTSQLUser]
+GO
+USE [master]
+GO
+EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServer\MSSQLServer', N'LoginMode', REG_DWORD, 2
+GO
 
+'@
+        #TCP
+        Invoke-Sqlcmd -ServerInstance "tcp:$MDTServer" -Database MDTDB -Query $sqlscript
+        #restart service to apply mixed auth mode
+        Invoke-Command -ComputerName $MDTServer -scriptblock {
+            Restart-Service 'MSSQL$SQLEXPRESS'
+        }
+    }
 #endregion
 
 ################################################
