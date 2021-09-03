@@ -1,10 +1,17 @@
 #run all from DC or management machine (Windows 11 or Windows Server 2022)
 
-#region prereqs
+#region variables
     $MDTServer="MDT"
-    #download folder location
+    $DeploymentShareLocation="D:\DeploymentShare"
+    $Connection="TCPIP" #or "NamedPipes"
     $downloadfolder="$env:USERPROFILE\Downloads"
+    $WDSRoot="D:\RemoteInstall"
+    $DHCPServer="DC"
+    $ScopeID="10.0.0.0"
 
+#endregion
+
+#region prereqs
     #install management features (ADDS, DHCP,...)
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     If ($WindowsInstallationType -like "Server*"){
@@ -86,10 +93,6 @@
 #endregion
 
 #region configure MDT
-    $MDTServer="MDT"
-    $DeploymentShareLocation="D:\DeploymentShare"
-    $Connection="TCPIP" #or "NamedPipes"
-
     #import MDT Module
     Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
     #list commands
@@ -101,7 +104,7 @@
         New-Item -Path $using:DeploymentShareLocation -ItemType Directory -ErrorAction Ignore
         New-SmbShare -Name "DeploymentShare$" -Path "$using:DeploymentShareLocation" -FullAccess Administrators
     }
-
+    Start-Sleep 5
     #map MDT deployment share as PSDrive
     New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
 
@@ -187,8 +190,6 @@
 #endregion
 
 #region configure MDT run-as account
-    $MDTServer="MDT"
-
     #create identity for MDT
     New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
@@ -217,9 +218,6 @@
 #endregion
 
 #region configure Bootstrap ini and generate WinPE
-    $MDTServer="MDT"
-    $DeploymentShare="\\$MDTServer\DeploymentShare$"
-
     #populate bootstrap.ini
     $content=@"
 [Settings]
@@ -246,10 +244,6 @@ SkipBDDWelcome=YES
 #endregion
 
 #region Install and configure WDS
-    $MDTServer="MDT"
-    $DeploymentShareLocation="D:\DeploymentShare"
-    $WDSRoot="D:\RemoteInstall"
-
     #install WDS
     Install-WindowsFeature -Name WDS -ComputerName $MDTServer -IncludeManagementTools -IncludeAllSubFeature
 
@@ -282,215 +276,46 @@ SkipBDDWelcome=YES
     #Disable CredSSP
     Disable-WSManCredSSP -Role Client
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {Disable-WSManCredSSP Server}
-#endregion
 
-#region configure MDT Monitoring
-$MDTServer="MDT"
-$DeploymentShareLocation="D:\DeploymentShare"
-Invoke-Command -ComputerName $MDTServer -ScriptBlock {
-    if (-not(get-module MicrosoftDeploymentToolkit)){
-        Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
-    }
-    if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
-        New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "$using:DeploymentShareLocation" -Description "MDT Deployment Share" -NetworkPath "\\$using:MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
-    }
-    #configure ports in MDT
-    Set-ItemProperty DS001:\ -name MonitorHost -value $using:MDTServer
-    #enable service
-    Enable-MDTMonitorService -EventPort 9800 -DataPort 9801
-}
-
-#add firewall rule
-New-NetFirewallRule `
-    -CimSession $MDTServer `
-    -Action Allow `
-    -Name "MDT-Monitoring-In-TCP" `
-    -DisplayName "MDT (Monitoring-In-TCP)" `
-    -Description "Inbound rule for MDT Monitoring. [TCP-9800,9801]" `
-    -Enabled True `
-    -Direction Inbound `
-    -Program "System" `
-    -Protocol UDP `
-    -LocalPort 9800,9801 `
-    -Profile Any `
-    -Group "MDT" `
-    -RemoteAddress Any
-#endregion
-
-#####################################
-#       Run from Hyper-V Host       #
-#                                   #
-# ! Adjust LabPrefix and VMs Path ! #
-#####################################
-
-#region Run from Hyper-V Host to create new, empty VMs
-    #some variables
-    $LabPrefix="MSLab20348.169-"
-    $vSwitchName="$($LabPrefix)LabSwitch"
-    $VMsPath="D:\MSLab20348.169\LAB\VMs"
-    $VMNames="AzHCI1","AzHCI2","AzHCI3","AzHCI4"
-    $NumberOfHDDs=4
-    $SizeOfHDD=4TB
-    $MemoryStartupBytes=4GB
-    #create some blank VMs
-    foreach ($VMName in $VMNames){
-            $VMName="$LabPrefix$VMName"
-            New-VM -Name $VMName -NewVHDPath "$VMsPath\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 128GB -SwitchName $vSwitchName -Generation 2 -Path "$VMsPath" -MemoryStartupBytes $MemoryStartupBytes
-            1..$NumberOfHDDs | ForEach-Object {
-                $VHD=New-VHD -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx" -SizeBytes $SizeOfHDD
-                Add-VMHardDiskDrive -VMName $VMName -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx"
-            }
-            #Add Adapter
-            Add-VMNetworkAdapter -VMName $VMName -SwitchName $vSwitchName
-            #configure Nested Virt and 2 cores
-            Set-VMProcessor -ExposeVirtualizationExtensions $true -VMName $VMName -Count 2
-            #configure Memory
-            Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
-            #configure network adapters
-            Set-VMNetworkAdapter -VMName $VMName -AllowTeaming On -MacAddressSpoofing On
-            Set-VMNetworkAdapterVlan -VMName $VMName -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
-            #disable automatic checkpoints
-            if ((get-vm -VMName $VMName).AutomaticCheckpointsEnabled -eq $True){
-                Set-VM -Name $VMName -AutomaticCheckpointsEnabled $False
-            }
-            #Start VM
-            Start-VM -Name $VMName
-    }
-
-#endregion
-
-########################################
-# Run from Management VM (Win11) or DC #
-########################################
-
-#region Create hash table out of machines that attempted boot last 5 minutes
-    $MDTServer="MDT"
-
-    #in real world scenairos you can have hash table like this:
-    <#
-    $HVHosts = @()
-    $HVHosts+=@{ComputerName="AzSHCI1"  ;IPAddress="10.0.0.101" ; MACAddress="00:15:5D:01:20:3B" ; GUID="FFB429BB-1521-47C6-88BF-F5F2D1BA17F5"}
-    $HVHosts+=@{ComputerName="AzSHCI2"  ;IPAddress="10.0.0.102" ; MACAddress="00:15:5D:01:20:3E" ; GUID="056423D7-6BAC-460F-AD0D-78AF6D26E151"}
-    $HVHosts+=@{ComputerName="AzSHCI3"  ;IPAddress="10.0.0.103" ; MACAddress="00:15:5D:01:20:40" ; GUID="D1DF2157-8EE0-4C7A-A0FD-6E7779C62FCE"}
-    $HVHosts+=@{ComputerName="AzSHCI4"  ;IPAddress="10.0.0.104" ; MACAddress="00:15:5D:01:20:42" ; GUID="7392BBB5-99D7-4EEE-9C22-4CA6EB6058FB"}
-    #>
-
-    #grab machines that attempted to boot in last 5 minutes and create hash table.
-    $HVHosts=Invoke-Command -ComputerName $MDTServer -ScriptBlock {
-        $IpaddressScope="10.0.0."
-        $IPAddressStart=101 #starting this number IPs will be asigned
-        $ServersNamePrefix="AzSHCI"
-        $events=Get-WinEvent -FilterHashtable @{LogName="Microsoft-Windows-Deployment-Services-Diagnostics/Operational";Id=4132;StartTime=(get-date).AddMinutes(-5)} | Where-Object Message -like "*it is not recognized*" | Sort-Object TimeCreated
-        $HVHosts = @()
-        $GUIDS=@()
-        $i=1
-        foreach ($event in $events){
-            [System.Diagnostics.Eventing.Reader.EventLogRecord]$event=$event
-            if (!($guids).Contains($event.properties.value[2])){
-                $HVHosts+= @{ ComputerName="$ServersNamePrefix$i";GUID = $event.properties.value[2] -replace '[{}]' ; MACAddress = $event.properties.value[0] -replace "-",":" ; IPAddress="$IpaddressScope$($IPAddressStart.tostring())"}
-                $i++
-                $IPAddressStart++
-                $GUIDS+=$event.properties.value[2]
-            }
-        }
-        Return $HVHosts
-    }
-
-
-#endregion
-
-#region create DHCP reservation for machines
-    #Create DHCP reservations for Hyper-V hosts
-        $DHCPServer="DC"
-        $ScopeID="10.0.0.0"
-        #Add DHCP Reservations
-        foreach ($HVHost in $HVHosts){
-            if (!(Get-DhcpServerv4Reservation -ErrorAction SilentlyContinue -ComputerName $DHCPServer -ScopeId $ScopeID -ClientId ($HVHost.MACAddress).Replace(":","") | Where-Object IPAddress -eq $HVHost.IPAddress)){
-                Add-DhcpServerv4Reservation -ComputerName $DHCPServer -ScopeId $ScopeID -IPAddress $HVHost.IPAddress -ClientId ($HVHost.MACAddress).Replace(":","")
-            }
-        }
-
-    #configure NTP server in DHCP (might be useful if Servers have issues with time)
-        if (!(get-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -ErrorAction SilentlyContinue)){
-            Set-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -Value "10.0.0.1"
-        }
-#endregion
-
-#region add deploy info to AD Object and MDT Database
-    $MDTServer="MDT"
-
-    #download and unzip mdtdb (blog available in web.archive only https://web.archive.org/web/20190421025144/https://blogs.technet.microsoft.com/mniehaus/2009/05/14/manipulating-the-microsoft-deployment-toolkit-database-using-powershell/)
-    #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
-    Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
-
-    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
-    if ((Get-ExecutionPolicy) -eq "Restricted"){
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-    }
-    Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
-    #Connect to DB
-    #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
-    Connect-MDTDatabase -drivePath "DS001:\"
-
-    #add hosts to MDT DB
-    foreach ($HVHost in $HVHosts){
-        if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
-            New-ADComputer -Name $hvhost.ComputerName
-        }
-        #add to MDT DB
-        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
-            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
-                ComputerName        = $HVHost.ComputerName 
-                OSDComputerName     = $HVHost.ComputerName 
-                #SkipBDDWelcome      = 'Yes' 
-            }
-        }
-        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
-    }
-
-    #Configure MDT DB Roles
-        if (-not (Get-MDTRole -name azshci)){
-            New-MDTRole -name AZSHCI -settings @{
-                SkipTaskSequence    = 'YES'
-                SkipWizard          = 'YES'
-                SkipSummary         = 'YES'
-                SkipApplications    = 'YES'
-                TaskSequenceID      = 'AZSHCI'
-                SkipFinalSummary    = 'YES'
-                FinishAction        = 'LOGOFF'
-            }
-        }
-
-        if (-not (Get-MDTRole -name JoinDomain)){
-            New-MDTRole -name JoinDomain -settings @{
-                SkipComputerName    ='YES'
-                SkipDomainMembership='YES'
-                JoinDomain          ='corp.contoso.com'
-                DomainAdmin         ='MDTUser'
-                DomainAdminDomain   ='corp'
-                DomainAdminPassword ='LS1setup!'
-            }
-        }
-
-    #allow machines to boot from PXE from DC by adding info into AD Object
-    foreach ($HVHost in $HVHosts){
-        [guid]$guid=$HVHost.GUID
-        Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
-        #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
-    }
-
+    
     #Mitigate issue with Variable Window Extension
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {
         Wdsutil /Set-TransportServer /EnableTftpVariableWindowExtension:No
     }
+#endregion
 
+#region configure MDT Monitoring
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {
+        if (-not(get-module MicrosoftDeploymentToolkit)){
+            Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+        }
+        if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+            New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "$using:DeploymentShareLocation" -Description "MDT Deployment Share" -NetworkPath "\\$using:MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        }
+        #configure ports in MDT
+        Set-ItemProperty DS001:\ -name MonitorHost -value $using:MDTServer
+        #enable service
+        Enable-MDTMonitorService -EventPort 9800 -DataPort 9801
+    }
+
+    #add firewall rule
+    New-NetFirewallRule `
+        -CimSession $MDTServer `
+        -Action Allow `
+        -Name "MDT-Monitoring-In-TCP" `
+        -DisplayName "MDT (Monitoring-In-TCP)" `
+        -Description "Inbound rule for MDT Monitoring. [TCP-9800,9801]" `
+        -Enabled True `
+        -Direction Inbound `
+        -Program "System" `
+        -Protocol UDP `
+        -LocalPort 9800,9801 `
+        -Profile Any `
+        -Group "MDT" `
+        -RemoteAddress Any
 #endregion
 
 #region replace customsettings.ini with all DB data to query (wizard output)
-    $MDTServer="MDT"
-    $DeploymentShareLocation="D:\DeploymentShare"
-    $Connection="TCPIP" #or "NamedPipes"
-
     if ($Connection -eq "NamedPipes"){
         $Netlib="DBNMPNTW"
     }elseif($Connection -eq "TCPIP"){
@@ -499,9 +324,9 @@ New-NetFirewallRule `
 DBID=MDTSQLUser
 DBPwd=LS1setup!
 "@
-    }
+}
 
-$content=@"
+    $content=@"
 [Settings]
 Priority=CSettings, CPackages, CApps, CAdmins, CRoles, Locations, LSettings, LPackages, LApps, LAdmins, LRoles, MMSettings, MMPackages, MMApps, MMAdmins, MMRoles, RSettings, RPackages, RApps, RAdmins, Default
 Properties=MyCustomProperty
@@ -727,19 +552,19 @@ Table=RoleAdministrators
 Parameters=Role
 "@
 
-    Invoke-Command -ComputerName $MDTServer -ScriptBLock {
-        $using:content | Set-Content "$using:DeploymentShareLocation\Control\CustomSettings.ini"
-    }
+Invoke-Command -ComputerName $MDTServer -ScriptBLock {
+    $using:content | Set-Content "$using:DeploymentShareLocation\Control\CustomSettings.ini"
+}
 #endregion
 
 #region configure SQL to be able to access it remotely using MDTUser account(NamedPipes) or create dedicated SQL user (TCPIP)
-    $MDTServer="MDT"
-    $Connection="TCPIP" #or "NamedPipes"
-
     #Add permissions for MDT account to sql database
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name sqlserver -AllowClobber -Force
-
+    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
+    if ((Get-ExecutionPolicy) -eq "Restricted"){
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    }
     if ($Connection -eq "NamedPipes"){
             #Named Pipes
     $sqlscript=@'
@@ -757,11 +582,11 @@ ALTER ROLE [db_datareader] ADD MEMBER [corp\mdtuser]
 GO
 
 '@
-        Invoke-Sqlcmd -ServerInstance $MDTServer\sqlexpress -Database MDTDB -Query $sqlscript
+    Invoke-Sqlcmd -ServerInstance $MDTServer\sqlexpress -Database MDTDB -Query $sqlscript
 
-    }elseif($Connection -eq "TCPIP"){
-        #TCP (add user and change authentication mode to be able to use both SQL and Windows Auth
-        $sqlscript=@'
+}elseif($Connection -eq "TCPIP"){
+    #TCP (add user and change authentication mode to be able to use both SQL and Windows Auth
+    $sqlscript=@'
 USE [master]
 GO
 CREATE LOGIN [MDTSQLUser] WITH PASSWORD='LS1setup!', DEFAULT_DATABASE=[MDTDB]
@@ -778,25 +603,457 @@ EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServe
 GO
 
 '@
-        #TCP
-        Invoke-Sqlcmd -ServerInstance "tcp:$MDTServer" -Database MDTDB -Query $sqlscript
-        #restart service to apply mixed auth mode
-        Invoke-Command -ComputerName $MDTServer -scriptblock {
-            Restart-Service 'MSSQL$SQLEXPRESS'
-        }
+    #TCP
+    Invoke-Sqlcmd -ServerInstance "tcp:$MDTServer" -Database MDTDB -Query $sqlscript
+    #restart service to apply mixed auth mode
+    Invoke-Command -ComputerName $MDTServer -scriptblock {
+        Restart-Service 'MSSQL$SQLEXPRESS'
     }
+}
+#endregion
+
+#####################################
+#       Run from Hyper-V Host       #
+#                                   #
+# ! Adjust LabPrefix and VMs Path ! #
+#####################################
+
+#region Run from Hyper-V Host to create new, empty VMs
+    #some variables
+    $LabPrefix="MSLab20348.169-"
+    $vSwitchName="$($LabPrefix)LabSwitch"
+    $VMsPath="D:\MSLab20348.169\LAB\VMs"
+    $VMNames="AzHCI1","AzHCI2","AzHCI3","AzHCI4"
+    $NumberOfHDDs=4
+    $SizeOfHDD=4TB
+    $MemoryStartupBytes=4GB
+    #create some blank VMs
+    foreach ($VMName in $VMNames){
+            $VMName="$LabPrefix$VMName"
+            New-VM -Name $VMName -NewVHDPath "$VMsPath\$VMName\Virtual Hard Disks\$VMName.vhdx" -NewVHDSizeBytes 128GB -SwitchName $vSwitchName -Generation 2 -Path "$VMsPath" -MemoryStartupBytes $MemoryStartupBytes
+            1..$NumberOfHDDs | ForEach-Object {
+                $VHD=New-VHD -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx" -SizeBytes $SizeOfHDD
+                Add-VMHardDiskDrive -VMName $VMName -Path "$VMsPath\$VMName\Virtual Hard Disks\HDD$_.vhdx"
+            }
+            #Add Adapter
+            Add-VMNetworkAdapter -VMName $VMName -SwitchName $vSwitchName
+            #configure Nested Virt and 2 cores
+            Set-VMProcessor -ExposeVirtualizationExtensions $true -VMName $VMName -Count 2
+            #configure Memory
+            Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
+            #configure network adapters
+            Set-VMNetworkAdapter -VMName $VMName -AllowTeaming On -MacAddressSpoofing On
+            Set-VMNetworkAdapterVlan -VMName $VMName -Trunk -NativeVlanId 0 -AllowedVlanIdList "1-10"
+            #disable automatic checkpoints
+            if ((get-vm -VMName $VMName).AutomaticCheckpointsEnabled -eq $True){
+                Set-VM -Name $VMName -AutomaticCheckpointsEnabled $False
+            }
+            #Start VM
+            Start-VM -Name $VMName
+    }
+
+#endregion
+
+########################################
+# Run from Management VM (Win11) or DC #
+########################################
+
+#region Create hash table out of machines that attempted boot last 5 minutes
+    #in real world scenairos you can have hash table like this:
+    <#
+    $HVHosts = @()
+    $HVHosts+=@{ComputerName="AzSHCI1"  ;IPAddress="10.0.0.101" ; MACAddress="00:15:5D:01:20:3B" ; GUID="FFB429BB-1521-47C6-88BF-F5F2D1BA17F5"}
+    $HVHosts+=@{ComputerName="AzSHCI2"  ;IPAddress="10.0.0.102" ; MACAddress="00:15:5D:01:20:3E" ; GUID="056423D7-6BAC-460F-AD0D-78AF6D26E151"}
+    $HVHosts+=@{ComputerName="AzSHCI3"  ;IPAddress="10.0.0.103" ; MACAddress="00:15:5D:01:20:40" ; GUID="D1DF2157-8EE0-4C7A-A0FD-6E7779C62FCE"}
+    $HVHosts+=@{ComputerName="AzSHCI4"  ;IPAddress="10.0.0.104" ; MACAddress="00:15:5D:01:20:42" ; GUID="7392BBB5-99D7-4EEE-9C22-4CA6EB6058FB"}
+    #>
+
+    #grab machines that attempted to boot in last 5 minutes and create hash table.
+    $HVHosts=Invoke-Command -ComputerName $MDTServer -ScriptBlock {
+        $IpaddressScope="10.0.0."
+        $IPAddressStart=101 #starting this number IPs will be asigned
+        $ServersNamePrefix="AzSHCI"
+        $events=Get-WinEvent -FilterHashtable @{LogName="Microsoft-Windows-Deployment-Services-Diagnostics/Operational";Id=4132;StartTime=(get-date).AddMinutes(-5)} | Where-Object Message -like "*it is not recognized*" | Sort-Object TimeCreated
+        $HVHosts = @()
+        $GUIDS=@()
+        $i=1
+        foreach ($event in $events){
+            [System.Diagnostics.Eventing.Reader.EventLogRecord]$event=$event
+            if (!($guids).Contains($event.properties.value[2])){
+                $HVHosts+= @{ ComputerName="$ServersNamePrefix$i";GUID = $event.properties.value[2] -replace '[{}]' ; MACAddress = $event.properties.value[0] -replace "-",":" ; IPAddress="$IpaddressScope$($IPAddressStart.tostring())"}
+                $i++
+                $IPAddressStart++
+                $GUIDS+=$event.properties.value[2]
+            }
+        }
+        Return $HVHosts
+    }
+
+
+#endregion
+
+#region create DHCP reservation for machines
+    #Create DHCP reservations for Hyper-V hosts
+        #Add DHCP Reservations
+        foreach ($HVHost in $HVHosts){
+            if (!(Get-DhcpServerv4Reservation -ErrorAction SilentlyContinue -ComputerName $DHCPServer -ScopeId $ScopeID -ClientId ($HVHost.MACAddress).Replace(":","") | Where-Object IPAddress -eq $HVHost.IPAddress)){
+                Add-DhcpServerv4Reservation -ComputerName $DHCPServer -ScopeId $ScopeID -IPAddress $HVHost.IPAddress -ClientId ($HVHost.MACAddress).Replace(":","")
+            }
+        }
+
+    #configure NTP server in DHCP (might be useful if Servers have issues with time)
+        if (!(get-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -ErrorAction SilentlyContinue)){
+            Set-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -Value "10.0.0.1"
+        }
+#endregion
+
+#region add deploy info to AD Object and MDT Database
+    #download and unzip mdtdb (blog available in web.archive only https://web.archive.org/web/20190421025144/https://blogs.technet.microsoft.com/mniehaus/2009/05/14/manipulating-the-microsoft-deployment-toolkit-database-using-powershell/)
+    #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+    Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+
+    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
+    if ((Get-ExecutionPolicy) -eq "Restricted"){
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    }
+    Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
+    #make sure DS is connected
+        if (-not(get-module MicrosoftDeploymentToolkit)){
+            Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+        }
+        if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+            New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        }
+    #Connect to DB
+        #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
+        Connect-MDTDatabase -drivePath "DS001:\"
+
+
+    #add hosts to MDT DB
+    foreach ($HVHost in $HVHosts){
+        if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
+            New-ADComputer -Name $hvhost.ComputerName
+        }
+        #add to MDT DB
+        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
+            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
+                ComputerName        = $HVHost.ComputerName 
+                OSDComputerName     = $HVHost.ComputerName 
+                #SkipBDDWelcome      = 'Yes' 
+            }
+        }
+        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
+    }
+
+    #Configure MDT DB Roles
+        if (-not (Get-MDTRole -name azshci)){
+            New-MDTRole -name AZSHCI -settings @{
+                SkipTaskSequence    = 'YES'
+                SkipWizard          = 'YES'
+                SkipSummary         = 'YES'
+                SkipApplications    = 'YES'
+                TaskSequenceID      = 'AZSHCI'
+                SkipFinalSummary    = 'YES'
+                FinishAction        = 'LOGOFF'
+            }
+        }
+
+        if (-not (Get-MDTRole -name JoinDomain)){
+            New-MDTRole -name JoinDomain -settings @{
+                SkipComputerName    ='YES'
+                SkipDomainMembership='YES'
+                JoinDomain          ='corp.contoso.com'
+                DomainAdmin         ='MDTUser'
+                DomainAdminDomain   ='corp'
+                DomainAdminPassword ='LS1setup!'
+            }
+        }
+
+    #allow machines to boot from PXE from DC by adding info into AD Object
+    foreach ($HVHost in $HVHosts){
+        [guid]$guid=$HVHost.GUID
+        Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
+        #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
+    }
+
 #endregion
 
 ################################################
 # restart hyper-v machines to let them install #
 ################################################
 
-    #remove pxe boot after install is done
+#region remove pxe boot after install is done
     foreach ($HVHost in $HVHosts){
         [guid]$guid=$HVHost.GUID
         Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootGUID = $guid}
         Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootMachineFilePath = "DC"}
     }
+#endregion
+
+
+#######################################################
+#               Fun with Dell AX nodes                #
+#                                                     #
+#       Run from machine that can talk to iDRAC       #
+#######################################################
+
+#region Restart AX Nodes
+$cred=Get-Credential
+$idrac_ips="192.168.100.130","192.168.100.131"
+$Headers=@{"Accept"="application/json"}
+$ContentType='application/json'
+function Ignore-SSLCertificates
+{
+    $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+    $Compiler = $Provider.CreateCompiler()
+    $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+    $Params.GenerateExecutable = $false
+    $Params.GenerateInMemory = $true
+    $Params.IncludeDebugInformation = $false
+    $Params.ReferencedAssemblies.Add("System.DLL") > $null
+    $TASource=@'
+        namespace Local.ToolkitExtensions.Net.CertificatePolicy
+        {
+            public class TrustAll : System.Net.ICertificatePolicy
+            {
+                public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                {
+                    return true;
+                }
+            }
+        }
+'@ 
+    $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+    $TAAssembly=$TAResults.CompiledAssembly
+    $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+    [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+}
+#ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck
+Ignore-SSLCertificates
+
+#reboot machines
+foreach ($idrac_ip in $idrac_ips){
+    #Configure PXE for next reboot
+    $JsonBody = @{ Boot = @{
+        "BootSourceOverrideTarget"="Pxe"
+        }} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    
+    #Validate
+    $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    $Result.Boot.BootSourceOverrideTarget
+
+    #check reboot options
+    #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
+
+    #reboot
+    #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
+    $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+
+    Start-Sleep 10
+}
+#endregion
+
+#######################################################
+#               Fun with Dell AX nodes                #
+#                                                     #
+#               Run management machine                #
+#######################################################
+
+#region Create hash table out of machines that attempted boot last 5 minutes
+    #in real world scenairos you can have hash table like this:
+    <#
+    $HVHosts = @()
+    $HVHosts+=@{ComputerName="AzSHCI1"  ;IPAddress="10.0.0.101" ; MACAddress="00:15:5D:01:20:3B" ; GUID="FFB429BB-1521-47C6-88BF-F5F2D1BA17F5"}
+    $HVHosts+=@{ComputerName="AzSHCI2"  ;IPAddress="10.0.0.102" ; MACAddress="00:15:5D:01:20:3E" ; GUID="056423D7-6BAC-460F-AD0D-78AF6D26E151"}
+    $HVHosts+=@{ComputerName="AzSHCI3"  ;IPAddress="10.0.0.103" ; MACAddress="00:15:5D:01:20:40" ; GUID="D1DF2157-8EE0-4C7A-A0FD-6E7779C62FCE"}
+    $HVHosts+=@{ComputerName="AzSHCI4"  ;IPAddress="10.0.0.104" ; MACAddress="00:15:5D:01:20:42" ; GUID="7392BBB5-99D7-4EEE-9C22-4CA6EB6058FB"}
+    #>
+
+    #grab machines that attempted to boot in last 5 minutes and create hash table.
+    $HVHosts=Invoke-Command -ComputerName $MDTServer -ScriptBlock {
+        $IpaddressScope="10.0.0."
+        $IPAddressStart=120 #starting this number IPs will be asigned
+        $ServersNamePrefix="AxNode"
+        $events=Get-WinEvent -FilterHashtable @{LogName="Microsoft-Windows-Deployment-Services-Diagnostics/Operational";Id=4132;StartTime=(get-date).AddMinutes(-5)} | Where-Object Message -like "*it is not recognized*" | Sort-Object TimeCreated
+        $HVHosts = @()
+        $GUIDS=@()
+        $i=1
+        foreach ($event in $events){
+            [System.Diagnostics.Eventing.Reader.EventLogRecord]$event=$event
+            if (!($guids).Contains($event.properties.value[2])){
+                $HVHosts+= @{ ComputerName="$ServersNamePrefix$i";GUID = $event.properties.value[2] -replace '[{}]' ; MACAddress = $event.properties.value[0] -replace "-",":" ; IPAddress="$IpaddressScope$($IPAddressStart.tostring())"}
+                $i++
+                $IPAddressStart++
+                $GUIDS+=$event.properties.value[2]
+            }
+        }
+        Return $HVHosts
+    }
+
+
+#endregion
+
+#region create DHCP reservation for machines
+    #Create DHCP reservations for Hyper-V hosts
+        #Add DHCP Reservations
+        foreach ($HVHost in $HVHosts){
+            if (!(Get-DhcpServerv4Reservation -ErrorAction SilentlyContinue -ComputerName $DHCPServer -ScopeId $ScopeID -ClientId ($HVHost.MACAddress).Replace(":","") | Where-Object IPAddress -eq $HVHost.IPAddress)){
+                Add-DhcpServerv4Reservation -ComputerName $DHCPServer -ScopeId $ScopeID -IPAddress $HVHost.IPAddress -ClientId ($HVHost.MACAddress).Replace(":","")
+            }
+        }
+
+    #configure NTP server in DHCP (might be useful if Servers have issues with time)
+        if (!(get-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -ErrorAction SilentlyContinue)){
+            Set-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -Value "10.0.0.1"
+        }
+#endregion
+
+#region add deploy info to AD Object and MDT Database
+    #download and unzip mdtdb (blog available in web.archive only https://web.archive.org/web/20190421025144/https://blogs.technet.microsoft.com/mniehaus/2009/05/14/manipulating-the-microsoft-deployment-toolkit-database-using-powershell/)
+    #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+    Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+
+    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
+    if ((Get-ExecutionPolicy) -eq "Restricted"){
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    }
+    Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
+    #make sure DS is connected
+        if (-not(get-module MicrosoftDeploymentToolkit)){
+            Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+        }
+        if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+            New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        }
+    #Connect to DB
+        #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
+        Connect-MDTDatabase -drivePath "DS001:\"
+
+
+    #add hosts to MDT DB
+    foreach ($HVHost in $HVHosts){
+        if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
+            New-ADComputer -Name $hvhost.ComputerName
+        }
+        #add to MDT DB
+        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
+            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
+                ComputerName        = $HVHost.ComputerName 
+                OSDComputerName     = $HVHost.ComputerName 
+                #SkipBDDWelcome      = 'Yes' 
+            }
+        }
+        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
+    }
+
+    #Configure MDT DB Roles
+        if (-not (Get-MDTRole -name azshci)){
+            New-MDTRole -name AZSHCI -settings @{
+                SkipTaskSequence    = 'YES'
+                SkipWizard          = 'YES'
+                SkipSummary         = 'YES'
+                SkipApplications    = 'YES'
+                TaskSequenceID      = 'AZSHCI'
+                SkipFinalSummary    = 'YES'
+                FinishAction        = 'LOGOFF'
+            }
+        }
+
+        if (-not (Get-MDTRole -name JoinDomain)){
+            New-MDTRole -name JoinDomain -settings @{
+                SkipComputerName    ='YES'
+                SkipDomainMembership='YES'
+                JoinDomain          ='corp.contoso.com'
+                DomainAdmin         ='MDTUser'
+                DomainAdminDomain   ='corp'
+                DomainAdminPassword ='LS1setup!'
+            }
+        }
+
+    #allow machines to boot from PXE from DC by adding info into AD Object
+    foreach ($HVHost in $HVHosts){
+        [guid]$guid=$HVHost.GUID
+        Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
+        #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
+    }
+
+#endregion
+
+#######################################################
+#               Fun with Dell AX nodes                #
+#                                                     #
+#       Run from machine that can talk to iDRAC       #
+#######################################################
+
+#region Restart AX Nodes again to deploy (if needed)
+$cred=Get-Credential
+$idrac_ips="192.168.100.130","192.168.100.131"
+$Headers=@{"Accept"="application/json"}
+$ContentType='application/json'
+function Ignore-SSLCertificates
+{
+    $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+    $Compiler = $Provider.CreateCompiler()
+    $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+    $Params.GenerateExecutable = $false
+    $Params.GenerateInMemory = $true
+    $Params.IncludeDebugInformation = $false
+    $Params.ReferencedAssemblies.Add("System.DLL") > $null
+    $TASource=@'
+        namespace Local.ToolkitExtensions.Net.CertificatePolicy
+        {
+            public class TrustAll : System.Net.ICertificatePolicy
+            {
+                public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                {
+                    return true;
+                }
+            }
+        }
+'@ 
+    $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+    $TAAssembly=$TAResults.CompiledAssembly
+    $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+    [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+}
+#ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck
+Ignore-SSLCertificates
+
+#reboot machines
+foreach ($idrac_ip in $idrac_ips){
+    #Configure PXE for next reboot
+    $JsonBody = @{ Boot = @{
+        "BootSourceOverrideTarget"="Pxe"
+        }} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    
+    #Validate
+    $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    $Result.Boot.BootSourceOverrideTarget
+
+    #check reboot options
+    #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
+
+    #reboot
+    #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
+    $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+
+    Start-Sleep 10
+}
+#endregion
 
 #TBD: 
 #remove from pxe boot as package in MDT (create app/package,delegate permissions on computers attribute, clean attribute...)
