@@ -243,7 +243,7 @@ SkipBDDWelcome=YES
     #remove bootstrap.ini first (sometimes there is an error if just populating content)
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {Remove-Item -Path "$using:DeploymentShareLocation\Control\Bootstrap.ini" -Force}
     #populate content
-    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path "$using:DeploymentShareLocation\Control\Bootstrap.ini" -Value $using:content}
+    Set-Content -Path "\\$MDTServer\DeploymentShare$\Control\Bootstrap.ini" -Value $content
 
 
     #update deployment share to generate new WIM for WDS
@@ -566,9 +566,8 @@ Table=RoleAdministrators
 Parameters=Role
 "@
 
-Invoke-Command -ComputerName $MDTServer -ScriptBLock {
-    $using:content | Set-Content "$using:DeploymentShareLocation\Control\CustomSettings.ini"
-}
+Set-Content -Path "\\$MDTServer\DeploymentShare$\Control\CustomSettings.ini" -Value $Content
+
 #endregion
 
 #region configure SQL to be able to access it remotely using MDTUser account(NamedPipes) or create dedicated SQL user (TCPIP)
