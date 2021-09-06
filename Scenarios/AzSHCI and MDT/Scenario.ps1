@@ -234,13 +234,17 @@
 Priority=Default
 
 [Default]
-DeployRoot=$DeploymentShare
+DeployRoot=\\$MDTServer\DeploymentShare$
 UserDomain=corp
 UserID=MDTUser
 UserPassword=LS1setup!
 SkipBDDWelcome=YES
 "@
-    $content | Set-Content -Path "$DeploymentShare\Control\Bootstrap.ini"
+    #remove bootstrap.ini first (sometimes there is an error if just populating content)
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Remove-Item -Path "$using:DeploymentShareLocation\Control\Bootstrap.ini" -Force}
+    #populate content
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path "$using:DeploymentShareLocation\Control\Bootstrap.ini" -Value $using:content}
+
 
     #update deployment share to generate new WIM for WDS
     if (-not(get-module MicrosoftDeploymentToolkit)){
@@ -571,7 +575,6 @@ Invoke-Command -ComputerName $MDTServer -ScriptBLock {
     #Add permissions for MDT account to sql database
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name sqlserver -AllowClobber -Force
-    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
     if ((Get-ExecutionPolicy) -eq "Restricted"){
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
     }
@@ -809,7 +812,7 @@ GO
 #region Restart AX Nodes
 #$Credentials=Get-Credential
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-$Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+$Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
 $idrac_ips="192.168.100.130","192.168.100.131"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
@@ -863,7 +866,7 @@ foreach ($idrac_ip in $idrac_ips){
 
     #reboot
     #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
-    $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
+    $JsonBody = @{ "ResetType" = "ForceRestart"} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
     Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
 
@@ -881,10 +884,8 @@ foreach ($idrac_ip in $idrac_ips){
     #in real world scenairos you can have hash table like this:
     <#
     $HVHosts = @()
-    $HVHosts+=@{ComputerName="AzSHCI1"  ;IPAddress="10.0.0.101" ; MACAddress="00:15:5D:01:20:3B" ; GUID="FFB429BB-1521-47C6-88BF-F5F2D1BA17F5"}
-    $HVHosts+=@{ComputerName="AzSHCI2"  ;IPAddress="10.0.0.102" ; MACAddress="00:15:5D:01:20:3E" ; GUID="056423D7-6BAC-460F-AD0D-78AF6D26E151"}
-    $HVHosts+=@{ComputerName="AzSHCI3"  ;IPAddress="10.0.0.103" ; MACAddress="00:15:5D:01:20:40" ; GUID="D1DF2157-8EE0-4C7A-A0FD-6E7779C62FCE"}
-    $HVHosts+=@{ComputerName="AzSHCI4"  ;IPAddress="10.0.0.104" ; MACAddress="00:15:5D:01:20:42" ; GUID="7392BBB5-99D7-4EEE-9C22-4CA6EB6058FB"}
+    $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DD" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C9" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
     #>
 
     #grab machines that attempted to boot in last 5 minutes and create hash table.
@@ -1028,8 +1029,55 @@ $TextToSearch
     $NewTS=$TS.replace($TextToSearch,$PoshScript)
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml -Value $using:NewTS}
     #insert script
-    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Scripts\$using:PSSCriptName -Value $using:PSScriptContent}
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Scripts\$using:PSScriptName -Value $using:PSScriptContent}
 
+#endregion
+
+#region update task sequence with drivers
+
+#Dell driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
+#Download catalog
+Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+#unzip gzip https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
+Function Expand-GZipArchive{
+    Param(
+        $infile,
+        $outfile = ($infile -replace '\.gz$','')
+        )
+    $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+    $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+    $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+    $buffer = New-Object byte[](1024)
+    while($true){
+        $read = $gzipstream.Read($buffer, 0, 1024)
+        if ($read -le 0){break}
+        $output.Write($buffer, 0, $read)
+        }
+    $gzipStream.Close()
+    $output.Close()
+    $input.Close()
+}
+Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
+#load xml
+[xml]$xml=Get-Content "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
+
+#download catalog drivers <TBD>
+<#
+    #Create output folder
+    $FolderName=$xml.manifest.version
+    New-Item -ItemType Directory -Name $FolderName -Path "$env:UserProfile\Downloads" -ErrorAction Ignore
+    New-Item -ItemType Directory -Name "RebootRequired" -Path "$env:UserProfile\Downloads\$FolderName" -ErrorAction Ignore
+    New-Item -ItemType Directory -Name "RebootNotRequired" -Path "$env:UserProfile\Downloads\$FolderName" -ErrorAction Ignore
+    #download files
+    foreach ($item in $xml.manifest.softwarecomponent){
+        $filename=$($item.path.split("/")|Select-Object -Last 1)
+        if ($item.RebootRequired -eq "True"){
+            Start-BitsTransfer -Source "https://downloads.dell.com/$($item.path)" -Destination "$env:UserProfile\Downloads\$FolderName\RebootRequired\$filename" -DisplayName "Downloading $filename releasedate $($item.releaseDate)"
+        }else{
+            Start-BitsTransfer -Source "https://downloads.dell.com/$($item.path)" -Destination "$env:UserProfile\Downloads\$FolderName\RebootNotRequired\$filename" -DisplayName "Downloading $filename releasedate $($item.releaseDate)"
+        }
+    }
+#>
 #endregion
 
 #######################################################
@@ -1041,7 +1089,7 @@ $TextToSearch
 #region Restart AX Nodes again to deploy OS
 #$Credentials=Get-Credential
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-$Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+$Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
 $idrac_ips="192.168.100.130","192.168.100.131"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
@@ -1095,11 +1143,9 @@ foreach ($idrac_ip in $idrac_ips){
 
     #reboot
     #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
-    $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
+    $JsonBody = @{ "ResetType" = "ForceRestart"} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
     Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
-
-    Start-Sleep 10
 }
 #endregion
 
