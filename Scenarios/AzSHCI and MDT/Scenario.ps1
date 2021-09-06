@@ -183,6 +183,16 @@
     Set-ItemProperty DS001:\ -name Boot.x64.IncludeMassStorageDrivers -value True
     Set-ItemProperty DS001:\ -name Boot.x64.IncludeAllDrivers -value False
     Set-ItemProperty DS001:\ -name Boot.x64.GenerateGenericWIM -value True
+    #add PowerShell
+    $Properties=@()
+    $Properties+=(Get-ItemPropertyValue DS001:\ -Name Boot.x64.FeaturePacks) -split (",")
+    $FeaturesToAdd="winpe-netfx","winpe-powershell"
+    foreach ($FeatureToAdd in $FeaturesToAdd){
+        if ($properties -notcontains $FeatureToAdd){
+            $Properties+=$FeatureToAdd
+        }
+    }
+    Set-ItemProperty DS001:\ -name Boot.x64.FeaturePacks -value ($Properties -Join (","))
 
     #add Task Sequence
     import-mdttasksequence -path "DS001:\Task Sequences" -Name "Azure Stack HCI Deploy" -Template "Server.xml" -Comments "" -ID "AzSHCI" -Version "1.0" -OperatingSystemPath "DS001:\Operating Systems\Azure Stack HCI SERVERAZURESTACKHCICORE in Azure Stack HCI SERVERAZURESTACKHCICORE x64 install.wim" -FullName "PFE" -OrgName "Contoso" -HomePage "about:blank" -AdminPassword "LS1setup!" -Verbose
@@ -778,6 +788,24 @@ GO
 
 #endregion
 
+#region update task sequence with powershell script to install OS to "DellBOS VD"
+[xml]$TS=Invoke-Command -ComputerName $MDTServer -ScriptBlock {Get-Content -Path $using:DeploymentShareLocation\Control\Azshci\ts.xml}
+$PoshScript=@"
+<step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
+    <defaultVarList>
+        <variable name="ScriptName" property="ScriptName">test.ps1</variable>
+        <variable name="Parameters" property="Parameters"/>
+        <variable name="PackageID" property="PackageID"/>
+    </defaultVarList>
+    <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
+</step>
+"@
+
+$TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "DELLBOSS VD").Index
+
+
+
+#
 ################################################
 # restart hyper-v machines to let them install #
 ################################################
