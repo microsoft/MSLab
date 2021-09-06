@@ -788,24 +788,6 @@ GO
 
 #endregion
 
-#region update task sequence with powershell script to install OS to "DellBOS VD"
-[xml]$TS=Invoke-Command -ComputerName $MDTServer -ScriptBlock {Get-Content -Path $using:DeploymentShareLocation\Control\Azshci\ts.xml}
-$PoshScript=@"
-<step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
-    <defaultVarList>
-        <variable name="ScriptName" property="ScriptName">test.ps1</variable>
-        <variable name="Parameters" property="Parameters"/>
-        <variable name="PackageID" property="PackageID"/>
-    </defaultVarList>
-    <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
-</step>
-"@
-
-$TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "DELLBOSS VD").Index
-
-
-
-#
 ################################################
 # restart hyper-v machines to let them install #
 ################################################
@@ -818,7 +800,6 @@ $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "D
     }
 #endregion
 
-
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
@@ -826,7 +807,9 @@ $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "D
 #######################################################
 
 #region Restart AX Nodes
-$cred=Get-Credential
+#$Credentials=Get-Credential
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
 $idrac_ips="192.168.100.130","192.168.100.131"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
@@ -866,23 +849,23 @@ foreach ($idrac_ip in $idrac_ips){
         "BootSourceOverrideTarget"="Pxe"
         }} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
-    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     
     #Validate
     $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     $Result.Boot.BootSourceOverrideTarget
 
     #check reboot options
     #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
 
     #reboot
     #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
     $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
 
     Start-Sleep 10
 }
@@ -1014,14 +997,51 @@ foreach ($idrac_ip in $idrac_ips){
 
 #endregion
 
+#region update task sequence with powershell script to install OS to smallest disk right before "New Computer only" group
+$TaskSequenceID="AzSHCI"
+$PSScriptName="OSDiskIndex.ps1"
+$PSScriptContent=@'
+$CS=Get-CimInstance win32_ComputerSystem
+if (($CS.Manufacturer -like "*Dell*") -and ($CS.Model -like AX*){
+    #exact model for Dell AX node (DELLBOSS VD)
+    $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "DELLBOSS VD").Index
+}else{
+    #or just smallest disk
+    $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object MediaType -eq ("Fixed hard disk media") | Sort-Object Size | Select-Object -First 1).Index
+}
+'@
+
+    #update Tasksequence
+    $TS=Invoke-Command -ComputerName $MDTServer -ScriptBlock {Get-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml}
+    $TextToSearch='    <group name="New Computer only" disable="false" continueOnError="false" description="" expand="true">'
+    $PoshScript=@"
+    <step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
+    <defaultVarList>
+        <variable name="ScriptName" property="ScriptName">$PSScriptName</variable>
+        <variable name="Parameters" property="Parameters"></variable>
+        <variable name="PackageID" property="PackageID"></variable>
+    </defaultVarList>
+    <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
+    </step>
+$TextToSearch
+"@
+    $NewTS=$TS.replace($TextToSearch,$PoshScript)
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml -Value $using:NewTS}
+    #insert script
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Scripts\$using:PSSCriptName -Value $using:PSScriptContent}
+
+#endregion
+
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
 #       Run from machine that can talk to iDRAC       #
 #######################################################
 
-#region Restart AX Nodes again to deploy (if needed)
-$cred=Get-Credential
+#region Restart AX Nodes again to deploy OS
+#$Credentials=Get-Credential
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
 $idrac_ips="192.168.100.130","192.168.100.131"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
@@ -1061,28 +1081,41 @@ foreach ($idrac_ip in $idrac_ips){
         "BootSourceOverrideTarget"="Pxe"
         }} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
-    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     
     #Validate
     $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     $Result.Boot.BootSourceOverrideTarget
 
     #check reboot options
     #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $cred
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
     #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
 
     #reboot
     #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
     $JsonBody = @{ "ResetType" = "PowerCycle"} | ConvertTo-Json -Compress
     $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Cred
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
 
     Start-Sleep 10
 }
 #endregion
 
+#######################################################
+#               Fun with Dell AX nodes                #
+#                                                     #
+#               Run management machine                #
+#######################################################
+
+#region remove pxe boot after install is done
+foreach ($HVHost in $HVHosts){
+    [guid]$guid=$HVHost.GUID
+    Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootGUID = $guid}
+    Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootMachineFilePath = "DC"}
+}
+#endregion
 #TBD: 
 #remove from pxe boot as package in MDT (create app/package,delegate permissions on computers attribute, clean attribute...)
 #add real servers drivers
