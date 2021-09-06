@@ -1013,7 +1013,7 @@ if (($CS.Manufacturer -like "*Dell*") -and ($CS.Model -like AX*){
 
     #update Tasksequence
     $TS=Invoke-Command -ComputerName $MDTServer -ScriptBlock {Get-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml}
-    $TextToSearch='    <group name="New Computer only" disable="false" continueOnError="false" description="" expand="true">'
+    $TextToSearch='    <group name="New Computer only" disable="false" continueOnError="false" description="" expand="false">'
     $PoshScript=@"
     <step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
     <defaultVarList>
