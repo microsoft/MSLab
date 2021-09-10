@@ -1057,7 +1057,7 @@ If (-not $isAdmin) {
                 # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
                 $vm = Get-VM -Id $_.BaseName -ErrorAction SilentlyContinue
                 if($vm -and $dcCandidates.Length -eq 1) { # allow duplicating of the DC VM only if it is the only one VM in lab folder (as if more than one exists, probably just labprefix was changed after the deployment)
-                    WriteWarning "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID (is this a copied lab folder?) -> this DC VM will be registered with new VM ID."
+                    WriteInfoHighlighted "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID (is this a copied lab folder?) -> this DC VM will be registered with new VM ID."
                     $directory = $_.Directory.FullName.replace("\Virtual Machines", "")
                     $DC = Import-VM -Path $_.FullName -GenerateNewId -Copy -VirtualMachinePath $directory -VhdDestinationPath "$directory\Virtual Hard Disks"
                     WriteInfo "`t`t Virtual Machine $($DC.Name) registered with a new VM ID $($DC.Id)"
