@@ -97,7 +97,7 @@
               }
             ],
             "hide": false,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Sent_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -156,7 +156,7 @@
               }
             ],
             "hide": true,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Received_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -290,7 +290,7 @@
               }
             ],
             "hide": false,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Received_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -343,7 +343,7 @@
               }
             ],
             "hide": true,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Sent_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -490,7 +490,7 @@
               }
             ],
             "hide": true,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Received_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -543,7 +543,7 @@
               }
             ],
             "hide": false,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Sent_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -683,7 +683,7 @@
               }
             ],
             "hide": false,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Received_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -736,7 +736,7 @@
               }
             ],
             "hide": true,
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "query": "SELECT mean(\"Bytes_Sent_persec\") FROM \"hyperv_vmnet\" WHERE \"host\" =~ /^$hostname$/ AND \"instance\" =~ /_Network Adapter_/ AND \"instance\" =~ /^$vm_nic$/ AND $timeFilter GROUP BY time($__interval), \"instance\" fill(none)",
@@ -1223,7 +1223,7 @@
                 "type": "fill"
               }
             ],
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "refId": "A",
@@ -1272,7 +1272,7 @@
                 "type": "fill"
               }
             ],
-            "measurement": "RDMA_Activity",
+            "measurement": "rdma_activity",
             "orderByTime": "ASC",
             "policy": "default",
             "refId": "B",

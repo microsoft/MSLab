@@ -53,7 +53,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         $LABConfig.VMs += @{
             VMName = "$VMNames$_" ;
             Configuration = 'S2D' ;                    # Simple/S2D/Shared/Replica
-            ParentVHD = 'Win2016Core_G2.vhdx';         # VHD Name from .\ParentDisks folder
+            ParentVHD = 'Win2022Core_G2.vhdx';         # VHD Name from .\ParentDisks folder
             SSDNumber = 0;                             # Number of "SSDs" (its just simulation of SSD-like sized HDD, just bunch of smaller disks)
             SSDSize=800GB ;                            # Size of "SSDs"
             HDDNumber = 12;                            # Number of "HDDs"
