@@ -999,16 +999,24 @@ foreach ($idrac_ip in $idrac_ips){
 
 #region update task sequence with powershell script to install OS to smallest disk right before "New Computer only" group
 $TaskSequenceID="AzSHCI"
-$PSScriptName="OSDiskIndex.ps1"
+$PSScriptName="OSDDiskIndex.ps1"
 $PSScriptContent=@'
-$CS=Get-CimInstance win32_ComputerSystem
-if (($CS.Manufacturer -like "*Dell*") -and ($CS.Model -like AX*){
+$Disks=Get-CimInstance win32_DiskDrive
+if ($Disks.model -contains "DELLBOSS VD"){
     #exact model for Dell AX node (DELLBOSS VD)
-    $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object Model -eq "DELLBOSS VD").Index
+    $TSenv:OSDDiskIndex=($Disks | Where-Object Model -eq "DELLBOSS VD").Index
 }else{
     #or just smallest disk
-    $TSenv:OSDDiskIndex=(Get-CimInstance win32_diskdrive | Where-Object MediaType -eq ("Fixed hard disk media") | Sort-Object Size | Select-Object -First 1).Index
+    $TSenv:OSDDiskIndex=($Disks | Where-Object MediaType -eq "Fixed hard disk media" | Sort-Object Size | Select-Object -First 1).Index
 }
+<# In case you need PowerShell and pause Task Sequence you can use this code:
+#source: http://wiki.wladik.net/windows/mdt/powershell-scripting
+#run posh
+Start PowerShell
+#pause TS
+[System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+[System.Windows.Forms.MessageBox]::Show("Click to continue...")
+#>
 '@
 
     #update Tasksequence
@@ -1016,12 +1024,12 @@ if (($CS.Manufacturer -like "*Dell*") -and ($CS.Model -like AX*){
     $TextToSearch='    <group name="New Computer only" disable="false" continueOnError="false" description="" expand="false">'
     $PoshScript=@"
     <step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
-    <defaultVarList>
+      <defaultVarList>
         <variable name="ScriptName" property="ScriptName">$PSScriptName</variable>
         <variable name="Parameters" property="Parameters"></variable>
         <variable name="PackageID" property="PackageID"></variable>
-    </defaultVarList>
-    <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
+      </defaultVarList>
+      <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
     </step>
 $TextToSearch
 "@
