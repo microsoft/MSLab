@@ -160,3 +160,5 @@ It's the same attribute that is displayed in WDS Console. Since WDS management c
 Notice deployment progress in MDT monitoring section
 
 ![](/Scenarios/AzSHCI%20and%20MDT/Screenshots/Explorer09.png)
+
+![](/Scenarios/AzSHCI%20and%20MDT/Screenshots/Explorer10.png)
