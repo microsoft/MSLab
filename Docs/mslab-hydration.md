@@ -5,7 +5,7 @@ Process of hydration will prepare all necessary Virtual Hard Disks and will crea
 ## Required Files
 
 * [MSLab Scripts](https://aka.ms/mslabzip)
-* [Windows Server 2019](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2019)
+* [Windows Server 2022](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2022)
 * Latest Cumulative Update + Servicing Stack Update
 
 Tip: You can download CU and UR using DownloadLatestCU script that will be created after running 1_Prereqs.ps1
