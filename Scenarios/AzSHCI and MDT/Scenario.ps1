@@ -566,7 +566,12 @@ Table=RoleAdministrators
 Parameters=Role
 "@
 
-Set-Content -Path "\\$MDTServer\DeploymentShare$\Control\CustomSettings.ini" -Value $Content
+
+$CustomSettingsFile="\\$MDTServer\DeploymentShare$\Control\CustomSettings.ini"
+Set-Content -Path $CustomSettingsFile -Value $Content -NoNewline #if NoNewLine not specified, scipt will add crlf at and of the file
+#replace LF with CRLF as text will be displayed correctly in Deployment Workbench
+$text = [IO.File]::ReadAllText($CustomSettingsFile) -replace "`n", "`r`n"
+[IO.File]::WriteAllText($CustomSettingsFile, $text)
 
 #endregion
 
@@ -700,7 +705,7 @@ GO
         }
         Return $HVHosts
     }
-
+$HVHosts
 
 #endregion
 
