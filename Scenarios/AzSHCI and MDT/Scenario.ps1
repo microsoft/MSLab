@@ -1114,7 +1114,7 @@ $TextToSearch
     #add package to MDT
     [xml]$xml=Get-Content "$folder\ASHCI-Catalog.xml"
     $version=$xml.Manifest.version
-    $CommandLine="cmd /c '`"C:\Program Files\Dell\DELL EMC System Update\DSU.exe`" --catalog-location=ASHCI-Catalog.xml --apply-upgrades answer.txt'"
+    $CommandLine="cmd /c '`"C:\Program Files\Dell\DELL EMC System Update\DSU.exe`" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'"
     $AppName="Dell DSU AzSHCI Package $Version"
     Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $CommandLine -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
     #configure app to reboot after run
