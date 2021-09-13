@@ -1075,6 +1075,7 @@ $TextToSearch
     }
     $AppName="Dell DSU $($LatestDSU.Version)"
     Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSU" -Version $LatestDSU.Version -Publisher "Dell" -Language "" -CommandLine "DSU.exe /silent" -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+    #grap package ID for role config
     $DSUID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
 
 #download catalog and create answer file to run DSU
@@ -1116,6 +1117,13 @@ $TextToSearch
     $CommandLine="cmd /c '`"C:\Program Files\Dell\DELL EMC System Update\DSU.exe`" --catalog-location=ASHCI-Catalog.xml --apply-upgrades answer.txt'"
     $AppName="Dell DSU AzSHCI Package $Version"
     Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $CommandLine -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+    #configure app to reboot after run
+    Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
+    #configure dependency on DSU
+    $guids=@()
+    $+=$DSUID
+    Set-ItemProperty -Path DS001:\Applications\$AppName -Name Dependency -Value $guids
+    #grap package ID for role config
     $DSUPackageID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
 
     #Create Role
