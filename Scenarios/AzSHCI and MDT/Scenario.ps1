@@ -1123,7 +1123,7 @@ $TextToSearch
     Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
     #configure dependency on DSU
     $guids=@()
-    $+=$DSUID
+    $guids+=$DSUID
     Set-ItemProperty -Path DS001:\Applications\$AppName -Name Dependency -Value $guids
     #grap package ID for role config
     $DSUPackageID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
