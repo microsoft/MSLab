@@ -1110,13 +1110,15 @@ $TextToSearch
     c
     @'
     Set-Content -Path "$folder\answer.txt" -Value $content -NoNewline
+    $content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
+    Set-Content -Path "$folder\install.cmd" -Value $content -NoNewline
 
     #add package to MDT
     [xml]$xml=Get-Content "$folder\ASHCI-Catalog.xml"
     $version=$xml.Manifest.version
-    $CommandLine="cmd /c '`"C:\Program Files\Dell\DELL EMC System Update\DSU.exe`" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'"
     $AppName="Dell DSU AzSHCI Package $Version"
-    Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $CommandLine -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+    $Commandline="install.cmd"
+    Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $Commandline -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
     #configure app to reboot after run
     Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
     #configure dependency on DSU
