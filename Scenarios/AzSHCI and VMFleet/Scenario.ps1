@@ -67,7 +67,8 @@
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/157
         #It's probably more convenient to run this command on cluster as all VHD copying will happen on cluster itself.
-        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
+        #if you will run Measure-FleetCoreWorkload, creating VMs is not necessary
+        #New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
     }
 
     # Disable CredSSP
