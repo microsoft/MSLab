@@ -103,7 +103,7 @@ function  Get-WindowsBuildNumber {
     }
 
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetImage"
+    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetDisk"
     foreach ($filename in $filenames){
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path){
