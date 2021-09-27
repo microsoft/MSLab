@@ -104,10 +104,11 @@
         New-Item -Path $using:DeploymentShareLocation -ItemType Directory -ErrorAction Ignore
         New-SmbShare -Name "DeploymentShare$" -Path "$using:DeploymentShareLocation" -FullAccess Administrators
     }
-    Start-Sleep 5
     #map MDT deployment share as PSDrive
-    New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
-
+    #sometimes happens that script to complains: The process cannot access the file '\\MDT\DeploymentShare$\Control\Settings.xml' because it is being used by another process.
+    do{
+        New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+    }until (get-psdrive -Name DS001)
     #Configure SQL Services
 
     Invoke-Command -ComputerName $MDTServer -scriptblock {
@@ -888,8 +889,8 @@ foreach ($idrac_ip in $idrac_ips){
     #in real world scenairos you can have hash table like this:
     <#
     $HVHosts = @()
-    $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DD" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
-    $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C9" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DC" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C8" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
     #>
 
     #grab machines that attempted to boot in last 5 minutes and create hash table.
