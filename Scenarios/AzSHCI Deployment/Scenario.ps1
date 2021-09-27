@@ -54,15 +54,12 @@
 
         $SRIOV=$true #Deploy SR-IOV enabled switch (best practice is to enable if possible)
 
-        #startIP of adapters that will be added to SET Switch
-        $AdaptersIPPrefix="10.0.0.*"
-
-    #start IP for storage network
+        #start IP for storage network
         $IP=1
 
     #Real hardware?
         $RealHW=$False #will configure VMQ not to use CPU 0 if $True, configures power plan
-        $DellHW=$False #include Dell recommendation to increase HW timeout to 10s becayse of their Hitachi HDDs. May be already obsolete.
+        $DellHW=$False #include Dell recommendation to increase HW timeout to 10.
 
     #IncreaseHW Timeout for virtual environments to 30s? This is because of running in lab https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm
         $VirtualEnvironment=$true
@@ -187,14 +184,48 @@
 
 #region Update all servers (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
     if ($WindowsUpdate -eq "Recommended"){
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            #Grab updates
-            $SearchCriteria = "IsInstalled=0"
-            #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
-            $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
-            #apply updates (if not empty)
-            if ($ScanResult.Updates){
-                Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
+        $CurrentBuildNumber=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
+            Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
+        }
+        if ($CurrentBuildNumber -lt 20348){
+            #before 2022 and 21H2
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                #Grab updates
+                $SearchCriteria = "IsInstalled=0"
+                #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
+                $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
+                #apply updates (if not empty)
+                if ($ScanResult.Updates){
+                    Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
+                }
+            }
+        }else{
+            # update 2022 and 21H2 systems
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+                Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+            } -ErrorAction Ignore
+            # Run Windows Update via ComObject.
+            Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+                $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+                $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                                        IsPresent=1 and DeploymentAction='Uninstallation' or
+                                        IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                        IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+                $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+                $Session = New-Object -ComObject Microsoft.Update.Session
+                $Downloader = $Session.CreateUpdateDownloader()
+                $Downloader.Updates = $SearchResult
+                $Downloader.Download()
+                $Installer = New-Object -ComObject Microsoft.Update.Installer
+                $Installer.Updates = $SearchResult
+                $Result = $Installer.Install()
+                $Result
+            }
+            #remove temporary PSsession config
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+                Remove-Item -Path $env:TEMP\VirtualAccount.pssc
             }
         }
     }elseif ($WindowsUpdate -eq "All"){
@@ -350,65 +381,108 @@
         #install features
         Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
         #restart and wait for computers
-        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell
+        Restart-Computer $servers -Protocol WSMan -Wait -For PowerShell -Force
         Start-Sleep 20 #Failsafe as Hyper-V needs 2 reboots and sometimes it happens, that during the first reboot the restart-computer evaluates the machine is up
-
+        #make sure computers are restarted
+        Foreach ($Server in $Servers){
+            do{$Test= Test-NetConnection -ComputerName $Server -CommonTCPPort WINRM}while ($test.TcpTestSucceeded -eq $False)
+        }
 #endregion
 
 #region configure Networking (best practices are covered in this guide http://aka.ms/ConvergedRDMA ). For more information about networking you can look at this scenario: https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Networks%20deep%20dive
-    #Create Virtual Switches and Virtual Adapters
+#Disable unused (disconnected) adapters
+    Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
+
+    #Grab fastest adapters and sort by name #Create Virtual Switches and Virtual Adapters
         if ($SRIOV){
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName (Get-NetIPAddress -IPAddress $using:AdaptersIPPrefix ).InterfaceAlias}
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName $NetAdapters.Name
+            }
         }else{
-            Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress $using:AdaptersIPPrefix).InterfaceAlias}
+            Invoke-Command -ComputerName $servers -ScriptBlock {
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapters.Name
+            }
         }
 
-        $Servers | ForEach-Object {
-            #Configure vNICs
-            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -ComputerName $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB01 -SwitchName $vSwitchName -CimSession $_
-            Add-VMNetworkAdapter -ManagementOS -Name SMB02 -SwitchName $vSwitchName -Cimsession $_
-
+    #add vNICs
+        foreach ($Server in $Servers){
+            #rename Management vNIC first
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -ComputerName $Server
+            #add SMB vNICs (number depends on how many NICs are connected to vSwitch)
+            $SMBvNICsCount=(Get-VMSwitch -CimSession $Server -Name $vSwitchName).NetAdapterInterfaceDescriptions.Count
+            foreach ($number in (1..$SMBvNICsCount)){
+                $TwoDigitNumber="{0:D2}" -f $Number
+                Add-VMNetworkAdapter -ManagementOS -Name "SMB$TwoDigitNumber" -SwitchName $vSwitchName -CimSession $Server
+            }
+            
             #configure IP Addresses
             If ($NumberOfStorageNets -eq 1){
-                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
-                $IP++
-                New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
-                $IP++
+                foreach ($number in (1..$SMBvNICsCount)){
+                    $TwoDigitNumber="{0:D2}" -f $Number
+                    New-NetIPAddress -IPAddress ($StorNet+$IP.ToString()) -InterfaceAlias "vEthernet (SMB$TwoDigitNumber)" -CimSession $Server -PrefixLength 24
+                    $IP++
+                }
             }
 
             If($NumberOfStorageNets -eq 2){
-                New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB01)" -CimSession $_ -PrefixLength 24
-                New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB02)" -CimSession $_ -PrefixLength 24
-                $IP++
+                foreach ($number in (1..$SMBvNICsCount)){
+                    $TwoDigitNumber="{0:D2}" -f $Number
+                    if ($number % 2 -eq 1){
+                        New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB$TwoDigitNumber)" -CimSession $Server -PrefixLength 24
+                    }else{
+                        New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB$TwoDigitNumber)" -CimSession $Server -PrefixLength 24
+                        $IP++
+                    }
+                }
             }
         }
 
         Start-Sleep 5
         Clear-DnsClientCache
 
-        #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
-            If ($NumberOfStorageNets -eq 1){
-                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
-                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
-            }else{
-                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB01 -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Servers
-                Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB02 -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Servers
-            }
-
-        #Restart each host vNIC adapter so that the Vlan is active.
-            Restart-NetAdapter "vEthernet (SMB01)" -CimSession $Servers 
-            Restart-NetAdapter "vEthernet (SMB02)" -CimSession $Servers
-
-        #Enable RDMA on the host vNIC adapters
-            Enable-NetAdapterRDMA "vEthernet (SMB01)","vEthernet (SMB02)" -CimSession $Servers
-
-        #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
-            Invoke-Command -ComputerName $servers -ScriptBlock {
-                    $physicaladapters=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions | Sort-Object
-                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB01" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[0]).name
-                    Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB02" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapters[1]).name
+    #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+        If ($NumberOfStorageNets -eq 1){
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB* -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+        }else{
+            #configure Odds and Evens for VLAN1 and VLAN2
+            foreach ($Server in $Servers){
+                $NetAdapters=Get-VMNetworkAdapter -CimSession $server -ManagementOS -Name *SMB* | Sort-Object Name
+                $i=1
+                foreach ($NetAdapter in $NetAdapters){
+                    if (($i % 2) -eq 1){
+                        Set-VMNetworkAdapterVlan -VMNetworkAdapterName $NetAdapter.Name -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Server
+                        $i++
+                    }else{
+                        Set-VMNetworkAdapterVlan -VMNetworkAdapterName $NetAdapter.Name -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Server
+                        $i++
+                    }
                 }
+            }
+        }
+
+    #Restart each host vNIC adapter so that the Vlan is active.
+        Get-NetAdapter -CimSession $Servers -Name "vEthernet (SMB*)" | Restart-NetAdapter
+
+    #Enable RDMA on the host vNIC adapters
+        Enable-NetAdapterRDMA -Name "vEthernet (SMB*)" -CimSession $Servers
+
+    #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            #grab adapter names
+            $physicaladapternames=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
+            #map pNIC and vNICs
+            $vmNetAdapters=Get-VMNetworkAdapter -Name "SMB*" -ManagementOS
+            $i=0
+            foreach ($vmNetAdapter in $vmNetAdapters){
+                $TwoDigitNumber="{0:D2}" -f ($i+1)
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB$TwoDigitNumber" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapternames[$i]).name
+                $i++
+            }
+        }
 
         #Configure Jumbo Frames
             if ($JumboSize -ne 1514){
@@ -440,18 +514,6 @@
                     }
                 }
             }
-
-    #Verify Networking
-        #verify mapping
-            Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter 
-        #Verify that the VlanID is set
-            Get-VMNetworkAdapterVlan -ManagementOS -CimSession $servers |Sort-Object -Property Computername | Format-Table ComputerName,AccessVlanID,ParentAdapter -AutoSize -GroupBy ComputerName
-        #verify RDMA
-            Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
-        #verify ip config 
-            Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputername | Format-Table pscomputername,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
-        #verify JumboFrames
-            Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
 
     #configure DCB if requested
         if ($DCB -eq $True){
@@ -492,7 +554,7 @@
             #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
-                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 60 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 7 -BandwidthPercentage 1 -Algorithm ETS}
         }
 
@@ -501,9 +563,39 @@
             Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $servers
         }
 
+    #Verify Networking
+        #validate vSwitch
+        Get-VMSwitch -CimSession $servers
+        #validate vNICs
+        Get-VMNetworkAdapter -CimSession $servers -ManagementOS
+        #validate vNICs to pNICs mapping
+        Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Format-Table ComputerName,NetAdapterName,ParentAdapter
+        #validate JumboFrames setting
+        Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
+        #verify RDMA settings
+        Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+        #validate if VLANs were set
+        Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
+        #Validate DCBX setting
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
+        #validate policy (no result since it's not available in VM)
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+        #Validate QOS Policies
+        Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
+        #validate flow control setting
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
+        #validate QoS Traffic Classes
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+        #verify ip config 
+        Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputerName | Format-Table PSComputerName,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
+
 #endregion
 
 #region Create cluster and configure basic settings
+    if ($DellHW){
+        #Disable USB NIC used by iDRAC to communicate to host just for test-cluster
+        Disable-NetAdapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -Confirm:0
+    }
     Test-Cluster -Node $servers -Include "Storage Spaces Direct","Inventory","Network","System Configuration","Hyper-V Configuration"
     If ($DistributedManagementPoint){
         New-Cluster -Name $ClusterName -Node $servers -ManagementPointNetworkType "Distributed"
@@ -516,6 +608,10 @@
     }
     Start-Sleep 5
     Clear-DnsClientCache
+    if ($DellHW){
+        #Enable USB NIC used by iDRAC
+        Enable-NetAdapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device"
+    }
 
     #Configure CSV Cache (value is in MB) - disable if SCM or VM is used. For VM it's just for labs - to save some RAM.
         if (Get-PhysicalDisk -cimsession $servers[0] | Where-Object bustype -eq SCM){
@@ -818,16 +914,48 @@
         $context | Out-GridView -OutputMode Single | Set-AzContext
     }
 
-    #select subscription
+    #select subscription if more available
     $subscriptions=Get-AzSubscription
     if (($subscriptions).count -gt 1){
-        $subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription
+        $SubscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).Subscription.Id
+    }else{
+        $SubscriptionID=$subscriptions.id
     }
 
-    $subscriptionID=(Get-AzSubscription).ID
-
+    #enable debug logging in case something goes wrong
+        $servers=(Get-ClusterNode -Cluster $ClusterName).Name
+        Invoke-Command -ComputerName $servers -ScriptBlock {wevtutil.exe sl /q /e:true Microsoft-AzureStack-HCI/Debug}
     #register Azure Stack HCI
-    Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+        $ResourceGroupName="AzureStackHCIClusters"
+        if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+            Install-Module -Name Az.Resources -Force
+        }
+        #choose location for cluster (and RG)
+        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
+        If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+            New-AzResourceGroup -Name $ResourceGroupName -Location $region
+        }
+        #Register AZSHCi without prompting for creds
+        $armTokenItemResource = "https://management.core.windows.net/"
+        $graphTokenItemResource = "https://graph.windows.net/"
+        $azContext = Get-AzContext
+        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+        $id = $azContext.Account.Id
+        #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+        Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
+
+    #validate registration status
+        #grab available commands for registration
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-Command -Module AzureStackHCI}
+        #validate cluster registration
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCI}
+        #validate certificates
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCIRegistrationCertificate}
+        #validate Arc integration
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCIArcIntegration}
+
     <# without device authentication if running on server with Internet Explorer
     #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
     reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
@@ -888,7 +1016,7 @@
                 $CSV=($CSV -split '\((.*?)\)')[1]
                 1..3 | ForEach-Object {
                     $VMName="TestVM$($CSV)_$_"
-                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ArgumentList $CSV,$VMName -ScriptBlock {
+                    Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ScriptBlock {
                         #create some fake VMs
                         New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:CSV)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:CSV)\" -MemoryStartupBytes 32MB
                     }

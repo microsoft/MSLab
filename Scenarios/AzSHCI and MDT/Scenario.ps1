@@ -104,10 +104,11 @@
         New-Item -Path $using:DeploymentShareLocation -ItemType Directory -ErrorAction Ignore
         New-SmbShare -Name "DeploymentShare$" -Path "$using:DeploymentShareLocation" -FullAccess Administrators
     }
-    Start-Sleep 5
     #map MDT deployment share as PSDrive
-    New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
-
+    #sometimes happens that script to complains: The process cannot access the file '\\MDT\DeploymentShare$\Control\Settings.xml' because it is being used by another process.
+    do{
+        New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+    }until (get-psdrive -Name DS001)
     #Configure SQL Services
 
     Invoke-Command -ComputerName $MDTServer -scriptblock {
@@ -888,8 +889,8 @@ foreach ($idrac_ip in $idrac_ips){
     #in real world scenairos you can have hash table like this:
     <#
     $HVHosts = @()
-    $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DD" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
-    $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C9" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DC" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C8" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
     #>
 
     #grab machines that attempted to boot in last 5 minutes and create hash table.
@@ -1047,32 +1048,106 @@ $TextToSearch
 
 #region update task sequence with drivers
 
-#Dell driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
-#Download catalog
-Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
-#unzip gzip https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
-Function Expand-GZipArchive{
-    Param(
-        $infile,
-        $outfile = ($infile -replace '\.gz$','')
-        )
-    $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
-    $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
-    $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
-    $buffer = New-Object byte[](1024)
-    while($true){
-        $read = $gzipstream.Read($buffer, 0, 1024)
-        if ($read -le 0){break}
-        $output.Write($buffer, 0, $read)
-        }
-    $gzipStream.Close()
-    $output.Close()
-    $input.Close()
-}
-Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
-#load xml
-[xml]$xml=Get-Content "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
+#Download DSU
+#https://github.com/DellProSupportGse/Tools/blob/main/DART.ps1
 
+    #grab DSU links from Dell website
+    $URL="https://dl.dell.com/omimswac/dsu/"
+    $Results=Invoke-WebRequest $URL -UseDefaultCredentials
+    $Links=$results.Links.href | Select-Object -Skip 1
+    #create PSObject from results
+    $DSUs=@()
+    foreach ($Link in $Links){
+        $DSUs+=[PSCustomObject]@{
+            Link = "https://dl.dell.com$Link"
+            Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
+        }
+    }
+    #download latest to separate folder
+    $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+    $Folder="$env:USERPROFILE\Downloads\DSU"
+    if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
+    Start-BitsTransfer -Source $LatestDSU.Link -Destination $Folder\DSU.exe
+
+    #add DSU as application to MDT
+    Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+    if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+        New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+    }
+    $AppName="Dell DSU $($LatestDSU.Version)"
+    Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSU" -Version $LatestDSU.Version -Publisher "Dell" -Language "" -CommandLine "DSU.exe /silent" -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+    #grap package ID for role config
+    $DSUID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
+
+#download catalog and create answer file to run DSU
+    #Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
+    #Download catalog
+    Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+    #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
+    $Folder="$env:USERPROFILE\Downloads\DSUPackage"
+    if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
+    Function Expand-GZipArchive{
+        Param(
+            $infile,
+            $outfile = ($infile -replace '\.gz$','')
+            )
+        $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+        $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+        $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+        $buffer = New-Object byte[](1024)
+        while($true){
+            $read = $gzipstream.Read($buffer, 0, 1024)
+            if ($read -le 0){break}
+            $output.Write($buffer, 0, $read)
+            }
+        $gzipStream.Close()
+        $output.Close()
+        $input.Close()
+    }
+    Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$folder\ASHCI-Catalog.xml"
+    #create answerfile for DU
+    $content='@
+    a
+    c
+    @'
+    Set-Content -Path "$folder\answer.txt" -Value $content -NoNewline
+    $content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
+    Set-Content -Path "$folder\install.cmd" -Value $content -NoNewline
+
+    #add package to MDT
+    [xml]$xml=Get-Content "$folder\ASHCI-Catalog.xml"
+    $version=$xml.Manifest.version
+    $AppName="Dell DSU AzSHCI Package $Version"
+    $Commandline="install.cmd"
+    Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $Commandline -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+    #configure app to reboot after run
+    Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
+    #configure dependency on DSU
+    $guids=@()
+    $guids+=$DSUID
+    Set-ItemProperty -Path DS001:\Applications\$AppName -Name Dependency -Value $guids
+    #grap package ID for role config
+    $DSUPackageID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
+
+    #Create Role
+    $RoleName="AXNodeDrivers"
+    if (-not (Get-MDTRole -name $RoleName)){
+        New-MDTRole -name $RoleName -settings @{
+            OSInstall    ='YES'
+        }
+    }
+    #Add apps to role
+    $ID=(get-mdtrole -name $RoleName).ID
+    Set-MDTRoleApplication -id $ID -applications $DSUID,$DSUPackageID
+
+    #add role that will install drivers to AX computers
+        foreach ($HVHost in $HVHosts){
+            $MDTComputer=Get-MDTComputer -macAddress $HVHost.MACAddress
+            $Roles=($MDTComputer | Get-MDTComputerRole).Role
+            $Roles+=$RoleName
+            #Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
+            $MDTComputer | Set-MDTComputerRole -roles $Roles
+        }
 #download catalog drivers <TBD>
 <#
     #Create output folder

@@ -73,7 +73,7 @@ function  Get-WindowsBuildNumber {
     }
 
 # Checking Folder Structure
-    "ParentDisks","Temp","Temp\DSC","Temp\ToolsVHD\DiskSpd","Temp\ToolsVHD\SCVMM\ADK","Temp\ToolsVHD\SCVMM\ADKWinPE","Temp\ToolsVHD\SCVMM\SQL","Temp\ToolsVHD\SCVMM\SCVMM","Temp\ToolsVHD\SCVMM\UpdateRollup","Temp\ToolsVHD\VMFleet" | ForEach-Object {
+    "ParentDisks","Temp","Temp\DSC","Temp\ToolsVHD\DiskSpd","Temp\ToolsVHD\SCVMM\ADK","Temp\ToolsVHD\SCVMM\ADKWinPE","Temp\ToolsVHD\SCVMM\SQL","Temp\ToolsVHD\SCVMM\SCVMM","Temp\ToolsVHD\SCVMM\UpdateRollup" | ForEach-Object {
         if (!( Test-Path "$PSScriptRoot\$_" )) { New-Item -Type Directory -Path "$PSScriptRoot\$_" } }
 
     "Temp\ToolsVHD\SCVMM\ADK\Copy_ADK_with_adksetup.exe_here.txt","Temp\ToolsVHD\SCVMM\ADKWinPE\Copy_ADKWinPE_with_adkwinpesetup.exe_here.txt","Temp\ToolsVHD\SCVMM\SQL\Copy_SQL2017_or_SQL2019_with_setup.exe_here.txt","Temp\ToolsVHD\SCVMM\SCVMM\Copy_SCVMM_with_setup.exe_here.txt","Temp\ToolsVHD\SCVMM\UpdateRollup\Copy_SCVMM_Update_Rollup_MSPs_here.txt" | ForEach-Object {
@@ -102,26 +102,8 @@ function  Get-WindowsBuildNumber {
         }
     }
 
-#Download SetupVMFleet script
-    $Filename="SetupVMFleet"
-    $Path="$PSScriptRoot\Temp\ToolsVHD\$FileName.ps1"
-    If (Test-Path -Path $Path){
-        WriteSuccess "`t $Filename is present, skipping download"
-    }else{
-        $FileContent = $null
-        $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$Filename.ps1").Content
-        if ($FileContent){
-            $script = New-Item $Path -type File -Force
-            $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword
-            $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName
-            Set-Content -path $script -value $FileContent
-        }else{
-            WriteErrorAndExit "Unable to download $Filename."
-        }
-    }
-
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks"
+    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetImage"
     foreach ($filename in $filenames){
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path){
@@ -181,24 +163,6 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
             Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\Unzip" -Recurse -Force
     }
 
-#Download VMFleet
-    WriteInfoHighlighted "Testing VMFleet presence"
-    If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\install-vmfleet.ps1" ) {
-        WriteSuccess "`t VMFleet is present, skipping download"
-    }else{ 
-        WriteInfo "`t VMFleet not there - Downloading VMFleet"
-        try {
-            $downloadurl = "https://github.com/Microsoft/diskspd/archive/master.zip"
-            Invoke-WebRequest -Uri $downloadurl -OutFile "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
-        }catch{
-            WriteError "`t Failed to download VMFleet!"
-        }
-        # Unnzipping and extracting just VMFleet
-            Microsoft.PowerShell.Archive\Expand-Archive "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip" -DestinationPath "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip"
-            Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip\diskspd-master\Frameworks\VMFleet\*" -Destination "$PSScriptRoot\Temp\ToolsVHD\VMFleet\"
-            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\VMFleet.zip"
-            Remove-Item -Path "$PSScriptRoot\Temp\ToolsVHD\VMFleet\Unzip" -Recurse -Force
-    }
 #endregion
 
 #region Downloading required Posh Modules
