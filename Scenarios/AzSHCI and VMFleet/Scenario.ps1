@@ -29,10 +29,10 @@
     }
 
     #Ask for VHD
-        Write-Output "Please select VHD created using CreateVMFleetImage"
+        Write-Output "Please select VHD created using CreateVMFleetDisk.ps1"
         [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
         $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select VHD created by convert-windowsimage. Click cancel if you want to create it"
+            Title="Please select VHD created using CreateVMFleetDisk.ps1"
         }
         $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
         If($openFile.ShowDialog() -eq "OK"){
