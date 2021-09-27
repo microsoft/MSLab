@@ -51,9 +51,6 @@
 
 #region install and create VMFleet
     $VHDName=$VHDPath | Split-Path -Leaf
-    #Grab nubmer of Logical Processors per node divided by 2
-    $NumberOfVMs=(Get-CimInstance -CimSession $ClusterName -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
-
     #Enable CredSSP
     # Temporarily enable CredSSP delegation to avoid double-hop issue
     foreach ($Node in $Nodes){
@@ -67,8 +64,9 @@
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/157
         #It's probably more convenient to run this command on cluster as all VHD copying will happen on cluster itself.
-        #if you will run Measure-FleetCoreWorkload, creating VMs is not necessary
-        #New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
+        #Grab nubmer of Logical Processors per node divided by 2 (Hyper thread CPUs)
+        $NumberOfVMs=(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
+        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
     }
 
     # Disable CredSSP
