@@ -43,13 +43,16 @@ If (!( $isAdmin )) {
         WriteInfoHighlighted "Please select VHD (Windows Server Core) created using CreateParentDisk.ps1 located in ParentDisks folder."
         [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
         $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select VHD created by convert-windowsimage. Click cancel if you want to create it"
+            Title="Please select VHD (Windows Server Core) created using CreateParentDisk.ps1 located in ParentDisks folder."
         }
         $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
         If($openFile.ShowDialog() -eq "OK"){
             WriteInfo  "File $($openfile.FileName) selected"
         }
         $VHDPath=$openfile.FileName
+        if (-not ($VHDPath)){
+            WriteErrorAndExit "VHD not selected. Exiting ."
+        }
     #ask for Password that will be configured inside VHD
         WriteInfoHighlighted "Please provide password that will be injected as administrator password into VHD"
         $AdminPassword=Read-Host
