@@ -31,9 +31,6 @@
         $CloudWitnessEndpoint="core.windows.net“
         #>
 
-    #Disable CSV Balancer
-        $DisableCSVBalancer=$False
-
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
         $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
@@ -261,7 +258,7 @@
 #endregion
 
 #region Configure basic settings on servers
-    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers (may be obsolete as it applies to Dell 730xd with Hitachi HDDs)
+    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
@@ -639,12 +636,6 @@
     }elseif($WitnessType -eq $Cloud){
         Set-ClusterQuorum -Cluster $ClusterName -CloudWitness -AccountName $CloudWitnessStorageAccountName -AccessKey $CloudWitnessStorageKey -Endpoint $CloudWitnessEndpoint 
     }
-
-    #Disable CSV Balancer
-        if ($DisableCSVBalancer){
-            (Get-Cluster $ClusterName).CsvBalancer = 0
-        }
-
 #endregion
 
 #region Configure Cluster Networks
@@ -655,10 +646,16 @@
             (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB01"
             (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB02"
         }
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like $AdaptersIPPrefix).Name="Management"
-
-    #configure Live Migration 
-        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -eq "Management"}).ID))
+        #Rename Management Network
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq "ClusterAndClient").Name="Management"
+        #Rename and Configure USB NICs
+        if ($DellHW){
+            $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
+            $Network.Name="iDRAC"
+            $Network.Role="none"
+        }
+        #configure Live Migration 
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -ne "Cluster"}).ID))
         Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
 
     #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
