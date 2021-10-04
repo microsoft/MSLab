@@ -31,9 +31,6 @@
         $CloudWitnessEndpoint="core.windows.net“
         #>
 
-    #Disable CSV Balancer
-        $DisableCSVBalancer=$False
-
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
         $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
@@ -261,7 +258,7 @@
 #endregion
 
 #region Configure basic settings on servers
-    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers (may be obsolete as it applies to Dell 730xd with Hitachi HDDs)
+    #Tune HW timeout to 10 seconds (6 seconds is default) in Dell servers
         if ($DellHW){
             Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
         }
@@ -576,19 +573,20 @@
         Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
         #validate if VLANs were set
         Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
-        #Validate DCBX setting
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
-        #validate policy (no result since it's not available in VM)
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
-        #Validate QOS Policies
-        Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
-        #validate flow control setting
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
-        #validate QoS Traffic Classes
-        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
         #verify ip config 
         Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputerName | Format-Table PSComputerName,interfacealias,ipaddress -AutoSize -GroupBy pscomputername
-
+        if ($DCB -eq $True){
+            #Validate DCBX setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Format-Table Willing,PSComputerName
+            #validate policy (no result since it's not available in VM)
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+            #Validate QOS Policies
+            Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName | Select-Object PSComputer,Name,NetDirectPort,PriorityValue
+            #validate flow control setting
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername | Format-Table PSComputerName,Priority,Enabled -GroupBy PSComputerName
+            #validate QoS Traffic Classes
+            Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+        }
 #endregion
 
 #region Create cluster and configure basic settings
@@ -639,12 +637,6 @@
     }elseif($WitnessType -eq $Cloud){
         Set-ClusterQuorum -Cluster $ClusterName -CloudWitness -AccountName $CloudWitnessStorageAccountName -AccessKey $CloudWitnessStorageKey -Endpoint $CloudWitnessEndpoint 
     }
-
-    #Disable CSV Balancer
-        if ($DisableCSVBalancer){
-            (Get-Cluster $ClusterName).CsvBalancer = 0
-        }
-
 #endregion
 
 #region Configure Cluster Networks
@@ -655,10 +647,16 @@
             (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB01"
             (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB02"
         }
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like $AdaptersIPPrefix).Name="Management"
-
-    #configure Live Migration 
-        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Name -eq "Management"}).ID))
+        #Rename Management Network
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq "ClusterAndClient").Name="Management"
+        #Rename and Configure USB NICs
+        if ($DellHW){
+            $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
+            $Network.Name="iDRAC"
+            $Network.Role="none"
+        }
+        #configure Live Migration 
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -ne "Cluster"}).ID))
         Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
 
     #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
