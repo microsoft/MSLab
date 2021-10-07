@@ -64,9 +64,10 @@
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/157
         #It's probably more convenient to run this command on cluster as all VHD copying will happen on cluster itself.
-        #Grab nubmer of Logical Processors per node divided by 2 (Hyper thread CPUs)
-        $NumberOfVMs=(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
-        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
+        #Grab nubmer of Logical Processors per node divided by 2 (Hyper thread CPUs) - no need to do it, this will happen automagically if -VMs not specified
+        #$NumberOfVMs=(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
+        #New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
+        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
     }
 
     # Disable CredSSP
@@ -98,4 +99,29 @@
     # Disable CredSSP
     Disable-WSManCredSSP -Role Client
     Invoke-Command -ComputerName $nodes -ScriptBlock { Disable-WSManCredSSP Server }
+#endregion
+
+#region Remove Fleet
+    # Temporarily enable CredSSP delegation to avoid double-hop issue
+    foreach ($Node in $Nodes){
+        Enable-WSManCredSSP -Role "Client" -DelegateComputer $Node -Force
+    }
+    Invoke-Command -ComputerName $Nodes -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+    Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Remove-Fleet
+    }
+
+    # Disable CredSSP
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -ComputerName $nodes -ScriptBlock { Disable-WSManCredSSP Server }
+
+    # Remove CSVs
+    foreach ($Node in $Nodes){
+        Remove-VirtualDisk -FriendlyName $Node -CimSession $ClusterName -Confirm:0 
+    }
+    Remove-VirtualDisk -FriendlyName Collect -CimSession $ClusterName -Confirm:0 
 #endregion
