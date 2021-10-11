@@ -9,22 +9,17 @@
     Install-Module -Name VMFleet -Force
     Install-Module -Name PrivateCloud.DiagnosticInfo -Force
 
-    #Make sure Hyper-V is installed (to be able to work with VHD)
-    $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
-    if ($result.ExitCode -eq "failed"){
-        Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
-    }
 #endregion
 
 #region Configure VMFleet prereqs
     #Create Volumes
     Foreach ($Node in $Nodes){
-        if (-not (Get-Virtualdisk -CimSession $ClusterName -FriendlyName $Node)){
+        if (-not (Get-Virtualdisk -CimSession $ClusterName -FriendlyName $Node -ErrorAction Ignore)){
             New-Volume -CimSession $Node -StoragePoolFriendlyName "S2D on $ClusterName" -FileSystem CSVFS_ReFS -FriendlyName $Node -Size $VolumeSize
         }
     }
 
-    if (-not (Get-Virtualdisk -CimSession $ClusterName -FriendlyName Collect)){
+    if (-not (Get-Virtualdisk -CimSession $ClusterName -FriendlyName Collect -ErrorAction Ignore)){
         New-Volume -CimSession $CLusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FileSystem CSVFS_ReFS -FriendlyName Collect -Size 100GB
     }
 
