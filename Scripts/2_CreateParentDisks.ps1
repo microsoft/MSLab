@@ -274,10 +274,10 @@ If (-not $isAdmin) {
             }
             $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
         }else{
-            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019, 2022 or Server Insider"
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
             $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Title="Please select ISO image with Windows Server 2016, 2019 or Server Insider"
+                Title="Please select ISO image with Windows Server 2016, 2019, 2022 or Server Insider"
             }
             $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
             If($openFile.ShowDialog() -eq "OK"){
@@ -398,7 +398,7 @@ If (-not $isAdmin) {
             VHDName="Win2022Core_G2.vhdx"
             Size=30GB
         }
-    }elseif ($BuildNumber -ge 17744 -and $SAC){
+    }elseif ($BuildNumber -gt 20348 -and $SAC){
         $ServerVHDs += @{
             Kind = "Core"
             Edition="2" 
@@ -409,7 +409,7 @@ If (-not $isAdmin) {
         if ($LabConfig.DCEdition -gt 2){
             $LabConfig.DCEdition=2
         }
-    }elseif ($BuildNumber -ge 17744){
+    }elseif ($BuildNumber -gt 20348){
         #Windows Sever Insider
         $ServerVHDs += @{
             Kind = "Full"
