@@ -162,6 +162,9 @@ If (-not $isAdmin) {
                         "AzSHCI21H2_G2.vhdx"
                     }
                 }
+                if ($BuildNumber -GT 20348){
+                    $tempvhdname="AzSHCIInsider_$BuildNumber.vhdx"
+                }
             }elseif (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
                 $tempvhdname = switch ($BuildNumber){
                     7600 {
@@ -295,7 +298,7 @@ If (-not $isAdmin) {
                     }
                 }
                 if ($BuildNumber -GT 22000){
-                    $tempvhdname="Win10Insider_$BuildNumber.vhdx"
+                    $tempvhdname="Win11Insider_$BuildNumber.vhdx"
                 }
             }
         }
