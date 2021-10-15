@@ -77,7 +77,7 @@
             Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
             $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-            $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+            $Credentials = New-Object System.Management.Automation.PSCredential ("$env:userdomain\LabAdmin", $password)
 
             Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
                 $downloadfolder="D:\Install"
@@ -108,6 +108,9 @@
     #sometimes happens that script to complains: The process cannot access the file '\\MDT\DeploymentShare$\Control\Settings.xml' because it is being used by another process.
     do{
         New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        if (-not (get-psdrive -Name DS001)){
+            Write-Output "Failed adding PSDrive - trying again"
+        }
     }until (get-psdrive -Name DS001)
     #Configure SQL Services
 
@@ -202,15 +205,16 @@
 
 #region configure MDT run-as account
     #create identity for MDT
-    New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
+    $DefaultOUPath=(Get-ADDomain).UsersContainer
+    New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path $DefaultOUPath
 
     #add FileShare permissions for MDT Account
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {
         Grant-SmbShareAccess -Name DeploymentShare$ -AccessRight Read -AccountName MDTUser -Confirm:$false
     }
     #delegate djoin permissions https://www.sevecek.com/EnglishPages/Lists/Posts/Post.aspx?ID=48
-    $user = 'corp\MDTUser'
-    $ou = 'OU=Workshop,DC=Corp,DC=contoso,DC=com'
+    $user = "$env:userdomain\MDTUser"
+    $ou = (Get-ADDomain).ComputersContainer
 
     DSACLS $ou /R $user
 
@@ -236,7 +240,7 @@ Priority=Default
 
 [Default]
 DeployRoot=\\$MDTServer\DeploymentShare$
-UserDomain=corp
+UserDomain=$env:userdomain
 UserID=MDTUser
 UserPassword=LS1setup!
 SkipBDDWelcome=YES
@@ -268,7 +272,7 @@ SkipBDDWelcome=YES
     Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
     $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+    $Credentials = New-Object System.Management.Automation.PSCredential ("$env:userdomain\LabAdmin", $password)
 
     #Configure WDS
     Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
@@ -585,26 +589,26 @@ $text = [IO.File]::ReadAllText($CustomSettingsFile) -replace "`n", "`r`n"
     }
     if ($Connection -eq "NamedPipes"){
             #Named Pipes
-    $sqlscript=@'
+    $sqlscript=@"
 USE [master]
 GO
-CREATE LOGIN [CORP\MDTUser] FROM WINDOWS WITH DEFAULT_DATABASE=[MDTDB]
+CREATE LOGIN [$env:userdomain\MDTUser] FROM WINDOWS WITH DEFAULT_DATABASE=[MDTDB]
 GO
 USE [MDTDB]
 GO
-CREATE USER [corp\mdtuser] FOR LOGIN [corp\mdtuser]
+CREATE USER [$env:userdomain\mdtuser] FOR LOGIN [$env:userdomain\mdtuser]
 GO
 USE [MDTDB]
 GO
-ALTER ROLE [db_datareader] ADD MEMBER [corp\mdtuser]
+ALTER ROLE [db_datareader] ADD MEMBER [$env:userdomain\mdtuser]
 GO
 
-'@
+"@
     Invoke-Sqlcmd -ServerInstance $MDTServer\sqlexpress -Database MDTDB -Query $sqlscript
 
 }elseif($Connection -eq "TCPIP"){
     #TCP (add user and change authentication mode to be able to use both SQL and Windows Auth
-    $sqlscript=@'
+    $sqlscript=@"
 USE [master]
 GO
 CREATE LOGIN [MDTSQLUser] WITH PASSWORD='LS1setup!', DEFAULT_DATABASE=[MDTDB]
@@ -620,7 +624,7 @@ GO
 EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', N'Software\Microsoft\MSSQLServer\MSSQLServer', N'LoginMode', REG_DWORD, 2
 GO
 
-'@
+"@
     #TCP
     Invoke-Sqlcmd -ServerInstance "tcp:$MDTServer" -Database MDTDB -Query $sqlscript
     #restart service to apply mixed auth mode
@@ -780,9 +784,9 @@ $HVHosts
             New-MDTRole -name JoinDomain -settings @{
                 SkipComputerName    ='YES'
                 SkipDomainMembership='YES'
-                JoinDomain          ='corp.contoso.com'
+                JoinDomain          = $env:USERDNSDomain 
                 DomainAdmin         ='MDTUser'
-                DomainAdminDomain   ='corp'
+                DomainAdminDomain   = $env:userdomain
                 DomainAdminPassword ='LS1setup!'
             }
         }
@@ -987,9 +991,9 @@ foreach ($idrac_ip in $idrac_ips){
             New-MDTRole -name JoinDomain -settings @{
                 SkipComputerName    ='YES'
                 SkipDomainMembership='YES'
-                JoinDomain          ='corp.contoso.com'
+                JoinDomain          = $env:USERDNSDomain
                 DomainAdmin         ='MDTUser'
-                DomainAdminDomain   ='corp'
+                DomainAdminDomain   = $env:userdomain
                 DomainAdminPassword ='LS1setup!'
             }
         }
