@@ -393,14 +393,14 @@
     #Grab fastest adapters and sort by name #Create Virtual Switches and Virtual Adapters
         if ($SRIOV){
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
-                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).Speed| Sort-Object -Descending | Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Speed -eq $FastestLinkSpeed | Sort-Object Name
                 New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName $NetAdapters.Name
             }
         }else{
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
-                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).Speed| Sort-Object -Descending| Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Speed -eq $FastestLinkSpeed | Sort-Object Name
                 New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapters.Name
             }
         }
