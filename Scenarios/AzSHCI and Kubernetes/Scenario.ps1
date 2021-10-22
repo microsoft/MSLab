@@ -269,8 +269,11 @@ Foreach ($PSSession in $PSSessions){
         Initialize-AksHciNode
     }
 
-    #Create  volume for AKS
-    New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    #Create volume for AKS if does not exist
+    if (-not (Get-Volume -FriendlyName $VolumeName -CimSession $ClusterName)) {
+        New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    }
+    
     #make sure failover clustering management tools are installed on nodes
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
