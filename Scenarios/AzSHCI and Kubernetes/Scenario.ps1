@@ -269,8 +269,11 @@ Foreach ($PSSession in $PSSessions){
         Initialize-AksHciNode
     }
 
-    #Create  volume for AKS
-    New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    #Create volume for AKS if does not exist
+    if (-not (Get-Volume -FriendlyName $VolumeName -CimSession $ClusterName -ErrorAction SilentlyContinue)) {
+        New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    }
+
     #make sure failover clustering management tools are installed on nodes
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
@@ -278,8 +281,7 @@ Foreach ($PSSession in $PSSessions){
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         $vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
-        #Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
-        Set-AksHciConfig -vnet $vnet -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
+        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
     }
 
     #validate config
@@ -323,7 +325,7 @@ Foreach ($PSSession in $PSSessions){
     $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
     $id = $azContext.Account.Id
 
-    Invoke-Command -computername $servers[0] -ScriptBlock {
+    Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Set-AksHciRegistration -SubscriptionID $using:subscriptionID -GraphAccessToken $using:graphToken -ArmAccessToken $using:armToken -AccountId $using:id -ResourceGroupName $using:resourcegroupname
     }
 
@@ -335,7 +337,7 @@ Foreach ($PSSession in $PSSessions){
     #>
 
     #validate registration
-    Invoke-Command -computername $servers[0] -ScriptBlock {
+    Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Get-AksHciRegistration
     }    
 
@@ -354,7 +356,7 @@ Foreach ($PSSession in $PSSessions){
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
-    New-AksHciCluster -Name demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -EnableADAuth -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
+    New-AksHciCluster -Name demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -EnableADAuth -loadBalancerVmSize Standard_A2_v2  #In Azure Stack HCI 21H2, default -controlplaneVmSize value is Standard_A4_v2, use smaller VM may result stuck in installation
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
