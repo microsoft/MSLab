@@ -162,7 +162,8 @@ if (($subscription).count -gt 1){
 #grab subscription ID
 $subscriptionID=(Get-AzContext).Subscription.id
 
-#Register AZSHCi without prompting for creds
+<# Register AZSHCi without prompting for creds
+# In Azure Stack HCI 21H2, this method will register Azure Stack HCI but failed with Arc Integration
 $armTokenItemResource = "https://management.core.windows.net/"
 $graphTokenItemResource = "https://graph.windows.net/"
 $azContext = Get-AzContext
@@ -171,10 +172,11 @@ $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environme
 $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
 $id = $azContext.Account.Id
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-
-<# or register Azure Stack HCI with device authentication
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
 #>
+
+# Register Azure Stack HCI with device authentication
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+
 <# or with standard authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
