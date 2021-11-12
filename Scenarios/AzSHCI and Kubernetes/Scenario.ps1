@@ -575,6 +575,15 @@ kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-ap
 kubectl get service
 #endregion
 
+#region get admin token and use it in Azure Portal to view resources in AKS HCI https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/cluster-connect#option-2-service-account-bearer-token
+kubectl create serviceaccount admin-user
+kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
+$SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
+$EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
+$Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
+$Token
+#enregion
+
 #region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
 #download and install Azure Data CLI
 Start-BitsTransfer -Source https://aka.ms/azdata-msi -Destination "$env:USERPROFILE\Downloads\azdata-cli.msi"
