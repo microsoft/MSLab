@@ -813,6 +813,8 @@ $HVHosts
     }
 #endregion
 
+############################################################################################################################################
+
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
@@ -887,7 +889,7 @@ foreach ($idrac_ip in $idrac_ips){
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
-#               Run management machine                #
+#             Run from management machine             #
 #######################################################
 
 #region Create hash table out of machines that attempted boot last 5 minutes
@@ -1175,7 +1177,7 @@ $TextToSearch
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
-#       Run from machine that can talk to iDRAC       #
+#             Run from management machine             #
 #######################################################
 
 #region Restart AX Nodes again to deploy OS
@@ -1244,7 +1246,7 @@ foreach ($idrac_ip in $idrac_ips){
 #######################################################
 #               Fun with Dell AX nodes                #
 #                                                     #
-#               Run management machine                #
+#             Run from management machine             #
 #######################################################
 
 #region remove pxe boot after install is done
@@ -1254,7 +1256,459 @@ foreach ($HVHost in $HVHosts){
     Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootMachineFilePath = "DC"}
 }
 #endregion
-#TBD: 
-#remove from pxe boot as package in MDT (create app/package,delegate permissions on computers attribute, clean attribute...)
-#add real servers drivers
-#...
+
+############################################################################################################################################
+
+############################################################
+#     Expanding lab with Another TS for Windows Server     #
+############################################################
+
+#region Add Windows Server Task Sequence
+    $MDTServer="MDT"
+    if (-not(get-module MicrosoftDeploymentToolkit)){
+        Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+    }
+    Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+    if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+        New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+    }
+
+    #Grab Server ISO
+        Write-Output "Please select ISO image with Windows Server 2022"
+        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+        $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            Title="Please select ISO image with Windows Server 2022"
+        }
+        $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+        If($openFile.ShowDialog() -eq "OK"){
+            Write-Output  "File $($openfile.FileName) selected"
+        } 
+        if (!$openFile.FileName){
+            Write-Error "Iso was not selected..."
+        }
+        $ISOServerPath=$openFile.FileName
+
+    #Import Operating System
+    $ISO = Mount-DiskImage -ImagePath $ISOServerPath -PassThru
+    $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
+    Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Windows Server 2019 x64" -Verbose
+    $ISO | Dismount-DiskImage
+
+    #add Task Sequence
+    import-mdttasksequence -path "DS001:\Task Sequences" -Name "Windows Server Deploy" -Template "Server.xml" -Comments "" -ID "WinSRV" -Version "1.0" -OperatingSystemPath "DS001:\Operating Systems\Windows Server 2019 SERVERDATACENTERCORE in Windows Server 2019 x64 install.wim" -FullName "PFE" -OrgName "Contoso" -HomePage "about:blank" -AdminPassword "LS1setup!" -Verbose
+
+#endregion
+
+#######################################################
+#               Fun with Dell R440 nodes               #
+#                                                     #
+#       Run from machine that can talk to iDRAC       #
+#######################################################
+
+#region Restart R440 Nodes
+#$Credentials=Get-Credential
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
+$idrac_ips="192.168.100.128","192.168.100.129"
+$Headers=@{"Accept"="application/json"}
+$ContentType='application/json'
+function Ignore-SSLCertificates
+{
+    $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+    $Compiler = $Provider.CreateCompiler()
+    $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+    $Params.GenerateExecutable = $false
+    $Params.GenerateInMemory = $true
+    $Params.IncludeDebugInformation = $false
+    $Params.ReferencedAssemblies.Add("System.DLL") > $null
+    $TASource=@'
+        namespace Local.ToolkitExtensions.Net.CertificatePolicy
+        {
+            public class TrustAll : System.Net.ICertificatePolicy
+            {
+                public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                {
+                    return true;
+                }
+            }
+        }
+'@ 
+    $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+    $TAAssembly=$TAResults.CompiledAssembly
+    $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+    [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+}
+#ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck
+Ignore-SSLCertificates
+
+#reboot machines
+foreach ($idrac_ip in $idrac_ips){
+    #Configure PXE for next reboot
+    $JsonBody = @{ Boot = @{
+        "BootSourceOverrideTarget"="Pxe"
+        }} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    
+    #Validate
+    $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    $Result.Boot.BootSourceOverrideTarget
+
+    #check reboot options
+    #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
+
+    #reboot
+    #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
+    $JsonBody = @{ "ResetType" = "ForceRestart"} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+
+    Start-Sleep 10
+}
+#endregion
+
+#######################################################
+#               Fun with Dell R440 nodes              #
+#                                                     #
+#             Run from management machine             #
+#######################################################
+
+#region Create hash table out of machines that attempted boot last 5 minutes
+    #in real world scenairos you can have hash table like this:
+    <#
+    $HVHosts = @()
+    $HVHosts+=@{ComputerName="R440Node1"  ;IPAddress="10.0.0.122" ; MACAddress="34:80:0D:91:0B:66" ; GUID="4C4C4544-0051-5610-8056-B8C04F323333"}
+    $HVHosts+=@{ComputerName="R440Node2"  ;IPAddress="10.0.0.123" ; MACAddress="34:80:0D:91:0B:54" ; GUID="4C4C4544-0051-5610-8054-B8C04F323333"}
+    #>
+
+    #grab machines that attempted to boot in last 5 minutes and create hash table.
+    $HVHosts=Invoke-Command -ComputerName $MDTServer -ScriptBlock {
+        $IpaddressScope="10.0.0."
+        $IPAddressStart=122 #starting this number IPs will be asigned
+        $ServersNamePrefix="R440Node"
+        $events=Get-WinEvent -FilterHashtable @{LogName="Microsoft-Windows-Deployment-Services-Diagnostics/Operational";Id=4132;StartTime=(get-date).AddMinutes(-5)} | Where-Object Message -like "*it is not recognized*" | Sort-Object TimeCreated
+        $HVHosts = @()
+        $GUIDS=@()
+        $i=1
+        foreach ($event in $events){
+            [System.Diagnostics.Eventing.Reader.EventLogRecord]$event=$event
+            if (!($guids).Contains($event.properties.value[2])){
+                $HVHosts+= @{ ComputerName="$ServersNamePrefix$i";GUID = $event.properties.value[2] -replace '[{}]' ; MACAddress = $event.properties.value[0] -replace "-",":" ; IPAddress="$IpaddressScope$($IPAddressStart.tostring())"}
+                $i++
+                $IPAddressStart++
+                $GUIDS+=$event.properties.value[2]
+            }
+        }
+        Return $HVHosts
+    }
+
+
+#endregion
+
+#region create DHCP reservation for machines
+    #Create DHCP reservations for Hyper-V hosts
+        #Add DHCP Reservations
+        foreach ($HVHost in $HVHosts){
+            if (!(Get-DhcpServerv4Reservation -ErrorAction SilentlyContinue -ComputerName $DHCPServer -ScopeId $ScopeID -ClientId ($HVHost.MACAddress).Replace(":","") | Where-Object IPAddress -eq $HVHost.IPAddress)){
+                Add-DhcpServerv4Reservation -ComputerName $DHCPServer -ScopeId $ScopeID -IPAddress $HVHost.IPAddress -ClientId ($HVHost.MACAddress).Replace(":","")
+            }
+        }
+
+    #configure NTP server in DHCP (might be useful if Servers have issues with time)
+        if (!(get-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -ErrorAction SilentlyContinue)){
+            Set-DhcpServerv4OptionValue -ComputerName $DHCPServer -ScopeId $ScopeID -OptionId 042 -Value "10.0.0.1"
+        }
+#endregion
+
+#region add deploy info to AD Object and MDT Database
+    #download and unzip mdtdb (blog available in web.archive only https://web.archive.org/web/20190421025144/https://blogs.technet.microsoft.com/mniehaus/2009/05/14/manipulating-the-microsoft-deployment-toolkit-database-using-powershell/)
+    #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+    Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
+
+    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
+    if ((Get-ExecutionPolicy) -eq "Restricted"){
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+    }
+    Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
+    #make sure DS is connected
+        if (-not(get-module MicrosoftDeploymentToolkit)){
+            Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+        }
+        if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+            New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        }
+    #Connect to DB
+        #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
+        Connect-MDTDatabase -drivePath "DS001:\"
+
+
+    #add hosts to MDT DB
+    foreach ($HVHost in $HVHosts){
+        if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
+            New-ADComputer -Name $hvhost.ComputerName
+        }
+        #add to MDT DB
+        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
+            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
+                ComputerName        = $HVHost.ComputerName 
+                OSDComputerName     = $HVHost.ComputerName 
+                #SkipBDDWelcome      = 'Yes' 
+            }
+        }
+        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,WinSRV
+    }
+
+    #Configure MDT DB Roles
+        if (-not (Get-MDTRole -name WinSRV)){
+            New-MDTRole -name WinSRV -settings @{
+                SkipTaskSequence    = 'YES'
+                SkipWizard          = 'YES'
+                SkipSummary         = 'YES'
+                SkipApplications    = 'YES'
+                TaskSequenceID      = 'WinSRV'
+                SkipFinalSummary    = 'YES'
+                FinishAction        = 'LOGOFF'
+            }
+        }
+
+        if (-not (Get-MDTRole -name JoinDomain)){
+            New-MDTRole -name JoinDomain -settings @{
+                SkipComputerName    ='YES'
+                SkipDomainMembership='YES'
+                JoinDomain          = $env:USERDNSDomain
+                DomainAdmin         ='MDTUser'
+                DomainAdminDomain   = $env:userdomain
+                DomainAdminPassword ='LS1setup!'
+            }
+        }
+
+    #allow machines to boot from PXE from DC by adding info into AD Object
+    foreach ($HVHost in $HVHosts){
+        [guid]$guid=$HVHost.GUID
+        Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
+        #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
+    }
+
+#endregion
+
+#region update task sequence with powershell script to install OS to smallest disk right before "New Computer only" group
+$TaskSequenceID="WinSRV"
+$PSScriptName="OSDDiskIndex.ps1"
+$PSScriptContent=@'
+$Disks=Get-CimInstance win32_DiskDrive
+if ($Disks.model -contains "DELLBOSS VD"){
+    #exact model for Dell AX node (DELLBOSS VD)
+    $TSenv:OSDDiskIndex=($Disks | Where-Object Model -eq "DELLBOSS VD").Index
+}else{
+    #or just smallest disk
+    $TSenv:OSDDiskIndex=($Disks | Where-Object MediaType -eq "Fixed hard disk media" | Sort-Object Size | Select-Object -First 1).Index
+}
+<# In case you need PowerShell and pause Task Sequence you can use this code:
+#source: http://wiki.wladik.net/windows/mdt/powershell-scripting
+#run posh
+Start PowerShell
+#pause TS
+[System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
+[System.Windows.Forms.MessageBox]::Show("Click to continue...")
+#>
+'@
+
+    #update Tasksequence
+    $TS=Invoke-Command -ComputerName $MDTServer -ScriptBlock {Get-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml}
+    $TextToSearch='    <group name="New Computer only" disable="false" continueOnError="false" description="" expand="false">'
+    $PoshScript=@"
+    <step type="BDD_RunPowerShellAction" name="Run PowerShell Script" description="" disable="false" continueOnError="false" successCodeList="0 3010">
+      <defaultVarList>
+        <variable name="ScriptName" property="ScriptName">$PSScriptName</variable>
+        <variable name="Parameters" property="Parameters"></variable>
+        <variable name="PackageID" property="PackageID"></variable>
+      </defaultVarList>
+      <action>cscript.exe "%SCRIPTROOT%\ZTIPowerShell.wsf</action>
+    </step>
+$TextToSearch
+"@
+    $NewTS=$TS.replace($TextToSearch,$PoshScript)
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Control\$using:TaskSequenceID\ts.xml -Value $using:NewTS}
+    #insert script
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:DeploymentShareLocation\Scripts\$using:PSScriptName -Value $using:PSScriptContent}
+
+#endregion
+
+#region update task sequence with drivers
+$RoleName="AXNodeDrivers"
+if (-not (Get-MDTRole -name $RoleName)){
+    #Download DSU
+    #https://github.com/DellProSupportGse/Tools/blob/main/DART.ps1
+
+        #grab DSU links from Dell website
+        $URL="https://dl.dell.com/omimswac/dsu/"
+        $Results=Invoke-WebRequest $URL -UseDefaultCredentials
+        $Links=$results.Links.href | Select-Object -Skip 1
+        #create PSObject from results
+        $DSUs=@()
+        foreach ($Link in $Links){
+            $DSUs+=[PSCustomObject]@{
+                Link = "https://dl.dell.com$Link"
+                Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
+            }
+        }
+        #download latest to separate folder
+        $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+        $Folder="$env:USERPROFILE\Downloads\DSU"
+        if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
+        Start-BitsTransfer -Source $LatestDSU.Link -Destination $Folder\DSU.exe
+
+        #add DSU as application to MDT
+        Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
+        if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
+            New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
+        }
+        $AppName="Dell DSU $($LatestDSU.Version)"
+        Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSU" -Version $LatestDSU.Version -Publisher "Dell" -Language "" -CommandLine "DSU.exe /silent" -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+        #grap package ID for role config
+        $DSUID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
+
+    #download catalog and create answer file to run DSU
+        #Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
+        #Download catalog
+        Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+        #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
+        $Folder="$env:USERPROFILE\Downloads\DSUPackage"
+        if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
+        Function Expand-GZipArchive{
+            Param(
+                $infile,
+                $outfile = ($infile -replace '\.gz$','')
+                )
+            $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+            $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+            $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+            $buffer = New-Object byte[](1024)
+            while($true){
+                $read = $gzipstream.Read($buffer, 0, 1024)
+                if ($read -le 0){break}
+                $output.Write($buffer, 0, $read)
+                }
+            $gzipStream.Close()
+            $output.Close()
+            $input.Close()
+        }
+        Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$folder\ASHCI-Catalog.xml"
+        #create answerfile for DU
+        $content='@
+        a
+        c
+        @'
+        Set-Content -Path "$folder\answer.txt" -Value $content -NoNewline
+        $content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
+        Set-Content -Path "$folder\install.cmd" -Value $content -NoNewline
+
+        #add package to MDT
+        [xml]$xml=Get-Content "$folder\ASHCI-Catalog.xml"
+        $version=$xml.Manifest.version
+        $AppName="Dell DSU AzSHCI Package $Version"
+        $Commandline="install.cmd"
+        Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $Commandline -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+        #configure app to reboot after run
+        Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
+        #configure dependency on DSU
+        $guids=@()
+        $guids+=$DSUID
+        Set-ItemProperty -Path DS001:\Applications\$AppName -Name Dependency -Value $guids
+        #grap package ID for role config
+        $DSUPackageID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
+
+        #Create Role
+        New-MDTRole -name $RoleName -settings @{
+            OSInstall    ='YES'
+        }
+
+        #Add apps to role
+        $ID=(get-mdtrole -name $RoleName).ID
+        Set-MDTRoleApplication -id $ID -applications $DSUID,$DSUPackageID
+}
+
+#add role that will install drivers to R440 computers
+foreach ($HVHost in $HVHosts){
+    $MDTComputer=Get-MDTComputer -macAddress $HVHost.MACAddress
+    $Roles=($MDTComputer | Get-MDTComputerRole).Role
+    $Roles+=$RoleName
+    #Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
+    $MDTComputer | Set-MDTComputerRole -roles $Roles
+}
+
+#endregion
+
+#######################################################
+#               Fun with Dell R440 nodes               #
+#                                                     #
+#       Run from machine that can talk to iDRAC       #
+#######################################################
+
+#region Restart R440 Nodes to deploy OS
+#$Credentials=Get-Credential
+$password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
+$idrac_ips="192.168.100.128","192.168.100.129"
+$Headers=@{"Accept"="application/json"}
+$ContentType='application/json'
+function Ignore-SSLCertificates
+{
+    $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+    $Compiler = $Provider.CreateCompiler()
+    $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+    $Params.GenerateExecutable = $false
+    $Params.GenerateInMemory = $true
+    $Params.IncludeDebugInformation = $false
+    $Params.ReferencedAssemblies.Add("System.DLL") > $null
+    $TASource=@'
+        namespace Local.ToolkitExtensions.Net.CertificatePolicy
+        {
+            public class TrustAll : System.Net.ICertificatePolicy
+            {
+                public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                {
+                    return true;
+                }
+            }
+        }
+'@ 
+    $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+    $TAAssembly=$TAResults.CompiledAssembly
+    $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+    [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+}
+#ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck
+Ignore-SSLCertificates
+
+#reboot machines
+foreach ($idrac_ip in $idrac_ips){
+    #Configure PXE for next reboot
+    $JsonBody = @{ Boot = @{
+        "BootSourceOverrideTarget"="Pxe"
+        }} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+    Invoke-RestMethod -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    
+    #Validate
+    $uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    $Result.Boot.BootSourceOverrideTarget
+
+    #check reboot options
+    #$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+    #$Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+    #$Result.Actions.'#ComputerSystem.Reset'.'ResetType@Redfish.AllowableValues'
+
+    #reboot
+    #possible values: On,ForceOff,ForceRestart,GracefulShutdown,PushPowerButton,Nmi,PowerCycle
+    $JsonBody = @{ "ResetType" = "ForceRestart"} | ConvertTo-Json -Compress
+    $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $Credentials
+
+}
+#endregion
+
