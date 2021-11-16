@@ -358,7 +358,14 @@ Foreach ($PSSession in $PSSessions){
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
-    New-AksHciCluster -Name demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -EnableADAuth -loadBalancerVmSize Standard_A2_v2  #In Azure Stack HCI 21H2, default -controlplaneVmSize value is Standard_A4_v2, use smaller VM may result stuck in installation
+    # Create new cluster with 1 linux node pool in 1 node pool
+    New-AksHciCluster -Name demo -NodePoolName linux-pool
+    
+    # or Create new cluster with 1 linux node in 1 node pool, with AD AuthZ and Monitoring enabled (Optionally)
+    # New-AksHciCluster -Name demo -NodePoolName linux-pool -enableAdAuth -enableMonitoring
+    
+    # Add 1 Windows node in 1 Windows node pool to existing Cluster
+    # New-AksHciNodePool -ClusterName demo -Name windows-pool -osType Windows   
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
@@ -516,6 +523,7 @@ if (($allSubscriptions).Count -gt 1){
 $ClusterName="AzSHCI-Cluster"
 $KubernetesClusterName="demo"
 $resourcegroup="$ClusterName-rg"
+az extension add --name k8s-configuration
 az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
 #az connectedk8s delete --name cluster-config --resource-group $resourcegroup
 
