@@ -582,7 +582,7 @@ $SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0]
 $EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
 $Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
 $Token
-#enregion
+#endregion
 
 #region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
 #download and install Azure Data CLI
