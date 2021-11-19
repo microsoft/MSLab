@@ -1291,11 +1291,11 @@ foreach ($HVHost in $HVHosts){
     #Import Operating System
     $ISO = Mount-DiskImage -ImagePath $ISOServerPath -PassThru
     $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
-    Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Windows Server 2019 x64" -Verbose
+    Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Windows Server 2022 x64" -Verbose
     $ISO | Dismount-DiskImage
 
     #add Task Sequence
-    import-mdttasksequence -path "DS001:\Task Sequences" -Name "Windows Server Deploy" -Template "Server.xml" -Comments "" -ID "WinSRV" -Version "1.0" -OperatingSystemPath "DS001:\Operating Systems\Windows Server 2019 SERVERDATACENTERCORE in Windows Server 2019 x64 install.wim" -FullName "PFE" -OrgName "Contoso" -HomePage "about:blank" -AdminPassword "LS1setup!" -Verbose
+    import-mdttasksequence -path "DS001:\Task Sequences" -Name "Windows Server Deploy" -Template "Server.xml" -Comments "" -ID "WinSRV" -Version "1.0" -OperatingSystemPath "DS001:\Operating Systems\Windows Server 2022 SERVERDATACENTERCORE in Windows Server 2022 x64 install.wim" -FullName "PFE" -OrgName "Contoso" -HomePage "about:blank" -AdminPassword "LS1setup!" -Verbose
 
 #endregion
 
@@ -1428,7 +1428,7 @@ foreach ($idrac_ip in $idrac_ips){
     #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
     Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
 
-    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\
+    Expand-Archive -Path $env:USERPROFILE\Downloads\MDTDB.zip -DestinationPath $env:USERPROFILE\Downloads\MDTDB\ -Force
     if ((Get-ExecutionPolicy) -eq "Restricted"){
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
     }
