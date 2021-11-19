@@ -6,7 +6,7 @@
     $VolumeSize=1TB
 
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name VMFleet -Force
+    Install-Module -Name VMFleet -Force -RequiredVersion 2.0.0.0 #as install-fleet with credssp has issues in 2.0.0.1 and 2.0.2.1 https://github.com/microsoft/diskspd/issues/173
     Install-Module -Name PrivateCloud.DiagnosticInfo -Force
 
 #endregion
@@ -57,8 +57,8 @@
     $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
 
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/157
-        #It's probably more convenient to run this command on cluster as all VHD copying will happen on cluster itself.
+        Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/172
+        #It's probably more convenient to run this command on cluster (using invoke-command) as all VHD copying will happen on cluster itself.
         #Grab nubmer of Logical Processors per node divided by 2 (Hyper thread CPUs) - no need to do it, this will happen automagically if -VMs not specified
         #$NumberOfVMs=(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
         #New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
@@ -119,4 +119,33 @@
         Remove-VirtualDisk -FriendlyName $Node -CimSession $ClusterName -Confirm:0 
     }
     Remove-VirtualDisk -FriendlyName Collect -CimSession $ClusterName -Confirm:0 
+#endregion
+
+
+#### TBD ####
+
+#region Customize measurement
+    #Stop all VMs
+    Stop-Fleet -Cluster $ClusterName
+    #Adjust VMs size
+    Set-Fleet -Cluster $ClusterName -ProcessorCount 1 -MemoryStartupBytes 2GB
+    #Start all VMs
+    Start-Fleet -Cluster $ClusterName
+
+    #show profile
+    #note: default profiles are defined in PowerShell module (Peak,General,VDI and SQL)
+    #Notepad "$((Get-Module VMFleet).ModuleBase)\Profile.psm1"
+
+    $Profile=Get-FleetProfileXml -Name General -WriteRatio 0 -BlockSize 4kb -Warmup 30 -Duration 60 -Cooldown 30
+    Start-FleetRun -Cluster $ClusterName -ProfileXml $Profile
+
+    #if profile was already captured, then you ave to delete result first
+    #Get-ChildItem -Path \\$ClusterName\ClusterStorage$\Collect\result | Remove-Item -Confirm:0
+
+    #or run custom tests without profile
+    #move VMs first (Does not work)
+    #Move-Fleet -Cluster $ClusterName –DistributeVMPercent 100
+    #run test (Does not work well)
+    #Start-FleetSweep -Cluster $ClusterName -b 4 -t 2 -o 4 -w 0 -d 60 -p r -Warm 10 -Cool 10
+
 #endregion
