@@ -36,7 +36,7 @@
 
     ## Networking ##
         $vSwitchName="vSwitch"
-        
+
         $NumberOfStorageNets=1 #1 or 2
 
         #IF Stornet is 1
@@ -104,6 +104,12 @@
 
     #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
         $MemoryDump="Active"
+
+    #Delete Storage Pool (like after reinstall there might be data left from old cluster)
+        $DeletePool=$false
+
+    #Enable Secured Core features
+        $SecuredCore=$false
 
     #real VMs? If true, script will create real VMs on mirror disks from vhd you will provide during the deployment. The most convenient is to provide NanoServer
         $realVMs=$false
@@ -359,6 +365,29 @@
             Invoke-Command -ComputerName $servers -ScriptBlock {powercfg /list}
     }
 
+    #Enable secured core
+    if ($SecuredCore){
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            #Device Guard
+            #REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "Locked" /t REG_DWORD /d 1 /f 
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 1 /f
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 3 /f
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequireMicrosoftSignedBootChain" /t REG_DWORD /d 1 /f
+    
+            #Cred Guard
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "LsaCfgFlags" /t REG_DWORD /d 1 /f
+    
+            #System Guard Secure Launch
+            #https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-system-guard/system-guard-secure-launch-and-smm-protection
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" /v "Enabled" /t REG_DWORD /d 1 /f
+    
+            #HVCI
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Enabled" /t REG_DWORD /d 1 /f
+            #REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Locked" /t REG_DWORD /d 1 /f
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "HVCIMATRequired" /t REG_DWORD /d 1 /f
+        }
+    }
+
     #install roles and features
         #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
         Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -390,17 +419,17 @@
 #Disable unused (disconnected) adapters
     Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
 
-    #Grab fastest adapters and sort by name #Create Virtual Switches and Virtual Adapters
+    #Create vSwitch and use the fastest NICs in the server
         if ($SRIOV){
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
-                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).Speed| Sort-Object -Descending | Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Speed -eq $FastestLinkSpeed | Sort-Object Name
                 New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName $NetAdapters.Name
             }
         }else{
             Invoke-Command -ComputerName $servers -ScriptBlock {
-                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).LinkSpeed| Sort-Object | Select-Object -First 1
-                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Linkspeed -eq $FastestLinkSpeed | Sort-Object Name
+                $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).Speed| Sort-Object -Descending| Select-Object -First 1
+                $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Speed -eq $FastestLinkSpeed | Sort-Object Name
                 New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapters.Name
             }
         }
@@ -539,7 +568,7 @@
             #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
                 Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
 
-            #Create a Traffic class and give SMB Direct 60% of the bandwidth minimum. The name of the class will be "SMB".
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
             #This value needs to match physical switch configuration. Value might vary based on your needs.
             #If connected directly (in 2 node configuration) skip this step.
                 Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
@@ -807,6 +836,30 @@
 #endregion
 
 #region Enable Cluster S2D and check Pool and Tiers
+    #Delete Storage Pool if there is any from last install
+    if ($DeletePool){
+        #Grab pool
+        $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
+        #Wipe Virtual disks if any
+        if ($StoragePool){
+            $Clusterresource=Get-ClusterResource -Cluster $ClusterName | Where-Object ResourceType -eq "Storage Pool"
+            if ($Clusterresource){
+                $Clusterresource | Remove-ClusterResource -Force
+            }
+            $StoragePool | Set-StoragePool -IsReadOnly $False
+            $VirtualDisks=$StoragePool | Get-VirtualDisk -ErrorAction Ignore
+            #Remove Disks
+            if ($VirtualDisks){
+                $VirtualDisks | Remove-VirtualDisk -Confirm:0
+            }
+            #Remove Pool
+            $StoragePool | Remove-StoragePool -Confirm:0
+        }
+        #Reset disks (to clear spaces metadata)
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
+        }
+    }
 
     #Enable-ClusterS2D
         Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
@@ -884,6 +937,13 @@
 #endregion
 
 #region Register Azure Stack HCI to Azure
+    if ($DellHW){
+        #Add OEM Information so hardware is correctly billed
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            New-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\OEMInformation" -Name SupportProvider -Value DellEMC​
+        }
+    }
+
     #download Azure module
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
