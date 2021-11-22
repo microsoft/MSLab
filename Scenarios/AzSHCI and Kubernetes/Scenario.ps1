@@ -162,7 +162,8 @@ if (($subscription).count -gt 1){
 #grab subscription ID
 $subscriptionID=(Get-AzContext).Subscription.id
 
-#Register AZSHCi without prompting for creds
+<# Register AZSHCi without prompting for creds
+# In Azure Stack HCI 21H2, this method will register Azure Stack HCI but failed with Arc Integration
 $armTokenItemResource = "https://management.core.windows.net/"
 $graphTokenItemResource = "https://graph.windows.net/"
 $azContext = Get-AzContext
@@ -171,10 +172,11 @@ $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environme
 $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
 $id = $azContext.Account.Id
 Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-
-<# or register Azure Stack HCI with device authentication
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
 #>
+
+# Register Azure Stack HCI with device authentication
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+
 <# or with standard authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
@@ -269,8 +271,11 @@ Foreach ($PSSession in $PSSessions){
         Initialize-AksHciNode
     }
 
-    #Create  volume for AKS
-    New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    #Create volume for AKS if does not exist
+    if (-not (Get-Volume -FriendlyName $VolumeName -CimSession $ClusterName -ErrorAction SilentlyContinue)) {
+        New-Volume -FriendlyName $VolumeName -CimSession $ClusterName -Size 1TB -StoragePoolFriendlyName S2D*
+    }
+
     #make sure failover clustering management tools are installed on nodes
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
@@ -278,8 +283,7 @@ Foreach ($PSSession in $PSSessions){
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         $vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
-        #Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\Images -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
-        Set-AksHciConfig -vnet $vnet -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
+        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\ImagesStore -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
     }
 
     #validate config
@@ -323,7 +327,7 @@ Foreach ($PSSession in $PSSessions){
     $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
     $id = $azContext.Account.Id
 
-    Invoke-Command -computername $servers[0] -ScriptBlock {
+    Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Set-AksHciRegistration -SubscriptionID $using:subscriptionID -GraphAccessToken $using:graphToken -ArmAccessToken $using:armToken -AccountId $using:id -ResourceGroupName $using:resourcegroupname
     }
 
@@ -335,7 +339,7 @@ Foreach ($PSSession in $PSSessions){
     #>
 
     #validate registration
-    Invoke-Command -computername $servers[0] -ScriptBlock {
+    Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Get-AksHciRegistration
     }    
 
@@ -354,7 +358,14 @@ Foreach ($PSSession in $PSSessions){
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
-    New-AksHciCluster -Name demo -linuxNodeCount 1 -linuxNodeVmSize Standard_A2_v2 -controlplaneVmSize Standard_A2_v2 -EnableADAuth -loadBalancerVmSize Standard_A2_v2 #smallest possible VMs
+    # Create new cluster with 1 linux node pool in 1 node pool
+    New-AksHciCluster -Name demo -NodePoolName linux-pool
+    
+    # or Create new cluster with 1 linux node in 1 node pool, with AD AuthZ and Monitoring enabled (Optionally)
+    # New-AksHciCluster -Name demo -NodePoolName linux-pool -enableAdAuth -enableMonitoring
+    
+    # Add 1 Windows node in 1 Windows node pool to existing Cluster
+    # New-AksHciNodePool -ClusterName demo -Name windows-pool -osType Windows   
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
@@ -500,16 +511,24 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMa
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
+
 az login
+$allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
+if (($allSubscriptions).Count -gt 1){
+    $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
+    az account set --subscription $subscription.id
+}
+
 #create configuration
 $ClusterName="AzSHCI-Cluster"
 $KubernetesClusterName="demo"
 $resourcegroup="$ClusterName-rg"
-az k8sconfiguration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
+az extension add --name k8s-configuration
+az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
 #az connectedk8s delete --name cluster-config --resource-group $resourcegroup
 
 #validate
-az k8sconfiguration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
 [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
 kubectl get ns --show-labels
 kubectl -n cluster-config get deploy -o wide
@@ -562,6 +581,15 @@ $proxyendpoint=""
 #region deploy app 
 kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
 kubectl get service
+#endregion
+
+#region get admin token and use it in Azure Portal to view resources in AKS HCI https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/cluster-connect#option-2-service-account-bearer-token
+kubectl create serviceaccount admin-user
+kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
+$SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
+$EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
+$Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
+$Token
 #endregion
 
 #region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
