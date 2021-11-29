@@ -162,8 +162,8 @@ if (($subscription).count -gt 1){
 #grab subscription ID
 $subscriptionID=(Get-AzContext).Subscription.id
 
-<# Register AZSHCi without prompting for creds
-# In Azure Stack HCI 21H2, this method will register Azure Stack HCI but failed with Arc Integration
+<# Register AZSHCi without prompting for creds, 
+   in Azure Stack HCI 21H2, Register-AzStackHCI without -ResourceGroupName parameter will fail with Node Arc Integration in some cases #>
 $armTokenItemResource = "https://management.core.windows.net/"
 $graphTokenItemResource = "https://graph.windows.net/"
 $azContext = Get-AzContext
@@ -171,11 +171,11 @@ $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::In
 $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
 $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
 $id = $azContext.Account.Id
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-#>
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -ResourceGroupName "$ClusterName-rsg" -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
 
-# Register Azure Stack HCI with device authentication
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+
+# or register Azure Stack HCI with device authentication
+#Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
 
 <# or with standard authentication
 #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
