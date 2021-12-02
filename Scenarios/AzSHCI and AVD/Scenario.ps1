@@ -145,14 +145,14 @@
         Remove-Item -Path "$env:UserProfile\Downloads\AZCopy\" -Recurse
         Remove-Item -Path "$env:UserProfile\Downloads\AzCopy.zip"
         #download VHD to library
-        & $env:UserProfile\Downloads\azcopy.exe copy $sas "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\$SKU.vhd" --check-md5 NoCheck
+        & $env:UserProfile\Downloads\azcopy.exe copy $sas "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\$SKU.vhd" --check-md5 NoCheck --cap-mbps 500
     #convert image to dynamic VHDx
     Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         Convert-VHD -Path "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhd" -DestinationPath "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhdx" -VHDType Dynamic -DeleteSource
         Optimize-VHD -Path "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhdx" -Mode Full
     }
-    #once disk is downloaded, disk access can be removed
-    Remove-AzDiskAccess -ResourceGroupName  $AVDResourceGroupName -Name $ManagedDiskName
+    #once disk is downloaded, disk access can be revoked
+    Revoke-AzDiskAccess -ResourceGroupName  $AVDResourceGroupName -Name $ManagedDiskName
     #and disk itself can be removed
     #Remove-AzDisk -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Force
 #endregion
@@ -377,6 +377,8 @@
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgent.msi /l*v $env:USERPROFILE\Downloads\AVDAgentInstallationLog.txt /qn /norestart REGISTRATIONTOKEN=$using:token RDInfraAgent=BYODesktop" -Wait -PassThru
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
         }
+    #Restart VMs to finish installation
+        Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 #endregion
 
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
@@ -610,6 +612,11 @@
     $names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
     foreach ($name in $names) {
         Get-GPO -Name $name  | Remove-GPO
+    }
+#remove sample users
+    $Names="JohnDoe","JaneDoe"
+    Foreach ($Name in $Names){
+        Get-ADUSer -Identity $Name | Remove-ADObject -Confirm:0 -recursive
     }
 #>
 #endregion
