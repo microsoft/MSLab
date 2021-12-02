@@ -1,5 +1,4 @@
-#region Create VMs on Azure Stack HCI cluster
-
+#region Variables
 $ClusterName="ax6515-cluster"
 $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
 $LibraryVolumeName="Library" #volume for images for VMs
@@ -7,6 +6,39 @@ $VMsVolumeSize=1TB #size of volumes for AVD VMs
 $OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
 $vSwitchName="vSwitch"
 $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
+
+$AVDResourceGroupName="MSLabAVD"
+$AVDHostPoolName="MSLabAVDPool"
+$AVDWorkspaceName="MSLabAVDWorkspace"
+
+$ManagedDiskName = "AVD_OS_Disk_Windows11_m365"
+$Offer="windows11preview"
+$SKU="win11-21h2-avd-m365"
+
+#Install Azure packages
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.DesktopVirtualization"
+    foreach ($ModuleName in $ModuleNames){
+        if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
+            Install-Module -Name $ModuleName -Force
+        }
+    }
+
+#login to Azure
+    if (-not (Get-AzContext)){
+        Login-AzAccount -UseDeviceAuthentication
+    }
+
+#select context
+    $context=Get-AzContext -ListAvailable
+    if (($context).count -gt 1){
+        $context=$context | Out-GridView -OutputMode Single
+        $context | Set-AzContext
+    }
+
+#location (all locations where HostPool can be created)
+    $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
+
 
 #Generate list of VMs to be created
     $VMs=@()
@@ -16,21 +48,118 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
             $VMs+=@{VMName="$($ClusterNode)_AVD$("{0:D2}" -f $Number)"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$ClusterNode" ; Owner=$ClusterNode}
         }
     }
+    #fileserver (fileservers)
+    $ServerVMs=@()
+    $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
 
-#configure thin volumes a default if available (because why not :)
-    $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-        Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
-    }
-    if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
-        Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
+#endregion
+
+#region prepare cluster
+
+    #configure thin volumes a default if available (because why not :)
+        $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+            Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+        }
+        if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+            Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
+        }
+
+    #Create library volume
+        if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName $LibraryVolumeName -ErrorAction Ignore)){
+            New-Volume -StoragePoolFriendlyName "S2D*" -FriendlyName $LibraryVolumeName -FileSystem CSVFS_ReFS -Size 500GB -ResiliencySettingName Mirror -CimSession $ClusterName
+        }
+
+    # Create volumes for VMs
+        #note - for easier tracking, we will create volume names with same name as node
+        foreach ($ClusterNode in $ClusterNodes){
+            if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName $ClusterNode -ErrorAction Ignore)){
+                New-Volume -StoragePoolFriendlyName S2D* -FriendlyName $ClusterNode -FileSystem CSVFS_ReFS -Size $VMsVolumeSize -ResiliencySettingName Mirror -CimSession $ClusterName
+            }
+        }
+
+#endregion
+
+#region create host pool
+    #install modules
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        $ModuleNames="Az.DesktopVirtualization","Az.Resources","Az.Accounts"
+        foreach ($ModuleName in $ModuleNames){
+            if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
+                Install-Module -Name $ModuleName -Force
+            }
+        }
+
+    #login to Azure
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
+        }
+
+    #Create AVD Host Pool
+        #Create resource Group
+        If (-not (Get-AzResourceGroup -Name $AVDResourceGroupName -ErrorAction Ignore)){
+            New-AzResourceGroup -Name $AVDResourceGroupName -Location $region
+        }
+
+        #Create Host Pool
+        New-AzWvdHostPool -Name $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName -HostPoolType "Pooled" -LoadBalancerType "BreadthFirst" -PreferredAppGroupType "Desktop" -Location $Region -WorkspaceName $AVDWorkspaceName -DesktopAppGroupName "Desktop"
+#endregion
+
+#region Grab VHD from Azure and copy to library CSV
+    #login to Azure
+    if (-not (Get-AzContext)){
+        Login-AzAccount -UseDeviceAuthentication
     }
 
-#Create library volume
-    if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName $LibraryVolumeName -ErrorAction Ignore)){
-        New-Volume -StoragePoolFriendlyName "S2D*" -FriendlyName $LibraryVolumeName -FileSystem CSVFS_ReFS -Size 100GB -ResiliencySettingName Mirror -CimSession $ClusterName
+    #Create resource Group
+    If (-not (Get-AzResourceGroup -Name $AVDResourceGroupName -ErrorAction Ignore)){
+        New-AzResourceGroup -Name $AVDResourceGroupName -Location $region
     }
+    #explore available disks
+        #list offers
+        Get-AzVMImageOffer -Location $region -PublisherName "microsoftwindowsdesktop"
+        #list win10 SKUs
+        Get-AzVMImageSku -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer "Windows-10"
+        #list win11 preview SKUs
+        Get-AzVMImageSku -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer "Windows11preview"
 
-#Grab VHD for VMs and copy it to new library volume
+    #let's work with win11-21h2-avd-m365
+        $image=Get-AzVMImage -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer $Offer -SKU $SKU | Sort-Object Version -Descending |Select-Object -First 1
+
+    #export image to a disk https://docs.microsoft.com/en-us/powershell/module/az.compute/new-azdisk?view=azps-6.6.0#example-3--export-a-gallery-image-version-to-disk-
+    $ImageVersionID = $image.id
+
+    # Export the OS disk
+    $imageOSDisk = @{Id = $ImageVersionID}
+    $OSDiskConfig = New-AzDiskConfig -Location $region -CreateOption "FromImage" -ImageReference $imageOSDisk
+    New-AzDisk -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Disk $OSDiskConfig
+    $output=Grant-AzDiskAccess -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Access 'Read' -DurationInSecond 3600
+    $SAS=$output.accesssas
+    #Start-BitsTransfer -Source $SAS -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\$SKU.vhd"
+    #download using AzCopy as it's faster than bits transfer. But it cannot be downloaded directly to CSV
+    #https://aka.ms/downloadazcopy-v10-windows\
+        # Download the package 
+        Start-BitsTransfer -Source "https://aka.ms/downloadazcopy-v10-windows" -Destination "$env:UserProfile\Downloads\AzCopy.zip"
+        Expand-Archive -Path "$env:UserProfile\Downloads\AzCopy.zip" -DestinationPath "$env:UserProfile\Downloads\AZCopy" -Force
+        $item=Get-ChildItem -Name azcopy.exe -Recurse -Path "$env:UserProfile\Downloads\AZCopy" 
+        Move-Item -Path "$env:UserProfile\Downloads\AZCopy\$item" -Destination "$env:UserProfile\Downloads\"
+        Remove-Item -Path "$env:UserProfile\Downloads\AZCopy\" -Recurse
+        Remove-Item -Path "$env:UserProfile\Downloads\AzCopy.zip"
+        #download VHD to library
+        & $env:UserProfile\Downloads\azcopy.exe copy $sas "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\$SKU.vhd" --check-md5 NoCheck
+    #convert image to dynamic VHDx
+    Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        Convert-VHD -Path "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhd" -DestinationPath "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhdx" -VHDType Dynamic -DeleteSource
+        Optimize-VHD -Path "c:\clusterstorage\$using:LibraryVolumeName\$using:sku.vhdx" -Mode Full
+    }
+    #once disk is downloaded, disk access can be removed
+    Remove-AzDiskAccess -ResourceGroupName  $AVDResourceGroupName -Name $ManagedDiskName
+    #and disk itself can be removed
+    #Remove-AzDisk -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Force
+#endregion
+
+#region Create VMs on Azure Stack HCI cluster
+
+    <#In case you have your own VHD you can provide it
     #Ask for VHD
     Write-Output "Please select VHD for AVD created using CreateParentDisk.ps1"
     [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
@@ -46,16 +175,12 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
     Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\"
     #Generate Image Name
     $ImageName=$VHDPath | Split-Path -Leaf
+    #>
 
-# Create volumes for VMs
-#note - for easier tracking, we will create volume names with same name as node
-    foreach ($ClusterNode in $ClusterNodes){
-        if (-not (Get-VirtualDisk -CimSession $ClusterName -FriendlyName $ClusterNode -ErrorAction Ignore)){
-            New-Volume -StoragePoolFriendlyName S2D* -FriendlyName $ClusterNode -FileSystem CSVFS_ReFS -Size $VMsVolumeSize -ResiliencySettingName Mirror -CimSession $ClusterName
-        }
-    }
+    #or the image that was downloaded from Azure 
+    $ImageName="$SKU.vhdx"
 
-#Create VMs
+    #Create VMs
     foreach ($VM in $VMs){
         #Copy VHD to destination
         Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
@@ -143,80 +268,42 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
     }
 #endregion
 
-#region create host pool
-    $AVDResourceGroupName="MSLabAVD"
-    $AVDHostPoolName="MSLabAVDPool"
-    $AVDWorkspaceName="MSLabAVDWorkspace"
-    #install modules
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    $ModuleNames="Az.DesktopVirtualization","Az.Resources","Az.Accounts"
-    foreach ($ModuleName in $ModuleNames){
-        if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
-            Install-Module -Name $ModuleName -Force
-        }
-    }
-
-    #login to Azure
-    if (-not (Get-AzContext)){
-        Login-AzAccount -UseDeviceAuthentication
-    }
-    #select context
-    $context=Get-AzContext -ListAvailable
-    if (($context).count -gt 1){
-        $context=$context | Out-GridView -OutputMode Single
-        $context | Set-AzContext
-    }
-
-    #Create AVD Host Pool
-        #ask for location first
-        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
-
-        #Create resource Group
-        If (-not (Get-AzResourceGroup -Name $AVDResourceGroupName -ErrorAction Ignore)){
-            New-AzResourceGroup -Name $AVDResourceGroupName -Location $region
-        }
-
-        #Create Host Pool
-        New-AzWvdHostPool -Name $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName -HostPoolType "Pooled" -LoadBalancerType "BreadthFirst" -PreferredAppGroupType "Desktop" -Location $Region -WorkspaceName $AVDWorkspaceName -DesktopAppGroupName "Desktop"
-#endregion
-
 #region install and register Azure Arc agent
+    #install connected machine agent (Azure Arc) = See Azure Arc for servers scenario https://github.com/microsoft/MSLab/tree/master/Scenarios/Azure%20Arc%20for%20Servers
+        $servers=$VMs.VMName
 
-#install connected machine agent (Azure Arc) = See Azure Arc for servers scenario https://github.com/microsoft/MSLab/tree/master/Scenarios/Azure%20Arc%20for%20Servers
-    $servers=$VMs.VMName
+        # Download the package
+        Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
+        #Copy ARC agent to VMs
+        #increase max evenlope size first
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+        #create sessions
+        $sessions=New-PSSession -ComputerName $servers
+        #copy ARC agent
+        foreach ($session in $sessions){
+            Copy-Item -Path "$env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
+        }
 
-    # Download the package
-    Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
-    #Copy ARC agent to VMs
-    #increase max evenlope size first
-    Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
-    #create sessions
-    $sessions=New-PSSession -ComputerName $servers
-    #copy ARC agent
-    foreach ($session in $sessions){
-        Copy-Item -Path "$env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
-    }
+        $Sessions | Remove-PSSession
 
-    $Sessions | Remove-PSSession
+        #install package
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /l*v $env:USERPROFILE\Downloads\ACMinstallationlog.txt /qn" -Wait
+        }
+        <#uninstall if needed
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /qn" -Wait
+        }
+        #>
 
-    #install package
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /l*v $env:USERPROFILE\Downloads\ACMinstallationlog.txt /qn" -Wait
-    }
-    <#uninstall if needed
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /qn" -Wait
-    }
-    #>
-
-#register Connected mahine agent (Azure Arc)
-    $ResourceGroupName=$AVDResourceGroupName
-    $ServicePrincipalName="Arc-for-servers"
-    $TenantID=(Get-AzContext).Tenant.ID
-    $SubscriptionID=(Get-AzContext).Subscription.ID
-    $location=(Get-AzResourceGroup -Name $ResourceGroupName).Location
-    $tags="Platform=Windows"
-    $password="" #here goes ADApp password. If empty, script will generate new secret. Make sure this secret is the same as in Azure
+    #register Connected mahine agent (Azure Arc)
+        $ResourceGroupName=$AVDResourceGroupName
+        $ServicePrincipalName="Arc-for-servers"
+        $TenantID=(Get-AzContext).Tenant.ID
+        $SubscriptionID=(Get-AzContext).Subscription.ID
+        $location=(Get-AzResourceGroup -Name $ResourceGroupName).Location
+        $tags="Platform=Windows"
+        $password="" #here goes ADApp password. If empty, script will generate new secret. Make sure this secret is the same as in Azure
 
 
     #Register ARC Resource provider
@@ -265,75 +352,72 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
 #region install and register AVD agent
 #https://docs.microsoft.com/en-us/azure/virtual-desktop/create-host-pools-powershell?tabs=azure-powershell#register-the-virtual-machines-to-the-azure-virtual-desktop-host-pool
 
-#Download Agent and Bootloader
-    Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv -Destination "$env:UserProfile\Downloads\AVDAgent.msi"
-    Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH -Destination "$env:UserProfile\Downloads\AVDAgentBootloader.msi"
+    #Download Agent and Bootloader
+        Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv -Destination "$env:UserProfile\Downloads\AVDAgent.msi"
+        Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH -Destination "$env:UserProfile\Downloads\AVDAgentBootloader.msi"
 
-#Copy agent and bootloader to VMs
-    #create sessions
-    $sessions=New-PSSession -ComputerName $VMs.VMName
-    #copy ARC agent
-    foreach ($session in $sessions){
-        Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
-        Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgentBootloader.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
-    }
-    $sessions | Remove-PSSession
+    #Copy agent and bootloader to VMs
+        #create sessions
+        $sessions=New-PSSession -ComputerName $VMs.VMName
+        #copy ARC agent
+        foreach ($session in $sessions){
+            Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
+            Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgentBootloader.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
+        }
+        $sessions | Remove-PSSession
 
-#Install agents
-    #Grab registration token
-    $Token=(Get-AzWvdHostPoolRegistrationToken -HostPoolName $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName).Token
-    if (-not ($Token)){
-        $Token=(New-AzWvdRegistrationInfo -ResourceGroupName $AVDResourceGroupName -HostPoolName $AVDHostPoolName -ExpirationTime $((get-date).ToUniversalTime().AddDays(30).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ'))).TOken
-    }
+    #Install agents
+        #Grab registration token
+        $Token=(Get-AzWvdHostPoolRegistrationToken -HostPoolName $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName).Token
+        if (-not ($Token)){
+            $Token=(New-AzWvdRegistrationInfo -ResourceGroupName $AVDResourceGroupName -HostPoolName $AVDHostPoolName -ExpirationTime $((get-date).ToUniversalTime().AddDays(30).ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ'))).TOken
+        }
 
-    Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgent.msi /l*v $env:USERPROFILE\Downloads\AVDAgentInstallationLog.txt /qn /norestart REGISTRATIONTOKEN=$using:token RDInfraAgent=BYODesktop" -Wait -PassThru
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
-    }
-
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgent.msi /l*v $env:USERPROFILE\Downloads\AVDAgentInstallationLog.txt /qn /norestart REGISTRATIONTOKEN=$using:token RDInfraAgent=BYODesktop" -Wait -PassThru
+            Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
+        }
 #endregion
 
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
-#Grab VHD for FileServer VM and copy it to new library volume
-    #Ask for VHD
-    Write-Output "Please select VHD With Windows Server"
-    [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
-    $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-        Title="Please select VHD created using CreateVMFleetDisk.ps1"
-    }
-    $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
-    If($openFile.ShowDialog() -eq "OK"){
-        Write-Output  "File $($openfile.FileName) selected"
-    }
-    $ServerVHDPath=$openfile.FileName
-    #Copy image
-    Copy-Item -Path $ServerVHDPath -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\"
-    #Generate Image Name
-    $ServerImageName=$ServerVHDPath | Split-Path -Leaf
-
-#Create Server VM
-    #Just recycling script from VMs creation
-    $ServerVMs=@()
-    $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
-    $ImageName=$ServerImageName
-
-    foreach ($VM in $ServerVMs){
-        #Copy VHD to destination
-        Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
-            New-Item -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\" -ItemType Directory -Force
-            Copy-Item -Path "c:\ClusterStorage\$using:LibraryVolumeName\$using:ImageName" -Destination "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx"
+    #Grab VHD for FileServer VM and copy it to new library volume
+        #Ask for VHD
+        Write-Output "Please select VHD With Windows Server"
+        [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
+        $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
+            Title="Please select VHD created using CreateVMFleetDisk.ps1"
         }
-        #Create Answer File
-        $djointemp=New-TemporaryFile
-        & djoin.exe /provision /domain $env:USERDOMAIN /machine $VM.VMName /savefile $djointemp.fullname /machineou $OUPath
-        #extract blob blob from temp file
-        $Blob=get-content $djointemp
-        $Blob=$blob.Substring(0,$blob.Length-1)
-        #remove temp file
-        $djointemp | Remove-Item
+        $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
+        If($openFile.ShowDialog() -eq "OK"){
+            Write-Output  "File $($openfile.FileName) selected"
+        }
+        $ServerVHDPath=$openfile.FileName
+        #Copy image
+        Copy-Item -Path $ServerVHDPath -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\"
+        #Generate Image Name
+        $ServerImageName=$ServerVHDPath | Split-Path -Leaf
 
-        #Generate Unattend file with WINRM Enabled
-        $unattend = @"
+    #Create Server VM
+        #Just recycling script from VMs creation
+        $ImageName=$ServerImageName
+
+        foreach ($VM in $ServerVMs){
+            #Copy VHD to destination
+            Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
+                New-Item -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\" -ItemType Directory -Force
+                Copy-Item -Path "c:\ClusterStorage\$using:LibraryVolumeName\$using:ImageName" -Destination "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx"
+            }
+            #Create Answer File
+            $djointemp=New-TemporaryFile
+            & djoin.exe /provision /domain $env:USERDOMAIN /machine $VM.VMName /savefile $djointemp.fullname /machineou $OUPath
+            #extract blob blob from temp file
+            $Blob=get-content $djointemp
+            $Blob=$blob.Substring(0,$blob.Length-1)
+            #remove temp file
+            $djointemp | Remove-Item
+
+            #Generate Unattend file with WINRM Enabled
+            $unattend = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <settings pass="offlineServicing">
@@ -414,70 +498,69 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
     #wait a bit for VM to start
     Start-Sleep 60
 
-#prepare disk
-Get-Disk -CimSession $ServerVMs.VMName | Where-Object PartitionStyle -eq RAW | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel "Storage"
+    #prepare disk
+        Get-Disk -CimSession $ServerVMs.VMName | Where-Object PartitionStyle -eq RAW | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel "Storage"
 
-#setup file share
-$FolderName="FSLogix"
-Invoke-Command -ComputerName $ServerVMs.VMName -ScriptBlock {new-item -Path D:\Shares -Name $using:FolderName -ItemType Directory}
-$accounts=@()
-$accounts+="corp\Domain Users"
-New-SmbShare -Name $FolderName -Path "D:\Shares\$FolderName" -FullAccess $accounts -CimSession $ServerVMs.VMName
+    #setup file share
+        $FolderName="FSLogix"
+        Invoke-Command -ComputerName $ServerVMs.VMName -ScriptBlock {new-item -Path D:\Shares -Name $using:FolderName -ItemType Directory}
+        $accounts=@()
+        $accounts+="corp\Domain Users"
+        New-SmbShare -Name $FolderName -Path "D:\Shares\$FolderName" -FullAccess $accounts -CimSession $ServerVMs.VMName
 
-#setup NTFS permissions https://docs.microsoft.com/en-us/fslogix/fslogix-storage-config-ht
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-Install-Module ntfssecurity -Force
+    #setup NTFS permissions https://docs.microsoft.com/en-us/fslogix/fslogix-storage-config-ht
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        Install-Module ntfssecurity -Force
 
-foreach ($ComputerName in $ServerVMs.VMName){
-    $item=Get-Item -Path "\\$ComputerName\D$\shares\$foldername"
-    $item | Disable-NTFSAccessInheritance
-    $item | Get-NTFSAccess | Remove-NTFSAccess -Account "Corp\Domain Users"
-    $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users"
-    $item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights Modify -AppliesTo ThisFolderOnly
-    $item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights Modify -AppliesTo SubfoldersAndFilesOnly
-}
+        foreach ($ComputerName in $ServerVMs.VMName){
+            $item=Get-Item -Path "\\$ComputerName\D$\shares\$foldername"
+            $item | Disable-NTFSAccessInheritance
+            $item | Get-NTFSAccess | Remove-NTFSAccess -Account "Corp\Domain Users"
+            $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users"
+            $item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights Modify -AppliesTo ThisFolderOnly
+            $item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights Modify -AppliesTo SubfoldersAndFilesOnly
+        }
 
-#Download FSLogix and expand
-Start-BitsTransfer -Source https://aka.ms/fslogix_download -Destination $env:USERPROFILE\Downloads\FSLogix_Apps.zip
-Expand-Archive -Path $env:USERPROFILE\Downloads\FSLogix_Apps.zip -DestinationPath $env:USERPROFILE\Downloads\FSLogix_Apps -Force
+    #Download FSLogix and expand
+        Start-BitsTransfer -Source https://aka.ms/fslogix_download -Destination $env:USERPROFILE\Downloads\FSLogix_Apps.zip
+        Expand-Archive -Path $env:USERPROFILE\Downloads\FSLogix_Apps.zip -DestinationPath $env:USERPROFILE\Downloads\FSLogix_Apps -Force
 
-#install fslogix admx template
-Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.admx -Destination C:\Windows\PolicyDefinitions
-Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.adml -Destination C:\Windows\PolicyDefinitions\en-US
+    #install fslogix admx template
+        Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.admx -Destination C:\Windows\PolicyDefinitions
+        Copy-Item -Path $env:UserProfile\Downloads\FSLogix_Apps\fslogix.adml -Destination C:\Windows\PolicyDefinitions\en-US
 
-#grab recommended GPOs (original source https://github.com/shawntmeyer/WVD/tree/master/Image-Build/Customizations/GPOBackups)
-Start-BitsTransfer -Source https://github.com/microsoft/WSLab/raw/dev/Scenarios/FSLogix/WVD-GPO-Backups.zip -Destination $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip
-#extract
-Expand-Archive -Path $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -DestinationPath $env:USERPROFILE\Downloads\WVDBackups\ -Force
-#import GPOs (and link)
-Install-WindowsFeature -Name GPMC
-$OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
-$names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
-foreach ($name in $names) {
-    New-GPO -Name $name  | New-GPLink -Target $OUPath
-    Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
-}
+    #grab recommended GPOs (original source https://github.com/shawntmeyer/WVD/tree/master/Image-Build/Customizations/GPOBackups)
+        Start-BitsTransfer -Source https://github.com/microsoft/WSLab/raw/dev/Scenarios/FSLogix/WVD-GPO-Backups.zip -Destination $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip
+        #extract
+        Expand-Archive -Path $env:USERPROFILE\Downloads\WVD-GPO-Backups.zip -DestinationPath $env:USERPROFILE\Downloads\WVDBackups\ -Force
+        #import GPOs (and link)
+        Install-WindowsFeature -Name GPMC
+        $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
+        $names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
+        foreach ($name in $names) {
+            New-GPO -Name $name  | New-GPLink -Target $OUPath
+            Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
+        }
 
-#install FSLogix to session hosts
+    #install FSLogix to session hosts
+        #create sessions
+        $Sessions=New-PSSession -ComputerName $VMs.VMName
+        foreach ($session in $Sessions){
+            Copy-Item -Path $env:Userprofile\downloads\FSLogix_Apps\x64\Release\FSLogixAppsSetup.exe -Destination $env:Userprofile\downloads\ -ToSession $session
+        }
+        $Session | Remove-PSSession
 
-#create sessions
-$Sessions=New-PSSession -ComputerName $VMs.VMName
-foreach ($session in $Sessions){
-    Copy-Item -Path $env:Userprofile\downloads\FSLogix_Apps\x64\Release\FSLogixAppsSetup.exe -Destination $env:Userprofile\downloads\ -ToSession $session
-}
-$Session | Remove-PSSession
+        #install fslogix
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
+            Start-Process -FilePath $env:Userprofile\downloads\FSLogixAppsSetup.exe -ArgumentList "/install /quiet / norestart" -Wait
+        }
 
-#install fslogix
-Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
-    Start-Process -FilePath $env:Userprofile\downloads\FSLogixAppsSetup.exe -ArgumentList "/install /quiet / norestart" -Wait
-}
+    #reboot machines
+        Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 
-#reboot machines
-Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
-
-#Create users with password LS1setup!
-New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
-New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
+    #Create users with password LS1setup!
+        New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
+        New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
 #endregion
 
@@ -511,7 +594,7 @@ New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -
     Foreach ($node in (Get-ClusterNode -Cluster $ClusterName).Name){
         Get-VirtualDisk -CimSession $Node -FriendlyName $Node | Remove-VirtualDisk -Confirm:0
     }
-    Get-VirtualDisk -CimSession $Node -FriendlyName $LibraryVolumeName | Remove-VirtualDisk -Confirm:0
+    Get-VirtualDisk -CimSession $ClusterName -FriendlyName $LibraryVolumeName | Remove-VirtualDisk -Confirm:0
 #Remove AD Objects, DNS Records and leases
     foreach ($VM in $VMs){
         Remove-DnsServerResourceRecord -CimSession DC -ZoneName corp.contoso.com -RRType "A" -Name $VM.VMName -Force
