@@ -287,7 +287,7 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
     }
 
     Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgent.msi /l*v $env:USERPROFILE\Downloads\AVDAgentInstallationLog.txt /qn /norestart REGISTRATIONTOKEN=$using:token" -Wait -PassThru
+        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgent.msi /l*v $env:USERPROFILE\Downloads\AVDAgentInstallationLog.txt /qn /norestart REGISTRATIONTOKEN=$using:token RDInfraAgent=BYODesktop" -Wait -PassThru
         Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
     }
 
@@ -309,33 +309,31 @@ $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD
     #Copy image
     Copy-Item -Path $ServerVHDPath -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\"
     #Generate Image Name
-    $ServerImageName=$VHDPath | Split-Path -Leaf
+    $ServerImageName=$ServerVHDPath | Split-Path -Leaf
 
 #Create Server VM
+    #Just recycling script from VMs creation
+    $ServerVMs=@()
+    $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
+    $ImageName=$ServerImageName
 
+    foreach ($VM in $ServerVMs){
+        #Copy VHD to destination
+        Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
+            New-Item -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\" -ItemType Directory -Force
+            Copy-Item -Path "c:\ClusterStorage\$using:LibraryVolumeName\$using:ImageName" -Destination "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx"
+        }
+        #Create Answer File
+        $djointemp=New-TemporaryFile
+        & djoin.exe /provision /domain $env:USERDOMAIN /machine $VM.VMName /savefile $djointemp.fullname /machineou $OUPath
+        #extract blob blob from temp file
+        $Blob=get-content $djointemp
+        $Blob=$blob.Substring(0,$blob.Length-1)
+        #remove temp file
+        $djointemp | Remove-Item
 
-#Just recycling script from VMs creation
-$ServerVMs=@()
-$ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
-$ImageName=$ServerImageName
-
-foreach ($VM in $ServerVMs){
-    #Copy VHD to destination
-    Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
-        New-Item -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\" -ItemType Directory -Force
-        Copy-Item -Path "c:\ClusterStorage\$using:LibraryVolumeName\$using:ImageName" -Destination "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx"
-    }
-    #Create Answer File
-    $djointemp=New-TemporaryFile
-    & djoin.exe /provision /domain $env:USERDOMAIN /machine $VM.VMName /savefile $djointemp.fullname /machineou $OUPath
-    #extract blob blob from temp file
-    $Blob=get-content $djointemp
-    $Blob=$blob.Substring(0,$blob.Length-1)
-    #remove temp file
-    $djointemp | Remove-Item
-
-    #Generate Unattend file with WINRM Enabled
-$unattend = @"
+        #Generate Unattend file with WINRM Enabled
+        $unattend = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <settings pass="offlineServicing">
@@ -380,41 +378,41 @@ $unattend = @"
 </unattend>
 "@
 
-#Mount VHD and Apply answer file
-    Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-        New-Item -Path "$using:Mountdir" -ItemType Directory -Force
-        Mount-WindowsImage -Path "$using:Mountdir" -ImagePath "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx" -Index 1
-        New-item -type directory  "$using:Mountdir\Windows\Panther"
-        Set-Content -Value $using:unattend -Path "$using:Mountdir\Windows\Panther\Unattend.xml"
-        Use-WindowsUnattend -Path "$using:Mountdir" -UnattendPath "$using:Mountdir\Windows\Panther\Unattend.xml"
-        Dismount-WindowsImage -Path "$using:Mountdir" -Save
-        Remove-Item -Path "$using:Mountdir"
-    }
-
-#Create VM
-    Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
-        $VM=$using:vm
-        $VMTemp=New-VM -Name $VM.VMName -MemoryStartupBytes $VM.MemoryStartupBytes -Generation 2 -Path "$($using:VM.CSVPath)" -VHDPath "$($using:VM.CSVPath)\$($VM.VMName)\Virtual Hard Disks\$($VM.VMName).vhdx" -SwitchName $Using:vSwitchName
-        $VMTemp | Set-VMProcessor -Count $VM.NumberOfCPUs
-        if ($VM.DynamicMemory){
-            $VMTemp | Set-VM -DynamicMemory
+    #Mount VHD and Apply answer file
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+            New-Item -Path "$using:Mountdir" -ItemType Directory -Force
+            Mount-WindowsImage -Path "$using:Mountdir" -ImagePath "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\$($using:VM.VMName).vhdx" -Index 1
+            New-item -type directory  "$using:Mountdir\Windows\Panther"
+            Set-Content -Value $using:unattend -Path "$using:Mountdir\Windows\Panther\Unattend.xml"
+            Use-WindowsUnattend -Path "$using:Mountdir" -UnattendPath "$using:Mountdir\Windows\Panther\Unattend.xml"
+            Dismount-WindowsImage -Path "$using:Mountdir" -Save
+            Remove-Item -Path "$using:Mountdir"
         }
-        $VMTemp | Start-VM
-    }
-    #add VM as clustered role
-    Add-ClusterVirtualMachineRole -VMName $VM.VMName -Cluster $ClusterName
-}
 
-#add 1TB disk
-foreach ($VM in $ServerVMs){
-    Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
-        New-VHD -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\DATA01.vhdx" -SizeBytes 1TB
-        Add-VMHardDiskDrive -VMName $using:VM.VMName -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\DATA01.vhdx"
+    #Create VM
+        Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
+            $VM=$using:vm
+            $VMTemp=New-VM -Name $VM.VMName -MemoryStartupBytes $VM.MemoryStartupBytes -Generation 2 -Path "$($using:VM.CSVPath)" -VHDPath "$($using:VM.CSVPath)\$($VM.VMName)\Virtual Hard Disks\$($VM.VMName).vhdx" -SwitchName $Using:vSwitchName
+            $VMTemp | Set-VMProcessor -Count $VM.NumberOfCPUs
+            if ($VM.DynamicMemory){
+                $VMTemp | Set-VM -DynamicMemory
+            }
+            $VMTemp | Start-VM
+        }
+        #add VM as clustered role
+        Add-ClusterVirtualMachineRole -VMName $VM.VMName -Cluster $ClusterName
     }
-}
 
-#wait a bit for VM to start
-Start-Sleep 60
+    #add 1TB disk
+    foreach ($VM in $ServerVMs){
+        Invoke-Command -ComputerName $VM.Owner -ScriptBlock {
+            New-VHD -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\DATA01.vhdx" -SizeBytes 1TB
+            Add-VMHardDiskDrive -VMName $using:VM.VMName -Path "$($using:VM.CSVPath)\$($using:VM.VMName)\Virtual Hard Disks\DATA01.vhdx"
+        }
+    }
+
+    #wait a bit for VM to start
+    Start-Sleep 60
 
 #prepare disk
 Get-Disk -CimSession $ServerVMs.VMName | Where-Object PartitionStyle -eq RAW | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel "Storage"
@@ -481,4 +479,54 @@ Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
+#endregion
+
+#region cleanup
+<#
+#remove Azure Resource group
+    Remove-AzResourceGroup -Name $AVDResourceGroupName -Force
+#remove Azure Service Principal
+    $SP=Get-AzADServicePrincipal -DisplayName "Arc-for-servers"
+    Remove-AzADServicePrincipal -ObjectId $SP.Id -Force
+#remove VMs
+    foreach ($VM in $VMs){
+        $VMObject=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name -Name $VM.VMName -ErrorAction Ignore
+        if ($VMObject){
+            $VMObject | Stop-VM -TurnOff
+            Get-ClusterGroup -Cluster $CLusterName -Name $VM.VMName | Remove-ClusterGroup -RemoveResources -Force
+            $VMObject | Remove-VM -Force -ErrorAction Ignore
+            Invoke-Command -ComputerName $VMObject.ComputerName -ScriptBlock {Remove-Item -Path $using:VMObject.Path -Recurse -ErrorAction Ignore}
+        }
+    }
+    foreach ($VM in $ServerVMs){
+        $VMObject=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name -Name $VM.VMName -ErrorAction Ignore
+        if ($VMObject){
+            $VMObject | Stop-VM -TurnOff
+            Get-ClusterGroup -Cluster $CLusterName -Name $VM.VMName | Remove-ClusterGroup -RemoveResources -Force
+            $VMObject | Remove-VM -Force -ErrorAction Ignore
+            Invoke-Command -ComputerName $VMObject.ComputerName -ScriptBlock {Remove-Item -Path $using:VMObject.Path -Recurse -ErrorAction Ignore}
+        }
+    }
+#remove CSVs
+    Foreach ($node in (Get-ClusterNode -Cluster $ClusterName).Name){
+        Get-VirtualDisk -CimSession $Node -FriendlyName $Node | Remove-VirtualDisk -Confirm:0
+    }
+    Get-VirtualDisk -CimSession $Node -FriendlyName $LibraryVolumeName | Remove-VirtualDisk -Confirm:0
+#Remove AD Objects, DNS Records and leases
+    foreach ($VM in $VMs){
+        Remove-DnsServerResourceRecord -CimSession DC -ZoneName corp.contoso.com -RRType "A" -Name $VM.VMName -Force
+        Get-DhcpServerv4Lease -CimSession DC -ScopeId 10.0.0.0 | WHere Hostname -eq "$($VM.VMName).corp.contoso.com" | Remove-DhcpServerv4Lease
+        Get-ADComputer -Identity $VM.VMName | Remove-ADObject -Confirm:0 -recursive
+    }
+    foreach ($VM in $ServerVMs){
+        Remove-DnsServerResourceRecord -CimSession DC -ZoneName corp.contoso.com -RRType "A" -Name $VM.VMName -Force
+        Get-DhcpServerv4Lease -CimSession DC -ScopeId 10.0.0.0 | WHere Hostname -eq "$($VM.VMName).corp.contoso.com" | Remove-DhcpServerv4Lease
+        Get-ADComputer -Identity $VM.VMName | Remove-ADObject -Confirm:0 -recursive
+    }
+#remove GPOs
+    $names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
+    foreach ($name in $names) {
+        Get-GPO -Name $name  | Remove-GPO
+    }
+#>
 #endregion
