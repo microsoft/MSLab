@@ -1,57 +1,57 @@
 #region Variables
-$ClusterName="ax6515-cluster"
-$ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
-$LibraryVolumeName="Library" #volume for images for VMs
-$VMsVolumeSize=1TB #size of volumes for AVD VMs
-$OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
-$vSwitchName="vSwitch"
-$MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
+    $ClusterName="ax6515-cluster"
+    $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
+    $LibraryVolumeName="Library" #volume for images for VMs
+    $VMsVolumeSize=1TB #size of volumes for AVD VMs
+    $OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
+    $vSwitchName="vSwitch"
+    $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
 
-$AVDResourceGroupName="MSLabAVD"
-$AVDHostPoolName="MSLabAVDPool"
-$AVDWorkspaceName="MSLabAVDWorkspace"
+    $AVDResourceGroupName="MSLabAVD"
+    $AVDHostPoolName="MSLabAVDPool"
+    $AVDWorkspaceName="MSLabAVDWorkspace"
 
-$ManagedDiskName = "AVD_OS_Disk_Windows11_m365"
-$Offer="windows11preview"
-$SKU="win11-21h2-avd-m365"
+    $ManagedDiskName = "AVD_OS_Disk_Windows11_m365"
+    $Offer="windows11preview"
+    $SKU="win11-21h2-avd-m365"
 
-#Install Azure packages
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.DesktopVirtualization"
-    foreach ($ModuleName in $ModuleNames){
-        if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
-            Install-Module -Name $ModuleName -Force
+    #Install Azure packages
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.DesktopVirtualization"
+        foreach ($ModuleName in $ModuleNames){
+            if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
+                Install-Module -Name $ModuleName -Force
+            }
         }
-    }
 
-#login to Azure
-    if (-not (Get-AzContext)){
-        Login-AzAccount -UseDeviceAuthentication
-    }
-
-#select context
-    $context=Get-AzContext -ListAvailable
-    if (($context).count -gt 1){
-        $context=$context | Out-GridView -OutputMode Single
-        $context | Set-AzContext
-    }
-
-#location (all locations where HostPool can be created)
-    $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
-
-
-#Generate list of VMs to be created
-    $VMs=@()
-    $VMsPerNode=4
-    Foreach ($ClusterNode in $ClusterNodes){
-        foreach ($number in 1..$VMsPerNode){
-            $VMs+=@{VMName="$($ClusterNode)_AVD$("{0:D2}" -f $Number)"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$ClusterNode" ; Owner=$ClusterNode}
+    #login to Azure
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
         }
-    }
-    #fileserver (fileservers)
-    $ServerVMs=@()
-    $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
 
+    #select context
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context=$context | Out-GridView -OutputMode Single
+            $context | Set-AzContext
+        }
+
+    #location (all locations where HostPool can be created)
+        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
+
+
+    #Generate list of VMs to be created
+        #Session hosts
+        $VMs=@()
+        $VMsPerNode=4
+        Foreach ($ClusterNode in $ClusterNodes){
+            foreach ($number in 1..$VMsPerNode){
+                $VMs+=@{VMName="$($ClusterNode)_AVD$("{0:D2}" -f $Number)"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$ClusterNode" ; Owner=$ClusterNode}
+            }
+        }
+        #fileserver (fileservers)
+        $ServerVMs=@()
+        $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
 #endregion
 
 #region prepare cluster
