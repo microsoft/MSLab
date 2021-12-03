@@ -842,7 +842,7 @@
         $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
         #Wipe Virtual disks if any
         if ($StoragePool){
-            $StoragePool | Set-StoragePool -IsReadOnly $False
+            $StoragePool | Set-StoragePool -IsReadOnly $False -ErrorAction Ignore
             $VirtualDisks=$StoragePool | Get-VirtualDisk -ErrorAction Ignore
             #Remove Disks
             if ($VirtualDisks){
@@ -859,6 +859,10 @@
         Invoke-Command -ComputerName $Servers -ScriptBlock {
             Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
         }
+        #Grab pool again and delete the rest
+        $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
+        $StoragePool | Set-StoragePool -IsReadOnly $False -ErrorAction Ignore
+        $StoragePool | Remove-StoragePool -Confirm:0
     }
 
     #Enable-ClusterS2D
