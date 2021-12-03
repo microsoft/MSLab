@@ -842,10 +842,6 @@
         $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
         #Wipe Virtual disks if any
         if ($StoragePool){
-            $Clusterresource=Get-ClusterResource -Cluster $ClusterName | Where-Object ResourceType -eq "Storage Pool"
-            if ($Clusterresource){
-                $Clusterresource | Remove-ClusterResource -Force
-            }
             $StoragePool | Set-StoragePool -IsReadOnly $False
             $VirtualDisks=$StoragePool | Get-VirtualDisk -ErrorAction Ignore
             #Remove Disks
@@ -853,6 +849,10 @@
                 $VirtualDisks | Remove-VirtualDisk -Confirm:0
             }
             #Remove Pool
+            $Clusterresource=Get-ClusterResource -Cluster $ClusterName | Where-Object ResourceType -eq "Storage Pool"
+            if ($Clusterresource){
+                $Clusterresource | Remove-ClusterResource -Force
+            }
             $StoragePool | Remove-StoragePool -Confirm:0
         }
         #Reset disks (to clear spaces metadata)
