@@ -15,9 +15,9 @@
     #install management features (ADDS, DHCP,...)
     $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
     If ($WindowsInstallationType -like "Server*"){
-        Install-WindowsFeature -Name "RSAT-AD-PowerShell","RSAT-ADDS","RSAT-DHCP"
+        Install-WindowsFeature -Name "RSAT-AD-PowerShell","RSAT-ADDS","RSAT-DHCP","RSAT-DNS-Server","WDS-AdminPack"
     }else{
-        $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.DHCP.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
+        $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.DHCP.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0","Rsat.Dns.Tools~~~~0.0.1.0"
         foreach ($Capability in $Capabilities){
             Add-WindowsCapability -Name $Capability -Online
         }
