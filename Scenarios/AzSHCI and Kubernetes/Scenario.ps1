@@ -163,7 +163,10 @@ if (($subscription).count -gt 1){
 $subscriptionID=(Get-AzContext).Subscription.id
 
 <# Register AZSHCi without prompting for creds, 
-   in Azure Stack HCI 21H2, Register-AzStackHCI without -ResourceGroupName parameter will fail with Node Arc Integration in some cases #>
+   Notes: As Dec. 2021, in Azure Stack HCI 21H2,  if you Register-AzStackHCI the cluster multiple times in same ResourceGroup (e.g. default
+   resource group name is AzSHCI-Cluster-rg) without run UnRegister-AzStackHCI first, although you may succeed in cluster registration, but
+   sever node Arc integration will fail, even if you have deleted the ResourceGroup in Azure Portal before running Register-AzStackHCI #>
+   
 $armTokenItemResource = "https://management.core.windows.net/"
 $graphTokenItemResource = "https://graph.windows.net/"
 $azContext = Get-AzContext
@@ -171,7 +174,7 @@ $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::In
 $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
 $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
 $id = $azContext.Account.Id
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -ResourceGroupName "$ClusterName-rsg" -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
 
 
 # or register Azure Stack HCI with device authentication
