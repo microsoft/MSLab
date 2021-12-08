@@ -82,7 +82,7 @@
 #region create host pool
     #install modules
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        $ModuleNames="Az.DesktopVirtualization","Az.Resources","Az.Accounts"
+        $ModuleNames="Az.DesktopVirtualization","Az.Resources","Az.Accounts","Az.Compute"
         foreach ($ModuleName in $ModuleNames){
             if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
                 Install-Module -Name $ModuleName -Force
@@ -310,42 +310,38 @@
         Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
         Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
 
-    #Create AzADServicePrincipal
-        if (-not(Get-AZADServicePrincipal -DisplayName $ServicePrincipalName)){
-            New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding"
+    #Create AzADServicePrincipal if it does not already exist
+        $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
+        if (-not $SP){
+            $SP=New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding"
             #remove default cred
-            Get-AzADApplication -DisplayName $ServicePrincipalName | Remove-AzADAppCredential -Force
+            Remove-AzADAppCredential -ApplicationId $SP.AppId
         }
-
-    $ServicePrincipalID=(Get-AzADServicePrincipal -DisplayName $ServicePrincipalName).applicationid.guid
 
     #Create new password
         if (-not ($password)){
-            Get-AzADApplication -DisplayName $ServicePrincipalName
-            #create secret (you can save it somewhere as you will not be able to retrieve it from Azure anymore)
-            #generate password https://opentechtips.com/random-password-generator-in-powershell/
-            $chars=(48..57) + (65..90) + (97..122)
-            $length = 64
-            [string]$Password = $null
-            $chars | Get-Random -Count $length | ForEach-Object { $Password += [char]$_ }
+            $credential = New-Object -TypeName "Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPasswordCredential" -Property @{
+                "KeyID"         = (new-guid).Guid ;
+                "EndDateTime" = [DateTime]::UtcNow.AddYears(10)
+            }
+            $Creds=New-AzADAppCredential -PasswordCredentials $credential -ApplicationID $SP.AppID
+            $password=$Creds.SecretText
             Write-Host "Your Password is: " -NoNewLine ; Write-Host $password -ForegroundColor Cyan
-            $secpassword=ConvertTo-SecureString $password -AsPlainText -Force
-            #add new password
-            Get-AzADApplication -DisplayName $ServicePrincipalName | New-AzADAppCredential -Password $secpassword -EndDate 12/31/2999
         }
 
     #sleep for 1m just to let ADApp password to propagate
-    Start-Sleep 60
+        Start-Sleep 60
+
 
     #configure Azure ARC agent on servers
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:password --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
-    }
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $using:ServicePrincipalID --service-principal-secret $using:password --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
+        }
 
     #Validate if agents are connected
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
-    }
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
+        }
 
 #endregion
 
