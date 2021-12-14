@@ -610,6 +610,20 @@
 #endregion
 
 #region Create cluster and configure basic settings
+    #Delete Storage Pool if there is any from last install
+    if ($DeletePool){
+        #Grab pools
+        $StoragePools=Get-StoragePool -CimSession $Servers -IsPrimordial $False -ErrorAction Ignore
+        #remove pools if any
+        if ($StoragePools){
+            $StoragePools | Remove-StoragePool -Confirm:0
+        }
+        #Reset disks (to clear spaces metadata)
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
+        }
+    }
+
     if ($DellHW){
         #Disable USB NIC used by iDRAC to communicate to host just for test-cluster
         Disable-NetAdapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -Confirm:0
@@ -836,35 +850,6 @@
 #endregion
 
 #region Enable Cluster S2D and check Pool and Tiers
-    #Delete Storage Pool if there is any from last install
-    if ($DeletePool){
-        #Grab pool
-        $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
-        #Wipe Virtual disks if any
-        if ($StoragePool){
-            $StoragePool | Set-StoragePool -IsReadOnly $False -ErrorAction Ignore
-            $VirtualDisks=$StoragePool | Get-VirtualDisk -ErrorAction Ignore
-            #Remove Disks
-            if ($VirtualDisks){
-                $VirtualDisks | Remove-VirtualDisk -Confirm:0
-            }
-            #Remove Pool
-            $Clusterresource=Get-ClusterResource -Cluster $ClusterName | Where-Object ResourceType -eq "Storage Pool"
-            if ($Clusterresource){
-                $Clusterresource | Remove-ClusterResource -Force
-            }
-            $StoragePool | Remove-StoragePool -Confirm:0
-        }
-        #Reset disks (to clear spaces metadata)
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
-        }
-        #Grab pool again and delete the rest
-        $StoragePool=Get-StoragePool -CimSession $ClusterName -IsPrimordial $False
-        $StoragePool | Set-StoragePool -IsReadOnly $False -ErrorAction Ignore
-        $StoragePool | Remove-StoragePool -Confirm:0
-    }
-
     #Enable-ClusterS2D
         Enable-ClusterS2D -CimSession $ClusterName -confirm:0 -Verbose
 
