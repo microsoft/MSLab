@@ -1,3 +1,21 @@
+<!-- TOC -->
+
+- [Azure Arc for Servers](#azure-arc-for-servers)
+    - [About the lab](#about-the-lab)
+    - [The Lab](#the-lab)
+        - [Region Prerequisites](#region-prerequisites)
+        - [Region Create Azure Resources](#region-create-azure-resources)
+        - [Region Install Azure Arc to servers](#region-install-azure-arc-to-servers)
+        - [Region Configure and Validate Arc on remote servers](#region-configure-and-validate-arc-on-remote-servers)
+        - [Region Create Log Analytics Workspace](#region-create-log-analytics-workspace)
+        - [Region Add Automation Account](#region-add-automation-account)
+        - [Region Add Monitoring extension and Dependency Agent extension](#region-add-monitoring-extension-and-dependency-agent-extension)
+        - [Region add Key Vault Extension](#region-add-key-vault-extension)
+        - [Region Validate Deployed Cert](#region-validate-deployed-cert)
+    - [More screenshots](#more-screenshots)
+
+<!-- /TOC -->
+
 # Azure Arc for Servers
 
 ## About the lab
@@ -75,3 +93,7 @@ Notice, that permissions (access policies) on secret were configured
 As you can see, certificate was successfully distributed to onprem machine
 
 ![](/Scenarios/Azure%20Arc%20for%20Servers/Screenshots/PowerShell04.png)
+
+## More screenshots
+
+![](/Scenarios/Azure%20Arc%20for%20Servers/Screenshots/Edge11.png)

@@ -407,7 +407,7 @@ $wsus | Get-WsusProduct | where-Object {
     'Windows Server 2019')
 } | Set-WsusProduct
 
-# Configure the Classifications
+# Configure the Classifications https://docs.microsoft.com/en-US/troubleshoot/windows-client/deployment/standard-terminology-software-updates
 $wsus | Get-WsusClassification |Set-WsusClassification -Disable
 $wsus | Get-WsusClassification | Where-Object {
     $_.Classification.Title -in (

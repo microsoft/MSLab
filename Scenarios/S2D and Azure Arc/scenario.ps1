@@ -66,7 +66,7 @@ Login-AzAccount -UseDeviceAuthentication
 #select context if more available
 $context=Get-AzContext -ListAvailable
 if (($context).count -gt 1){
-    $context | Out-GridView -OutpuMode Single | Set-AzContext
+    $context | Out-GridView -OutputMode Single | Set-AzContext
 }
 #endregion
 

@@ -278,8 +278,9 @@
         if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
             Install-Module -Name Az.Accounts -Force
         }
-        Login-AzAccount -UseDeviceAuthentication
-    
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
+        }
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
@@ -463,7 +464,9 @@ $DestinationClusterName="NewHCI-Cluster"
     if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
         Install-Module -Name Az.Accounts -Force
     }
-    Login-AzAccount -UseDeviceAuthentication
+    if (-not (Get-AzContext)){
+        Login-AzAccount -UseDeviceAuthentication
+    }
 
     #select context if more available
     $context=Get-AzContext -ListAvailable
@@ -506,4 +509,22 @@ $VMNames=(Get-VM -cimsession (get-clusternode -cluster $DestinationClusterName).
 foreach ($VMName in $VMNames){
     Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $DestinationClusterName -ErrorAction Ignore
 }
+#endregion
+
+#region Cleanup Azure Resources
+    <#
+    $ClustersNames="AzSHCI-Cluster","NewHCI-Cluster"
+    if (-not (Get-AzContext)){
+        Login-AzAccount -UseDeviceAuthentication
+    }
+
+    foreach ($ClusterName in $ClustersNames){
+        Get-AzResource -Name $ClusterName -ErrorAction Ignore | Remove-AzResource -Force
+    }
+
+    #if resource Group is Empty, delete it
+    if (-not (Get-AzResource -ResourceGroupName AzureStackHCIClusters)){
+        Remove-AzResourceGroup -Name AzureStackHCIClusters -Force
+    }
+    #>
 #endregion
