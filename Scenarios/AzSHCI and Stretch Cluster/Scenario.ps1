@@ -121,7 +121,7 @@
         #select context if more available
         $context=Get-AzContext -ListAvailable
         if (($context).count -gt 1){
-            $context | Out-GridView -OutpuMode Single | Set-AzContext
+            $context | Out-GridView -OutputMode Single | Set-AzContext
         }
         #Create resource group
         $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.Storage" | Out-GridView -OutputMode Single

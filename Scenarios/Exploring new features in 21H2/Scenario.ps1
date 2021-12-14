@@ -504,9 +504,9 @@
         #create password
         $start = Get-Date
         $end = $start.AddYears(300)
-        $pw = Retry-Command -ScriptBlock { New-AzureADServicePrincipalPasswordCredential -ObjectId $sp.ObjectId -StartDate $start -EndDate $end }
+        $pw = New-AzureADServicePrincipalPasswordCredential -ObjectId $sp.ObjectId -StartDate $start -EndDate $end
         
-        $Region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -Title "Please select Location").Location
+        $Region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -Title "Please select Location" -OutputMode Single).Location
         $ResourceGroupName="AzureStackHCIClusters"
         
         $ArcRegistrationParams = @{
