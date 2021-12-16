@@ -20,7 +20,7 @@
         $ClusterIP="10.0.0.111" #If blank (you can write just $ClusterIP="", DHCP will be used). If $DistributedManagementPoint is true, then IP is not used
 
     #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS). If $ClusterIP is set, then $clusterIP will be ignored).
-        $DistributedManagementPoint=$true
+        $DistributedManagementPoint=$false
 
     #Witness type
         $WitnessType="FileShare" #or Cloud
