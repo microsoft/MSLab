@@ -375,6 +375,7 @@ Foreach ($PSSession in $PSSessions){
 #Jaromirk note: it would be great if I could specify HCI Cluster (like New-AksHciCluster -ComputerName)
 $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
+$KubernetesClusterName="demo"
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
     # Create new cluster with 1 linux node pool in 1 node pool
     New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool
@@ -488,7 +489,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     #Generate kubeconfig
     Get-AksHciCredential -Name $using:KubernetesClusterName -confirm:0
     #onboard
-    Enable-AksHciArcConnection -Name $using:KubernetesClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroupname -Location $using:location -credential $using:Credentials
+    Enable-AksHciArcConnection -Name $using:KubernetesClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:Credentials
 }
 
 
@@ -496,7 +497,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #generate kubeconfig (this step was already done)
 <#
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-    Get-AksHciCredential -clusterName $using:KubernetesClusterName
+    Get-AksHciCredential -Name $using:KubernetesClusterName -Confirm:0
 }
 #>
 #copy kubeconfig
@@ -520,26 +521,6 @@ kubectl -n azure-arc get deployments,pods
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
     $ClusterName="AzSHCI-Cluster"
     $servers=(Get-ClusterNode -Cluster $ClusterName).Name
-
-    #install helm
-    #install chocolatey
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-    #install helm
-    choco feature enable -n allowGlobalConfirmation
-    cinst kubernetes-helm
-
-    <#
-    $ClusterName="AzSHCI-Cluster"
-    $servers=(Get-ClusterNode -Cluster $ClusterName).name
-    $ProgressPreference="SilentlyContinue"
-    Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
-    $ProgressPreference="Continue"
-    Expand-Archive -Path $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip -DestinationPath $env:USERPROFILE\Downloads
-    $sessions=New-PSSession -ComputerName $servers
-    foreach ($session in $sessions){
-        Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
-    }
-    #>
 
     #install az cli and log into az
         Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
@@ -571,6 +552,7 @@ kubectl -n azure-arc get deployments,pods
 
     #validate
         az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+        #add kubectl to system environment variable, so it can be run by simply typing kubectl
         [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
         kubectl get ns --show-labels
         kubectl -n cluster-config get deploy -o wide
@@ -602,14 +584,18 @@ kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region Enable Monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/containers/container-insights-hybrid-setup and script https://aka.ms/enable-monitoring-powershell-script
+    $ClusterName="AzSHCI-Cluster"
     $resourcegroup="$ClusterName-rg"
     $KubernetesClusterName="demo"
+    if (-not (Get-AzContext)){
+        Connect-AzAccount -UseDeviceAuthentication
+    }
     $SubscriptionID=(Get-AzContext).Subscription.ID
     $Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
     $TemplateURI="https://raw.githubusercontent.com/microsoft/Docker-Provider/ci_dev/scripts/onboarding/templates/azuremonitor-containerSolution.json"
     $AzureCloudName = "AzureCloud" #or AzureUSGovernment
 
-    $AKSClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Kubernetes/connectedClusters/$KubernetesClustername"
+    $AKSClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup/providers/Microsoft.Kubernetes/connectedClusters/$KubernetesClustername"
     $AKSClusterResource = Get-AzResource -ResourceId $AKSClusterResourceId
     $AKSClusterRegion = $AKSClusterResource.Location.ToLower()
     $PrimarySharedKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
@@ -623,32 +609,56 @@ kubectl -n azure-arc get deployments,pods
         New-AzResourceGroupDeployment -Name $DeploymentName `
         -ResourceGroupName $Workspace.ResourceGroupName `
         -TemplateUri  $TemplateURI `
-        -TemplateParameterObject $Parameters -ErrorAction Stop
+        -TemplateParameterObject $Parameters
 
     #Install HEML Chart
-        #helm config
-        if ($AzureCloudName -eq "AzureCloud"){$omsAgentDomainName="opinsights.azure.com"}
-        if ($AzureCloudName -eq "AzureUSGovernment"){$omsAgentDomainName="opinsights.azure.us"}
-        $helmChartReleaseName = "azmon-containers-release-1"
-        $helmChartName = "azuremonitor-containers"
-        $microsoftHelmRepo="https://microsoft.github.io/charts/repo"
-        $microsoftHelmRepoName="microsoft"
-        $helmChartRepoPath = "${microsoftHelmRepoName}" + "/" + "${helmChartName}"
-        #Add azure charts repo
-        helm repo add ${microsoftHelmRepoName} ${microsoftHelmRepo}
-        #update to latest release
-        helm repo update ${microsoftHelmRepoName}
-        #Install CHart to current kube context
-        $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
-        helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
+        #install helm
+            #install chocolatey
+            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+            #install helm
+            choco feature enable -n allowGlobalConfirmation
+            cinst kubernetes-helm
+
+            <#
+            $ClusterName="AzSHCI-Cluster"
+            $servers=(Get-ClusterNode -Cluster $ClusterName).name
+            $ProgressPreference="SilentlyContinue"
+            Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
+            $ProgressPreference="Continue"
+            Expand-Archive -Path $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip -DestinationPath $env:USERPROFILE\Downloads
+            $sessions=New-PSSession -ComputerName $servers
+            foreach ($session in $sessions){
+                Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
+            }
+            #>
+        #Install Chart to current kube context
+            #helm config
+            if ($AzureCloudName -eq "AzureCloud"){$omsAgentDomainName="opinsights.azure.com"}
+            if ($AzureCloudName -eq "AzureUSGovernment"){$omsAgentDomainName="opinsights.azure.us"}
+            $helmChartReleaseName = "azmon-containers-release-1"
+            $helmChartName = "azuremonitor-containers"
+            $microsoftHelmRepo="https://microsoft.github.io/charts/repo"
+            $microsoftHelmRepoName="microsoft"
+            $helmChartRepoPath = "${microsoftHelmRepoName}" + "/" + "${helmChartName}"
+            #Add azure charts repo
+            helm repo add ${microsoftHelmRepoName} ${microsoftHelmRepo}
+            #update to latest release
+            helm repo update ${microsoftHelmRepoName}
+            #Install CHart to current kube context
+            $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
+            helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
 #endregion
 
-#region deploy app 
+#region deploy app
+    #add kubectl to system environment variable, so it can be run by simply typing kubectl
+    [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
     kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
     kubectl get service
 #endregion
 
 #region get admin token and use it in Azure Portal to view resources in AKS HCI https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/cluster-connect#option-2-service-account-bearer-token
+    #add kubectl to system environment variable, so it can be run by simply typing kubectl
+    [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
     kubectl create serviceaccount admin-user
     kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
     $SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
@@ -685,15 +695,42 @@ Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlin
 #>
 #endregion
 
-#region cleanup
+#region cleanup azure resources
 <#
-Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
-Get-AzResourceGroup -Name "MSLabAzureArc" | Remove-AzResourceGroup -Force
-$principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
-foreach ($principal in $principals){
-    Remove-AzADServicePrincipal -ObjectId $principal.id
+$ClusterName="AzSHCI-Cluster"
+
+if (-not (Get-AzContext)){
+    Connect-AzAccount -UseDeviceAuthentication
 }
-Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
+
+#unregister azure stack hci cluster
+    $subscriptionID=(Get-AzContext).Subscription.id
+    $armTokenItemResource = "https://management.core.windows.net/"
+    $graphTokenItemResource = "https://graph.windows.net/"
+    $azContext = Get-AzContext
+    $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+    $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+    $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+    $id = $azContext.Account.Id
+
+    UnRegister-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -Confirm:0
+
+#remove resource groups
+    if (-not (Get-AzContext)){
+        Connect-AzAccount -UseDeviceAuthentication
+    }
+    #where AKS clusters are
+    Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
+    #residue after Resource group where Arc agents were located
+    Get-AzResourceGroup -Name "$ClusterName-*" | Remove-AzResourceGroup -Force
+    #where log analytics workspace resides
+    Get-AzResourceGroup -Name "MSLabAzureArc" | Remove-AzResourceGroup -Force
+
+#and registration principal
+    $servicePrincipalDisplayName="ArcRegistration"
+    $principal=Get-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName
+    Remove-AzADServicePrincipal -ObjectId $principal.id
+    Get-AzADApplication -DisplayName $servicePrincipalDisplayName | Remove-AzADApplication
 #>
 #endregion
 
@@ -741,23 +778,5 @@ foreach ($computer in $computers){
     $computerObject = Get-ADComputer -Identity $computer
     Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
 }
-
-#endregion
-
-######################
-### Run from Win10 ###
-######################
-
-#region Windows Admin Center on Win10
-
-    #install WAC
-    #Download Windows Admin Center if not present
-    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
-        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
-    }
-    #Install Windows Admin Center (https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/deploy/install)
-    Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt SME_PORT=6516 SSL_CERTIFICATE_OPTION=generate"
-    #Open Windows Admin Center
-    Start-Process "C:\Program Files\Windows Admin Center\SmeDesktop.exe"
 
 #endregion
