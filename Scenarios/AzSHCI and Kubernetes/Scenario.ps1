@@ -40,18 +40,33 @@ $ClusterName="AzSHCI-Cluster"
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
-# Update servers (does not work on Windows Server 2022 and 21H2 azure stack as WindowsUpdate namespace no longer exists)
+# Update servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
-    #Grab updates
-    $SearchCriteria = "IsInstalled=0"
-    #$SearchCriteria = "IsInstalled=0 and DeploymentAction='OptionalInstallation'" #does not work, not sure why
-    $ScanResult=Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName ScanForUpdates -Arguments @{SearchCriteria=$SearchCriteria}
-    #apply updates (if not empty)
-    if ($ScanResult.Updates){
-        Invoke-CimMethod -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUOperations" -MethodName InstallUpdates -Arguments @{Updates=$ScanResult.Updates}
-    }
+    New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+    Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+} -ErrorAction Ignore
+# Run Windows Update via ComObject.
+Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+    $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+    $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                            IsPresent=1 and DeploymentAction='Uninstallation' or
+                            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+    $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+    $Session = New-Object -ComObject Microsoft.Update.Session
+    $Downloader = $Session.CreateUpdateDownloader()
+    $Downloader.Updates = $SearchResult
+    $Downloader.Download()
+    $Installer = New-Object -ComObject Microsoft.Update.Installer
+    $Installer.Updates = $SearchResult
+    $Result = $Installer.Install()
+    $Result
 }
-
+#remove temporary PSsession config
+Invoke-Command -ComputerName $servers -ScriptBlock {
+    Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+    Remove-Item -Path $env:TEMP\VirtualAccount.pssc
+}
 
 # Update servers with all updates (including preview)
 <#
@@ -344,7 +359,7 @@ Foreach ($PSSession in $PSSessions){
     #validate registration
     Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Get-AksHciRegistration
-    }    
+    }
 
     #Install
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
@@ -362,7 +377,7 @@ $ClusterName="AzSHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
     # Create new cluster with 1 linux node pool in 1 node pool
-    New-AksHciCluster -Name demo -NodePoolName linux-pool
+    New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool
     
     # or Create new cluster with 1 linux node in 1 node pool, with AD AuthZ and Monitoring enabled (Optionally)
     # New-AksHciCluster -Name demo -NodePoolName linux-pool -enableAdAuth -enableMonitoring
@@ -427,18 +442,42 @@ $subscriptionID=(Get-AzContext).Subscription.id
 
 $resourcegroup="$ClusterName-rg"
 $location="eastUS"
-$AKSClusterName="demo"
+$KubernetesClusterName="demo"
+$servicePrincipalDisplayName="ArcRegistration" #you can use existing
+$password="" #if blank, password will be created
 
-#create new service principal for cluster demo
+#create new service principal for registering AKS Clusters
 #Connect-AzAccount -Tenant $tenantID
-$servicePrincipalDisplayName="$($ClusterName)_AKS_$AKSClusterName"
-$sp = New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName -Scope  "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup"
-$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sp.Secret)
-$UnsecureSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-$ClientID=$sp.ApplicationId
+
+#Create AzADServicePrincipal if it does not already exist
+    $SP=Get-AZADServicePrincipal -DisplayName $servicePrincipalDisplayName
+    if (-not $SP){
+        $SP=New-AzADServicePrincipal -DisplayName $servicePrincipalDisplayName
+        #remove default cred
+        Remove-AzADAppCredential -ApplicationId $SP.AppId
+    }
+    #add roles
+    New-AzRoleAssignment -ObjectId $SP.Id -RoleDefinitionName "Kubernetes Cluster - Azure Arc Onboarding"
+    New-AzRoleAssignment -ObjectId $SP.Id -RoleDefinitionName "Azure Connected Machine Onboarding"
+
+    #Create new password
+    if (-not ($password)){
+        $credential = New-Object -TypeName "Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPasswordCredential" -Property @{
+            "KeyID"         = (new-guid).Guid ;
+            "EndDateTime" = [DateTime]::UtcNow.AddYears(10)
+        }
+        $Creds=New-AzADAppCredential -PasswordCredentials $credential -ApplicationID $SP.AppID
+        $password=$Creds.SecretText
+        Write-Host "Your Password is: " -NoNewLine ; Write-Host $password -ForegroundColor Cyan
+    }
+
+#sleep for 1m just to let ADApp password to propagate
+    Start-Sleep 60
+
 #create credentials
-$SecureSecret= ConvertTo-SecureString $UnsecureSecret -AsPlainText -Force
-$Credentials = New-Object System.Management.Automation.PSCredential ($ClientID.Guid , $SecureSecret)
+$ClientID=$sp.AppId
+$SecureSecret= ConvertTo-SecureString $password -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ($ClientID , $SecureSecret)
 
 #register namespace Microsoft.KubernetesConfiguration and Microsoft.Kubernetes
 Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
@@ -447,9 +486,9 @@ Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
 #onboard cluster
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     #Generate kubeconfig
-    Get-AksHciCredential -Name demo
+    Get-AksHciCredential -Name $using:KubernetesClusterName -confirm:0
     #onboard
-    Enable-AksHciArcConnection -Name $using:AKSClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:Credentials
+    Enable-AksHciArcConnection -Name $using:KubernetesClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroupname -Location $using:location -credential $using:Credentials
 }
 
 
@@ -457,7 +496,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
 #generate kubeconfig (this step was already done)
 <#
 Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-    Get-AksHciCredential -clusterName demo
+    Get-AksHciCredential -clusterName $using:KubernetesClusterName
 }
 #>
 #copy kubeconfig
@@ -479,120 +518,143 @@ kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
-$ClusterName="AzSHCI-Cluster"
-$servers=(Get-ClusterNode -Cluster $ClusterName).Name
+    $ClusterName="AzSHCI-Cluster"
+    $servers=(Get-ClusterNode -Cluster $ClusterName).Name
 
-#install helm
-#install chocolatey
-Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-#install helm
-choco feature enable -n allowGlobalConfirmation
-cinst kubernetes-helm
+    #install helm
+    #install chocolatey
+    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    #install helm
+    choco feature enable -n allowGlobalConfirmation
+    cinst kubernetes-helm
 
-<#
-$ClusterName="AzSHCI-Cluster"
-$servers=(Get-ClusterNode -Cluster $ClusterName).name
-$ProgressPreference="SilentlyContinue"
-Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
-$ProgressPreference="Continue"
-Expand-Archive -Path $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip -DestinationPath $env:USERPROFILE\Downloads
-$sessions=New-PSSession -ComputerName $servers
-foreach ($session in $sessions){
-    Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
-}
-#>
+    <#
+    $ClusterName="AzSHCI-Cluster"
+    $servers=(Get-ClusterNode -Cluster $ClusterName).name
+    $ProgressPreference="SilentlyContinue"
+    Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
+    $ProgressPreference="Continue"
+    Expand-Archive -Path $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip -DestinationPath $env:USERPROFILE\Downloads
+    $sessions=New-PSSession -ComputerName $servers
+    foreach ($session in $sessions){
+        Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
+    }
+    #>
 
-#install az cli
-Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
-Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
-#restart powershell
-exit
-#login
-#add some trusted sites (to be able to authenticate with Register-AzStackHCI)
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
+    #install az cli and log into az
+        Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
+        Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+        #restart powershell
+        exit
+        #login
+        #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\aadcdn" /v https /t REG_DWORD /d 2
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msauth.net\logincdn" /v https /t REG_DWORD /d 2
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 
-az login
-$allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
-if (($allSubscriptions).Count -gt 1){
-    $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
-    az account set --subscription $subscription.id
-}
+        az login
+        $allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
+        if (($allSubscriptions).Count -gt 1){
+            $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
+            az account set --subscription $subscription.id
+        }
 
-#create configuration
-$ClusterName="AzSHCI-Cluster"
-$KubernetesClusterName="demo"
-$resourcegroup="$ClusterName-rg"
-az extension add --name k8s-configuration
-az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
-#az connectedk8s delete --name cluster-config --resource-group $resourcegroup
+    #create configuration
+        $ClusterName="AzSHCI-Cluster"
+        $KubernetesClusterName="demo"
+        $resourcegroup="$ClusterName-rg"
+        az extension add --name k8s-configuration
+        az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
+        #az connectedk8s delete --name cluster-config --resource-group $resourcegroup
 
-#validate
-az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
-[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
-kubectl get ns --show-labels
-kubectl -n cluster-config get deploy -o wide
-kubectl -n team-a get cm -o yaml
-kubectl -n itops get all
+    #validate
+        az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+        [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
+        kubectl get ns --show-labels
+        kubectl -n cluster-config get deploy -o wide
+        kubectl -n team-a get cm -o yaml
+        kubectl -n itops get all
 #endregion
 
 #region Create Log Analytics workspace
-#Install module
-if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
-    Install-Module -Name Az.OperationalInsights -Force
-}
-
-#Grab Insights Workspace if some already exists
-$Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
-
-#Create Log Analytics Workspace if not available
-if (-not ($Workspace)){
-    $SubscriptionID=(Get-AzContext).Subscription.ID
-    $WorkspaceName="MSLabWorkspace-$SubscriptionID"
-    $ResourceGroupName="MSLabAzureArc"
-    #Pick Region
-    $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single
-    if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
-        New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+    #Install module
+    if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+        Install-Module -Name Az.OperationalInsights -Force
     }
-    $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
-}
+
+    #Grab Insights Workspace if some already exists
+    $Workspace=Get-AzOperationalInsightsWorkspace -ErrorAction SilentlyContinue | Out-GridView -OutputMode Single
+
+    #Create Log Analytics Workspace if not available
+    if (-not ($Workspace)){
+        $SubscriptionID=(Get-AzContext).Subscription.ID
+        $WorkspaceName="MSLabWorkspace-$SubscriptionID"
+        $ResourceGroupName="MSLabAzureArc"
+        #Pick Region
+        $Location=Get-AzLocation | Where-Object Providers -Contains "Microsoft.OperationalInsights" | Out-GridView -OutputMode Single
+        if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue)){
+            New-AzResourceGroup -Name $ResourceGroupName -Location $location.Location
+        }
+        $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $WorkspaceName -Location $location.Location
+    }
 #endregion
 
-#region Enable monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
-#download onboarding script
-Start-BitsTransfer -Source https://aka.ms/enable-monitoring-powershell-script -Destination "$env:Userprofile\Downloads\enable-monitoring.ps1"
-$resourcegroup="$ClusterName-rg"
-$SubscriptionID=(Get-AzContext).Subscription.ID
-$ClusterName="Demo"
-$azureArcClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup/providers/Microsoft.Kubernetes/connectedClusters/$Clustername"
-$kubecontext=""
-$LogAnalyticsWorkspaceResourceID=(Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace").ResourceID
-$ServicePrincipal=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
-New-AzRoleAssignment -RoleDefinitionName 'Log Analytics Contributor'  -ObjectId $servicePrincipal.Id -Scope  $logAnalyticsWorkspaceResourceId
+#region Enable Monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/containers/container-insights-hybrid-setup and script https://aka.ms/enable-monitoring-powershell-script
+    $resourcegroup="$ClusterName-rg"
+    $KubernetesClusterName="demo"
+    $SubscriptionID=(Get-AzContext).Subscription.ID
+    $Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
+    $TemplateURI="https://raw.githubusercontent.com/microsoft/Docker-Provider/ci_dev/scripts/onboarding/templates/azuremonitor-containerSolution.json"
+    $AzureCloudName = "AzureCloud" #or AzureUSGovernment
 
-$servicePrincipalClientId =  $servicePrincipal.ApplicationId.ToString()
-$servicePrincipalClientSecret = [System.Net.NetworkCredential]::new("", $servicePrincipal.Secret).Password
-$tenantId = (Get-AzSubscription -SubscriptionId $subscriptionId).TenantId
-$proxyendpoint=""
-& "$env:Userprofile\Downloads\enable-monitoring.ps1" -clusterResourceId $azureArcClusterResourceId -servicePrincipalClientId $servicePrincipalClientId -servicePrincipalClientSecret $servicePrincipalClientSecret -tenantId $tenantId -kubeContext $kubeContext -workspaceResourceId $logAnalyticsWorkspaceResourceId -proxyEndpoint $proxyEndpoint
+    $AKSClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Kubernetes/connectedClusters/$KubernetesClustername"
+    $AKSClusterResource = Get-AzResource -ResourceId $AKSClusterResourceId
+    $AKSClusterRegion = $AKSClusterResource.Location.ToLower()
+    $PrimarySharedKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
+
+    #Add Azure Monitor Containers solution to Workspace
+        $DeploymentName = "ContainerInsightsSolutionOnboarding-" + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')
+        $Parameters = @{ }
+        $Parameters.Add("workspaceResourceId", $Workspace.ResourceId)
+        $Parameters.Add("workspaceRegion", $Workspace.Location)
+
+        New-AzResourceGroupDeployment -Name $DeploymentName `
+        -ResourceGroupName $Workspace.ResourceGroupName `
+        -TemplateUri  $TemplateURI `
+        -TemplateParameterObject $Parameters -ErrorAction Stop
+
+    #Install HEML Chart
+        #helm config
+        if ($AzureCloudName -eq "AzureCloud"){$omsAgentDomainName="opinsights.azure.com"}
+        if ($AzureCloudName -eq "AzureUSGovernment"){$omsAgentDomainName="opinsights.azure.us"}
+        $helmChartReleaseName = "azmon-containers-release-1"
+        $helmChartName = "azuremonitor-containers"
+        $microsoftHelmRepo="https://microsoft.github.io/charts/repo"
+        $microsoftHelmRepoName="microsoft"
+        $helmChartRepoPath = "${microsoftHelmRepoName}" + "/" + "${helmChartName}"
+        #Add azure charts repo
+        helm repo add ${microsoftHelmRepoName} ${microsoftHelmRepo}
+        #update to latest release
+        helm repo update ${microsoftHelmRepoName}
+        #Install CHart to current kube context
+        $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
+        helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
 #endregion
 
 #region deploy app 
-kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
-kubectl get service
+    kubectl apply -f https://raw.githubusercontent.com/Azure-Samples/azure-voting-app-redis/master/azure-vote-all-in-one-redis.yaml
+    kubectl get service
 #endregion
 
 #region get admin token and use it in Azure Portal to view resources in AKS HCI https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/cluster-connect#option-2-service-account-bearer-token
-kubectl create serviceaccount admin-user
-kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
-$SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
-$EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
-$Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
-$Token
+    kubectl create serviceaccount admin-user
+    kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
+    $SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
+    $EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
+    $Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
+    $Token
 #endregion
 
 #region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
@@ -629,16 +691,11 @@ Get-AzResourceGroup -Name "$ClusterName-rg" | Remove-AzResourceGroup -Force
 Get-AzResourceGroup -Name "MSLabAzureArc" | Remove-AzResourceGroup -Force
 $principals=Get-AzADServicePrincipal -DisplayNameBeginsWith $ClusterName
 foreach ($principal in $principals){
-    Remove-AzADServicePrincipal -ObjectId $principal.id -Force
+    Remove-AzADServicePrincipal -ObjectId $principal.id
 }
-Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication -Force
+Get-AzADApplication -DisplayNameStartWith $ClusterName | Remove-AzADApplication
 #>
 #endregion
-
-#TBD: Create sample application
-#https://techcommunity.microsoft.com/t5/azure-stack-blog/azure-kubernetes-service-on-azure-stack-hci-deliver-storage/ba-p/1703996
-#TBD: Enable monitoring
-#https://docs.microsoft.com/en-us/azure/azure-monitor/insights/container-insights-enable-arc-enabled-clusters
 
 #region Windows Admin Center on GW
 
