@@ -1,6 +1,122 @@
 #https://docs.microsoft.com/en-us/azure-stack/hci/manage/azure-benefits
 #Prerequisite: Deploy AzSHCI Cluster - https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20Deployment
 
+#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
+    # LabConfig
+    $Servers="AzsHCI1","AzSHCI2"
+    $ClusterName="AzSHCI-Cluster"
+
+    # Install features for management on server
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+
+    # Update servers
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+            Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+        } -ErrorAction Ignore
+        # Run Windows Update via ComObject.
+        Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+            $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+            $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                                    IsPresent=1 and DeploymentAction='Uninstallation' or
+                                    IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                    IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+            $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+            $Session = New-Object -ComObject Microsoft.Update.Session
+            $Downloader = $Session.CreateUpdateDownloader()
+            $Downloader.Updates = $SearchResult
+            $Downloader.Download()
+            $Installer = New-Object -ComObject Microsoft.Update.Installer
+            $Installer.Updates = $SearchResult
+            $Result = $Installer.Install()
+            $Result
+        }
+        #remove temporary PSsession config
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+            Remove-Item -Path $env:TEMP\VirtualAccount.pssc
+        }
+
+    # Install features on servers
+    Invoke-Command -computername $Servers -ScriptBlock {
+        Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
+        Install-WindowsFeature -Name "Failover-Clustering","RSAT-Clustering-Powershell","Hyper-V-PowerShell"
+    }
+
+    # restart servers
+    Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
+    #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
+    Start-sleep 20
+
+    # create vSwitch
+    Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name vSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+
+    #create cluster
+    New-Cluster -Name $ClusterName -Node $Servers
+    Start-Sleep 5
+    Clear-DNSClientCache
+
+    #add file share witness
+    #Create new directory
+        $WitnessName=$ClusterName+"Witness"
+        Invoke-Command -ComputerName DC -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory}
+        $accounts=@()
+        $accounts+="corp\$($ClusterName)$"
+        $accounts+="corp\Domain Admins"
+        New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession DC
+    #Set NTFS permissions
+        Invoke-Command -ComputerName DC -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
+    #Set Quorum
+        Set-ClusterQuorum -Cluster $ClusterName -FileShareWitness "\\DC\$WitnessName"
+
+    #Enable S2D
+    Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
+
+    #register in Azure
+        #login to azure
+        #download Azure module
+        if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+            Install-Module -Name Az.Accounts -Force
+        }
+        Login-AzAccount -UseDeviceAuthentication
+
+        #select context if more available
+        $context=Get-AzContext -ListAvailable
+        if (($context).count -gt 1){
+            $context | Out-GridView -OutputMode Single | Set-AzContext
+        }
+
+        #select subscription if more available
+        $subscriptions=Get-AzSubscription
+        if (($subscriptions).count -gt 1){
+            $SubscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).Subscription.Id
+        }else{
+            $SubscriptionID=$subscriptions.id
+        }
+
+        #choose location for cluster (and RG)
+        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
+        if ($ResourceGroupName){
+            If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+                New-AzResourceGroup -Name $ResourceGroupName -Location $region
+            }
+        }
+        #Register AZSHCi without prompting for creds
+        $armTokenItemResource = "https://management.core.windows.net/"
+        $graphTokenItemResource = "https://graph.windows.net/"
+        $azContext = Get-AzContext
+        $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
+        $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+        $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
+        $id = $azContext.Account.Id
+        #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+        if ($ResourceGroupName){
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
+        }else{
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName
+        }
+#endregion
+
 #region Variables&Prerequisites
     $ClusterName="AzSHCI-Cluster"
     #$ClusterName="Ax6515-Cluster"
@@ -49,8 +165,8 @@
     $VMs=@()
     $VMs+=@{VMName="WS2022Azure01"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
     $VMs+=@{VMName="WS2022Azure02"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
-    $VMs+=@{VMName="WS2022AzCore01"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
-    $VMs+=@{VMName="WS2022AzCore02"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
+    $VMs+=@{VMName="WS2022AzCore01"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
+    $VMs+=@{VMName="WS2022AzCore02"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
 
 #endregion
 
@@ -388,6 +504,42 @@
     #Validate if agents are connected
     Invoke-Command -ComputerName $Servers -ScriptBlock {
         & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
+    }
+
+#endregion
+
+#region (optional) Install Windows Admin Center Gateway https://github.com/microsoft/WSLab/tree/master/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA#gw-mode-installation-with-self-signed-cert
+    ##Install Windows Admin Center Gateway 
+    $GatewayServerName="WACGW"
+    #Download Windows Admin Center if not present
+    if (-not (Test-Path -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi")){
+        Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
+    }
+    #Create PS Session and copy install files to remote server
+    Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+    $Session=New-PSSession -ComputerName $GatewayServerName
+    Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
+
+    #Install Windows Admin Center
+    Invoke-Command -Session $session -ScriptBlock {
+        Start-Process msiexec.exe -Wait -ArgumentList "/i $env:USERPROFILE\Downloads\WindowsAdminCenter.msi /qn /L*v log.txt REGISTRY_REDIRECT_PORT_80=1 SME_PORT=443 SSL_CERTIFICATE_OPTION=generate"
+    } -ErrorAction Ignore
+
+    $Session | Remove-PSSession
+
+    #add certificate to trusted root certs (workaround to trust HTTPs cert on WACGW)
+    start-sleep 10
+    $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+    $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
+    Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
+
+    #Configure Resource-Based constrained delegation
+    $gatewayObject = Get-ADComputer -Identity $GatewayServerName
+    $computers = (Get-ADComputer -Filter {OperatingSystem -eq "Azure Stack HCI"}).Name
+
+    foreach ($computer in $computers){
+        $computerObject = Get-ADComputer -Identity $computer
+        Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
     }
 
 #endregion
