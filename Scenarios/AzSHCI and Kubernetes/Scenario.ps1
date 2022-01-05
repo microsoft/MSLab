@@ -527,7 +527,8 @@ kubectl -n azure-arc get deployments,pods
         Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
         #restart powershell
         exit
-        #login
+
+        <#login with credentials
         #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
@@ -536,6 +537,9 @@ kubectl -n azure-arc get deployments,pods
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 
         az login
+        #>
+        #login with device authentication
+        az login --use-device-code
         $allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
         if (($allSubscriptions).Count -gt 1){
             $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
@@ -645,7 +649,7 @@ kubectl -n azure-arc get deployments,pods
             #update to latest release
             helm repo update ${microsoftHelmRepoName}
             #Install CHart to current kube context
-            $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
+            $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID.GUID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
             helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
 #endregion
 
