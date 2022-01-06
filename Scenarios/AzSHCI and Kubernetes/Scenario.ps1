@@ -520,13 +520,15 @@ kubectl -n azure-arc get deployments,pods
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
     $ClusterName="AzSHCI-Cluster"
+    $KubernetesClusterName="demo"
+    $resourcegroup="$ClusterName-rg"
     $servers=(Get-ClusterNode -Cluster $ClusterName).Name
 
     #install az cli and log into az
         Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
         Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
-        #restart powershell
-        exit
+        #add az to enviromental variables so no posh restart is needed
+        [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
 
         <#login with credentials
         #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
@@ -547,9 +549,6 @@ kubectl -n azure-arc get deployments,pods
         }
 
     #create configuration
-        $ClusterName="AzSHCI-Cluster"
-        $KubernetesClusterName="demo"
-        $resourcegroup="$ClusterName-rg"
         az extension add --name k8s-configuration
         az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
         #az connectedk8s delete --name cluster-config --resource-group $resourcegroup

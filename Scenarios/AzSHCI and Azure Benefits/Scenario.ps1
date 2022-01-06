@@ -1,21 +1,69 @@
 #https://docs.microsoft.com/en-us/azure-stack/hci/manage/azure-benefits
-#Prerequisite: Deploy AzSHCI Cluster - https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20Deployment
 
-#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
-    # LabConfig
-    $Servers="AzsHCI1","AzSHCI2"
-    $ClusterName="AzSHCI-Cluster"
+#region Variables
+$ClusterName="AzSHCI-Cluster"
+#$ClusterName="Ax6515-Cluster"
+$ClusterNodeNames=(Get-ClusterNode -Cluster $ClusterName).Name
+#Install or update Azure packages
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+$ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.StackHCI"
+foreach ($ModuleName in $ModuleNames){
+    $Module=Get-InstalledModule -Name $ModuleName -ErrorAction Ignore
+    if ($Module){$LatestVersion=(Find-Module -Name $ModuleName).Version}
+    if (-not($Module) -or ($Module.Version -lt $LatestVersion)){
+        Install-Module -Name $ModuleName -Force
+    }
+}
+$AzureImages=@()
+$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk"}
+$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk"}
 
+
+#login to Azure
+if (-not (Get-AzContext)){
+    Login-AzAccount -UseDeviceAuthentication
+}
+
+#select context
+$context=Get-AzContext -ListAvailable
+if (($context).count -gt 1){
+    $context=$context | Out-GridView -OutputMode Single
+    $context | Set-AzContext
+}
+
+$region = (Get-AzLocation | Where-Object Providers -Contains "Microsoft.Compute" | Out-GridView -OutputMode Single -Title "Please select your Azure Region").Location
+$ResourceGroupName="MSLabAzureBenefits"
+$LibraryVolumeName="Library"
+
+#Create Resource Group for Images and Arc Service principal
+If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+    New-AzResourceGroup -Name $ResourceGroupName -Location $region
+}
+
+$CSVPath=((Get-ClusterSharedVolume -Cluster $ClusterName).SharedVolumeInfo).FriendlyVolumeName | Out-GridView -OutputMode Single -Title "Please select volume where VMs will be created"
+$OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
+$vSwitchName="vSwitch"
+$MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
+
+$VMs=@()
+$VMs+=@{VMName="WS2022Azure01"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
+$VMs+=@{VMName="WS2022Azure02"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
+$VMs+=@{VMName="WS2022AzCore01"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
+$VMs+=@{VMName="WS2022AzCore02"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
+
+#endregion
+
+#region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20Deployment)
     # Install features for management on server
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
     # Update servers
-        Invoke-Command -ComputerName $servers -ScriptBlock {
+        Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {
             New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
             Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
         } -ErrorAction Ignore
         # Run Windows Update via ComObject.
-        Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+        Invoke-Command -ComputerName $ClusterNodeNames -ConfigurationName 'VirtualAccount' {
             $Searcher = New-Object -ComObject Microsoft.Update.Searcher
             $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
                                     IsPresent=1 and DeploymentAction='Uninstallation' or
@@ -32,27 +80,27 @@
             $Result
         }
         #remove temporary PSsession config
-        Invoke-Command -ComputerName $servers -ScriptBlock {
+        Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {
             Unregister-PSSessionConfiguration -Name 'VirtualAccount'
             Remove-Item -Path $env:TEMP\VirtualAccount.pssc
         }
 
     # Install features on servers
-    Invoke-Command -computername $Servers -ScriptBlock {
+    Invoke-Command -computername $ClusterNodeNames -ScriptBlock {
         Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
         Install-WindowsFeature -Name "Failover-Clustering","RSAT-Clustering-Powershell","Hyper-V-PowerShell"
     }
 
     # restart servers
-    Restart-Computer -ComputerName $servers -Protocol WSMan -Wait -For PowerShell
+    Restart-Computer -ComputerName $ClusterNodeNames -Protocol WSMan -Wait -For PowerShell
     #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
     Start-sleep 20
 
     # create vSwitch
-    Invoke-Command -ComputerName $servers -ScriptBlock {New-VMSwitch -Name vSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+    Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {New-VMSwitch -Name vSwitch -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
 
     #create cluster
-    New-Cluster -Name $ClusterName -Node $Servers
+    New-Cluster -Name $ClusterName -Node $ClusterNodeNames
     Start-Sleep 5
     Clear-DNSClientCache
 
@@ -72,6 +120,9 @@
     #Enable S2D
     Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 
+#endregion
+
+#region register cluster to Azure
     #register in Azure
         #login to azure
         #download Azure module
@@ -94,13 +145,9 @@
             $SubscriptionID=$subscriptions.id
         }
 
-        #choose location for cluster (and RG)
+        #choose location for cluster
         $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
-        if ($ResourceGroupName){
-            If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
-                New-AzResourceGroup -Name $ResourceGroupName -Location $region
-            }
-        }
+
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
         $graphTokenItemResource = "https://graph.windows.net/"
@@ -110,64 +157,7 @@
         $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
         $id = $azContext.Account.Id
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-        if ($ResourceGroupName){
-            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
-        }else{
-            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName
-        }
-#endregion
-
-#region Variables&Prerequisites
-    $ClusterName="AzSHCI-Cluster"
-    #$ClusterName="Ax6515-Cluster"
-    $ClusterNodeNames=(Get-ClusterNode -Cluster $ClusterName).Name
-    #Install or update Azure packages
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.StackHCI"
-    foreach ($ModuleName in $ModuleNames){
-        $Module=Get-InstalledModule -Name $ModuleName -ErrorAction Ignore
-        if ($Module){$LatestVersion=(Find-Module -Name $ModuleName).Version}
-        if (-not($Module) -or ($Module.Version -lt $LatestVersion)){
-            Install-Module -Name $ModuleName -Force
-        }
-    }
-    $AzureImages=@()
-    $AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk"}
-    $AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk"}
-
-
-    #login to Azure
-    if (-not (Get-AzContext)){
-        Login-AzAccount -UseDeviceAuthentication
-    }
-
-    #select context
-    $context=Get-AzContext -ListAvailable
-    if (($context).count -gt 1){
-        $context=$context | Out-GridView -OutputMode Single
-        $context | Set-AzContext
-    }
-
-    $region = (Get-AzLocation | Where-Object Providers -Contains "Microsoft.Compute" | Out-GridView -OutputMode Single -Title "Please select your Azure Region").Location
-    $ResourceGroupName="MSLabAzureBenefits"
-    $LibraryVolumeName="Library"
-
-    #Create Resource Group for Images and Arc Service principal
-    If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
-        New-AzResourceGroup -Name $ResourceGroupName -Location $region
-    }
-
-    $CSVPath=((Get-ClusterSharedVolume -Cluster $ClusterName).SharedVolumeInfo).FriendlyVolumeName | Out-GridView -OutputMode Single -Title "Please select volume where VMs will be created"
-    $OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
-    $vSwitchName="vSwitch"
-    $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
-
-    $VMs=@()
-    $VMs+=@{VMName="WS2022Azure01"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
-    $VMs+=@{VMName="WS2022Azure02"    ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition.vhdx"}
-    $VMs+=@{VMName="WS2022AzCore01"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
-    $VMs+=@{VMName="WS2022AzCore02"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; ImageName="2022-datacenter-azure-edition-core.vhdx"}
-
+        Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName
 #endregion
 
 #region prerequisites https://docs.microsoft.com/en-us/azure-stack/hci/manage/azure-benefits#enable-azure-benefits
