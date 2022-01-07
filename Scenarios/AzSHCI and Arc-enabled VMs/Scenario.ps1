@@ -145,6 +145,8 @@
     $VolumePath="c:\ClusterStorage\$VolumeName"
     $DHCPScopeID="10.0.0.0"
     $DHCPServer="DC"
+    $CredSSPUserName="CORP\LabAdmin"
+    $CredSSPPassword="LS1setup!"
 
 
     #Install required modules
@@ -176,8 +178,8 @@
         }
         Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-        $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-        $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+        $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+        $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
     #initialize MOC
         Invoke-Command -ComputerName $ClusterNodeNames -Credential $Credentials -Authentication Credssp -ScriptBlock {
@@ -319,44 +321,55 @@
 #region add Bridge Cluster NIC (IP and MAC) into DHCP reservations
     #Variables
     $ClusterName="ArcVMs-Cluster"
+    $ClusterNodeNames=(Get-ClusterNode -Cluster $clustername).Name
     $controlPlaneIP="10.0.0.111"
     $DHCPScopeID="10.0.0.0"
     $DHCPServer="DC"
-    $ReservationName="$ClusterName-ControlPlane"
-    $ClusterNodeNames=(Get-ClusterNode -Cluster $clustername).Name
-    
+
+    #find matching IP Address (netadapters vs )
     #grab VMNic with Controlplane IP
         $NetAdapter = Get-VMNetworkAdapter -CimSession $ClusterNodeNames -VMName * -ErrorAction Ignore | Where-Object IPAddresses -Contains $controlPlaneIP
-
     #Add MOC Control Plane IP into reservation
         Install-WindowsFeature -Name RSAT-DHCP
-        Add-DhcpServerv4Reservation -Name $netadapter.VMName -ScopeId $DHCPScopeID -CimSession $DHCPServer -IPAddress $controlPlaneIP -ClientId $NetAdapter.MacAddress
+        $Leases = Get-DhcpServerv4Lease -ScopeId $DHCPScopeID -AllLeases
+        $IPs = $NetAdapter.IPAddresses
+        $Lease=@()
+        foreach ($IP in $IPs){
+            #find lease of adapter where control plane is
+            $Lease+=($Leases | Where-Object IpAddress -eq $IP -ErrorAction Ignore)
+        }
+        Add-DhcpServerv4Reservation -Name $Lease.hostname -ScopeId $DHCPScopeID -CimSession $DHCPServer -IPAddress $controlPlaneIP -ClientId $Lease.ClientID
 #endregion
 
 #region collect logs
-        #Enable CredSSP
-        # Temporarily enable CredSSP delegation to avoid double-hop issue
-        foreach ($ClusterNodeName in $ClusterNodeNames){
-            Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNodeName -Force
-        }
-        Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Enable-WSManCredSSP Server -Force }
+    $ClusterName="ArcVMs-Cluster"
+    $ClusterNodeNames=(Get-ClusterNode -Cluster $ClusterName).Name
+    $CredSSPUserName="CORP\LabAdmin"
+    $CredSSPPassword="LS1setup!"
 
-        $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-        $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+    #Enable CredSSP
+    # Temporarily enable CredSSP delegation to avoid double-hop issue
+    foreach ($ClusterNodeName in $ClusterNodeNames){
+        Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNodeName -Force
+    }
+    Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-        #generate logs
-        Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-            get-archcilogs
-        }
+    $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
-        # Disable CredSSP
-        Disable-WSManCredSSP -Role Client
-        Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Disable-WSManCredSSP Server }
+    #generate logs
+    Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        get-archcilogs
+    }
 
-        #copy logs to downloads
-        $Session=New-PSSession -ComputerName $ClusterNodeNames[0]
-        Copy-Item -Path $env:userprofile\Documents\archcilogs.zip -Destination $env:userprofile\Downloads -FromSession $Sessions
-        $Session | Remove-PSSession
+    # Disable CredSSP
+    Disable-WSManCredSSP -Role Client
+    Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Disable-WSManCredSSP Server }
+
+    #copy logs to downloads
+    $Session=New-PSSession -ComputerName $ClusterNodeNames[0]
+    Copy-Item -Path $env:userprofile\Documents\archcilogs.zip -Destination $env:userprofile\Downloads -FromSession $Sessions
+    $Session | Remove-PSSession
 #endregion
 
 #region cleanup
