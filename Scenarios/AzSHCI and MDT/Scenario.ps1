@@ -9,6 +9,8 @@
     $DHCPServer="DC"
     $ScopeID="10.0.0.0"
 
+    $CredSSPUserName="CORP\LabAdmin"
+    $CredSSPPassword="LS1setup!"
 #endregion
 
 #region prereqs
@@ -77,8 +79,8 @@
             Enable-WSManCredSSP -Role "Client" -DelegateComputer $MDTServer -Force
             Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-            $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-            $Credentials = New-Object System.Management.Automation.PSCredential ("$env:userdomain\LabAdmin", $password)
+            $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+            $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
             Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
                 $downloadfolder="D:\Install"
@@ -272,8 +274,8 @@ SkipBDDWelcome=YES
     Enable-WSManCredSSP -Role "Client" -DelegateComputer $MDTServer -Force
     Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("$env:userdomain\LabAdmin", $password)
+    $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
     #Configure WDS
     Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
