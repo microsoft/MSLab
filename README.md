@@ -2,7 +2,7 @@
 
 ## tl;dr
 
-To start using MSLab just download the latest version of scrips from [Releases](https://github.com/microsoft/MSLab/releases) section of this repository.
+To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository.
 
 💡 Shortcut to the latest version is https://aka.ms/mslab/download
 
@@ -31,7 +31,7 @@ To start using MSLab just download the latest version of scrips from [Releases](
 
 <!-- /TOC -->
 
-MSLab is a GitHub project that aims to provide virtual environments in Hyper-V, that can be built in consistent way. It comes at no additional cost, it's free and available under the [MIT License](License).
+MSLab is a GitHub project that aims to provide virtual environments in Hyper-V, that can be built in a consistent way. It comes at no additional cost, it's free and available under the [MIT License](License).
 
 Unlike other solutions, MSLab focuses on simplicity (all actions can be done without typing complex scripts) and low profile (all disks are differencing, minimum requirements are 8GB RAM and 40GB free space). There is no special hardware requirement. MSLab can run on almost any machine that has SSD and decent amount of memory.
 
