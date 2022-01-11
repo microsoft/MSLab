@@ -520,14 +520,17 @@ kubectl -n azure-arc get deployments,pods
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
     $ClusterName="AzSHCI-Cluster"
+    $KubernetesClusterName="demo"
+    $resourcegroup="$ClusterName-rg"
     $servers=(Get-ClusterNode -Cluster $ClusterName).Name
 
     #install az cli and log into az
         Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
         Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
-        #restart powershell
-        exit
-        #login
+        #add az to enviromental variables so no posh restart is needed
+        [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
+
+        <#login with credentials
         #add some trusted sites (to be able to authenticate with Register-AzStackHCI)
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\live.com\login" /v https /t REG_DWORD /d 2
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\microsoftonline.com\login" /v https /t REG_DWORD /d 2
@@ -536,6 +539,9 @@ kubectl -n azure-arc get deployments,pods
         reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\EscDomains\msftauth.net\aadcdn" /v https /t REG_DWORD /d 2
 
         az login
+        #>
+        #login with device authentication
+        az login --use-device-code
         $allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
         if (($allSubscriptions).Count -gt 1){
             $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
@@ -543,9 +549,6 @@ kubectl -n azure-arc get deployments,pods
         }
 
     #create configuration
-        $ClusterName="AzSHCI-Cluster"
-        $KubernetesClusterName="demo"
-        $resourcegroup="$ClusterName-rg"
         az extension add --name k8s-configuration
         az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
         #az connectedk8s delete --name cluster-config --resource-group $resourcegroup
@@ -645,7 +648,7 @@ kubectl -n azure-arc get deployments,pods
             #update to latest release
             helm repo update ${microsoftHelmRepoName}
             #Install CHart to current kube context
-            $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
+            $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID.GUID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
             helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
 #endregion
 

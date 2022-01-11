@@ -964,14 +964,16 @@
         $servers=(Get-ClusterNode -Cluster $ClusterName).Name
         Invoke-Command -ComputerName $servers -ScriptBlock {wevtutil.exe sl /q /e:true Microsoft-AzureStack-HCI/Debug}
     #register Azure Stack HCI
-        $ResourceGroupName="AzureStackHCIClusters"
+        $ResourceGroupName="" #if blank, default will be used
         if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
             Install-Module -Name Az.Resources -Force
         }
         #choose location for cluster (and RG)
         $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
-        If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
-            New-AzResourceGroup -Name $ResourceGroupName -Location $region
+        if ($ResourceGroupName){
+            If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+                New-AzResourceGroup -Name $ResourceGroupName -Location $region
+            }
         }
         #Register AZSHCi without prompting for creds
         $armTokenItemResource = "https://management.core.windows.net/"
@@ -982,8 +984,11 @@
         $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
         $id = $azContext.Account.Id
         #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-        Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
-
+        if ($ResourceGroupName){
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName -ResourceGroupName $ResourceGroupName
+        }else{
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName  $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id -ResourceName $ClusterName
+        }
     #validate registration status
         #grab available commands for registration
         Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-Command -Module AzureStackHCI}
@@ -1098,11 +1103,14 @@
         Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
     }
 
-    ##Install Edge
-    Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-    #start install
-    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
-    #start Edge
-    start-sleep 5
-    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    #Install Edge
+    if (-not (test-path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")){
+        Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
+        #start install
+        Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
+        #start Edge
+        start-sleep 5
+        & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    }
+
 #endregion
