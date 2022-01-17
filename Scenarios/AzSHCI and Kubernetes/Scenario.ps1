@@ -610,7 +610,7 @@ kubectl -n azure-arc get deployments,pods
     }
 #endregion
 
-#region Enable Monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/containers/container-insights-hybrid-setup and script https://aka.ms/enable-monitoring-powershell-script
+#region Enable Monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/containers/container-insights-enable-arc-enabled-clusters#create-extension-instance-using-azure-resource-manager
     $ClusterName="AzSHCI-Cluster"
     $resourcegroup="$ClusterName-rg"
     $KubernetesClusterName="demo"
@@ -619,25 +619,36 @@ kubectl -n azure-arc get deployments,pods
     }
     $SubscriptionID=(Get-AzContext).Subscription.ID
     $Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
-    $TemplateURI="https://raw.githubusercontent.com/microsoft/Docker-Provider/ci_dev/scripts/onboarding/templates/azuremonitor-containerSolution.json"
+    $TemplateURI="https://aka.ms/arc-k8s-azmon-extension-arm-template"
     $AzureCloudName = "AzureCloud" #or AzureUSGovernment
+    if ($AzureCloudName -eq "AzureCloud"){$omsAgentDomainName="opinsights.azure.com"}
+    if ($AzureCloudName -eq "AzureUSGovernment"){$omsAgentDomainName="opinsights.azure.us"}
 
     $AKSClusterResourceId = "/subscriptions/$subscriptionID/resourceGroups/$resourcegroup/providers/Microsoft.Kubernetes/connectedClusters/$KubernetesClustername"
     $AKSClusterResource = Get-AzResource -ResourceId $AKSClusterResourceId
     $AKSClusterRegion = $AKSClusterResource.Location.ToLower()
-    $PrimarySharedKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
+    #$PrimarySharedKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
 
     #Add Azure Monitor Containers solution to Workspace
         $DeploymentName = "ContainerInsightsSolutionOnboarding-" + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')
         $Parameters = @{ }
         $Parameters.Add("workspaceResourceId", $Workspace.ResourceId)
         $Parameters.Add("workspaceRegion", $Workspace.Location)
+        $Parameters.Add("workspaceDomain", $omsAgentDomainName)
+        $Parameters.Add("clusterResourceId", $AKSClusterResourceId)
+        $Parameters.Add("clusterRegion", $AKSClusterRegion)
+
 
         New-AzResourceGroupDeployment -Name $DeploymentName `
         -ResourceGroupName $Workspace.ResourceGroupName `
         -TemplateUri  $TemplateURI `
         -TemplateParameterObject $Parameters
 
+    #validate extension deployment
+    az extension add --name k8s-extension
+    az k8s-extension show --name azuremonitor-containers --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters -n azuremonitor-containers
+
+    <# OLD, deprecated, did not work.. 
     #Install HEML Chart
         #install helm
             #install chocolatey
@@ -658,10 +669,10 @@ kubectl -n azure-arc get deployments,pods
                 Copy-Item -Path $env:userprofile\Downloads\windows-amd64\helm.exe -Destination $env:SystemRoot\system32\ -ToSession $session
             }
             #>
+    #>
+    <#
         #Install Chart to current kube context
             #helm config
-            if ($AzureCloudName -eq "AzureCloud"){$omsAgentDomainName="opinsights.azure.com"}
-            if ($AzureCloudName -eq "AzureUSGovernment"){$omsAgentDomainName="opinsights.azure.us"}
             $helmChartReleaseName = "azmon-containers-release-1"
             $helmChartName = "azuremonitor-containers"
             $microsoftHelmRepo="https://microsoft.github.io/charts/repo"
@@ -674,6 +685,8 @@ kubectl -n azure-arc get deployments,pods
             #Install CHart to current kube context
             $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID.GUID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
             helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
+    #>
+
 #endregion
 
 #region deploy app
