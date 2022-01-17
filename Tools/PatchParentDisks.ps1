@@ -81,9 +81,9 @@ If (-not $isAdmin) {
 #endregion
 
 # region mount and patch VHD
-    foreach ($VHD in $VHDs) {
-        WriteInfoHighlighted "Patching VHD $($VHD.Filename)"
-        $Mount=Mount-VHD $Vhd.FileName -Passthru
+    foreach ($FileName in $VHDs.FileNames) {
+        WriteInfoHighlighted "Patching VHD $FileName"
+        $Mount=Mount-VHD $FileName -Passthru
         #Grab letter
         $DriveLetter=(Get-Disk -Number $Mount.Number |Get-Partition | Where-Object Driveletter).DriveLetter
         #Patch

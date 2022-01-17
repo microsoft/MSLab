@@ -598,13 +598,19 @@ If (-not $isAdmin) {
         }
         #configure native VLAN and AllowedVLANs
         WriteInfo "`t Configuring NativeVLAN and AllowedVLANs"
+        if ($ManagementSubnetIDs){
+            $AllowedVLANs="$($LabConfig.AllowedVLANs),$(($HighestVLAN+1))-$($HighestVLAN+$($ManagementSubnetIDs.Count))"
+        }else{
+            $AllowedVLANs=$($LabConfig.AllowedVLANs)
+        }
+
         if ($VMConfig.ManagementSubnetID -gt 0){
             $NativeVlanId=($HighestVLAN+$VMConfig.ManagementSubnetID)
             WriteInfo "`t`t Subnet ID is $($VMConfig.ManagementSubnetID) with NativeVLAN $NativeVLanID. AllowedVLANIDList is $($LabConfig.AllowedVLANs),$NativeVLANID"
-            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId $NativeVlanId -AllowedVlanIdList "$($LabConfig.AllowedVLANs),$NativeVLANID"
+            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId $NativeVlanId -AllowedVlanIdList "$AllowedVLANs"
         }else{
             WriteInfo "`t`t Subnet ID is 0 with NativeVLAN 0. AllowedVlanIDList is $($LabConfig.AllowedVLANs)"
-            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$($LabConfig.AllowedVLANs)"
+            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$AllowedVLANs"
         }
 
         #Create Unattend file
@@ -756,8 +762,10 @@ If (-not $isAdmin) {
     [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select  -Last 1
 
     #Grab defined Management Subnet IDs and ignore 0
-    $ManagementSubnetIDs=$labconfig.vms.ManagementSubnetID | Select-Object -Unique | Sort-Object | Where-Object {$_ -ne 0}
-    WriteInfo "`t Requested ManagementSubnetIDs: $ManagementSubnetIDs"
+    $ManagementSubnetIDs=$labconfig.vms.ManagementSubnetID + $LabConfig.ManagementSubnetIDs | Select-Object -Unique | Sort-Object | Where-Object {$_ -ne 0}
+    if ($ManagementSubnetIDs){
+        WriteInfo "`t Requested ManagementSubnetIDs: $ManagementSubnetIDs"
+    }
 
 #endregion
 
@@ -1308,8 +1316,8 @@ If (-not $isAdmin) {
                     #add dhcp scope
                     Write-Output "`t`t Adding DHCP Scope ID 10.0.$number.0 and it's DHCP options"
                     Add-DhcpServerv4Scope -StartRange "10.0.$number.10" -EndRange "10.0.$number.254" -Name "Scope$number" -State Active -SubnetMask 255.255.255.0
-                    Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.0.1" -ScopeId "10.0.$number.0"
-                    Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.1.1" -ScopeId "10.0.$number.0"
+                    Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
+                    Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
                     Set-DhcpServerv4OptionValue -OptionId 15 -Value "$($using:Labconfig.DomainName)" -ScopeId "10.0.$number.0"
                 }
             }

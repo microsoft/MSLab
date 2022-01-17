@@ -43,6 +43,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         TelemetryNickname="";                        # (Optional) If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, MSLab users will be able to see their own stats
         AutoStartAfterDeploy=$false;                 # (Optional) If $false, no VM will be started; if $true or 'All' all lab VMs will be started after Deploy script; if 'DeployedOnly' only newly created VMs will be started.
         InternetVLAN="";                             # (Optional) If set, it will apply VLAN on Interent adapter connected to DC
+        ManagementSubnetIDs="";                      # (Optional) If set, it will add another dhcp-enable management networks.
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -178,16 +179,19 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     DCVMVersion
         Example: DCVMVersion="8.0" (optional)
         If set, version for DC will be used. It is useful if you want to keep DC older to be able to use it on previous versions of OS.
-        
+
     TelemetryLevel (optional)
         Example: TelemetryLevel="Full"
         If set, scripts will not prompt for telemetry. Can be "None","Basic","Full"
         For more info see https://aka.ms/mslab/telemetry
-        
+
     TelemetryNickname (optional)
         Example: TelemetryNickname="Jaromirk"
         If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, MSLab users will be able to see their own stats
 
+    ManagementSubnetIDs
+        Example: ManagementSubnetIDs=0..3
+        If configured, it will add another management subnet. For example if configured 0..3, it will add 3 more subnets 10.0.1.0/24 to 10.0.3.0/24 on VLANs that 11,12, and 13. (Because allowed VLANs are 1-10)
     #>
 #endregion
 
