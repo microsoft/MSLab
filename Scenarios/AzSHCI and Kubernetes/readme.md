@@ -38,7 +38,7 @@ $LabConfig.VMs += @{ VMName = 'Win10'; ParentVHD = 'Win1020H1_G2.vhdx' ; AddTool
 
 ## The lab
 
-Run all code from DC. Follow [Scenario.ps1](/Scenarios/AzSHCI%20and%20Kubernetes/Scenario.ps1). Region Windows Admin Center on Win10 you should run from Win10 virtual machine.
+Run all code from Management Machine. Follow [Scenario.ps1](/Scenarios/AzSHCI%20and%20Kubernetes/Scenario.ps1).
 
 ![](/Scenarios/AzSHCI%20and%20Kubernetes/Screenshots/PowerShell_ISE01.png)
 

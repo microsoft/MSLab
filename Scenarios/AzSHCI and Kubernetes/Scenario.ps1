@@ -22,23 +22,18 @@ Foreach ($VM in $VMs){
 #>
 
 
-###################
-### Run from DC ###
-###################
+###################################
+### Run from Management machine ###
+###################################
 
 #region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
-
-# Set DHCP Server lease time to 90 days for reserving IP dynamicly allocated to AKS management/working cluster control plane & working nodes.
-Invoke-Command -ComputerName DC -ScriptBlock {
-    Set-DhcpServerv4Scope -ScopeId 10.0.0.0 -LeaseDuration 90.00:00:00
-}
 
 # LabConfig
 $Servers="AzsHCI1","AzSHCI2"
 $ClusterName="AzSHCI-Cluster"
 
 # Install features for management on server
-Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
+Install-WindowsFeature -Name RSAT-DHCP,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
 # Update servers
 Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -262,6 +257,14 @@ Foreach ($PSSession in $PSSessions){
 }
 #endregion
 
+#region prepare subnet for static deployment
+    #since lab was prepared with one extra subnet (10.0.1.0/24) on VLAN 11 (see labconfig), this one will be used for Kubernetes, we will just disable scope in DHCP, so it will not assign IP Addresses
+    $DHCPServer="DC"
+    $DHCPScopeID="10.0.1.0"
+    #inactivate DHCP for scope where AKS will be
+    Set-DhcpServerv4Scope -State InActive -CimSession $DHCPServer -ScopeID $DHCPScopeID
+#endregion
+
 #region setup AKS (PowerShell)
     #set variables
     $ClusterName="AzSHCI-Cluster"
@@ -269,8 +272,16 @@ Foreach ($PSSession in $PSSessions){
     $vNetName="aksvnet"
     $VolumeName="AKS"
     $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
-    $VIPPoolStart="10.0.0.100"
-    $VIPPoolEnd="10.0.0.200"
+    $DHCPServer="DC"
+    $DHCPScopeID="10.0.0.0"
+    $VIPPoolStart="10.0.1.2"
+    $VIPPoolEnd="10.0.1.100"
+    $k8sNodeIpPoolStart="10.0.1.101"
+    $k8sNodeIpPoolEnd="10.0.1.254"
+    $IPAddressPrefix="10.0.1.0/24"
+    $DNSServers="10.0.1.1"
+    $Gateway="10.0.1.1"
+    $VLANID=11
     $resourcegroupname="$ClusterName-rg"
 
     #JaromirK note: it would be great if I could simply run "Initialize-AksHciNode -ComputerName $ClusterName". I could simply skip credssp. Same applies for AksHciConfig and AksHciRegistration
@@ -300,7 +311,10 @@ Foreach ($PSSession in $PSSessions){
     }
     #configure aks
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-        $vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
+        #DHCP
+        #$vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
+        #Static
+        $vnet = New-AksHciNetworkSetting -Name $using:vNetName -ipAddressPrefix $using:IPAddressPrefix -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolEnd -vlanID $using:VLANID -DNSServers $using:DNSServers -gateway $Using:Gateway
         Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\ImagesStore -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
     }
 
@@ -320,8 +334,9 @@ Foreach ($PSSession in $PSSessions){
     $subscriptionID=(Get-AzContext).Subscription.id
 
     #make sure Kubernetes resource providers are registered
-    if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
-        Install-Module -Name Az.Resources -Force
+    #5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
+    if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
+        Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
     }
     Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
     Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
@@ -423,6 +438,14 @@ Standard_K8S2_v1 2   2
 Standard_K8S3_v1 4   6
 
 #>
+
+#destroy AKS Cluster
+<#
+Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
+    Remove-AksHciCluster -Name $using:KubernetesClusterName -Confirm:0
+}
+#>
+
 #endregion
 
 #region onboard AKS cluster to Azure ARC
@@ -431,8 +454,9 @@ $ClusterName="AzSHCI-Cluster"
 #register AKS
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/connect-to-arc
 
-if (!(Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
-    Install-Module -Name Az.Resources -Force
+#5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
+if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
 }
 if (!(Get-Azcontext)){
     Connect-AzAccount -UseDeviceAuthentication
@@ -668,6 +692,8 @@ kubectl -n azure-arc get deployments,pods
     $EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
     $Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
     $Token
+    #copy token to clipboard
+    $Token | Set-Clipboard
 #endregion
 
 #region install Azure Data tools (already installed tools are commented) https://www.cryingcloud.com/blog/2020/11/26/azure-arc-enabled-data-services-on-aks-hci
