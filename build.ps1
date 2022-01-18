@@ -41,8 +41,8 @@ foreach($file in $files) {
         }
 
         # special variable populated with current version
-        if($line -match '^\s*\$wslabVersion') { 
-            $line = $line -replace '\$wslabVersion\s*=\s*"[^"]*"', "`$wslabVersion = `"$Version`"" 
+        if($line -match '^\s*\$mslabVersion') { 
+            $line = $line -replace '\$mslabVersion\s*=\s*"[^"]*"', "`$mslabVersion = `"$Version`"" 
         }
 
         $line

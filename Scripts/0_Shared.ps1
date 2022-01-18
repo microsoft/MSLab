@@ -232,8 +232,8 @@ function New-TelemetryEvent {
             time = $([System.dateTime]::UtcNow.ToString("o")) 
             iKey = $TelemetryInstrumentationKey
             tags = @{ 
-                "ai.internal.sdkVersion" = 'wslab-telemetry:1.0.1'
-                "ai.application.ver" = $wslabVersion
+                "ai.internal.sdkVersion" = 'mslab-telemetry:1.0.2'
+                "ai.application.ver" = $mslabVersion
                 "ai.cloud.role" = Split-Path -Path $PSCommandPath -Leaf
                 "ai.session.id" = $TelemetrySessionId
                 "ai.user.id" = $machineHash
@@ -361,7 +361,7 @@ function Read-TelemetryLevel {
 
 # Instance values
 $ScriptRoot = $PSScriptRoot
-$wslabVersion = "dev"
+$mslabVersion = "dev"
 $TelemetryEnabledLevels = "Basic", "Full"
 $TelemetryInstrumentationKey = "9ebf64de-01f8-4f60-9942-079262e3f6e0"
 $TelemetrySessionId = $ScriptRoot + $env:COMPUTERNAME + ((Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Cryptography).MachineGuid) | Get-StringHash
