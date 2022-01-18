@@ -66,8 +66,8 @@ If (-not $isAdmin) {
         if ((Get-ChildItem -Path "$PSScriptRoot\temp\mountdir" -ErrorAction SilentlyContinue)){
             Dismount-WindowsImage -Path "$PSScriptRoot\temp\mountdir" -Discard -ErrorAction SilentlyContinue
         }
-        if ((Get-ChildItem -Path "$env:Temp\WSLAbMountdir" -ErrorAction SilentlyContinue)){
-            Dismount-WindowsImage -Path "$env:Temp\WSLAbMountdir" -Discard -ErrorAction SilentlyContinue
+        if ((Get-ChildItem -Path "$env:Temp\MSLAbMountdir" -ErrorAction SilentlyContinue)){
+            Dismount-WindowsImage -Path "$env:Temp\MSLAbMountdir" -Discard -ErrorAction SilentlyContinue
         }
 
 #ask for cleanup and clean all if confirmed.
