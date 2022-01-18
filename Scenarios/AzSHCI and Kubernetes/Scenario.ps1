@@ -29,8 +29,8 @@ Foreach ($VM in $VMs){
 #region Create 2 node cluster (just simple. Not for prod - follow hyperconverged scenario for real clusters https://github.com/microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged)
 
 # LabConfig
-$Servers="AzsHCI1","AzSHCI2"
-$ClusterName="AzSHCI-Cluster"
+$Servers="AksHCI1","AksHCI2"
+$ClusterName="AksHCI-Cluster"
 
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-DHCP,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
@@ -131,7 +131,7 @@ Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #endregion
 
 #region Register Azure Stack HCI to Azure - if not registered, VMs are not added as cluster resources = AKS script will fail
-$ClusterName="AzSHCI-Cluster"
+$ClusterName="AksHCI-Cluster"
 
 #download Azure module
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -174,18 +174,8 @@ $subscriptionID=(Get-AzContext).Subscription.id
 
 <# Register AZSHCi without prompting for creds, 
    Notes: As Dec. 2021, in Azure Stack HCI 21H2,  if you Register-AzStackHCI the cluster multiple times in same ResourceGroup (e.g. default
-   resource group name is AzSHCI-Cluster-rg) without run UnRegister-AzStackHCI first, although you may succeed in cluster registration, but
+   resource group name is AksHCI-Cluster-rg) without run UnRegister-AzStackHCI first, although you may succeed in cluster registration, but
    sever node Arc integration will fail, even if you have deleted the ResourceGroup in Azure Portal before running Register-AzStackHCI #>
-   
-$armTokenItemResource = "https://management.core.windows.net/"
-$graphTokenItemResource = "https://graph.windows.net/"
-$azContext = Get-AzContext
-$authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
-$graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
-$armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
-$id = $azContext.Account.Id
-Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-
 
 # or register Azure Stack HCI with device authentication
 #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
@@ -243,7 +233,7 @@ foreach ($RequiredModule in $RequiredModules){
 }
 
 #distribute modules to cluster nodes
-$ClusterName="AzSHCI-Cluster"
+$ClusterName="AksHCI-Cluster"
 $Servers=(Get-ClusterNode -Cluster $Clustername).Name
 $ModuleNames="AksHci","Moc","Kva","TraceProvider"
 $PSSessions=New-PSSession -ComputerName $Servers
@@ -267,7 +257,7 @@ Foreach ($PSSession in $PSSessions){
 
 #region setup AKS (PowerShell)
     #set variables
-    $ClusterName="AzSHCI-Cluster"
+    $ClusterName="AksHCI-Cluster"
     $vSwitchName="vSwitch"
     $vNetName="aksvnet"
     $VolumeName="AKS"
@@ -298,6 +288,14 @@ Foreach ($PSSession in $PSSessions){
 
     Invoke-Command -ComputerName $servers -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Initialize-AksHciNode
+    }
+
+    #configure thin volumes a default if available (because why not :)
+    $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+    }
+    if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+        Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
     }
 
     #Create volume for AKS if does not exist
@@ -388,7 +386,7 @@ Foreach ($PSSession in $PSSessions){
 
 #region create AKS HCI cluster
 #Jaromirk note: it would be great if I could specify HCI Cluster (like New-AksHciCluster -ComputerName)
-$ClusterName="AzSHCI-Cluster"
+$ClusterName="AksHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 $KubernetesClusterName="demo"
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
@@ -449,7 +447,7 @@ Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
 #endregion
 
 #region onboard AKS cluster to Azure ARC
-$ClusterName="AzSHCI-Cluster"
+$ClusterName="AksHCI-Cluster"
 
 #register AKS
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/connect-to-arc
@@ -543,7 +541,7 @@ kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region add sample configuration to the cluster https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/use-gitops-connected-cluster
-    $ClusterName="AzSHCI-Cluster"
+    $ClusterName="AksHCI-Cluster"
     $KubernetesClusterName="demo"
     $resourcegroup="$ClusterName-rg"
     $servers=(Get-ClusterNode -Cluster $ClusterName).Name
@@ -611,7 +609,7 @@ kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region Enable Monitoring https://docs.microsoft.com/en-us/azure/azure-monitor/containers/container-insights-enable-arc-enabled-clusters#create-extension-instance-using-azure-resource-manager
-    $ClusterName="AzSHCI-Cluster"
+    $ClusterName="AksHCI-Cluster"
     $resourcegroup="$ClusterName-rg"
     $KubernetesClusterName="demo"
     if (-not (Get-AzContext)){
@@ -658,7 +656,7 @@ kubectl -n azure-arc get deployments,pods
             cinst kubernetes-helm
 
             <#
-            $ClusterName="AzSHCI-Cluster"
+            $ClusterName="AksHCI-Cluster"
             $servers=(Get-ClusterNode -Cluster $ClusterName).name
             $ProgressPreference="SilentlyContinue"
             Invoke-WebRequest -Uri https://get.helm.sh/helm-v3.3.4-windows-amd64.zip -OutFile $env:USERPROFILE\Downloads\helm-v3.3.4-windows-amd64.zip
@@ -686,6 +684,153 @@ kubectl -n azure-arc get deployments,pods
             $helmParameters = "omsagent.domain=$omsAgentDomainName,omsagent.secret.wsid=$($workspace.CustomerID.GUID),omsagent.secret.key=$PrimarySharedKey,omsagent.env.clusterId=$AKSClusterResourceId,omsagent.env.clusterRegion=$AKSClusterRegion"
             helm upgrade --install $helmChartReleaseName --set $helmParameters $helmChartRepoPath
     #>
+
+#endregion
+
+#region Deploy Policies Extension https://docs.microsoft.com/en-us/azure/governance/policy/concepts/policy-for-kubernetes#install-azure-policy-extension-for-azure-arc-enabled-kubernetes
+    $resourcegroup="$ClusterName-rg"
+    $KubernetesClusterName="demo"
+
+    #register provider
+    $Provider="Microsoft.PolicyInsights"
+    Register-AzResourceProvider -ProviderNamespace $Provider
+    #wait for provider to finish registration
+    do {
+        $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+        Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+        Start-Sleep 1
+    } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+
+    #deploy extension
+    az k8s-extension create --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --extension-type Microsoft.PolicyInsights --name azurepolicy
+
+    #validate deployment
+    az k8s-extension show --name azuremonitor-containers --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters -n azurepolicy
+#endregion
+
+#region create Arc data services extension https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli and https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
+
+$ClusterName="AksHCI-Cluster"
+$resourcegroup="$ClusterName-rg"
+$KubernetesClusterName="demo"
+
+
+$SubscriptionID=(Get-AzContext).Subscription.ID
+$ArcDataControllerName="mydatacontroller"
+$Location=(Get-AzResourceGroup -Name $resourcegroup).Location
+
+$CustomLocationName="mydemolocation"
+$CustomLocationNamespace="customlocation-demo"
+
+$DataControllerNamespace="datacontroller-demo" #extension and data controller namespace
+
+$StorageContainerName="AKSStorageContainer"
+$StorageContainerPath="c:\ClusterStorage\AKSContainer"
+$StorageContainerVolumeName=$StorageContainerPath | Split-Path -Leaf
+$StorageContainerSize=1TB
+
+    #Create volume for AKS if does not exist
+    if (-not (Get-Volume -FriendlyName $StorageContainerVolumeName -CimSession $ClusterName -ErrorAction SilentlyContinue)) {
+        New-Volume -FriendlyName $StorageContainerVolumeName -CimSession $ClusterName -Size $StorageContainerSize -StoragePoolFriendlyName S2D*
+    }
+
+    #deploy extension (check if it was created, might fail for first time, so it will need to rerun)
+    az k8s-extension create --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name datacontroller --cluster-type connectedClusters --extension-type microsoft.arcdataservices --auto-upgrade false --scope cluster --release-namespace $DataControllerNamespace --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper
+    #validate
+    az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --name datacontroller --cluster-type connectedclusters
+
+    #retrieve identity of Arc data controller extension
+    $objectID=(az k8s-extension show --resource-group $resourcegroup  --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name datacontroller | convertFrom-json).identity.principalId
+    #assign roles to managed identity
+    az role assignment create --assignee $objectID --role "Contributor" --scope "/subscriptions/$SubscriptionID/resourceGroups/$resourcegroup"
+    az role assignment create --assignee $objectID --role "Monitoring Metrics Publisher" --scope "/subscriptions/$SubscriptionID/resourceGroups/$resourcegroup"
+
+    #create custom location
+        #add extensions
+        az extension add --name k8s-extension
+        az extension add --name customlocation
+        az extension add --name connectedk8s
+        #register provider
+            $Provider="Microsoft.ExtendedLocation"
+            Register-AzResourceProvider -ProviderNamespace $Provider
+            #wait for provider to finish registration
+            do {
+                $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+                Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+                Start-Sleep 1
+            } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+        #enable custom locations on cluster
+        az connectedk8s enable-features --name $KubernetesClusterName --resource-group $resourcegroup --features cluster-connect custom-locations
+        #create
+        $hostClusterId=(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id -o tsv)
+        $extensionId=(az k8s-extension show --resource-group $resourceGroup --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name datacontroller --query id -o tsv)
+        az customlocation create --resource-group $resourceGroup --name $CustomLocationName --namespace $CustomLocationNamespace --host-resource-id $hostClusterId --cluster-extension-ids $extensionId
+
+        #validate
+        az customlocation list -o table
+
+    #Create the Azure Arc data controller https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-indirect-cli?tabs=windows#create-on-aks-on-azure-stack-hci and https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
+        #add extensions
+        az extension add --name arcdata
+        #register provider
+            $Provider="Microsoft.AzureArcData"
+            Register-AzResourceProvider -ProviderNamespace $Provider
+            #wait for provider to finish registration
+            do {
+                $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+                Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+                Start-Sleep 1
+            } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+        
+        #create storage container
+            #create
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+                New-AksHciStorageContainer -Name $using:StorageContainerName -Path $using:StorageContainerPath
+            }
+            #validate
+            Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+                Get-AksHciStorageContainer -Name $using:StorageContainerName
+            }
+
+        #create custom storage class
+        $defaultclass=kubectl get storageclass default -o json | convertfrom-json
+        $yaml=@"
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+    name: aks-hci-disk-custom
+provisioner: disk.csi.akshci.com
+parameters:
+    blocksize: "33554432"
+    container: $StorageContainerName
+    dynamic: "true"
+    group: $($defaultclass.parameters.group) # same as the default storageclass
+    hostname: $($defaultclass.parameters.hostname) # same as the default storageclass
+    logicalsectorsize: "4096"
+    physicalsectorsize: "4096"
+    port: "55000"
+    fsType: ext4 # refer to the note above to determine when to include this parameter
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+"@
+        #create class
+        $file=New-TemporaryFile
+        $file | Set-Content -Value $Yaml
+        kubectl apply -f $file.FullName
+
+        #configure new class in custom deployment
+        set-location $env:UserProfile
+        az arcdata dc config init --source azure-arc-aks-hci --path ./custom 
+        az arcdata dc config replace --path ./custom/control.json --json-values "spec.storage.data.className=aks-hci-disk-custom"
+        az arcdata dc config replace --path ./custom/control.json --json-values "spec.storage.logs.className=aks-hci-disk-custom"
+
+        #deploy
+        az arcdata dc create --path ./custom --k8s-namespace $DataControllerNamespace --use-k8s --name $ArcDataControllerName --subscription $SubscriptionID --resource-group $resourceGroup --location $Location --connectivity-mode indirect
+
+        #monitor deployment
+        kubectl get datacontrollers --namespace $DataControllerNamespace
+        az arcdata dc status show --k8s-namespace $DataControllerNamespace --use-k8s
 
 #endregion
 
@@ -739,7 +884,7 @@ Start-BitsTransfer $downloadlink -DisplayName "Getting KubeCTL from $downloadlin
 
 #region cleanup azure resources
 <#
-$ClusterName="AzSHCI-Cluster"
+$ClusterName="AksHCI-Cluster"
 
 if (-not (Get-AzContext)){
     Connect-AzAccount -UseDeviceAuthentication
