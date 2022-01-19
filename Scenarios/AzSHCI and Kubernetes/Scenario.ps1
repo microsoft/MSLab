@@ -139,6 +139,11 @@ if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
     Install-Module -Name Az.StackHCI -Force
 }
 
+#5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
+if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
+}
+
 #login to azure
 #download Azure module
 if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
@@ -636,6 +641,11 @@ kubectl -n azure-arc get deployments,pods
     $AKSClusterRegion = $AKSClusterResource.Location.ToLower()
     #$PrimarySharedKey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
 
+    #Install module
+    if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+        Install-Module -Name Az.OperationalInsights -Force
+    }
+
     #Add Azure Monitor Containers solution to Workspace
         $DeploymentName = "ContainerInsightsSolutionOnboarding-" + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')
         $Parameters = @{ }
@@ -717,7 +727,10 @@ kubectl -n azure-arc get deployments,pods
     az k8s-extension show --name azuremonitor-containers --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters -n azurepolicy
 #endregion
 
-#region create Arc data services extension https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli and https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
+#region create Arc data services extension (deploying azure arc data controller fails)
+#https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli
+#https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
+#https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
 
 $ClusterName="AksHCI-Cluster"
 $resourcegroup="$ClusterName-rg"
@@ -725,12 +738,11 @@ $KubernetesClusterName="demo"
 
 
 $SubscriptionID=(Get-AzContext).Subscription.ID
-$ArcDataControllerName="mydatacontroller"
 $Location=(Get-AzResourceGroup -Name $resourcegroup).Location
 
-$CustomLocationName="mydemolocation"
-$CustomLocationNamespace="customlocation-demo"
+$CustomLocationName="AzSHCI-MyDC-EastUS"
 
+$DataControllerName="arc-dc1"
 $DataControllerNamespace="datacontroller-demo" #extension and data controller namespace
 
 $StorageContainerName="AKSStorageContainer"
@@ -745,6 +757,9 @@ $StorageContainerSize=1TB
 
     #deploy extension (check if it was created, might fail for first time, so it will need to rerun)
     az k8s-extension create --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name datacontroller --cluster-type connectedClusters --extension-type microsoft.arcdataservices --auto-upgrade false --scope cluster --release-namespace $DataControllerNamespace --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper
+    #wait
+    $extensionId=$(az k8s-extension show --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name datacontroller --query id --output tsv)
+    az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
     #validate
     az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --name datacontroller --cluster-type connectedclusters
 
@@ -773,12 +788,13 @@ $StorageContainerSize=1TB
         #create
         $hostClusterId=(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id -o tsv)
         $extensionId=(az k8s-extension show --resource-group $resourceGroup --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name datacontroller --query id -o tsv)
-        az customlocation create --resource-group $resourceGroup --name $CustomLocationName --namespace $CustomLocationNamespace --host-resource-id $hostClusterId --cluster-extension-ids $extensionId
+        az customlocation create --resource-group $resourceGroup --name $CustomLocationName --namespace $DataControllerNamespace --host-resource-id $hostClusterId --cluster-extension-ids $extensionId
 
         #validate
         az customlocation list -o table
 
-    #Create the Azure Arc data controller https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-indirect-cli?tabs=windows#create-on-aks-on-azure-stack-hci and https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
+    #Create the Azure Arc data controller 
+
         #add extensions
         az extension add --name arcdata
         #register provider
@@ -830,17 +846,22 @@ volumeBindingMode: Immediate
 
         #configure new class in custom deployment
         set-location $env:UserProfile
-        az arcdata dc config init --source azure-arc-aks-hci --path ./custom 
+        az arcdata dc config init --source azure-arc-aks-hci --path ./custom
         az arcdata dc config replace --path ./custom/control.json --json-values "spec.storage.data.className=aks-hci-disk-custom"
         az arcdata dc config replace --path ./custom/control.json --json-values "spec.storage.logs.className=aks-hci-disk-custom"
 
         #deploy
-        az arcdata dc create --path ./custom --k8s-namespace $DataControllerNamespace --use-k8s --name $ArcDataControllerName --subscription $SubscriptionID --resource-group $resourceGroup --location $Location --connectivity-mode indirect
+        az arcdata dc create --path ./custom --name $DataControllerName --resource-group $resourcegroup --location $location --connectivity-mode direct --auto-upload-logs true --auto-upload-metrics true --custom-location $CustomLocationName
+        #az arcdata dc delete --name $DataControllerName --resource-group $resourcegroup
 
         #monitor deployment
         kubectl get datacontrollers --namespace $DataControllerNamespace
         az arcdata dc status show --k8s-namespace $DataControllerNamespace --use-k8s
 
+#endregion
+
+#region create Arc app service extension
+#https://docs.microsoft.com/en-us/azure/app-service/manage-create-arc-environment?tabs=powershell
 #endregion
 
 #region deploy app
