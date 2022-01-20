@@ -862,6 +862,96 @@ volumeBindingMode: Immediate
 
 #region create Arc app service extension
 #https://docs.microsoft.com/en-us/azure/app-service/manage-create-arc-environment?tabs=powershell
+
+$ClusterName="AksHCI-Cluster"
+$resourcegroup="$ClusterName-rg"
+$KubernetesClusterName="demo"
+
+$Namespace="appservice-ns"
+$extensionName="appservice-ext"
+$kubeEnvironmentName=$KubernetesClusterName
+$aksClusterGroupName=$resourcegroup
+
+$CustomLocationName="AzSHCI-MyDC-EastUS-App" #existing, or if not exists, it will be created
+
+$SubscriptionID=(Get-AzContext).Subscription.ID
+$Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
+$logAnalyticsWorkspaceIdEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($workspace.customerid.guid))
+$logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey))
+
+
+    #install az extensions
+    az extension add --upgrade --yes --name connectedk8s
+    az extension add --upgrade --yes --name k8s-extension
+    az extension add --upgrade --yes --name customlocation
+    az provider register --namespace Microsoft.ExtendedLocation --wait
+    az provider register --namespace Microsoft.Web --wait
+    az provider register --namespace Microsoft.KubernetesConfiguration --wait
+    az extension remove --name appservice-kube
+    az extension add --upgrade --yes --name appservice-kube
+
+    az k8s-extension create `
+    --resource-group $resourcegroup `
+    --name $extensionName `
+    --cluster-type connectedClusters `
+    --cluster-name $KubernetesClusterName `
+    --extension-type 'Microsoft.Web.Appservice' `
+    --release-train stable `
+    --auto-upgrade-minor-version true `
+    --scope cluster `
+    --release-namespace $namespace `
+    --configuration-settings "Microsoft.CustomLocation.ServiceAccount=default" `
+    --configuration-settings "appsNamespace=${namespace}" `
+    --configuration-settings "clusterName=${kubeEnvironmentName}" `
+    --configuration-settings "keda.enabled=true" `
+    --configuration-settings "buildService.storageClassName=default" `
+    --configuration-settings "buildService.storageAccessMode=ReadWriteOnce" `
+    --configuration-settings "customConfigMap=${namespace}/kube-environment-config" `
+    --configuration-settings "envoy.annotations.service.beta.kubernetes.io/azure-load-balancer-resource-group=${aksClusterGroupName}" `
+    --configuration-settings "logProcessor.appLogs.destination=log-analytics" `
+    --configuration-protected-settings "logProcessor.appLogs.logAnalyticsConfig.customerId=${logAnalyticsWorkspaceIdEnc}" `
+    --configuration-protected-settings "logProcessor.appLogs.logAnalyticsConfig.sharedKey=${logAnalyticsKeyEnc}"
+
+    #grab extension id and wait for install
+    $extensionId=$(az k8s-extension show `
+    --cluster-type connectedClusters `
+    --cluster-name $KubernetesClusterName `
+    --resource-group $resourcegroup `
+    --name $extensionName `
+    --query id `
+    --output tsv)
+    az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
+
+    #display pods
+    kubectl get pods -n $namespace
+
+    #create custom location
+    $CustomLocations=az customlocation list | ConvertFrom-Json
+    if ($Customlocations.name -notcontains $CustomLocationName){
+        $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
+        az customlocation create `
+        --resource-group $resourcegroup `
+        --name $customLocationName `
+        --host-resource-id $connectedClusterId `
+        --namespace $namespace `
+        --cluster-extension-ids $extensionId
+    }
+
+    #Create the App Service Kubernetes environment
+        #grab ID
+        $customLocationId=$(az customlocation show `
+        --resource-group $resourcegroup `
+        --name $customLocationName `
+        --query id `
+        --output tsv)
+        #create environment
+        az appservice kube create `
+        --resource-group $resourcegroup `
+        --name $kubeEnvironmentName `
+        --custom-location $customLocationId
+
+    #validate
+    az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName
 #endregion
 
 #region deploy app
