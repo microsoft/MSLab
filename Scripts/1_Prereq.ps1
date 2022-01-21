@@ -205,6 +205,71 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 
 #endregion
 
+#region Linux prereqs
+if($LabConfig.Linux -eq $true) {
+    WriteInfoHighlighted "Linux prerequisites"
+    WriteInfo "`t Test Packer availability"
+
+    # Packer
+    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue) 
+    { 
+        WriteSuccess "`t Packer is in PATH."
+    } else {
+        WriteInfo "`t`t Downloading latest packer binary"
+
+        WriteInfo "`t`t Creating packer directory"
+        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin" 
+        New-Item $linuxToolsDirPath -ItemType Directory -Force | Out-Null
+        
+        if(-not (Test-Path (Join-Path $linuxToolsDirPath "packer.exe"))) {
+            $packerReleaseInfo = Invoke-RestMethod -Uri "https://checkpoint-api.hashicorp.com/v1/check/packer"
+            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip" 
+            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip") 
+            Expand-Archive -Path (Join-Path $linuxToolsDirPath "packer.zip")  -DestinationPath $linuxToolsDirPath -Force
+            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip") 
+        }
+    
+        WriteInfo "`t`t Creating Packer firewall rule"
+        $id = $PSScriptRoot -replace '[^a-zA-Z0-9]'
+        $fwRule = Get-NetFirewallRule -Name "mslab-packer-$id" -ErrorAction SilentlyContinue
+        if(-not $fwRule) {
+            New-NetFirewallRule -Name "mslab-packer-$id" -DisplayName "Allow MSLab Packer ($($PSScriptRoot))" -Action Allow -Program (Join-Path $linuxToolsDirPath "packer.exe") -Profile Any -ErrorAction SilentlyContinue
+        }
+    }
+
+    # OpenSSH
+    $capability = Get-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
+    if($capability.State -ne "Installed") {
+        WriteInfoHighlighted "`t Enabling OpensSH Client"
+        Add-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
+        Set-Service ssh-agent -StartupType Automatic
+        Start-Service ssh-agent
+    }
+
+    # SSH Key
+    WriteInfoHighlighted "`t SSH key"
+    if($LabConfig.SshKeyPath) {
+        if(-not (Test-Path $LabConfig.SshKeyPath)) {
+            WriteError "`t Cannot find specified SSH key $($LabConfig.SshKeyPath)."
+        }
+
+        $private = ssh-keygen.exe -y -e -f $LabConfig.SshKeyPath
+        $public = ssh-keygen.exe -y -e -f "$($LabConfig.SshKeyPath).pub"
+        if($private -ne $public) {
+            WriteError "`t SSH Keypair $($LabConfig.SshKeyPath) does not match."
+        }
+    } 
+    else 
+    {
+        WriteInfo "`t`t Generating new SSH key pair"
+        $sshKeyDir = "$PSScriptRoot\LAB\.ssh" 
+        $key = "$sshKeyDir\lab_rsa"
+        New-Item -ItemType Directory $sshKeyDir -ErrorAction SilentlyContinue | Out-Null
+        ssh-keygen.exe -t rsa -b 4096 -C "$($LabConfig.DomainAdminName)" -f $key -q -N '""'
+    }
+}
+#endregion
+
 # Telemetry Event
 if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
     $metrics = @{

@@ -398,6 +398,93 @@ If (-not $isAdmin) {
         }
     }
 
+    function New-LinuxVM {
+        [cmdletbinding()]
+        param(
+            [PSObject]$VMConfig,
+            [PSObject]$LabConfig,
+            [string]$LabFolder
+        )
+        WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
+        WriteInfo "`t Looking for Parent Disk"
+        $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
+        
+        if ($serverparent -eq $null){
+            WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
+        }else{
+            WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+        }
+
+        $VMname=$Labconfig.Prefix+$VMConfig.VMName
+        if ($serverparent.Extension -eq ".vhdx"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
+        }elseif($serverparent.Extension -eq ".vhd"){
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }
+        WriteInfoHighlighted "`t Creating OS VHD"
+        New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+    
+        $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath
+
+        #Set dynamic memory
+        if ($VMConfig.StaticMemory -eq $false){
+            WriteInfo "`t Configuring DynamicMemory"
+            $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
+        } else {
+            $VMTemp | Set-VMMemory -DynamicMemoryEnabled $false
+        }
+
+        $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
+        if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
+            $VMTemp | Set-VM -AutomaticCheckpointsEnabled $False
+        }
+        $VMTemp | Set-VMFirmware -EnableSecureBoot Off
+    
+        # only Debian Buster supports Secure Boot
+        #$vm | Set-VMFirmware -EnableSecureBoot On -SecureBootTemplateId "272e7447-90a4-4563-a4b9-8e4ab00526ce" # -SecureBootTemplate MicrosoftUEFICertificateAuthority
+   
+        Start-VM $VMTemp
+
+        # wait for the IP address
+        Write-Host "`t Waiting for IP of the VM..." -NoNewLine
+        $count = 0
+        do { 
+            $ip = $VMTemp | Get-VMNetworkAdapter | Select-Object -ExpandProperty IPAddresses
+            Start-Sleep -Seconds 1
+
+            Write-Host -ForegroundColor Gray -NoNewline "."
+            $count += 1
+        } while (-not $ip -or $count -ge 60)
+        Write-Host ""
+
+        if(-not $ip) {
+            throw "Unable to detect IP for a VM $vmName"
+        }
+
+        $key = "$LabFolder\.ssh\lab_rsa"
+
+        WriteInfo "`t`t Changing guest OS hostname..."
+        # set the hostname
+        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $key "packer@$vmName" "sudo sh -c 'sed -i `"s/```hostname```/$($VMConfig.VMName)/g`" /etc/hosts; echo `"$($VMConfig.VMName)`" > /etc/hostname; poweroff'"
+
+        # Wait for vm to shut down
+        $count = 0
+        do { 
+            $vm = $VMTemp | Get-Vm 
+            Start-Sleep -Seconds 1
+            $count += 1
+        } while ($vm.State -ne "Off" -or $count -ge 60)
+        if($vm.State -ne "Off") {
+            $VMTemp | Stop-VM
+        }
+
+        # return info
+        [PSCustomObject]@{
+            OSDiskPath = $vhdpath
+            VM = $VMTemp
+        }
+    }
+
     Function BuildVM {
         [cmdletbinding()]
         param(
@@ -1443,6 +1530,11 @@ If (-not $isAdmin) {
                             }
                     }
 
+                #create Linux VM
+                    if ($VMConfig.configuration -eq 'Linux'){
+                        $createdVm = New-LinuxVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
+                    }
+
                 #create VM with Simple configuration
                     if ($VMConfig.configuration -eq 'Simple'){
                         $createdVm = BuildVM -VMConfig $($VMConfig) -LabConfig $labconfig -LabFolder $LABfolder
@@ -1517,7 +1609,7 @@ If (-not $isAdmin) {
                         'vm.configuration' = $VMConfig.Configuration
                         'vm.unattend' = $VMConfig.Unattend
                     }
-                    if(Test-Path -Path $createdVm.OSDiskPath) {
+                    if(Test-Path -Path $createdVm.OSDiskPath -and $VMConfig.configuration -ne "Linux") {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
                         $properties.'vm.os.installationType' = $osInfo.InstallationType
