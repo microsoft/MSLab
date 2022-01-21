@@ -862,6 +862,7 @@ volumeBindingMode: Immediate
 
 #region create Arc app service extension
 #https://docs.microsoft.com/en-us/azure/app-service/manage-create-arc-environment?tabs=powershell
+#looks like exstension fails https://github.com/Azure/azure-cli-extensions/issues/3661
 
 $ClusterName="AksHCI-Cluster"
 $resourcegroup="$ClusterName-rg"
@@ -872,7 +873,7 @@ $extensionName="appservice-ext"
 $kubeEnvironmentName=$KubernetesClusterName
 $aksClusterGroupName=$resourcegroup
 
-$CustomLocationName="AzSHCI-MyDC-EastUS-App" #existing, or if not exists, it will be created
+$CustomLocationName="AzSHCI-MyDC-EastUS" #existing, or if does not exists, it will be created
 
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
@@ -922,12 +923,25 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     --output tsv)
     az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
 
+    #add kubectl to system environment variable, so it can be run by simply typing kubectl
+    [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
     #display pods
     kubectl get pods -n $namespace
+    #display all resources
+    kubectl get all -n $namespace
 
     #create custom location
     $CustomLocations=az customlocation list | ConvertFrom-Json
-    if ($Customlocations.name -notcontains $CustomLocationName){
+    $CustomLocation=$CustomLocations | Where-Object Name -eq $CustomLocationName
+    if ($CustomLocation){
+        $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
+        #if custom locatin exists, just add clusterextensionid
+        az customlocation patch `
+        --resource-group $resourcegroup `
+        --name $customLocationName `
+        --cluster-extension-ids $extensionId $Customlocation.clusterextensionids
+    }else{
+        #Create new location
         $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
         az customlocation create `
         --resource-group $resourcegroup `
