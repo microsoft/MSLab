@@ -255,7 +255,8 @@ if($LabConfig.Linux -eq $true) {
 
         $private = ssh-keygen.exe -y -e -f $LabConfig.SshKeyPath
         $public = ssh-keygen.exe -y -e -f "$($LabConfig.SshKeyPath).pub"
-        if($private -ne $public) {
+        $comparison = Compare-Object -ReferenceObject $private -DifferenceObject $public
+        if($comparison) {
             WriteError "`t SSH Keypair $($LabConfig.SshKeyPath) does not match."
         }
     } 
