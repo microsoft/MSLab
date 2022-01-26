@@ -12,6 +12,10 @@ If (-not $isAdmin) {
     exit
 }
 
+function WriteSuccess($message){
+    Write-Host $message -ForegroundColor Green
+}
+
 function WriteInfo($message) {
     Write-Host $message
 }
@@ -165,11 +169,20 @@ catch {
 }
 
 $vhdx = Get-ChildItem -Path $outputDir -Filter "*.vhdx" -Recurse
+if($vhdx.Length -eq 0) {
+    WriteErrorAndExit "No VHDX found in output directory $($outputDir)"
+}
+
 $vhdName = "$($selectedTemplate.directory).vhdx"
-$parentDisk = "$LabRoot\Parent Disks\$vhdName"
+$parentDisk = "$LabRoot\ParentDisks\$vhdName"
 Move-Item -Path $vhdx.FullName -Destination $parentDisk
 
+#region Cleanup
 Remove-Item -Path (Join-Path $tempDir "packer_cache") -Recurse -Force
 Remove-Item -Path (Join-Path $tempDir "packer_temp") -Recurse -Force
 Remove-Item -Path $outputDir -Recurse -Force
+#endregion
 
+WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+WriteSuccess "Press enter to continue..."
+Read-Host | Out-Null
