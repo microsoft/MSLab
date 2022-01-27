@@ -104,13 +104,20 @@ function  Get-WindowsBuildNumber {
 
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
     $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetDisk"
+    if($LabConfig.Linux) {
+        $FileNames += "CreateLinuxParentDisk"
+    }
     foreach ($filename in $filenames){
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path){
             WriteSuccess "`t $Filename is present, skipping download"
         }else{
             $FileContent = $null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
+            if($filename -eq "CreateLinuxParentDisk") {
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/machv/MSLab/linux/Tools/$FileName.ps1").Content
+            } else {
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
+            }
             if ($FileContent){
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
@@ -215,7 +222,7 @@ if($LabConfig.Linux -eq $true) {
     { 
         WriteSuccess "`t Packer is in PATH."
     } else {
-        WriteInfo "`t`t Downloading latest packer binary"
+        WriteInfo "`t`t Downloading latest Packer binary"
 
         WriteInfo "`t`t Creating packer directory"
         $linuxToolsDirPath = "$PSScriptRoot\LAB\bin" 
@@ -235,6 +242,26 @@ if($LabConfig.Linux -eq $true) {
         if(-not $fwRule) {
             New-NetFirewallRule -Name "mslab-packer-$id" -DisplayName "Allow MSLab Packer ($($PSScriptRoot))" -Action Allow -Program (Join-Path $linuxToolsDirPath "packer.exe") -Profile Any -ErrorAction SilentlyContinue
         }
+    }
+
+    # Packer templates
+    WriteInfo "`t`t Downloading Packer templates"
+    $packerTemplatesDirectory = "$PSScriptRoot\ParentDisks\PackerTemplates\"
+    if (-not (Test-Path $packerTemplatesDirectory)) {
+        New-Item -Type Directory -Path $packerTemplatesDirectory 
+    }
+
+    $templatesBase = "https://github.com/machv/mslab-templates/releases/latest/download/"
+    $templatesFile = "$($packerTemplatesDirectory)\templates.json"
+
+    Invoke-WebRequest -Uri "$($templatesBase)/templates.json" -OutFile $templatesFile
+
+    $templatesInfo = Get-Content -Path $templatesFile | ConvertFrom-Json
+    foreach($template in $templatesInfo) {
+        $templateZipFile = Join-Path $packerTemplatesDirectory $template.package
+        Invoke-WebRequest -Uri "$($templatesBase)/$($template.package)" -OutFile $templateZipFile
+        Expand-Archive -Path $templateZipFile -DestinationPath (Join-Path $packerTemplatesDirectory $template.directory)
+        Remove-Item -Path $templateZipFile
     }
 
     # OpenSSH

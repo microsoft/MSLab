@@ -33,6 +33,7 @@ function WriteErrorAndExit($message){
 $ScriptRoot = $PSScriptRoot
 #$ScriptRoot = Resolve-Path "$((pwd).Path)"
 $LabRoot = Resolve-Path "$ScriptRoot\..\"
+$env:Path += ";$LabRoot\LAB\bin"
 
 ##Load LabConfig....
 . "$LabRoot\LabConfig.ps1"
@@ -42,16 +43,27 @@ Start-Transcript -Path "$ScriptRoot\CreateLinuxParentDisk.log"
 $StartDateTime = Get-Date
 WriteInfoHighlighted "Script started at $StartDateTime"
 
-#region SSH
+#region check prereqs
+# Packer
+if (-not (Get-Command "packer.exe" -ErrorAction SilentlyContinue)) { 
+    WriteErrorAndExit "Packer not found."
+}
+
+# Packer templates
+$templatesFile = "$PSScriptRoot\ParentDisks\PackerTemplates\templates.json"
+if (-not (Test-Path $templatesFile)) {
+    WriteErrorAndExit "Packer Templates are not downloaded."
+}
+$templatesInfo = Get-Content -Path $templatesFile | ConvertFrom-Json
+WriteInfoHighlighted "Using templates pack version $($templatesInfo.version)"
+
 # Verify OpenSSH
 $capability = Get-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
 if($capability.State -ne "Installed") {
-    WriteInfoHighlighted "`t Enabling OpensSH Client"
-    Add-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
-    Set-Service ssh-agent -StartupType Automatic
-    Start-Service ssh-agent
+    WriteErrorAndExit "OpensSH cabability not found."
 }
 
+# SSH Key
 if($LabConfig.SshKeyPath) {
     if(-not (Test-Path $LabConfig.SshKeyPath)) {
         WriteErrorAndExit "`t Cannot find SSH key configured in LabConfig: $($LabConfig.SshKeyPath)."
@@ -85,27 +97,13 @@ if($LabConfig.SshKeyPath) {
 }
 
 WriteInfoHighlighted "SSH key $($sshKeyPath) will be used"
-#endregion
 
-"Temp", "LAB/Packer Templates" | ForEach-Object {
+# Temp dirs
+"Temp" | ForEach-Object {
     if (!( Test-Path "$LabRoot\$_" )) {
         WriteInfoHighlighted "Creating Directory $_"
-        $d = New-Item -Type Directory -Path "$LabRoot\$_" 
+        New-Item -Type Directory -Path "$LabRoot\$_" 
     }
-}
-
-#region Download packer definitions
-$templatesBase = "https://github.com/machv/mslab-templates/releases/latest/download/"
-$packerTemplatesDirectory = "$LabRoot\LAB\Packer Templates\"
-$templatesFile = "$($packerTemplatesDirectory)\templates.json"
-
-Invoke-WebRequest -Uri "$($templatesBase)/templates.json" -OutFile $templatesFile
-$templatesInfo = Get-Content -Path $templatesFile | ConvertFrom-Json
-foreach($template in $templatesInfo) {
-    $templateZipFile = Join-Path $packerTemplatesDirectory $template.package
-    Invoke-WebRequest -Uri "$($templatesBase)/$($template.package)" -OutFile $templateZipFile
-    Expand-Archive -Path $templateZipFile -DestinationPath (Join-Path $packerTemplatesDirectory $template.directory)
-    Remove-Item -Path $templateZipFile
 }
 #endregion
 
@@ -125,11 +123,11 @@ If($openFile.ShowDialog() -eq "OK") {
 
 if($isoUrl) {
     $isoName = Split-Path -Leaf $isoUrl
-    $selectedTemplate = $templatesInfo | Where-Object { $isoName -match $_.isoPattern }
+    $selectedTemplate = $templatesInfo.templates | Where-Object { $isoName -match $_.isoPattern }
 }
 
 if(-not $selectedTemplate) {
-    $selectedTemplate = $templatesInfo | Out-GridView -Title "Please select a Packer template to use" -OutputMode Single
+    $selectedTemplate = $templatesInfo.templates | Out-GridView -Title "Please select a Packer template to use" -OutputMode Single
 }
 #endregion
 
@@ -147,7 +145,7 @@ $env:PACKER_LOG = 1
 $env:PACKER_CACHE_DIR = Join-Path $tempDir "packer_cache"
 $env:TMPDIR = Join-Path $tempDir "packer_temp"
 $outputDir = Join-Path $tempDir "packer_output"
-$env:Path += ";$LabRoot\LAB\bin"
+
 
 WriteInfo "Starting image build"
 
@@ -183,6 +181,8 @@ Remove-Item -Path (Join-Path $tempDir "packer_temp") -Recurse -Force
 Remove-Item -Path $outputDir -Recurse -Force
 #endregion
 
-WriteSuccess "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+# finishing 
+WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) minutes."
+Stop-Transcript
 WriteSuccess "Press enter to continue..."
 Read-Host | Out-Null
