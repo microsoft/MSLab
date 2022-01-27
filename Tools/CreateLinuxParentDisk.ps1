@@ -50,7 +50,8 @@ if (-not (Get-Command "packer.exe" -ErrorAction SilentlyContinue)) {
 }
 
 # Packer templates
-$templatesFile = "$PSScriptRoot\ParentDisks\PackerTemplates\templates.json"
+$packerTemplatesDirectory = "$ScriptRoot\PackerTemplates\"
+$templatesFile = "$packerTemplatesDirectory\templates.json"
 if (-not (Test-Path $templatesFile)) {
     WriteErrorAndExit "Packer Templates are not downloaded."
 }
@@ -98,18 +99,9 @@ if($LabConfig.SshKeyPath) {
 
 WriteInfoHighlighted "SSH key $($sshKeyPath) will be used"
 
-# Temp dirs
-"Temp" | ForEach-Object {
-    if (!( Test-Path "$LabRoot\$_" )) {
-        WriteInfoHighlighted "Creating Directory $_"
-        New-Item -Type Directory -Path "$LabRoot\$_" 
-    }
-}
-#endregion
-
 #region Select ISO
 $isoUrl = $isoHash = $null
-WriteInfo "Please select ISO image with Linux"
+WriteInfo "Please select ISO image with a supported Linux distribution"
 [reflection.assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
     Title = "Please select Linux ISO image"
@@ -132,7 +124,26 @@ if(-not $selectedTemplate) {
 #endregion
 
 #region Build template
-$tempDir = "$LabRoot\Temp" 
+#ask for imagename
+$tempVhdName = "$($selectedTemplate.directory).vhdx"
+$vhdName = (Read-Host -Prompt "Please type VHD name (if nothing specified, $tempVhdName is used")
+if(-not $vhdName) {
+    $vhdName = $tempVhdName
+}
+
+#ask for size
+[int64]$vhdSize = (Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 20 is used")
+$vhdSize = $vhdSize*1GB
+if (-not $vhdSize) {
+    $vhdSize = 20GB
+}
+
+$tempDir = "$LabRoot\Temp"
+if (-not (Test-Path $tempDir)) {
+    WriteInfo "Creating Directory $tempDir"
+    New-Item -Type Directory -Path $tempDir
+}
+#endregion
 
 $packerTemplatePath = Join-Path $packerTemplatesDirectory $selectedTemplate.directory 
 $packerTemplateFilePath = Join-Path $packerTemplatePath $selectedTemplate.templateFile
@@ -160,25 +171,30 @@ $username = $username.ToLower()
 
 try {
     packer init $packerTemplateFilePath
-    packer build -force -var "ssh_key=$($publicKey)" -var "username=$($username)" -var "password=$($LabConfig.AdminPassword)" -var "vm_dir=$($outputDir)" -var "iso_path=$($isoUrl)" -var "iso_name=$($isoName)" -var "iso_checksum=$($isoHash)" $packerTemplateFilePath
+    packer build -force -var "osdisk_size=$($vhdSize/1MB)" -var "ssh_key=$($publicKey)" -var "username=$($username)" -var "password=$($LabConfig.AdminPassword)" -var "vm_dir=$($outputDir)" -var "iso_path=$($isoUrl)" -var "iso_name=$($isoName)" -var "iso_checksum=$($isoHash)" $packerTemplateFilePath
 }
 catch {
     WriteErrorAndExit "Packer build failed"
 }
 
-$vhdx = Get-ChildItem -Path $outputDir -Filter "*.vhdx" -Recurse
-if($vhdx.Length -eq 0) {
-    WriteErrorAndExit "No VHDX found in output directory $($outputDir)"
+function Cleanup {
+    Remove-Item -Path (Join-Path $tempDir "packer_cache") -Recurse -Force
+    Remove-Item -Path (Join-Path $tempDir "packer_temp") -Recurse -Force
+    Remove-Item -Path $outputDir -Recurse -Force
 }
 
-$vhdName = "$($selectedTemplate.directory).vhdx"
+$vhdx = Get-ChildItem -Path $outputDir -Filter "*.vhdx" -Recurse
+if($vhdx.Length -eq 0) {
+    Cleanup
+    WriteErrorAndExit "No VHDX found in output directory $($outputDir). Probably Packer build failed, please check log output above for details."
+}
+
+
 $parentDisk = "$LabRoot\ParentDisks\$vhdName"
 Move-Item -Path $vhdx.FullName -Destination $parentDisk
 
 #region Cleanup
-Remove-Item -Path (Join-Path $tempDir "packer_cache") -Recurse -Force
-Remove-Item -Path (Join-Path $tempDir "packer_temp") -Recurse -Force
-Remove-Item -Path $outputDir -Recurse -Force
+Cleanup
 #endregion
 
 # finishing 

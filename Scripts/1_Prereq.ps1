@@ -214,7 +214,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 
 #region Linux prereqs
 if($LabConfig.Linux -eq $true) {
-    WriteInfoHighlighted "Linux prerequisites"
+    WriteInfoHighlighted "Testing Linux prerequisites"
     WriteInfo "`t Test Packer availability"
 
     # Packer
@@ -255,9 +255,12 @@ if($LabConfig.Linux -eq $true) {
     $templatesFile = "$($packerTemplatesDirectory)\templates.json"
 
     Invoke-WebRequest -Uri "$($templatesBase)/templates.json" -OutFile $templatesFile
+    if(-not (Test-Path -Path $templatesFile)) {
+        WriteErrorAndExit "Download of packer templates failed"
+    }
 
     $templatesInfo = Get-Content -Path $templatesFile | ConvertFrom-Json
-    foreach($template in $templatesInfo) {
+    foreach($template in $templatesInfo.templates) {
         $templateZipFile = Join-Path $packerTemplatesDirectory $template.package
         Invoke-WebRequest -Uri "$($templatesBase)/$($template.package)" -OutFile $templateZipFile
         Expand-Archive -Path $templateZipFile -DestinationPath (Join-Path $packerTemplatesDirectory $template.directory)

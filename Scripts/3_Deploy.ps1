@@ -461,11 +461,33 @@ If (-not $isAdmin) {
             throw "Unable to detect IP for a VM $vmName"
         }
 
-        $key = "$LabFolder\.ssh\lab_rsa"
+        $sshKeyPath = $LabConfig.SshKeyPath
+        if(-not $sshKeyPath) {
+            $sshKeyPath = "$LabFolder\.ssh\lab_rsa"
+        }
+        if(-not (Test-Path $sshKeyPath)) {
+            WriteErrorAndExit "`t Cannot find SSH key $sshKeyPath."
+        }
+
+        if($LabConfig.LinuxAdminName) {
+            $username = $LabConfig.LinuxAdminName
+        } else {
+            $username = $LabConfig.DomainAdminName
+        }
+        $username = $username.ToLower()
 
         WriteInfo "`t`t Changing guest OS hostname..."
         # set the hostname
-        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $key "packer@$vmName" "sudo sh -c 'sed -i `"s/```hostname```/$($VMConfig.VMName)/g`" /etc/hosts; echo `"$($VMConfig.VMName)`" > /etc/hostname; poweroff'"
+        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -S sh -c 'sed -i `"s/```hostname```/$($VMConfig.VMName)/g`" /etc/hosts; echo `"$($VMConfig.VMName)`" > /etc/hostname; poweroff'"
+
+        <# AD provision
+        realm join --one-time-password deb04 corp.contoso.com
+        sed -i -E 's/^use_fully_qualified_names = .+$/use_fully_qualified_names = False/g' /etc/sssd/sssd.conf
+        systemctl restart sssd
+        mkdir /home/labadmin@corp.contoso.com/.ssh/
+        chown labadmin@corp.contoso.com /home/labadmin@corp.contoso.com/
+        cp /home/labadmin/.ssh/authorized_keys /home/labadmin\@corp.contoso.com/.ssh/authorized_keys
+        #>
 
         # Wait for vm to shut down
         $count = 0
@@ -1609,7 +1631,7 @@ If (-not $isAdmin) {
                         'vm.configuration' = $VMConfig.Configuration
                         'vm.unattend' = $VMConfig.Unattend
                     }
-                    if(Test-Path -Path $createdVm.OSDiskPath -and $VMConfig.configuration -ne "Linux") {
+                    if((Test-Path -Path $createdVm.OSDiskPath) -and $VMConfig.configuration -ne "Linux") {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
                         
                         $properties.'vm.os.installationType' = $osInfo.InstallationType
