@@ -94,5 +94,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./Release.zip
-          asset_name: wslab_${{ needs.new-version.outputs.new_tag }}.zip
+          asset_name: mslab_${{ needs.new-version.outputs.new_tag }}.zip
           asset_content_type: application/zip
