@@ -409,7 +409,7 @@ If (-not $isAdmin) {
         WriteInfo "`t Looking for Parent Disk"
         $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
         
-        if ($serverparent -eq $null){
+        if ($serverparent -eq $null) {
             WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
         }else{
             WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
@@ -421,7 +421,7 @@ If (-not $isAdmin) {
         }elseif($serverparent.Extension -eq ".vhd"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
         }
-        WriteInfoHighlighted "`t Creating OS VHD"
+        WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
     
         $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath
@@ -446,7 +446,7 @@ If (-not $isAdmin) {
         Start-VM $VMTemp
 
         # wait for the IP address
-        Write-Host "`t Waiting for IP of the VM..." -NoNewLine
+        Write-Host "`t Waiting for network connectivity to the VM..." -NoNewLine
         $count = 0
         do { 
             $ip = $VMTemp | Get-VMNetworkAdapter | Select-Object -ExpandProperty IPAddresses
@@ -454,11 +454,12 @@ If (-not $isAdmin) {
 
             Write-Host -ForegroundColor Gray -NoNewline "."
             $count += 1
-        } while (-not $ip -or $count -ge 60)
-        Write-Host ""
+        } while (-not $ip -or $count -le 60)
 
         if(-not $ip) {
-            throw "Unable to detect IP for a VM $vmName"
+            WriteErrorAndExit "Unable to detect IP for a VM $vmName"
+        } else {
+            WriteInfo "OK"
         }
 
         $sshKeyPath = $LabConfig.SshKeyPath
@@ -476,26 +477,38 @@ If (-not $isAdmin) {
         }
         $username = $username.ToLower()
 
-        WriteInfo "`t`t Changing guest OS hostname..."
         # set the hostname
-        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -S sh -c 'sed -i `"s/```hostname```/$($VMConfig.VMName)/g`" /etc/hosts; echo `"$($VMConfig.VMName)`" > /etc/hostname; poweroff'"
+        WriteInfo "`t Configuring guest OS hostname..."
+        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -p '' -S sh -c 'sed -i `"s/```hostname```/$($VMConfig.VMName)/g`" /etc/hosts; hostnamectl set-hostname `"$($VMConfig.VMName)`" > /etc/hostname;'"
 
-        <# AD provision
-        realm join --one-time-password deb04 corp.contoso.com
-        sed -i -E 's/^use_fully_qualified_names = .+$/use_fully_qualified_names = False/g' /etc/sssd/sssd.conf
-        systemctl restart sssd
-        mkdir /home/labadmin@corp.contoso.com/.ssh/
-        chown labadmin@corp.contoso.com /home/labadmin@corp.contoso.com/
-        cp /home/labadmin/.ssh/authorized_keys /home/labadmin\@corp.contoso.com/.ssh/authorized_keys
-        #>
+        $linuxCommandsToExecute = ""
+        if(-not $VMConfig.LinuxDomainJoin -or $VMConfig.LinuxDomainJoin.ToLower() -eq "sssd") {
+            WriteInfo "`t Creating AD Computer object..."
+            Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $VMConfig.VMName,$path,$Labconfig -ScriptBlock {
+                param($Name,$path,$Labconfig); 
+
+                New-ADComputer -Name $Name -Path "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"
+                $password = ConvertTo-SecureString -String $Name -AsPlainText -Force
+                Get-ADComputer -Identity $Name | Set-ADAccountPassword -NewPassword:$password -Reset:$true
+            } 
+
+            WriteInfo "`t Joining to AD..."
+            $upn = ("$($LabConfig.DomainAdminName)@$($LabConfig.DomainName)").ToLower()
+            $linuxCommandsToExecute = "realm join --one-time-password $($VMConfig.VMName) $($LabConfig.DomainName); mkdir -p /home/$($upn)/.ssh/; chown $upn /home/$upn/; cp /home/$username/.ssh/authorized_keys /home/$upn/.ssh/authorized_keys; sed -i -E `"`"s/use_fully_qualified_names = .+/use_fully_qualified_names = False/g`"`" /etc/sssd/sssd.conf;"
+            hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -p '' -S sh -c '$linuxCommandsToExecute'"
+        }
+
+        WriteInfo "`t Shutting down VM..."
+        hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -p '' -S sh -c 'poweroff'"
 
         # Wait for vm to shut down
         $count = 0
         do { 
-            $vm = $VMTemp | Get-Vm 
+            $vm = $VMTemp | Get-VM
             Start-Sleep -Seconds 1
             $count += 1
-        } while ($vm.State -ne "Off" -or $count -ge 60)
+        } while ($vm.State -ne "Off" -or $count -le 30)
+        
         if($vm.State -ne "Off") {
             $VMTemp | Stop-VM
         }
