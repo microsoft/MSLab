@@ -493,7 +493,7 @@ If (-not $isAdmin) {
             } 
 
             WriteInfo "`t Joining to AD..."
-            $upn = ("$($LabConfig.DomainAdminName)@$($LabConfig.DomainName)").ToLower()
+            $upn = ("$(($LabConfig.DomainAdminName).ToLower())@$($LabConfig.DomainName)")
             $linuxCommandsToExecute = "realm join --one-time-password $($VMConfig.VMName) $($LabConfig.DomainName); mkdir -p /home/$($upn)/.ssh/; chown $upn /home/$upn/; cp /home/$username/.ssh/authorized_keys /home/$upn/.ssh/authorized_keys; sed -i -E `"`"s/use_fully_qualified_names = .+/use_fully_qualified_names = False/g`"`" /etc/sssd/sssd.conf;"
             hvc ssh -oLogLevel=ERROR -oStrictHostKeyChecking=no -i $sshKeyPath "$username@$vmName" "echo '$($LabConfig.AdminPassword)' | sudo -p '' -S sh -c '$linuxCommandsToExecute'"
         }
