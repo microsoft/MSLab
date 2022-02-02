@@ -454,7 +454,7 @@ If (-not $isAdmin) {
 
             Write-Host -ForegroundColor Gray -NoNewline "."
             $count += 1
-        } while (-not $ip -or $count -le 60)
+        } while (-not $ip -and $count -le 60)
 
         if(-not $ip) {
             WriteErrorAndExit "Unable to detect IP for a VM $vmName"
@@ -507,7 +507,7 @@ If (-not $isAdmin) {
             $vm = $VMTemp | Get-VM
             Start-Sleep -Seconds 1
             $count += 1
-        } while ($vm.State -ne "Off" -or $count -le 30)
+        } while ($vm.State -ne "Off" -and $count -le 60)
         
         if($vm.State -ne "Off") {
             $VMTemp | Stop-VM
