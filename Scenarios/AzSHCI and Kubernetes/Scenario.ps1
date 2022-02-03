@@ -399,19 +399,22 @@ Foreach ($PSSession in $PSSessions){
 #endregion
 
 #region create AKS HCI cluster
+#note: in nested environment I had to increase vCPU count to 8 and I used Standard_D4s_v3 as datacontroller deployment ended up in endless loop
 #Jaromirk note: it would be great if I could specify HCI Cluster (like New-AksHciCluster -ComputerName)
 $ClusterName="AksHCI-Cluster"
 $ClusterNode=(Get-ClusterNode -Cluster $clustername).Name | Select-Object -First 1
 $KubernetesClusterName="demo"
 Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
-    # Create new cluster with 1 linux node pool in 1 node pool
+    # default size (data controller will not be deployed)
     New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool
-    
+
+    # or Create new cluster with 1 linux node with D4s VM size (needed for Data Controller, but in nested virtualization I also needed to adjust cpu number - increased to 8)
+    # New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool -nodeCount 1 -NodeVmSize Standard_D4s_v3 -osType linux
+
     # or Create new cluster with 1 linux node in 1 node pool, with AD AuthZ and Monitoring enabled (Optionally)
     # New-AksHciCluster -Name demo -NodePoolName linux-pool -enableAdAuth -enableMonitoring
-    
     # Add 1 Windows node in 1 Windows node pool to existing Cluster
-    # New-AksHciNodePool -ClusterName demo -Name windows-pool -osType Windows   
+    # New-AksHciNodePool -ClusterName demo -Name windows-pool -osType Windows
 }
 
 #distribute kubeconfig to other nodes (just to make it symmetric)
@@ -718,9 +721,11 @@ kubectl -n azure-arc get deployments,pods
 #endregion
 
 #region Deploy Policies Extension https://docs.microsoft.com/en-us/azure/governance/policy/concepts/policy-for-kubernetes#install-azure-policy-extension-for-azure-arc-enabled-kubernetes
+    $ClusterName="AksHCI-Cluster"
     $resourcegroup="$ClusterName-rg"
     $KubernetesClusterName="demo"
 
+    $ExtensionName="azurepolicy-ext"
     #register provider
     $Provider="Microsoft.PolicyInsights"
     Register-AzResourceProvider -ProviderNamespace $Provider
@@ -732,10 +737,14 @@ kubectl -n azure-arc get deployments,pods
     } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
 
     #deploy extension
-    az k8s-extension create --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --extension-type Microsoft.PolicyInsights --name azurepolicy
+    az k8s-extension create --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --extension-type Microsoft.PolicyInsights --name $ExtensionName
 
-    #validate deployment
-    az k8s-extension show --name azuremonitor-containers --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters -n azurepolicy
+    #validate deployment (show azurepolicy extension)
+    az k8s-extension show --name $ExtensionName --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters | ConvertFrom-Json
+
+    #list all extensions
+    az k8s-extension list --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters | ConvertFrom-Json
+
 #endregion
 
 #region create Arc app service extension
@@ -746,12 +755,13 @@ $ClusterName="AksHCI-Cluster"
 $resourcegroup="$ClusterName-rg"
 $KubernetesClusterName="demo"
 
-$Namespace="appservice-ns"
+$AppServiceNamespace="arc-services-ns"
 $extensionName="appservice-ext"
 $kubeEnvironmentName=$KubernetesClusterName
 $aksClusterGroupName=$resourcegroup
 
 $CustomLocationName="AzSHCI-MyDC-EastUS" #existing, or if does not exists, it will be created
+$CustomLocationNamespace=$AppServiceNamespace #namespace has to be same as appservice environment (or it fails to create)
 
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $Workspace=Get-AzOperationalInsightsWorkspace | Out-GridView -OutputMode Single -Title "Please select Log Analytics Workspace"
@@ -777,14 +787,14 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     --release-train stable `
     --auto-upgrade-minor-version true `
     --scope cluster `
-    --release-namespace $namespace `
+    --release-namespace $AppServiceNamespace `
     --configuration-settings "Microsoft.CustomLocation.ServiceAccount=default" `
-    --configuration-settings "appsNamespace=${namespace}" `
+    --configuration-settings "appsNamespace=${AppServiceNamespace}" `
     --configuration-settings "clusterName=${kubeEnvironmentName}" `
     --configuration-settings "keda.enabled=true" `
     --configuration-settings "buildService.storageClassName=default" `
     --configuration-settings "buildService.storageAccessMode=ReadWriteOnce" `
-    --configuration-settings "customConfigMap=${namespace}/kube-environment-config" `
+    --configuration-settings "customConfigMap=${AppServiceNamespace}/kube-environment-config" `
     --configuration-settings "envoy.annotations.service.beta.kubernetes.io/azure-load-balancer-resource-group=${aksClusterGroupName}" `
     --configuration-settings "logProcessor.appLogs.destination=log-analytics" `
     --configuration-protected-settings "logProcessor.appLogs.logAnalyticsConfig.customerId=${logAnalyticsWorkspaceIdEnc}" `
@@ -801,8 +811,11 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     --output tsv)
     az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
     #>
+
+    #deployment results in error, but after some time it succeeds. Following code will wait
+    #https://github.com/Azure/azure-cli-extensions/issues/3661
     do {
-        Write-Output "." -NoNewLine
+        Write-Host "." -NoNewLine
         Start-Sleep 10
         $Extension=az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name $extensionName | convertfrom-json
     } until (
@@ -812,9 +825,9 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     #add kubectl to system environment variable, so it can be run by simply typing kubectl
     [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
     #display pods
-    kubectl get pods -n $namespace
+    kubectl get pods -n $AppServiceNamespace
     #display all resources
-    kubectl get all -n $namespace
+    kubectl get all -n $AppServiceNamespace
     #display extension
     az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name $extensionName | convertfrom-json
 
@@ -832,25 +845,35 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     az connectedk8s enable-features --name $KubernetesClusterName --resource-group $resourcegroup --features cluster-connect custom-locations
 
     #create custom location
-    $CustomLocations=az customlocation list | ConvertFrom-Json
-    $CustomLocation=$CustomLocations | Where-Object Name -eq $CustomLocationName
-    if ($CustomLocation){
-        $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
-        #if custom locatin exists, just add clusterextensionid
-        az customlocation patch `
+        $CustomLocations=az customlocation list | ConvertFrom-Json
+        $CustomLocation=$CustomLocations | Where-Object Name -eq $CustomLocationName | Where-Object Namespace -eq $CustomLocationNamespace
+        $extensionId=$(az k8s-extension show `
+        --cluster-type connectedClusters `
+        --cluster-name $KubernetesClusterName `
         --resource-group $resourcegroup `
-        --name $customLocationName `
-        --cluster-extension-ids $extensionId $Customlocation.clusterextensionids
-    }else{
-        #Create new location
-        $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
-        az customlocation create `
-        --resource-group $resourcegroup `
-        --name $customLocationName `
-        --host-resource-id $connectedClusterId `
-        --namespace $namespace `
-        --cluster-extension-ids $extensionId
-    }
+        --name $extensionName `
+        --query id `
+        --output tsv)
+
+        if ($CustomLocation){
+            $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
+            #if custom locatin exists, just add clusterextensionid
+            az customlocation patch `
+            --resource-group $resourcegroup `
+            --name $customLocationName `
+            --cluster-extension-ids $extensionId $Customlocation.clusterextensionids
+        }else{
+            #Create new location
+            $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
+            az customlocation create `
+            --resource-group $resourcegroup `
+            --name $customLocationName `
+            --host-resource-id $connectedClusterId `
+            --namespace $CustomLocationNamespace `
+            --cluster-extension-ids $extensionId
+        }
+        #validate
+        az customlocation list -o table
 
     #Create the App Service Kubernetes environment
         #grab ID
@@ -865,11 +888,18 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
         --name $kubeEnvironmentName `
         --custom-location $customLocationId
 
+    #Wait for appservice to be provisioned
+    do {
+        $Status=az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName | ConvertFrom-Json
+        Write-Host "Status is: $($Status.provisioningState)" -ForegroundColor Yellow
+        Start-Sleep 10
+    } while (($status.provisioningState -ne "Succeeded"))
+
     #validate
-    az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName
+    az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName | ConvertFrom-Json
 #endregion
 
-#region create Arc data services extension (deploying azure arc data controller fails)
+#region create Arc data services extension (deploying azure arc data controller fails if kubernetes cluster VM size is small)
 #https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli
 #https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
@@ -878,14 +908,15 @@ $ClusterName="AksHCI-Cluster"
 $resourcegroup="$ClusterName-rg"
 $KubernetesClusterName="demo"
 
-
 $SubscriptionID=(Get-AzContext).Subscription.ID
 $Location=(Get-AzResourceGroup -Name $resourcegroup).Location
 
-$CustomLocationName="AzSHCI-MyDC-EastUS"  #existing, or if does not exists, it will be created
-
 $DataControllerName="arc-dc1"
-$DataControllerNamespace="datacontroller-demo" #extension and data controller namespace
+$DataControllerNamespace="arc-services-ns" #extension and data controller namespace
+$extensionName="datacontroller-ext"
+
+$CustomLocationNamespace=$DataControllerNamespace
+$CustomLocationName="AzSHCI-MyDC-EastUS"  #existing, or if does not exists, it will be created
 
 $StorageContainerName="AKSStorageContainer"
 $StorageContainerPath="c:\ClusterStorage\AKSContainer"
@@ -898,15 +929,18 @@ $StorageContainerSize=1TB
     }
 
     #deploy extension (check if it was created, might fail for first time, so it will need to rerun)
-    az k8s-extension create --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name datacontroller --cluster-type connectedClusters --extension-type microsoft.arcdataservices --auto-upgrade false --scope cluster --release-namespace $DataControllerNamespace --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper
+        #add extension
+        az extension add --name k8s-extension
+        #deploy
+        az k8s-extension create --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name $extensionName --cluster-type connectedClusters --extension-type microsoft.arcdataservices --auto-upgrade false --scope cluster --release-namespace $DataControllerNamespace --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper
     #wait
-    $extensionId=$(az k8s-extension show --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name datacontroller --query id --output tsv)
+    $extensionId=$(az k8s-extension show --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name $extensionName --query id --output tsv)
     az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
     #validate
-    az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --name datacontroller --cluster-type connectedclusters
+    az k8s-extension show --resource-group $resourcegroup --cluster-name $KubernetesClusterName --name $extensionName --cluster-type connectedclusters
 
     #retrieve identity of Arc data controller extension
-    $objectID=(az k8s-extension show --resource-group $resourcegroup  --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name datacontroller | convertFrom-json).identity.principalId
+    $objectID=(az k8s-extension show --resource-group $resourcegroup  --cluster-name $KubernetesClusterName --cluster-type connectedClusters --name $extensionName | convertFrom-json).identity.principalId
     #assign roles to managed identity
     az role assignment create --assignee $objectID --role "Contributor" --scope "/subscriptions/$SubscriptionID/resourceGroups/$resourcegroup"
     az role assignment create --assignee $objectID --role "Monitoring Metrics Publisher" --scope "/subscriptions/$SubscriptionID/resourceGroups/$resourcegroup"
@@ -945,7 +979,7 @@ $StorageContainerSize=1TB
             --resource-group $resourcegroup `
             --name $customLocationName `
             --host-resource-id $connectedClusterId `
-            --namespace $namespace `
+            --namespace $CustomLocationNamespace `
             --cluster-extension-ids $extensionId
         }
 
@@ -965,7 +999,7 @@ $StorageContainerSize=1TB
                 Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
                 Start-Sleep 1
             } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
-        
+
         #create storage container
             #create
             Invoke-Command -ComputerName $ClusterName -ScriptBlock {
@@ -996,7 +1030,7 @@ parameters:
     fsType: ext4 # refer to the note above to determine when to include this parameter
 allowVolumeExpansion: true
 reclaimPolicy: Delete
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer # or Immediate https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
 "@
         #create class
         $file=New-TemporaryFile
