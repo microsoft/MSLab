@@ -377,6 +377,45 @@
         Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 #endregion
 
+#region configure Azure Benefits
+    Enable-AzStackHCIAttestation -ComputerName $ClusterName -Force
+
+    #Check Attestation on nodes
+        Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+            Get-AzureStackHCIAttestation
+        }
+
+    #Check overall registration
+    Invoke-Command -ComputerName $CLusterName -ScriptBlock {
+        Get-AzureStackHCI
+    }
+
+    #distribute Az.StackHCI module to Azure Stack HCI nodes
+        #Increase MaxEvenlope and create session to copy files to
+        Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+        #Create Session
+        $sessions=New-PSSession -ComputerName $ClusterNodes
+        #Copy Az.StackHCI module
+        foreach ($Session in $sessions){
+            Copy-Item -Path "C:\Program Files\WindowsPowerShell\Modules\Az.StackHCI" -Destination "C:\Program Files\WindowsPowerShell\Modules\" -Recurse -ToSession $Session -Force
+        }
+        $Sessions | Remove-PSSession
+    
+    #enable attestation on AVD VMs
+    Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+        Add-AzStackHCIVMAttestation -VMName ($using:VMs | Where-Object VMName -like "$env:COMPUTERNAME*").VMName -Force
+    }
+
+    #Check IMDS Attestation
+    Invoke-Command -ComputerName $ClusterNodes -ScriptBlock {
+        Get-AzStackHCIVMAttestation -Local
+    }
+
+    #Restart VMs to finish installation
+    Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+
+#endregion
+
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
     #Grab VHD for FileServer VM and copy it to new library volume
         #Ask for VHD
