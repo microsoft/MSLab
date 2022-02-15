@@ -3,7 +3,10 @@
 #todo: update offline from file share
 
 #region Variables
-    $ClusterName="Ax6515-Cluster"
+    #make sure failover clustering management is installed
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell
+    #Grab failover cluster
+    $ClusterName=(Get-Cluster -Domain $env:USERDOMAIN | Out-GridView -OutputMode Single -Title "Please select failover cluster to patch").Name
     $Nodes=(Get-ClusterNode -Cluster $ClusterName).Name
 
     $DSUDownloadFolder="$env:USERPROFILE\Downloads\DSU"
@@ -150,7 +153,7 @@ $ScanResult
     foreach ($Node in $Nodes){
         #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
         if (($ScanResult | Where-Object ComputerName -eq $node).DellUpdateRequired){
-            Write-Output "$($Node):Installing Dell System Updates"
+            Write-Output "$($Node): Installing Dell System Updates"
             Invoke-Command -ComputerName $Node -ScriptBlock {
                 #install DSU updates
                 Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
@@ -161,7 +164,7 @@ $ScanResult
 
         #install Microsoft updates
         if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
-            Write-Output "$($Node):Installing Microsoft $Updates Updates"
+            Write-Output "$($Node): Installing Microsoft $Updates Updates"
             $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
                 $Searcher = New-Object -ComObject Microsoft.Update.Searcher
                 $SearchResult = $Searcher.Search($using:SearchCriteriaAllUpdates).Updates
@@ -214,9 +217,9 @@ $ScanResult
 
             #Suspend node
             Write-Output "$($Node): Suspending Cluster Node"
-            Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -wait | Out-Null
+            Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait | Out-Null
 
-            #enable storage maintenance mode if requested
+            #enable storage maintenance mode
             Write-Output "$($Node): Enabling Storage Maintenance mode"
             Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
 
