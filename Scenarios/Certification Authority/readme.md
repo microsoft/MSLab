@@ -387,7 +387,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 
 ### Set permissions on TPM Enabled template and publish it
 
-To set permissions is PSPKI module needed. You can find more info here https://www.sysadmins.lv/projects/pspki/default.aspx
+To set permissions is PSPKI module needed. You can find more info here https://www.pkisolutions.com/tools/pspki/
 
 ```PowerShell
 # Install PSPKI module for managing Certification Authority
