@@ -139,11 +139,6 @@ if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
     Install-Module -Name Az.StackHCI -Force
 }
 
-#5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
-if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
-    Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
-}
-
 #login to azure
 #download Azure module
 if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
@@ -346,9 +341,8 @@ Foreach ($PSSession in $PSSessions){
     $subscriptionID=(Get-AzContext).Subscription.id
 
     #make sure Kubernetes resource providers are registered
-    #5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
-    if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
-        Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
+    if (!( Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+        Install-Module -Name Az.Resources -Force
     }
     Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
     Register-AzResourceProvider -ProviderNamespace Microsoft.KubernetesConfiguration
@@ -469,9 +463,8 @@ $ClusterName="AksHCI-Cluster"
 #register AKS
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/connect-to-arc
 
-#5.1.0 version is required because of this bug https://github.com/Azure/azure-powershell/issues/16764
-if (!( Get-InstalledModule -Name Az.Resources -RequiredVersion "5.1.0" -ErrorAction Ignore)){
-    Install-Module -Name Az.Resources -Force -RequiredVersion "5.1.0"
+if (!( Get-InstalledModule -Name Az.Resources -ErrorAction Ignore)){
+    Install-Module -Name Az.Resources -Force
 }
 if (!(Get-Azcontext)){
     Connect-AzAccount -UseDeviceAuthentication
@@ -899,7 +892,7 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName | ConvertFrom-Json
 #endregion
 
-#region create Arc data services extension (deploying azure arc data controller fails if kubernetes cluster VM size is small)
+#region create Arc data services extension (deploying azure arc data controller fails if kubernetes cluster VM size is small - not enough cores/memory, expecially cores in nested environment might cause an endless loop)
 #https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli
 #https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk

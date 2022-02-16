@@ -39,6 +39,15 @@
     #location (all locations where HostPool can be created)
         $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
 
+    #register provider
+        $Provider="Microsoft.DesktopVirtualization"
+        Register-AzResourceProvider -ProviderNamespace $Provider
+        #wait for provider to finish registration
+        do {
+            $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+            Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+            Start-Sleep 1
+        } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
 
     #Generate list of VMs to be created
         #Session hosts

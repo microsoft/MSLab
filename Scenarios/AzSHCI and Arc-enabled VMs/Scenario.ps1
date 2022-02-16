@@ -143,8 +143,6 @@
     $controlPlaneIP="10.0.0.111"
     $VolumeName="MOC"
     $VolumePath="c:\ClusterStorage\$VolumeName"
-    $DHCPScopeID="10.0.0.0"
-    $DHCPServer="DC"
     $CredSSPUserName="CORP\LabAdmin"
     $CredSSPPassword="LS1setup!"
 
@@ -223,13 +221,13 @@
 
         #Grab registration info
         $RegistrationInfo=Invoke-Command -ComputerName $CLusterName -ScriptBlock {Get-AzureStackHCI}
-        $AzureResourceUri= $RegistrationInfo
+        $AzureResourceUri= $RegistrationInfo.AzureResourceUri
         $ResourceGroupName=$AzureResourceUri.split("/")[4]
         $SubscriptionID=$AzureResourceUri.split("/")[2]
         #grab location
         $Location=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.ResourceConnector" | Out-GridView -OutputMode Single).Location
         #create bridge resource name
-        $BridgeResourceName="$($RegistrationInfo.AzureResourceName)-arcbridge"
+        $BridgeResourceName=("$($RegistrationInfo.AzureResourceName)-arcbridge").ToLower()
 
     #install Az CLI
         #download
@@ -239,13 +237,13 @@
         #add az to enviromental variables so no posh restart is needed
         [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
 
-
-
     #add Az extensions
         az extension add --name customlocation
         az extension add --name azurestackhci
         az extension add --name arcappliance
         az extension add --name k8s-extension
+        az extension add --name connectedk8s
+
     #register namespaces
         #register
         $Providers="Microsoft.ExtendedLocation","Microsoft.ResourceConnector"
@@ -260,7 +258,14 @@
                 Start-Sleep 1
             } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
         }
-    
+
+    #login with device authentication
+        az login --use-device-code
+        $allSubscriptions = (az account list | ConvertFrom-Json).ForEach({$_ | Select-Object -Property Name, id, tenantId })
+        if (($allSubscriptions).Count -gt 1){
+            $subscription = ($allSubscriptions | Out-GridView -OutputMode Single)
+            az account set --subscription $subscription.id
+        }
     #create arc appliance
         #generate config files
         Invoke-Command -ComputerName $ClusterName -ScriptBlock {

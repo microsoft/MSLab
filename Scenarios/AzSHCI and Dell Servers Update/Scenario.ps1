@@ -160,11 +160,13 @@ $ScanResult
                 #display result
                 Get-Content "C:\ProgramData\Dell\DELL EMC System Update\dell_dup\DSU_STATUS.json"
             }
+        }else{
+            Write-Output "$($Node): Dell System Updates not required"
         }
 
         #install Microsoft updates
         if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
-            Write-Output "$($Node): Installing Microsoft $Updates Updates"
+            Write-Output "$($Node): Installing $Updates Microsoft Updates"
             $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
                 $Searcher = New-Object -ComObject Microsoft.Update.Searcher
                 $SearchResult = $Searcher.Search($using:SearchCriteriaAllUpdates).Updates
@@ -178,6 +180,7 @@ $ScanResult
                 $Result
             }
         }else{
+            Write-Output "$($Node): Microsoft Updates not required"
             $MSUpdateInstallResult=$Null
         }
 
