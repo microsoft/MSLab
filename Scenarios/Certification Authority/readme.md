@@ -45,7 +45,7 @@ https://www.sysadmins.lv/projects/pspki/default.aspx
 
 TPM Key attestation docs
 
-https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
+https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation
 
 TPM attestation PCPTool
 
