@@ -45,7 +45,7 @@ https://www.sysadmins.lv/projects/pspki/default.aspx
 
 TPM Key attestation docs
 
-https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation`
+https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/component-updates/tpm-key-attestation
 
 TPM attestation PCPTool
 
@@ -387,7 +387,7 @@ New-Template -DisplayName $DisplayName -TemplateOtherAttributes $TemplateOtherAt
 
 ### Set permissions on TPM Enabled template and publish it
 
-To set permissions is PSPKI module needed. You can find more info here https://www.sysadmins.lv/projects/pspki/default.aspx
+To set permissions is PSPKI module needed. You can find more info here https://www.pkisolutions.com/tools/pspki/
 
 ```PowerShell
 # Install PSPKI module for managing Certification Authority

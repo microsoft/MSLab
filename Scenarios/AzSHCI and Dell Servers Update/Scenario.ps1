@@ -177,6 +177,8 @@ $ScanResult
                 $Result = $Installer.Install()
                 $Result
             }
+        }else{
+            $MSUpdateInstallResult=$Null
         }
 
         #Check if reboot is required
