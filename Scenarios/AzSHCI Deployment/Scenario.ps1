@@ -216,14 +216,16 @@
                                         IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
                                         IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
                 $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-                $Session = New-Object -ComObject Microsoft.Update.Session
-                $Downloader = $Session.CreateUpdateDownloader()
-                $Downloader.Updates = $SearchResult
-                $Downloader.Download()
-                $Installer = New-Object -ComObject Microsoft.Update.Installer
-                $Installer.Updates = $SearchResult
-                $Result = $Installer.Install()
-                $Result
+                if ($SearchResult.Count -gt 0){
+                    $Session = New-Object -ComObject Microsoft.Update.Session
+                    $Downloader = $Session.CreateUpdateDownloader()
+                    $Downloader.Updates = $SearchResult
+                    $Downloader.Download()
+                    $Installer = New-Object -ComObject Microsoft.Update.Installer
+                    $Installer.Updates = $SearchResult
+                    $Result = $Installer.Install()
+                    $Result
+                }
             }
             #remove temporary PSsession config
             Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -246,14 +248,16 @@
                                     IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
                                     IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
             $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-            $Session = New-Object -ComObject Microsoft.Update.Session
-            $Downloader = $Session.CreateUpdateDownloader()
-            $Downloader.Updates = $SearchResult
-            $Downloader.Download()
-            $Installer = New-Object -ComObject Microsoft.Update.Installer
-            $Installer.Updates = $SearchResult
-            $Result = $Installer.Install()
-            $Result
+            if ($SearchResult.Count -gt 0){
+                $Session = New-Object -ComObject Microsoft.Update.Session
+                $Downloader = $Session.CreateUpdateDownloader()
+                $Downloader.Updates = $SearchResult
+                $Downloader.Download()
+                $Installer = New-Object -ComObject Microsoft.Update.Installer
+                $Installer.Updates = $SearchResult
+                $Result = $Installer.Install()
+                $Result
+            }
         }
         #remove temporary PSsession config
         Invoke-Command -ComputerName $servers -ScriptBlock {

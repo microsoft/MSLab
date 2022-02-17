@@ -39,6 +39,15 @@
     #location (all locations where HostPool can be created)
         $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
 
+    #register provider
+        $Provider="Microsoft.DesktopVirtualization"
+        Register-AzResourceProvider -ProviderNamespace $Provider
+        #wait for provider to finish registration
+        do {
+            $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+            Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+            Start-Sleep 1
+        } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
 
     #Generate list of VMs to be created
         #Session hosts
@@ -374,10 +383,30 @@
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
         }
     #Restart VMs to finish installation
-        Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+    Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 #endregion
 
-#region configure Azure Benefits
+#region configure RDP Shortpath
+    #https://docs.microsoft.com/en-us/azure/virtual-desktop/shortpath
+
+    #enable RDP Shortpath in registry
+    Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
+        #enable Shortpath
+        Set-ItemProperty -Path "hklm:\\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" -Name UdpRedirectorPort -Value 3390
+        Set-ItemProperty -Path "hklm:\\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" -Name fUseUdpPortRedirector -Value 1
+        #enable screen protection
+        #Set-ItemProperty -Path "hklm:\\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" -Name fEnableScreenCaptureProtect -Value 3390
+    }
+
+    #Configure Firewall rule
+    New-NetFirewallRule -CimSession $VMs.VMName -DisplayName 'Remote Desktop - Shortpath (UDP-In)'  -Action Allow -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3390]' -Group '@FirewallAPI.dll,-28752' -Name 'RemoteDesktop-UserMode-In-Shortpath-UDP' -Profile Domain, Private -Service TermService -Protocol udp -LocalPort 3390 -Program '%SystemRoot%\system32\svchost.exe' -Enabled:True
+
+    #Restart VMs to apply configuration
+    Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+#endregion
+
+#region configure Azure Benefits (not necessary now)
+    <#
     Enable-AzStackHCIAttestation -ComputerName $ClusterName -Force
 
     #Check Attestation on nodes
@@ -414,6 +443,7 @@
     #Restart VMs to finish installation
     Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 
+    #>
 #endregion
 
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
@@ -598,6 +628,35 @@
     #Create users with password LS1setup!
         New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
         New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
+
+#endregion
+
+#region configure AD Connect, assign users (manual task)
+    #Login to DC, Download AD Connect and install.
+    #ADConnect
+    #https://download.microsoft.com/download/B/0/0/B00291D0-5A83-4DE7-86F5-980BC00DE05A/AzureADConnect.msi
+    
+    ##Install AD Sync
+    #1) Install
+    #2) On wizard in "Expres Settings" page click on "Use express settings" button
+    #3) On "Connect to Azure AD" page connect with you credentials
+    #4) On "Connect to AD DS" page use your corp\LabAdmin credentials
+    #5) On "Azure AD sign-in" page check checkbox to continue without matching all UPN Suffixes and click Next
+    #6) On "Configure" page click Install to finish instalation and click exit once installation is done
+
+    ##Enforce user sync
+    #From Start Menu, open "Synchrozation Service" (right-click, run as administrator)
+    #In Synchronization service, rightclick on corp.contoso.com, full synchronization and click on run to initialize full synchronization (you will be prompted again about full synchronization)
+
+    ##assign users to application group
+    #1) in portal.azure.com, navigate to "MSLabAVDPool - Appplication Groups" under MSLabAVDPool in Azure Virtual Desktop.
+    #2) In assignments click on manage
+    #3) Add JohnDoe, JaneDoe and optionally LabAdmin
+
+    #Download RDP Client and after users are synced to AAD (and Application Group is configured to let users in) you can log in into machines
+    #RDP Client
+    #https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWVhzA
+    #if running on same subnet (or subnet, where AVD session hosts are reachable by it's private IP), RDP ShortPath will work (connection info, UDP will be used, low latency, high bandwidth)
 
 #endregion
 

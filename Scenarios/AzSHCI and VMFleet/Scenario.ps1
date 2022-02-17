@@ -6,12 +6,21 @@
     $VolumeSize=1TB
 
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name VMFleet -Force -RequiredVersion 2.0.0.0 #as install-fleet with credssp has issues in 2.0.0.1 and 2.0.2.1 https://github.com/microsoft/diskspd/issues/173
+    Install-Module -Name VMFleet -Force
     Install-Module -Name PrivateCloud.DiagnosticInfo -Force
 
 #endregion
 
 #region Configure VMFleet prereqs
+
+    #configure thin volumes a default if available (because why not :)
+    $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+    }
+    if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+        Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
+    }
+
     #Create Volumes
     Foreach ($Node in $Nodes){
         if (-not (Get-Virtualdisk -CimSession $ClusterName -FriendlyName $Node -ErrorAction Ignore)){
@@ -46,6 +55,12 @@
 
 #region install and create VMFleet
     $VHDName=$VHDPath | Split-Path -Leaf
+    $AdminUsername="CORP\LabAdmin"
+    $AdminPassword="LS1setup!"
+    $securedpassword = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ($AdminUsername, $securedpassword)
+
+    $VHDAdminPassword="P@ssw0rd"
     #Enable CredSSP
     # Temporarily enable CredSSP delegation to avoid double-hop issue
     foreach ($Node in $Nodes){
@@ -53,16 +68,13 @@
     }
     Invoke-Command -ComputerName $Nodes -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
-
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Install-Fleet #as vmfleet has issues with Install-Fleet -ClusterName https://github.com/microsoft/diskspd/issues/172
         #It's probably more convenient to run this command on cluster (using invoke-command) as all VHD copying will happen on cluster itself.
         #Grab nubmer of Logical Processors per node divided by 2 (Hyper thread CPUs) - no need to do it, this will happen automagically if -VMs not specified
         #$NumberOfVMs=(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors/2
         #New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -VMs $using:NumberOfVMs -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
-        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -AdminPass P@ssw0rd -Admin Administrator -ConnectUser corp\LabAdmin -ConnectPass LS1setup!
+        New-Fleet -BaseVHD "c:\ClusterStorage\Collect\$using:VHDName" -AdminPass $using:VHDAdminPassword -Admin Administrator -ConnectUser $using:AdminUsername -ConnectPass $using:AdminPassword
     }
 
     # Disable CredSSP
@@ -103,8 +115,8 @@
     }
     Invoke-Command -ComputerName $Nodes -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-    $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
-    $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+    $securedpassword = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ($AdminUsername, $securedpassword)
 
     Invoke-Command -ComputerName $Nodes[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Remove-Fleet
@@ -114,7 +126,7 @@
     Disable-WSManCredSSP -Role Client
     Invoke-Command -ComputerName $nodes -ScriptBlock { Disable-WSManCredSSP Server }
 
-    # Remove CSVs
+    # Remove CSVs/
     foreach ($Node in $Nodes){
         Remove-VirtualDisk -FriendlyName $Node -CimSession $ClusterName -Confirm:0 
     }
