@@ -27,7 +27,7 @@ To start using MSLab just download the latest version of the scripts from the [R
         - [Hands on Labs](#hands-on-labs)
         - [Issue reproduction](#issue-reproduction)
         - [Sessions](#sessions)
-        - [Run in PowerShell Core 7](#run-in-powershell-core-7)
+    - [Run in PowerShell Core 7](#run-in-powershell-core-7)
 
 <!-- /TOC -->
 
@@ -93,7 +93,7 @@ For more session slides navigate to [Slides](https://1drv.ms/u/s!AjTsLJdE37Dwtrs
 
 [![MSLab in CDCGermany](/Docs/media/MSLab_Datacenter_Simulation_presentation_thumb.png)](https://youtu.be/5IX9OLEk50Q)
 
-### Run in PowerShell Core 7
+## Run in PowerShell 7
 MSLab scripts work also in PowerShell 7, if you want to test it just install latest version of PowerShell 7.
 
 If you also would like to have context menu integration like this:
@@ -117,3 +117,17 @@ New-Item -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1" -Name "Command"
 Set-ItemProperty -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1\Command" -Name "(Default)" -Value ('"{0}" "-Command" "if((Get-ExecutionPolicy ) -ne ''AllSigned'') {{ Set-ExecutionPolicy -Scope Process Bypass }}; & ''%1''"' -f $pwshPath)
 
 ```
+
+## Linux (preview)
+
+There is en experimental support for building Linux parent images in MSLab. For building those images MSLab use [Packer](https://www.packer.io/) tool. Supported Packer templates are hosted in separate GitHub repository https://github.com/microsoft/MSLab-templates.
+
+To build a Linux parent disk `Linux = $true` need to be added to the `LabConfig.ps1` before running any MSLab scripts. When  `1_Prereq.ps1` is ran MSLab would download Packer if not present on the machine yet, generates SSH key pair unique per a MSLab instance folder. This SSH key will be hardcoded in every parent disk built by that instance. 
+
+After prerequisites stage additional PowerShell script `CreateLinuxParentDisk.ps1` will be `ParentDisks` folder. You can use that script to build a Linux parent disk in the similar way like the Windows images. 
+
+You can also use your own SSH key that can be shared by multiple MSLab instances by explicitely specifying a path to it using `SshKeyPath` option in `LabConfig.ps1`.
+
+`Deploy.ps1` script is using `hv_socket` to connect to a Linux instances and provision them online (similar to how PowerShell Direct work for Windows virtual machines). By default, Linux virtual machines would also be joined to MSLab Active Directory via [sssd](https://sssd.io/) tool.
+
+All the supported Linux distributions and their Packer templates are in the [Microsoft/MSLab-templates](https://github.com/microsoft/MSLab-templates) repository. Should you run to any problem with specific distribution, please open an issue directly in that repository.

@@ -44,6 +44,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         AutoStartAfterDeploy=$false;                 # (Optional) If $false, no VM will be started; if $true or 'All' all lab VMs will be started after Deploy script; if 'DeployedOnly' only newly created VMs will be started.
         InternetVLAN="";                             # (Optional) If set, it will apply VLAN on Interent adapter connected to DC
         ManagementSubnetIDs="";                      # (Optional) If set, it will add another dhcp-enable management networks.
+        Linux=$false;                                # (Optional) If set to $true, required prerequisities for building Linux images with Packer will be configured.
+        LinuxAdminName="linuxadmin";                 # (Optional) If set, local user account with that name will be created in Linux image. If not, DomainAdminName will be used as a local account.
+        SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa" # (Optional) If set, specified SSH key will be used to build and access Linux images.
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -192,6 +195,18 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     ManagementSubnetIDs
         Example: ManagementSubnetIDs=0..3
         If configured, it will add another management subnet. For example if configured 0..3, it will add 3 more subnets 10.0.1.0/24 to 10.0.3.0/24 on VLANs that 11,12, and 13. (Because allowed VLANs are 1-10)
+    
+    Linux (optional)
+        Example: Linux=$true
+        If set to $true, additional prerequisities (SSH Client, SSH Key, Packer, Packer templates) required for building Linux images will be downloaded and configured.
+    
+    LinuxAdminName (optional)
+        Example: LinuxAdminName="linuxadmin"
+        If set, local user account with that name will be created in Linux image. If not, DomainAdminName will be used as a local account.
+
+    SshKeyPath (optional)
+        Example: SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa"
+        If configured, existing SSH key will be used for building and connecting to Linux images. If not, 0_Prereq.ps1 will generate a new SSH key pair and store it locally in LAB folder.
     #>
 #endregion
 
@@ -257,6 +272,13 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         "DjoinCred" uses credentials. Can be used in 2008+
         "NoDjoin" inserts just local admin. For win10 use also AdditionalLocalAdmin
         "None" does not inject any unattend.
+
+    LinuxDomainJoin
+        Example: LinuxDomainJoin="No"
+        Possible values: "No", "SSSD"
+        Default: SSSD
+          "No" VM will be just renamed, but not joined to Active Directory
+          "SSSD" VM will be joined to domain online using SSSD tool
 
     SkipDjoin (Optional,Deprecated)
         If $True, VM will not be djoined. Default unattend used.
