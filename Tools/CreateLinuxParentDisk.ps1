@@ -100,7 +100,7 @@ if($LabConfig.SshKeyPath) {
 WriteInfoHighlighted "SSH key $($sshKeyPath) will be used"
 
 #region Select ISO
-$isoUrl = $isoHash = $null
+$isoUrl = $null
 WriteInfo "Please select ISO image with a supported Linux distribution"
 [reflection.assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
 $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
@@ -110,28 +110,32 @@ $openFile.Filter = "ISO files (*.iso)|*.iso|All files (*.*)|*.*"
 If($openFile.ShowDialog() -eq "OK") {
     WriteInfo "File $($openfile.FileName) selected"
     $isoUrl = $openFile.FileName #.Replace("\", "/")
-    $isoHash = (Get-FileHash -Path $isoUrl -Algorithm SHA256).Hash
+    $isoName = Split-Path -Leaf $isoUrl
 } 
 
-if($isoUrl) {
-    $isoName = Split-Path -Leaf $isoUrl
-    $selectedTemplate = $templatesInfo.templates | Where-Object { $isoName -match $_.isoPattern }
+if (-not $openFile.FileName) {
+    WriteErrorAndExit  "ISO was not selected... Exitting"
+}
+
+$selectedTemplate = $templatesInfo.templates | Where-Object { $isoName -match $_.isoPattern }
+if(-not $selectedTemplate) {
+    $selectedTemplate = $templatesInfo.templates | Out-GridView -Title "Please select a Packer template to use" -OutputMode Single
 }
 
 if(-not $selectedTemplate) {
-    $selectedTemplate = $templatesInfo.templates | Out-GridView -Title "Please select a Packer template to use" -OutputMode Single
+    WriteErrorAndExit  "Packer template was not selected... Exitting"
 }
 #endregion
 
 #region Build template
-#ask for imagename
+# ask for imagename
 $tempVhdName = "$($selectedTemplate.directory).vhdx"
 $vhdName = (Read-Host -Prompt "Please type VHD name (if nothing specified, $tempVhdName is used")
 if(-not $vhdName) {
     $vhdName = $tempVhdName
 }
 
-#ask for size
+# ask for size
 [int64]$vhdSize = (Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 20 is used")
 $vhdSize = $vhdSize*1GB
 if (-not $vhdSize) {
@@ -171,7 +175,7 @@ $username = $username.ToLower()
 
 try {
     packer init $packerTemplateFilePath
-    packer build -force -var "osdisk_size=$($vhdSize/1MB)" -var "ssh_key=$($publicKey)" -var "username=$($username)" -var "password=$($LabConfig.AdminPassword)" -var "vm_dir=$($outputDir)" -var "iso_path=$($isoUrl)" -var "iso_name=$($isoName)" -var "iso_checksum=$($isoHash)" $packerTemplateFilePath
+    packer build -force -var "osdisk_size=$($vhdSize/1MB)" -var "ssh_key=$($publicKey)" -var "username=$($username)" -var "password=$($LabConfig.AdminPassword)" -var "vm_dir=$($outputDir)" -var "iso_path=$($isoUrl)" -var "iso_name=$($isoName)" $packerTemplateFilePath
 }
 catch {
     WriteErrorAndExit "Packer build failed"

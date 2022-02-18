@@ -251,7 +251,7 @@ if($LabConfig.Linux -eq $true) {
         New-Item -Type Directory -Path $packerTemplatesDirectory 
     }
 
-    $templatesBase = "https://github.com/machv/mslab-templates/releases/latest/download/"
+    $templatesBase = "https://github.com/microsoft/mslab-templates/releases/latest/download/"
     $templatesFile = "$($packerTemplatesDirectory)\templates.json"
 
     Invoke-WebRequest -Uri "$($templatesBase)/templates.json" -OutFile $templatesFile
