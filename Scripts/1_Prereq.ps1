@@ -103,25 +103,21 @@ function  Get-WindowsBuildNumber {
     }
 
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetDisk"
+    $FileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
     if($LabConfig.Linux) {
         $FileNames += "CreateLinuxParentDisk"
     }
-    foreach ($filename in $filenames){
+    foreach ($filename in $filenames) {
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
-        If (Test-Path -Path $Path){
+        If (Test-Path -Path $Path) {
             WriteSuccess "`t $Filename is present, skipping download"
-        }else{
+        } else {
             $FileContent = $null
-            if($filename -eq "CreateLinuxParentDisk") {
-                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/machv/MSLab/linux/Tools/$FileName.ps1").Content
-            } else {
-                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
-            }
-            if ($FileContent){
+            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
+            if ($FileContent) {
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
-            }else{
+            } else {
                 WriteErrorAndExit "Unable to download $Filename."
             }
         }
