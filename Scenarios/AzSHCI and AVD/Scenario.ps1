@@ -17,7 +17,7 @@
 
     #Install Azure packages
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-        $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.DesktopVirtualization"
+        $ModuleNames="Az.Accounts","Az.Compute","Az.Resources","Az.DesktopVirtualization","Az.OperationalInsights","Az.ConnectedMachine","Az.Automation"
         foreach ($ModuleName in $ModuleNames){
             if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
                 Install-Module -Name $ModuleName -Force
@@ -36,8 +36,22 @@
             $context | Set-AzContext
         }
 
+    #SubscriptionID
+        $SubscriptionID=(Get-AzContext).Subscription.ID
+
     #location (all locations where HostPool can be created)
-        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
+        $HostPoolLocation=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.DesktopVirtualization" | Out-GridView -OutputMode Single -Title "Please select Location for AVD Host Pool metadata").Location
+
+    #Define Log Analytics workspace
+        $WorkspaceName="MSLabAVDWorkspace-$SubscriptionID"
+        $WorkspaceResourceGroupName=$AVDResourceGroupName
+        $WorkspaceLocation=$HostPoolLocation
+        $AutomationAccountName="MSLabLabAVDAutomationAccount"
+
+    #Define ARC Agents
+        $ARCResourceGroupName=$AVDResourceGroupName
+        $ARCServicePrincipalName="Arc-for-servers"
+        $ArcLocation=$HostPoolLocation
 
     #register provider
         $Provider="Microsoft.DesktopVirtualization"
@@ -61,10 +75,16 @@
         #fileserver (fileservers)
         $ServerVMs=@()
         $ServerVMs+=@{VMName="FileServer"; MemoryStartupBytes=1GB ; DynamicMemory=$true ; NumberOfCPUs=4 ; AdminPassword="LS1setup!" ; CSVPath="c:\ClusterStorage\$($ClusterNodes[0])" ; Owner=$($ClusterNodes[0])}
+
+    #Register ARC Resource provider
+        Register-AzResourceProvider -ProviderNamespace Microsoft.HybridCompute
+        Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
+        Register-AzResourceProvider -ProviderNamespace Microsoft.HybridConnectivity
+
+
 #endregion
 
 #region prepare cluster
-
     #configure thin volumes a default if available (because why not :)
         $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
             Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
@@ -85,7 +105,6 @@
                 New-Volume -StoragePoolFriendlyName S2D* -FriendlyName $ClusterNode -FileSystem CSVFS_ReFS -Size $VMsVolumeSize -ResiliencySettingName Mirror -CimSession $ClusterName
             }
         }
-
 #endregion
 
 #region create host pool
@@ -106,11 +125,11 @@
     #Create AVD Host Pool
         #Create resource Group
         If (-not (Get-AzResourceGroup -Name $AVDResourceGroupName -ErrorAction Ignore)){
-            New-AzResourceGroup -Name $AVDResourceGroupName -Location $region
+            New-AzResourceGroup -Name $AVDResourceGroupName -Location $HostPoolLocation
         }
 
         #Create Host Pool
-        New-AzWvdHostPool -Name $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName -HostPoolType "Pooled" -LoadBalancerType "BreadthFirst" -PreferredAppGroupType "Desktop" -Location $Region -WorkspaceName $AVDWorkspaceName -DesktopAppGroupName "Desktop"
+        New-AzWvdHostPool -Name $AVDHostPoolName -ResourceGroupName $AVDResourceGroupName -HostPoolType "Pooled" -LoadBalancerType "BreadthFirst" -PreferredAppGroupType "Desktop" -Location $HostPoolLocation -WorkspaceName $AVDWorkspaceName -DesktopAppGroupName "Desktop"
 #endregion
 
 #region Grab VHD from Azure and copy to library CSV
@@ -121,25 +140,25 @@
 
     #Create resource Group
     If (-not (Get-AzResourceGroup -Name $AVDResourceGroupName -ErrorAction Ignore)){
-        New-AzResourceGroup -Name $AVDResourceGroupName -Location $region
+        New-AzResourceGroup -Name $AVDResourceGroupName -Location $HostPoolLocation
     }
     #explore available disks
         #list offers
-        Get-AzVMImageOffer -Location $region -PublisherName "microsoftwindowsdesktop"
+        Get-AzVMImageOffer -Location $HostPoolLocation -PublisherName "microsoftwindowsdesktop"
         #list win10 SKUs
-        Get-AzVMImageSku -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer "Windows-10"
+        Get-AzVMImageSku -Location $HostPoolLocation -PublisherName  "microsoftwindowsdesktop" -Offer "Windows-10"
         #list win11 preview SKUs
-        Get-AzVMImageSku -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer "Windows11preview"
+        Get-AzVMImageSku -Location $HostPoolLocation -PublisherName  "microsoftwindowsdesktop" -Offer "Windows11preview"
 
     #let's work with win11-21h2-avd-m365
-        $image=Get-AzVMImage -Location $region -PublisherName  "microsoftwindowsdesktop" -Offer $Offer -SKU $SKU | Sort-Object Version -Descending |Select-Object -First 1
+        $image=Get-AzVMImage -Location $HostPoolLocation -PublisherName  "microsoftwindowsdesktop" -Offer $Offer -SKU $SKU | Sort-Object Version -Descending |Select-Object -First 1
 
     #export image to a disk https://docs.microsoft.com/en-us/powershell/module/az.compute/new-azdisk?view=azps-6.6.0#example-3--export-a-gallery-image-version-to-disk-
     $ImageVersionID = $image.id
 
     # Export the OS disk
     $imageOSDisk = @{Id = $ImageVersionID}
-    $OSDiskConfig = New-AzDiskConfig -Location $region -CreateOption "FromImage" -ImageReference $imageOSDisk
+    $OSDiskConfig = New-AzDiskConfig -Location $HostPoolLocation -CreateOption "FromImage" -ImageReference $imageOSDisk
     New-AzDisk -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Disk $OSDiskConfig
     $output=Grant-AzDiskAccess -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Access 'Read' -DurationInSecond 3600
     $SAS=$output.accesssas
@@ -279,15 +298,13 @@
 
 #region install and register Azure Arc agent
     #install connected machine agent (Azure Arc) = See Azure Arc for servers scenario https://github.com/microsoft/MSLab/tree/master/Scenarios/Azure%20Arc%20for%20Servers
-        $servers=$VMs.VMName
-
         # Download the package
         Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
         #Copy ARC agent to VMs
         #increase max evenlope size first
-        Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
         #create sessions
-        $sessions=New-PSSession -ComputerName $servers
+        $sessions=New-PSSession -ComputerName $VMs.VMName
         #copy ARC agent
         foreach ($session in $sessions){
             Copy-Item -Path "$env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
@@ -296,21 +313,18 @@
         $Sessions | Remove-PSSession
 
         #install package
-        Invoke-Command -ComputerName $servers -ScriptBlock {
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /l*v $env:USERPROFILE\Downloads\ACMinstallationlog.txt /qn" -Wait
         }
         <#uninstall if needed
-        Invoke-Command -ComputerName $servers -ScriptBlock {
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/uninstall $env:USERPROFILE\Downloads\AzureConnectedMachineAgent.msi /qn" -Wait
         }
         #>
 
-    #register Connected mahine agent (Azure Arc)
-        $ResourceGroupName=$AVDResourceGroupName
-        $ServicePrincipalName="Arc-for-servers"
+    #register Connected machine agent (Azure Arc)
         $TenantID=(Get-AzContext).Tenant.ID
         $SubscriptionID=(Get-AzContext).Subscription.ID
-        $location=(Get-AzResourceGroup -Name $ResourceGroupName).Location
         $tags="Platform=Windows"
         $password="" #here goes ADApp password. If empty, script will generate new secret. Make sure this secret is the same as in Azure
 
@@ -320,9 +334,9 @@
         Register-AzResourceProvider -ProviderNamespace Microsoft.GuestConfiguration
 
     #Create AzADServicePrincipal if it does not already exist
-        $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
+        $SP=Get-AZADServicePrincipal -DisplayName $ARCServicePrincipalName
         if (-not $SP){
-            $SP=New-AzADServicePrincipal -DisplayName "Arc-for-servers" -Role "Azure Connected Machine Onboarding"
+            $SP=New-AzADServicePrincipal -DisplayName $ARCServicePrincipalName -Role "Azure Connected Machine Onboarding"
             #remove default cred
             Remove-AzADAppCredential -ApplicationId $SP.AppId
         }
@@ -343,15 +357,15 @@
 
 
     #configure Azure ARC agent on servers
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $($using:SP.AppID) --service-principal-secret $using:password --resource-group $using:ResourceGroupName --tenant-id $using:TenantID --location $($using:Location) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
+        Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
+            Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $($using:SP.AppID) --service-principal-secret $using:password --resource-group $using:ARCResourceGroupName --tenant-id $using:TenantID --location $($using:ArcLocation) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
         }
 
     #Validate if agents are connected
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
+        $Output=Invoke-Command -ComputerName $VMs.VMName -ScriptBlock {
+            & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show -j | ConvertFrom-Json
         }
-
+        $Output | Select-Object Status,PSComputerName
 #endregion
 
 #region install and register AVD agent
@@ -383,7 +397,7 @@
             Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $env:USERPROFILE\Downloads\AVDAgentBootloader.msi /l*v $env:USERPROFILE\Downloads\AVDAgentBootloaderInstallationLog.txt /qn /norestart" -Wait -PassThru
         }
     #Restart VMs to finish installation
-    Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+    #Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 #endregion
 
 #region configure RDP Shortpath
@@ -444,6 +458,824 @@
     Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
 
     #>
+#endregion
+
+#region setup AVD Monitoring https://docs.microsoft.com/en-us/azure/virtual-desktop/azure-monitor?WT.mc_id=Portal-AppInsightsExtension
+
+    #region Create log analytics workspace and grab workspace key
+    if (-not(Get-AzResourceGroup -Name $WorkspaceResourceGroupName -ErrorAction SilentlyContinue)){
+        New-AzResourceGroup -Name $WorkspaceResourceGroupName -Location 
+    }
+    $Workspace=Get-AzOperationalInsightsWorkspace -Name $WorkspaceName -ResourceGroupName $WorkspaceResourceGroupName -ErrorAction SilentlyContinue
+    if (-not($Workspace)){
+        $Workspace=New-AzOperationalInsightsWorkspace -ResourceGroupName $WorkspaceResourceGroupName -Name $WorkspaceName -Location $WorkspaceLocation
+     }
+    $Workspacekey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
+    #endregion
+
+    #region Configure diagnostic settings for the host pool
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "hostpoolName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the host pool"
+            }
+        },
+        "settingName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the diagnostic setting"
+            }
+        },
+        "workspaceId": {
+            "type": "string",
+            "metadata": {
+                "description": "ResourceID of the Log Analytics workspace in which resource logs should be saved."
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DesktopVirtualization/hostpools/providers/diagnosticSettings",
+            "apiVersion": "2021-05-01-preview",
+            "name": "[concat(parameters('hostpoolName'),'/Microsoft.Insights/', parameters('settingName'))]",
+            "properties": {
+                "workspaceId": "[parameters('workspaceId')]",
+                "logs": [
+                    {
+                        "category": "Checkpoint",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Error",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Management",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Connection",
+                        "enabled": true
+                    },
+                    {
+                        "category": "HostRegistration",
+                        "enabled": true
+                    },
+                    {
+                        "category": "AgentHealthStatus",
+                        "enabled": true
+                    }
+                ]
+            }
+        }
+    ]
+}
+'@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    $templateParameterObject = @{
+        hostpoolName = "$AVDHostPoolName"
+        settingName = "AVDInsights"
+        workspaceId = "$($Workspace.resourceid)"
+    }
+    New-AzResourceGroupDeployment -ResourceGroupName $AVDResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
+
+    #endregion
+
+    #region Configure diagnostic settings for the AVD workspace
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the host pool"
+            }
+        },
+        "settingName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the diagnostic setting"
+            }
+        },
+        "workspaceId": {
+            "type": "string",
+            "metadata": {
+                "description": "ResourceID of the Log Analytics workspace in which resource logs should be saved."
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DesktopVirtualization/workspaces/providers/diagnosticSettings",
+            "apiVersion": "2017-05-01-preview",
+            "name": "[concat(parameters('workspaceName'),'/Microsoft.Insights/', parameters('settingName'))]",
+            "properties": {
+                "workspaceId": "[parameters('workspaceId')]",
+                "logs": [
+                    {
+                        "category": "Checkpoint",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Error",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Management",
+                        "enabled": true
+                    },
+                    {
+                        "category": "Feed",
+                        "enabled": true
+                    }
+                ]
+            }
+        }
+    ]
+}
+'@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    $templateParameterObject = @{
+    workspaceName = "$AVDWorkspaceName"
+    settingName = "AVDInsights"
+    workspaceId = "$($Workspace.resourceid)"
+    }
+    New-AzResourceGroupDeployment -ResourceGroupName $WorkspaceResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
+    #endregion
+
+    #region configure performance counters collection on Log Analytics Workspace
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Workspace name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2017-03-15-preview",
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspaceName')]",
+            "location": "[parameters('location')]",
+            "resources": [
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "sampleWindowsEvent1",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsEvent",
+                    "properties": {
+                        "eventLogName": "Application",
+                        "eventTypes": [
+                            {
+                                "eventType": "Error"
+                            },
+                            {
+                                "eventType": "Warning"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter1",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "LogicalDisk",
+                        "instanceName": "C:",
+                        "intervalSeconds": 60,
+                        "counterName": "% Free Space"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter2",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "LogicalDisk",
+                        "instanceName": "C:",
+                        "intervalSeconds": 30,
+                        "counterName": "Avg. Disk Queue Length"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter3",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "LogicalDisk",
+                        "instanceName": "C:",
+                        "intervalSeconds": 60,
+                        "counterName": "Avg. Disk sec/Transfer"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter4",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "LogicalDisk",
+                        "instanceName": "C:",
+                        "intervalSeconds": 30,
+                        "counterName": "Current Disk Queue Length"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter5",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Memory",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Available Mbytes"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter6",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Memory",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Page Faults/sec"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter7",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Memory",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Pages/sec"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter8",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Memory",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "% Committed Bytes In Use"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter9",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "PhysicalDisk",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Avg. Disk Queue Length"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter10",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "PhysicalDisk",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Avg. Disk sec/Read"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter11",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "PhysicalDisk",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Avg. Disk sec/Transfer"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter12",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "PhysicalDisk",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Avg. Disk sec/Write"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter18",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Processor Information",
+                        "instanceName": "_Total",
+                        "intervalSeconds": 30,
+                        "counterName": "% Processor Time"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter19",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Terminal Services",
+                        "instanceName": "*",
+                        "intervalSeconds": 60,
+                        "counterName": "Active Sessions"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter20",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Terminal Services",
+                        "instanceName": "*",
+                        "intervalSeconds": 60,
+                        "counterName": "Inactive Sessions"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter21",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "Terminal Services",
+                        "instanceName": "*",
+                        "intervalSeconds": 60,
+                        "counterName": "Total Sessions"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter22",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "User Input Delay per Process",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Max Input Delay"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter23",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "User Input Delay per Session",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Max Input Delay"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter24",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "RemoteFX Network",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Current TCP RTT"
+                    }
+                },
+                {
+                    "apiVersion": "2015-11-01-preview",
+                    "type": "datasources",
+                    "name": "perfcounter25",
+                    "dependsOn": [
+                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+                    ],
+                    "kind": "WindowsPerformanceCounter",
+                    "properties": {
+                        "objectName": "RemoteFX Network",
+                        "instanceName": "*",
+                        "intervalSeconds": 30,
+                        "counterName": "Current UDP Bandwidth"
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {
+        "workspaceName": {
+            "type": "string",
+            "value": "[parameters('workspaceName')]"
+        },
+        "provisioningState": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').provisioningState]"
+        },
+        "source": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').source]"
+        },
+        "customerId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').customerId]"
+        },
+        "sku": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').sku.name]"
+        }
+    }
+}
+'@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    #create parameters object
+    $templateParameterObject = @{
+        workspaceName = $WorkspaceName
+        location = $WorkspaceLocation
+    }
+    #Deploy
+    New-AzResourceGroupDeployment -ResourceGroupName $WorkspaceResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
+    #endregion
+
+    #region configure events collection on Log Analytics Workspace
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Workspace name"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "events": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "evtObj": "[json(parameters('events'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2020-08-01",
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspaceName')]",
+            "location": "[parameters('location')]"
+        },
+        {
+            "copy": {
+                "name": "eventscopy",
+                "count": "[length(variables('evtObj'))]"
+            },
+            "type": "Microsoft.OperationalInsights/workspaces/datasources",
+            "apiVersion": "2020-08-01",
+            "name": "[concat(parameters('workspaceName'),'/',variables('evtObj')[copyIndex()].deployedName)]",
+            "dependsOn": [
+                "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
+            ],
+            "kind": "WindowsEvent",
+            "properties": {
+                "eventLogName": "[variables('evtObj')[copyIndex()].name]",
+                "eventTypes": "[variables('evtObj')[copyIndex()].types]"
+            }
+        }
+    ]
+}
+'@
+    $jsonparameters=@"
+{
+    "`$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "value": "$WorkspaceName"
+        },
+        "location": {
+            "value": "$WorkspaceLocation"
+        },
+        "events": {
+            "value": "[{\"name\":\"Microsoft-FSLogix-Apps/Admin\",\"deployedName\":\"DataSource_WindowsEvent_34da24ac-c18c-4a92-8917-f8fe758cf9cc\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Information\"},{\"eventType\":\"Warning\"}]},{\"name\":\"System\",\"deployedName\":\"DataSource_WindowsEvent_7055ff6e-d514-4888-a4e7-ff49d1df3632\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Warning\"}]},{\"name\":\"Microsoft-FSLogix-Apps/Operational\",\"deployedName\":\"DataSource_WindowsEvent_7064ac17-fdef-459a-85cd-ef387964e29f\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Information\"},{\"eventType\":\"Warning\"}]},{\"name\":\"Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin\",\"deployedName\":\"DataSource_WindowsEvent_9eeb4ee1-d1d6-4018-a954-ed1b54b64b95\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Information\"},{\"eventType\":\"Warning\"}]},{\"name\":\"Microsoft-Windows-TerminalServices-LocalSessionManager/Operational\",\"deployedName\":\"DataSource_WindowsEvent_f5bced6b-cc7f-4e25-ba58-46133bc7457d\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Information\"},{\"eventType\":\"Warning\"}]},{\"name\":\"Application\",\"deployedName\":\"sampleWindowsEvent1\",\"types\":[{\"eventType\":\"Error\"},{\"eventType\":\"Warning\"}]}]"
+        }
+    }
+}
+"@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    $templateFileParameters = New-TemporaryFile
+    Set-Content -Path $templateFileParameters.FullName -Value $jsonparameters
+    #Deploy
+    New-AzResourceGroupDeployment -ResourceGroupName $WorkspaceResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterFile $templateFileParameters.FullName
+    Remove-Item $templateFile.FullName
+    Remove-Item $templateFileParameters.FullName
+    #endregion
+
+    #region add monitoring agent extension https://docs.microsoft.com/en-us/azure/azure-arc/servers/manage-vm-extensions-template
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceId": {
+            "type": "string",
+            "metadata": {
+                "description": "Workspace name"
+            }
+        },
+        "workspaceKey": {
+            "type": "string",
+            "metadata": {
+                "description": "Workspace Key"
+            }
+        },
+        "virtualMachines": {
+            "type": "array"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-08-02-preview",
+            "type": "Microsoft.HybridCompute/machines/extensions",
+            "name": "[concat(parameters('virtualMachines')[copyIndex()],'/OMSExtenstion')]",
+            "location": "[resourceGroup().location]",
+            "copy": {
+                "name": "vmextensioncopy",
+                "count": "[length(parameters('virtualMachines'))]"
+            },
+            "properties": {
+                "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+                "type": "MicrosoftMonitoringAgent",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "workspaceId": "[parameters('workspaceId')]"
+                },
+                "protectedSettings": {
+                    "workspaceKey": "[parameters('workspaceKey')]"
+                }
+            }
+        }
+    ]
+}
+'@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    #create parameters object with all VMs and workspace info
+    $templateParameterObject = @{
+        workspaceid = $workspace.CustomerID.GUID
+        workspaceKey = $Workspacekey
+        virtualMachines = $vms.vmname
+    }
+    #Deploy
+    New-AzResourceGroupDeployment -ResourceGroupName $ARCResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
+    #endregion
+
+    #region add Dependency Agent Windows extension (not really needed for AVD monitoring, not yet supported for ARC for Servers) https://docs.microsoft.com/en-us/azure/azure-arc/servers/manage-vm-extensions-template
+    <#
+    $json=@'
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachines": {
+            "type": "array"
+        }
+    },
+    "variables": {
+        "vmExtensionsApiVersion": "2021-05-20"
+    },
+    "resources": [
+        {
+            "apiVersion": "[variables('vmExtensionsApiVersion')]",
+            "type": "Microsoft.HybridCompute/machines/extensions",
+            "name": "[concat(parameters('virtualMachines')[copyIndex()],'/DAExtension')]",
+            "location": "[resourceGroup().location]",
+            "copy": {
+                "name": "vmextensioncopy",
+                "count": "[length(parameters('virtualMachines'))]"
+            },
+            "properties": {
+                "publisher": "Microsoft.Azure.Monitoring.DependencyAgent",
+                "type": "DependencyAgentWindows",
+                "autoUpgradeMinorVersion": true,
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
+'@
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+    #create parameters object with all VMs
+    $templateParameterObject = @{
+        virtualMachines = $vms.vmname
+    }
+    #Deploy
+    New-AzResourceGroupDeployment -ResourceGroupName $AVDResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
+
+    <#or add extensions with PowerShell
+    $Setting = @{ "workspaceId" = "$($workspace.CustomerId.GUID)" }
+    $protectedSetting = @{ "workspaceKey" = "$Workspacekey" }
+
+    foreach ($VMName in $VMs.VMName){
+        New-AzConnectedMachineExtension -Name "MicrosoftMonitoringAgent" -ResourceGroupName $ResourceGroupName -MachineName $VMName -Location $location -Publisher "Microsoft.EnterpriseCloud.Monitoring" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "MicrosoftMonitoringAgent" #-TypeHandlerVersion "1.0.18040.2"
+        #New-AzConnectedMachineExtension -Name "DependencyAgentWindows" -ResourceGroupName $ResourceGroupName -MachineName $VMName -Location $location -Publisher "Microsoft.Azure.Monitoring.DependencyAgent" -Settings $Setting -ProtectedSetting $protectedSetting -ExtensionType "DependencyAgentWindows"
+    }
+    #>
+    #endregion
+
+#endregion
+
+#region setup Azure Update (add Automation account)
+    New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $WorkspaceResourceGroupName -Location $WorkspaceLocation -Plan Free 
+
+    #link workspace to Automation Account (via an ARM template deployment)
+    $json = @"
+{
+    "`$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace_name": {
+            "type": "string"
+        },
+        "automation_name": {
+            "type": "string"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspace_name')]",
+            "apiVersion": "2015-11-01-preview",
+            "location": "[resourceGroup().location]",
+            "resources": [
+                {
+                    "name": "Automation",
+                    "type": "linkedServices",
+                    "apiVersion": "2015-11-01-preview",
+                    "dependsOn": [
+                        "[parameters('workspace_name')]"
+                    ],
+                    "properties": {
+                        "resourceId": "[resourceId(resourceGroup().name, 'Microsoft.Automation/automationAccounts', parameters('automation_name'))]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.OperationsManagement/solutions",
+            "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+            "apiVersion": "2015-11-01-preview",
+            "location": "[resourceGroup().location]",
+            "plan": {
+                "name": "[concat('Updates', '(', parameters('workspace_name'), ')')]",
+                "promotionCode": "",
+                "product": "OMSGallery/Updates",
+                "publisher": "Microsoft"
+            },
+            "properties": {
+                "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace_name'))]"
+            },
+            "dependsOn": [
+                "[parameters('workspace_name')]"
+            ]
+        }
+    ]
+}
+"@
+
+    $templateFile = New-TemporaryFile
+    Set-Content -Path $templateFile.FullName -Value $json
+
+    $templateParameterObject = @{
+        workspace_name = $WorkspaceName
+        automation_name = $AutomationAccountName
+    }
+    New-AzResourceGroupDeployment -ResourceGroupName $WorkspaceResourceGroupName -TemplateFile $templateFile.FullName -TemplateParameterObject $templateParameterObject
+    Remove-Item $templateFile.FullName
 #endregion
 
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
@@ -583,7 +1415,7 @@
             $item=Get-Item -Path "\\$ComputerName\D$\shares\$foldername"
             $item | Disable-NTFSAccessInheritance
             $item | Get-NTFSAccess | Remove-NTFSAccess -Account "Corp\Domain Users"
-            $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users"
+            $item | Get-NTFSAccess | Remove-NTFSAccess -Account "BUILTIN\Users" -ErrorAction Ignore
             $item | Get-NTFSAccess | Add-NTFSAccess -Account "corp\Domain Users" -AccessRights Modify -AppliesTo ThisFolderOnly
             $item | Get-NTFSAccess | Add-NTFSAccess -Account "Creator owner" -AccessRights Modify -AppliesTo SubfoldersAndFilesOnly
         }
@@ -606,10 +1438,11 @@
         $names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
         foreach ($name in $names) {
             New-GPO -Name $name  | New-GPLink -Target $OUPath
-            Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
+            #Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
         }
 
-    #install FSLogix to session hosts
+    #install FSLogix to session hosts (not needed, since in 21H2 agent is already present)
+    <#
         #create sessions
         $Sessions=New-PSSession -ComputerName $VMs.VMName
         foreach ($session in $Sessions){
@@ -624,6 +1457,7 @@
 
     #reboot machines
         Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+    #>
 
     #Create users with password LS1setup!
         New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
