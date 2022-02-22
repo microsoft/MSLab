@@ -9,7 +9,7 @@ $outputFile = "Release.zip"
 [array]$ignoredFiles = "0_Shared.ps1"
 
 if(Test-Path -Path $outputDir) {
-    Remove-Item -Path $outputDir -Recurse
+    Remove-Item -Path $outputDir -Recurse -Force
 }
 
 $releaseDirectory = New-Item -ItemType "Directory" -Path ".\" -Name $outputDir

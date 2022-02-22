@@ -103,18 +103,21 @@ function  Get-WindowsBuildNumber {
     }
 
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames="CreateParentDisk","DownloadLatestCUs","PatchParentDisks","CreateVMFleetDisk"
-    foreach ($filename in $filenames){
+    $FileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
+    if($LabConfig.Linux) {
+        $FileNames += "CreateLinuxParentDisk"
+    }
+    foreach ($filename in $filenames) {
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
-        If (Test-Path -Path $Path){
+        If (Test-Path -Path $Path) {
             WriteSuccess "`t $Filename is present, skipping download"
-        }else{
+        } else {
             $FileContent = $null
             $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
-            if ($FileContent){
+            if ($FileContent) {
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
-            }else{
+            } else {
                 WriteErrorAndExit "Unable to download $Filename."
             }
         }
@@ -203,6 +206,95 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
         }
     }
 
+#endregion
+
+#region Linux prereqs
+if($LabConfig.Linux -eq $true) {
+    WriteInfoHighlighted "Testing Linux prerequisites"
+    WriteInfo "`t Test Packer availability"
+
+    # Packer
+    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue) 
+    { 
+        WriteSuccess "`t Packer is in PATH."
+    } else {
+        WriteInfo "`t`t Downloading latest Packer binary"
+
+        WriteInfo "`t`t Creating packer directory"
+        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin" 
+        New-Item $linuxToolsDirPath -ItemType Directory -Force | Out-Null
+        
+        if(-not (Test-Path (Join-Path $linuxToolsDirPath "packer.exe"))) {
+            $packerReleaseInfo = Invoke-RestMethod -Uri "https://checkpoint-api.hashicorp.com/v1/check/packer"
+            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip" 
+            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip") 
+            Expand-Archive -Path (Join-Path $linuxToolsDirPath "packer.zip")  -DestinationPath $linuxToolsDirPath -Force
+            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip") 
+        }
+    
+        WriteInfo "`t`t Creating Packer firewall rule"
+        $id = $PSScriptRoot -replace '[^a-zA-Z0-9]'
+        $fwRule = Get-NetFirewallRule -Name "mslab-packer-$id" -ErrorAction SilentlyContinue
+        if(-not $fwRule) {
+            New-NetFirewallRule -Name "mslab-packer-$id" -DisplayName "Allow MSLab Packer ($($PSScriptRoot))" -Action Allow -Program (Join-Path $linuxToolsDirPath "packer.exe") -Profile Any -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Packer templates
+    WriteInfo "`t`t Downloading Packer templates"
+    $packerTemplatesDirectory = "$PSScriptRoot\ParentDisks\PackerTemplates\"
+    if (-not (Test-Path $packerTemplatesDirectory)) {
+        New-Item -Type Directory -Path $packerTemplatesDirectory 
+    }
+
+    $templatesBase = "https://github.com/microsoft/mslab-templates/releases/latest/download/"
+    $templatesFile = "$($packerTemplatesDirectory)\templates.json"
+
+    Invoke-WebRequest -Uri "$($templatesBase)/templates.json" -OutFile $templatesFile
+    if(-not (Test-Path -Path $templatesFile)) {
+        WriteErrorAndExit "Download of packer templates failed"
+    }
+
+    $templatesInfo = Get-Content -Path $templatesFile | ConvertFrom-Json
+    foreach($template in $templatesInfo.templates) {
+        $templateZipFile = Join-Path $packerTemplatesDirectory $template.package
+        Invoke-WebRequest -Uri "$($templatesBase)/$($template.package)" -OutFile $templateZipFile
+        Expand-Archive -Path $templateZipFile -DestinationPath (Join-Path $packerTemplatesDirectory $template.directory)
+        Remove-Item -Path $templateZipFile
+    }
+
+    # OpenSSH
+    $capability = Get-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
+    if($capability.State -ne "Installed") {
+        WriteInfoHighlighted "`t Enabling OpensSH Client"
+        Add-WindowsCapability -Online -Name "OpenSSH.Client~~~~0.0.1.0"
+        Set-Service ssh-agent -StartupType Automatic
+        Start-Service ssh-agent
+    }
+
+    # SSH Key
+    WriteInfoHighlighted "`t SSH key"
+    if($LabConfig.SshKeyPath) {
+        if(-not (Test-Path $LabConfig.SshKeyPath)) {
+            WriteError "`t Cannot find specified SSH key $($LabConfig.SshKeyPath)."
+        }
+
+        $private = ssh-keygen.exe -y -e -f $LabConfig.SshKeyPath
+        $public = ssh-keygen.exe -y -e -f "$($LabConfig.SshKeyPath).pub"
+        $comparison = Compare-Object -ReferenceObject $private -DifferenceObject $public
+        if($comparison) {
+            WriteError "`t SSH Keypair $($LabConfig.SshKeyPath) does not match."
+        }
+    } 
+    else 
+    {
+        WriteInfo "`t`t Generating new SSH key pair"
+        $sshKeyDir = "$PSScriptRoot\LAB\.ssh" 
+        $key = "$sshKeyDir\lab_rsa"
+        New-Item -ItemType Directory $sshKeyDir -ErrorAction SilentlyContinue | Out-Null
+        ssh-keygen.exe -t rsa -b 4096 -C "$($LabConfig.DomainAdminName)" -f $key -q -N '""'
+    }
+}
 #endregion
 
 # Telemetry Event
