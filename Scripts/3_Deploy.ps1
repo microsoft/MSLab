@@ -1061,7 +1061,8 @@ If (-not $isAdmin) {
             }
 
             WriteInfo "`t Detecting default vSwitch"
-            $DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
+            #$DefaultSwitch=Get-VMSwitch -ID c08cb7b8-9b3c-408e-8e30-5e16a3aeb444 -ErrorAction Ignore
+            $DefaultSwitch=Get-VMSwitch -Name "Default Switch" -ErrorAction Ignore
             if ($DefaultSwitch){WriteInfo "`t Default switch detected"}
 
             #if running in Azure and default switch is not present, create InternalNAT Switch
