@@ -1,0 +1,37 @@
+name: Create prerelease
+
+defaults:
+  run:
+    shell: powershell
+
+on:
+  push:
+    paths: 
+      - 'Scripts/**'
+    branches: [ dev ]
+
+jobs:
+  new-prerelease:
+    name: Create prerelease
+    if: "!contains(github.event.head_commit.message, '[no release]')"
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Build scripts 
+        id: build
+        shell: powershell
+        run: |
+          ./build.ps1 -Version prerelease
+          $filename = "mslab_dev-$((Get-Date -Format "yyyyMMdd")).zip"
+          mv ./Release.zip $filename
+          echo "::set-output name=filename::$filename"
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "dev"
+          prerelease: true
+          title: "dev branch preview"
+          files: |
+            ${{ steps.build.outputs.filename }}

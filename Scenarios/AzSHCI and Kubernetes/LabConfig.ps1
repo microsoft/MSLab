@@ -8,4 +8,6 @@ $LabConfig=@{ManagementSubnetIDs=0..1 ; DomainAdminName='LabAdmin'; AdminPasswor
 
 #Windows Admin Center gateway
 #$LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2022Core_G2.vhdx' ; MGMTNICs=1 }
- 
+
+#Management machine
+$LabConfig.VMs += @{ VMName = 'Management' ; ParentVHD = 'Win2022_G2.vhdx' ; MGMTNICs=1 }
