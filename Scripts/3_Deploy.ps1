@@ -596,6 +596,34 @@ If (-not $isAdmin) {
             $global:IP++
         }
 
+        if($VMConfig.AdditionalNetworkAdapters) {
+            $networks = $VMConfig.AdditionalNetworkAdapters
+            if($networks -isnot [array]) {
+                $networks = @($networks)
+            }
+
+            foreach ($network in $networks) {
+                $switch = Get-VMSwitch -Name $network.VirtualSwitchName -ErrorAction SilentlyContinue
+                if(-not $switch) {
+                    WriteErrorAndExit "Hyper-V switch $($network.VirtualSwitchName) not found."
+                }
+
+                $adapter = $vmtemp | Add-VMNetworkAdapter -SwitchName $network.VirtualSwitchName -Passthru
+
+                if($network.Mac -and $network.Mac -match "^([0-9A-F][0-9A-F]-){5}[0-9A-F][0-9A-F]$") {
+                    $adapter | Set-VMNetworkAdapter -StaticMacAddress $network.Mac
+                }
+
+                if($network.VlanId -and $network.VlanId -ne 0) {
+                    $adapter | Set-VMNetworkAdapterVlan -VlanId $network.VlanId -Access
+                }
+
+                if($network.IpConfiguration -and $network.IpConfiguration -ne "DHCP" -and $network.IpConfiguration -is [Hashtable]) {
+                    $adapter | Set-VMNetworkConfiguration -IPAddress $network.IpConfiguration.IpAddress -Subnet $network.IpConfiguration.Subnet
+                }
+            }
+        }
+
         #Generate DSC Config
         if ($VMConfig.DSCMode -eq 'Pull'){
             WriteInfo "`t Setting DSC Mode to Pull"
