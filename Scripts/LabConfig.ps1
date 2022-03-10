@@ -8,7 +8,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
 # Or Windows Server 2019
 #1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
 
-
 ### HELP ###
 
 #If you need more help or different configuration options, ping us at jaromir.kaspar@dell.com or vlmach@microsoft.com
@@ -238,6 +237,18 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
 
     AdditionalNetworks (Optional)
         $True - Additional networks (configured in AdditonalNetworkConfig) are added 
+
+    AdditionalNetworkAdapters (Optional) - Hashtable or array if multiple network adapters should be connected to this virtual machine
+        @{
+            VirtualSwitchName  (Mandatory) - Name of the Hyper-V Switch to witch the adapter will be connected
+            Mac                (Optional)  - Static MAC address of the interface otherwise default will be generated
+            VlanId             (Optional)  - VLAN ID for this adapter
+            IpConfiguration    (Optional)  - DHCP or hastable with specific IP configuration
+            @{
+                IpAddress      (Mandatory) - Static IP Address that would be injected to the OS
+                Subnet         (Mandatory) 
+            }     
+        }
 
     DSCMode (Optional)
         If 'Pull', VMs will be configured to Pull config from DC.
