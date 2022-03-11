@@ -2,6 +2,8 @@
 # Run from DC or Management VM #
 ################################
 
+#note: this scenario is bit obsolete, use https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20Deployment instead
+
 $StartDateTime = get-date
 Write-host "Script started at $StartDateTime"
 
