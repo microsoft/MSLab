@@ -46,7 +46,10 @@
         $WorkspaceName="MSLabAVDWorkspace-$SubscriptionID"
         $WorkspaceResourceGroupName=$AVDResourceGroupName
         $WorkspaceLocation=$HostPoolLocation
+
+    #automation account
         $AutomationAccountName="MSLabLabAVDAutomationAccount"
+        $AutomationAccountLocation=$HostPoolLocation=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.Automation" | Where-Object Location -ne $WorkspaceLocation | Out-GridView -OutputMode Single -Title "Please select Location for Automation Accout (Canot be $WorkspaceLocation").Location
 
     #Define ARC Agents
         $ARCResourceGroupName=$AVDResourceGroupName
@@ -296,7 +299,7 @@
     }
 #endregion
 
-#region install and register Azure Arc agent
+#region install and register Azure Arc agent (optional for log analytics and update management)
     #install connected machine agent (Azure Arc) = See Azure Arc for servers scenario https://github.com/microsoft/MSLab/tree/master/Scenarios/Azure%20Arc%20for%20Servers
         # Download the package
         Start-BitsTransfer -Source https://aka.ms/AzureConnectedMachineAgent -Destination "$env:UserProfile\Downloads\AzureConnectedMachineAgent.msi"
@@ -460,7 +463,7 @@
     #>
 #endregion
 
-#region setup AVD Monitoring https://docs.microsoft.com/en-us/azure/virtual-desktop/azure-monitor?WT.mc_id=Portal-AppInsightsExtension
+#region setup AVD Monitoring (Arc Agent needed, not supported yet) https://docs.microsoft.com/en-us/azure/virtual-desktop/azure-monitor?WT.mc_id=Portal-AppInsightsExtension
 
     #region Create log analytics workspace and grab workspace key
     if (-not(Get-AzResourceGroup -Name $WorkspaceResourceGroupName -ErrorAction SilentlyContinue)){
@@ -473,7 +476,7 @@
     $Workspacekey=($Workspace | Get-AzOperationalInsightsWorkspaceSharedKey).PrimarySharedKey 
     #endregion
 
-    #region Configure diagnostic settings for the host pool
+    #region Configure diagnostic settings for the AVD host pool
     $json=@'
 {
     "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
@@ -1210,7 +1213,7 @@
 #endregion
 
 #region setup Azure Update (add Automation account)
-    New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $WorkspaceResourceGroupName -Location $WorkspaceLocation -Plan Free 
+    New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $WorkspaceResourceGroupName -Location $AutomationAccountLocation -Plan Free 
 
     #link workspace to Automation Account (via an ARM template deployment)
     $json = @"
@@ -1463,6 +1466,68 @@
         New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
         New-ADUser -Name JaneDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
 
+#endregion
+
+#region configure app attach (Optional, based (a bit) on https://github.com/microsoft/MSLab/tree/master/Scenarios/AppAttach)
+    #Install Hyper-V platform to be able to work with tools and restart
+    Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online
+
+    #setup file share
+    $FileServerName="FileServer"
+    $FolderName="AppAttach"
+    Invoke-Command -ComputerName $FileServerName -ScriptBlock {new-item -Path D:\Shares -Name $using:FolderName -ItemType Directory}
+    $accounts=@()
+    $accounts+="corp\Domain Computers"
+    $accounts+="corp\Domain Users"
+    New-SmbShare -Name $FolderName -Path "D:\Shares\$FolderName" -ReadAccess $accounts -CimSession $FileServerName
+    #Set NTFS permissions
+    Invoke-Command -ComputerName $$FileServerName -ScriptBlock {(Get-SmbShare $using:FolderName).PresetPathAcl | Set-Acl}
+
+    #Download MSIX Package
+    if (!(Test-Path "$env:USERPROFILE\Downloads\msixmgr\x64\msixmgr.exe")){
+        Invoke-WebRequest -Uri https://aka.ms/msixmgr -OutFile "$env:USERPROFILE\Downloads\msixmgr.zip"
+        Expand-Archive -Path "$env:USERPROFILE\Downloads\msixmgr.zip" -DestinationPath "$env:USERPROFILE\Downloads\msixmgr"
+    }
+
+    #login to azure (if not)
+    if (-not (Get-AzContext)){
+        Login-AzAccount -UseDeviceAuthentication
+    }
+
+    #grab host pool
+    $Hostpool=Get-AzWvdHostPool
+    If ($Hostpool.Count -gt 1){
+        $Hostpool=$Hostpool | Out-GridView -Title "Please Select Hostpool" -OutputMode Single
+    }
+    $hp=$HostPool.Name
+    $rg=($Hostpool.ID).Split("/") | Select-Object -Index 4
+    $subId=($Hostpool.ID).Split("/") | Select-Object -Index 2
+    #define example msix (or more)
+    $Files=@()
+    $Files+=@{URL="https://github.com/PowerShell/PowerShell/releases/download/v7.0.2/PowerShell-7.0.2-win-x64.msix"; FileName="PowerShell-7.0.2-win-x64.msix"; AppName="PowerShell7"}
+
+    foreach($file in $Files){
+        #Download
+        Start-BitsTransfer -Source $File.URL -Destination "$env:USERPROFILE\Downloads\$($File.FileName)"
+    
+        #Copy MSIX to VHD
+            #create vhd
+            $vhd=New-VHD -SizeBytes 100GB -path $env:USERPROFILE\Downloads\$($File.AppName).vhdx -dynamic -confirm:$false
+            #mount and format VHD
+            $VHDMount=Mount-VHD $vhd.Path -Passthru
+            $vhddisk = $vhdmount | Get-Disk
+            $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter | Format-Volume -Filesystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel $appname
+            #add MSIX
+            Start-Process -FilePath "$env:USERPROFILE\Downloads\msixmgr\x64\msixmgr.exe" -ArgumentList  "-Unpack -packagePath `"$env:USERPROFILE\Downloads\$($File.FileName)`" -destination $($vhddiskpart.driveletter):\Packages -applyacls" -Wait
+            Dismount-VHD $vhddisk.number
+        #Copy app to FileShare
+            Copy-Item -Path "$env:USERPROFILE\Downloads\$($File.AppName).VHDX" -Destination "\\$FileServerName\d$\Shares\$FolderName" 
+        #setup msix https://docs.microsoft.com/en-us/azure/virtual-desktop/app-attach-powershell
+        $obj = Expand-AzWvdMsixImage -HostPoolName $hp -ResourceGroupName $rg -SubscriptionID $subId -Uri \\$FileServerName\$FolderName\$($File.AppName).vhdx
+        New-AzWvdMsixPackage -HostPoolName $hp -ResourceGroupName $rg -SubscriptionId $subId -PackageAlias $obj.PackageAlias -DisplayName $File.AppName -ImagePath \\$FileServerName\$FolderName\$($File.AppName).vhdx -IsActive:$true
+        #validate app
+        Get-AzWvdMsixPackage -HostPoolName $hp -ResourceGroupName $rg -SubscriptionId $subId | Where-Object {$_.PackageFamilyName -eq $obj.PackageFamilyName}
+    }
 #endregion
 
 #region configure AD Connect, assign users (manual task)
