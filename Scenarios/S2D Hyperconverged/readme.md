@@ -11,6 +11,8 @@
 
 # Scenario Description
 
+> Note: Scenario is bit obsolete. Use [AzSHCI Deployment Scenario](https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20Deployment) for deployment instead (just skip Azure Registration)
+
 * In this scenario 2-16 node S2D cluster can be created.
 * It is just simulation "how it would look like". Performance is not a subject here - it is just to test look and feel
 * Script is well tested, on both real and simulated environments. However if you need assist, ask your Premier Field Engineer

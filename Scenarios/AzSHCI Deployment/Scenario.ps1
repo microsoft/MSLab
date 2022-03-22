@@ -886,49 +886,6 @@
 
 #endregion
 
-#region Create Volumes to use max capacity. It also depends what mix of devices you have https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive
-
-    #calculate reserve
-    $pool=Get-StoragePool -CimSession $clustername -FriendlyName s2D*
-    $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
-    $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
-    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq SSD | where-object usage -ne journal | Measure-Object -Property Size -Sum).Sum
-    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq SSD | where-object usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
-
-    $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
-    if ($numberofNodes -eq 2){
-        if ($SSDCapacity){
-        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
-        $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
-        }
-        if ($HDDCapacity){
-        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
-        $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
-        }
-    }else{
-        if ($SSDCapacity){
-        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
-        $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
-        }
-        if ($HDDCapacity){
-        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
-        $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
-        }
-    }
-
-    #create volumes
-    1..$numberofNodes | ForEach-Object {
-        if ($sizeofvolumeonHDDs){
-            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonHDDs -FriendlyName "MyVolumeonHDDs$_" -MediaType HDD
-        }
-        if ($sizeofvolumeonSSDs){
-            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonSSDs -FriendlyName "MyVolumeonSSDs$_" -MediaType SSD   
-        }
-    }
-
-    start-sleep 10
-#endregion
-
 #region Register Azure Stack HCI to Azure
     if ($DellHW){
         #Add OEM Information so hardware is correctly billed
@@ -1041,7 +998,157 @@
     #>
 #endregion
 
-#region Create some VMs (3 per each CSV disk) https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bulk%20VM%20creation
+#region Configure thin provisioned volumes as default if available
+    $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+        Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+    }
+    if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+        Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
+    }
+#endregion
+
+#region (optional - just an example) Create Volumes to use max capacity. It also depends what mix of devices you have https://github.com/Microsoft/MSLab/tree/master/Scenarios/S2D%20and%20Volumes%20deep%20dive
+
+    #calculate reserve
+    $pool=Get-StoragePool -CimSession $clustername -FriendlyName s2D*
+    $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
+    $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
+    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq SSD | where-object usage -ne journal | Measure-Object -Property Size -Sum).Sum
+    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where-object mediatype -eq SSD | where-object usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
+
+    $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
+    if ($numberofNodes -eq 2){
+        if ($SSDCapacity){
+        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
+        }
+        if ($HDDCapacity){
+        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
+        }
+    }else{
+        if ($SSDCapacity){
+        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
+        }
+        if ($HDDCapacity){
+        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-100GB #100GB just some reserve (16*3 = perfhistory)+some spare capacity
+        $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
+        }
+    }
+
+    #create volumes
+    1..$numberofNodes | ForEach-Object {
+        if ($sizeofvolumeonHDDs){
+            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonHDDs -FriendlyName "MyVolumeonHDDs$_" -MediaType HDD
+        }
+        if ($sizeofvolumeonSSDs){
+            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePoolFriendlyName S2D* -Size $sizeofvolumeonSSDs -FriendlyName "MyVolumeonSSDs$_" -MediaType SSD   
+        }
+    }
+
+    start-sleep 10
+#endregion
+
+#region (optional) register your Dell partner ID to your Azure Subscription https://docs.microsoft.com/en-us/partner-center/link-partner-id-for-azure-performance-pal-dpor
+if ($DellHW){
+    #define list of Location PAL IDs
+    $CSV=@"
+    Argentina;1973856
+    Australia;1576776
+    Austria;1444496
+    Belgium;1447258
+    Brazil;1563635
+    Canada;742767
+    Chile;2389235
+    China;2580218
+    Colombia;1736279
+    Czech Republic;1980606
+    Denmark;1449600
+    Egypt;6462248
+    Finland;1993462
+    France;892181
+    Germany;1449416
+    Greece;3679221
+    Hong Kong Sar;2790298
+    India;2419713
+    Indonesia;2834572
+    Ireland;1447272
+    Israel;6462253
+    Italy;1446223
+    Japan;578508
+    Korea;2153293
+    Luxembourg;6462292
+    Malaysia;2731874
+    Mexico;724848
+    Morocco;6462283
+    Netherlands;1446198
+    New Zealand;1872429
+    Norway;1446238
+    Pakistan;6462648
+    Panama;1477223
+    Peru;6466758
+    Poland;3697305
+    Portugal;1552205
+    Romania;1735552
+    Russia;4543982
+    Singapore;2773797
+    Slovakia;3812320
+    South Africa;1970176
+    Spain;1004323
+    Sweden;1449417
+    Switzerland;1449592
+    Taiwan;5097219
+    Thailand;2345177
+    Turkey;3396579
+    United Arab Emirates;3159758
+    United Kingdom;1447267
+    United States;913990
+"@
+        $Header = 'Country', 'LocationID'
+        $PALIDs=ConvertFrom-Csv -Delimiter ";" -InputObject $CSV -Header $Header
+
+    #Install Azure packages
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        $ModuleNames="Az.Accounts","Az.Resources","Az.ManagementPartner"
+        foreach ($ModuleName in $ModuleNames){
+            if (!(Get-InstalledModule -Name $ModuleName -ErrorAction Ignore)){
+                Install-Module -Name $ModuleName -Force
+            }
+        }
+
+    #login to Azure (if not logged in already)
+        if (-not (Get-AzContext)){
+            Login-AzAccount -UseDeviceAuthentication
+        }
+
+    $RegistrationInfo=Get-AzManagementPartner -ErrorAction Ignore
+    <#
+    if ($RegistrationInfo -eq $null){
+        Write-Host "Partner registration not found" -ForegroundColor Red
+    }else{ 
+        Write-Host "Following partner registration found:" -ForegroundColor Green
+        $RegistrationInfo
+    }
+    #>
+
+    #Select location
+    $LocationID=$PALIDs | Out-GridView -Title "Please select location ID" -OutputMode Single
+
+    #register new partner
+    if ($RegistrationInfo){
+        Update-AzManagementPartner -PartnerId $LocationID.LocationID
+    }else{
+        New-AzManagementPartner -PartnerId $LocationID.LocationID
+    }
+
+    #remove
+    #$RegistrationInfo=Get-AzManagementPartner
+    #Remove-AzManagementPartner -PartnerID $RegistrationInfo.PartnerID
+}
+#endregion
+
+#region (optional - just an example) Create some VMs (3 per each CSV disk) https://github.com/Microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Bulk%20VM%20creation
     Start-Sleep -Seconds 60 #just to a bit wait as I saw sometimes that first VMs fails to create
     if ($realVMs -and $VHDPath){
         $CSVs=(Get-ClusterSharedVolume -Cluster $ClusterName).Name

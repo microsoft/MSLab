@@ -317,7 +317,7 @@
     #create arc appliance
         #generate config files
         Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-            New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:location -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "\\$using:ClusterName\ClusterStorage$\$using:VolumeName\workingDir"
+            New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "\\$using:ClusterName\ClusterStorage$\$using:VolumeName\workingDir"
         }
         #prepare
         az arcappliance prepare hci --config-file \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml
