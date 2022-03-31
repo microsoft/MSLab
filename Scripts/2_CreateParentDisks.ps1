@@ -604,6 +604,10 @@ If (-not $isAdmin) {
             if ($DC.AutomaticCheckpointsEnabled -eq $True){
                 $DC | Set-VM -AutomaticCheckpointsEnabled $False
             }
+            if ($LabConfig.InstallSCVMM -eq "Yes"){
+                #SCVMM 2022 requires 4GB of memory
+                $DC | Set-VMMemory -StartupBytes 4GB -MinimumBytes 4GB
+            }
 
         #Apply Unattend to VM
             if ($VMVersion.Build -ge 17763){
@@ -1017,8 +1021,12 @@ If (-not $isAdmin) {
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
                     Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
                     d:\scvmm\1_SQL_Install.ps1
-                    d:\scvmm\2_ADK_Install.ps1  
-                    Restart-Computer    
+                    d:\scvmm\2_ADK_Install.ps1
+                    #install prereqs
+                    if (Test-Path "D:\SCVMM\SCVMM\Prerequisites\VCRedist\amd64\vcredist_x64.exe"){
+                        Start-Process -FilePath "D:\SCVMM\SCVMM\Prerequisites\VCRedist\amd64\vcredist_x64.exe" -ArgumentList "/passive /quiet /norestart" -Wait
+                    }
+                    Restart-Computer
                 }
                 Start-Sleep 10
 

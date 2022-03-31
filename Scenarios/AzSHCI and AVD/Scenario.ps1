@@ -163,10 +163,10 @@
     $imageOSDisk = @{Id = $ImageVersionID}
     $OSDiskConfig = New-AzDiskConfig -Location $HostPoolLocation -CreateOption "FromImage" -ImageReference $imageOSDisk
     New-AzDisk -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Disk $OSDiskConfig
-    $output=Grant-AzDiskAccess -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Access 'Read' -DurationInSecond 3600
+    $output=Grant-AzDiskAccess -ResourceGroupName $AVDResourceGroupName -DiskName $ManagedDiskName -Access 'Read' -DurationInSecond 36000 #10 hours
     $SAS=$output.accesssas
     #Start-BitsTransfer -Source $SAS -Destination "\\$ClusterName\ClusterStorage$\$LibraryVolumeName\$SKU.vhd"
-    #download using AzCopy as it's faster than bits transfer. But it cannot be downloaded directly to CSV
+    #download using AzCopy as it's faster than bits transfer
     #https://aka.ms/downloadazcopy-v10-windows\
         # Download the package 
         Start-BitsTransfer -Source "https://aka.ms/downloadazcopy-v10-windows" -Destination "$env:UserProfile\Downloads\AzCopy.zip"
