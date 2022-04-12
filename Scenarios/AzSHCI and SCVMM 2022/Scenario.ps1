@@ -261,7 +261,7 @@
 
         #vSwitch vNICs and vmNICs classifications
             $Classifications=@()
-            $Classifications+=@{PortClassificationName="vNIC mgmt" ; NativePortProfileName="vNIC mgmt" ; Description="Classification for mgmt vNIC"                   ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
+            $Classifications+=@{PortClassificationName="vNIC mgmt" ; NativePortProfileName="vNIC mgmt" ; Description="Classification for Management vNIC"             ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
             $Classifications+=@{PortClassificationName="vNIC RDMA" ; NativePortProfileName="vNIC RDMA" ; Description="Classification for RDMA enabled vNICs (Mode 2)" ; EnableIov=$false ; EnableVrss=$true  ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$true }
             $Classifications+=@{PortClassificationName="vmNIC VMQ" ; NativePortProfileName="vmNIC VMQ" ; Description="Classification for VMQ enabled vmNICs"          ; EnableIov=$false ; EnableVrss=$false ; EnableIPsecOffload=$true  ; EnableVmq=$true  ; EnableRdma=$false}
             
@@ -282,7 +282,7 @@
             $vNICDefinitions=@()
             $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB01"    ; VMSubnetName="SMB01"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB01_IPPool"}
             $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB02"    ; VMSubnetName="SMB02"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB02_IPPool"}
-            $vNICDefinitions+=@{NetAdapterName="Mgmt"       ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
+            $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
 
         #Uplink Port Profile
             $UplinkPPName="Seattle_PP" 
@@ -468,7 +468,7 @@
         $vNICDefinitions=@()
         $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB01"    ; VMSubnetName="SMB01"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB01_IPPool"}
         $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB02"    ; VMSubnetName="SMB02"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB01_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="Mgmt"       ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
     
         foreach ($vmHostName in $vmHostNames){
             $vmHost = Get-SCVMHost -ComputerName $vmHostName
@@ -650,7 +650,7 @@
     $credential = Get-SCRunAsAccount -Name $RunAsAccountName
     $JobGUID=[guid]::NewGuid()
     Add-SCLibraryShare -Description "" -JobGroup $JobGUID -SharePath "\\$LibraryServerName\$LibraryShareName" -UseAlternateDataStream $true #-AddDefaultResources
-    Add-SCLibraryServer -ComputerName $LibraryServerName -Description "" -JobGroup $JobGUID -RunAsynchronously -Credential $credential
+    Add-SCLibraryServer -ComputerName $LibraryServerName -Description "" -JobGroup $JobGUID -Credential $credential
 
     #region add VHDx from Azure Marketplace
         #Install or update Azure packages
@@ -750,7 +750,7 @@
                 }
             }
         #remove resource group
-        Remove-AzResourceGroup -Name $ResourceGroupName -Location $region
+        Remove-AzResourceGroup -Name $ResourceGroupName -Force
 
         #Describe Images
             #refresh library share
@@ -767,10 +767,12 @@
 #endregion
 
 #region add Dell EMC OpenManage Integration for SCVMM https://www.dell.com/support/kbdoc/en-us/000147399/openmanage-integration-suite-for-microsoft-system-center#OMIMSSC-Download
+    #you can explore integration here https://www.dell.com/en-us/dt/product-demos/openmanage-integrations/index.htm?ref=DemoCenter
+
     $LibraryServerName="Library"
     $LibraryShareName="VMMLibrary"
     $LibraryShareLocation = "D:\VMMLibrary"
-    $VMHostName="AzSCVMM1"
+    $VMHostName="AzSVMM1"
     $VMLocation="C:\ClusterStorage\AzSVMM1"
 
     #download VHD
@@ -820,15 +822,33 @@
     Set-SCVirtualHardDiskConfiguration -VHDConfiguration $VHDConfiguration -PinSourceLocation $false -PinDestinationLocation $false -PinFileName $false -StorageQoSPolicy $null -DeploymentOption "UseNetwork"
     Update-SCVMConfiguration -VMConfiguration $virtualMachineConfiguration
     $operatingSystem = Get-SCOperatingSystem | Where-Object { $_.Name -eq "CentOS Linux 7 (64 bit)" }
-    New-SCVirtualMachine -Name "OMIMSSC" -VMConfiguration $virtualMachineConfiguration -Description "" -BlockDynamicOptimization $false -JobGroup $JobGUID -ReturnImmediately -StartAction "NeverAutoTurnOnVM" -StopAction "SaveVM" -OperatingSystem $operatingSystem
+    New-SCVirtualMachine -StartVM -Name "OMIMSSC" -VMConfiguration $virtualMachineConfiguration -Description "" -BlockDynamicOptimization $false -JobGroup $JobGUID -StartAction "NeverAutoTurnOnVM" -StopAction "SaveVM" -OperatingSystem $operatingSystem #-ReturnImmediately
 
+    #remove temporary config, template and profile
+    $virtualMachineConfiguration | Remove-SCVMConfiguration
+    $template | Remove-SCVMTemplate
+    $HardwareProfile | Remove-SCHardwareProfile
 #endregion
 
 #region Configure OMIMSSC (MANUAL Operation)
     #1) start OMIMSSC VM and open console
-    #2) login, and change password. Once done, services will be started
+    #2) login, and change password. Once done, services will be started. Notice the IP Address
     #3) navigate to https://IPAddress/ and validate if OMIMSC is running
-    #4) navigate to https://IPAddress/ and go to SETTINGS -> CONSOLE ENROLLMENT and enroll SCVMM.
-    #5) download extension - in OMIMSSC navigate to downloads and download OMIMSSC console extension for SCVMM
-#endregion
+    #4) navigate to https://IPAddress/ and go to SETTINGS -> CONSOLE ENROLLMENT and enroll SCVMM. It requires creating credentials. Create Windows Credential profile and LabAdmin and corp.contoso.com domain
+    #5) download and install extension - in OMIMSSC navigate to downloads and download OMIMSSC console extension for SCVMM. Install it.
+    #6) after extension is installed, import extension in SCVMM console (Settings -> Import Console Add-in) from C:\Program Files\OMIMSSC\VMM Console Extension
+    #7) check if console extension registration profile contains OMIMMSC IP Address, not localhost.
+        #$IPAddress="10.0.0.20"
+        $mac=(hyper-v\get-vm -CimSession azsvmm1,azsvmm2 -VMName OMIMSSC | Get-VMNetworkAdapter).macaddress
+        $IPAddress=(Get-DhcpServerv4Lease -ScopeID 10.0.0.0 -ClientId $mac).IPAddress.IPAddressToString
+        $profile=Get-SCApplicationProfile -Name "OMIMSSC SCVMM Console Extension Registration Profile"
+        $command = Get-SCScriptCommand -ApplicationProfile $profile | Where-Object { $_.ScriptType -eq "PreInstall" -and $_.DeploymentOrder -eq "1" }
+        if ($command.Parameters -eq "Localhost"){
+            $scriptSetting = Get-SCScriptCommandSetting -ScriptCommand $command
+            Set-SCScriptCommandSetting -ScriptCommandSetting $scriptSetting -WorkingDirectory "" -PersistStandardOutputPath "" -PersistStandardErrorPath "" -MatchStandardOutput "" -MatchStandardError ".+" -MatchExitCode "[1-9][0-9]*" -FailOnMatch -RestartOnRetry $false -MatchRebootExitCode "{1641}|{3010}|{3011}" -RestartScriptOnExitCodeReboot $false -AlwaysReboot $false
+            Set-SCScriptCommand -ScriptCommand $command -ScriptCommandSetting $scriptSetting -CommandParameters $IPAddress -Executable "cmd /c echo" -ScriptType "PreInstall" -TimeoutSeconds 120 -DeploymentOrder "1"
+        }
 
+    #8) disable IE Enhanced Security Configuration for admins
+    #8) navigate to All Hosts in VMs and Services and open IMIMSSC from Ribbon
+#endregion
