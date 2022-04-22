@@ -1284,10 +1284,10 @@
 #region setup FSLogix (based on https://github.com/microsoft/MSLab/blob/master/Scenarios/FSLogix/Scenario.ps1)
     #Grab VHD for FileServer VM and copy it to new library volume
         #Ask for VHD
-        Write-Output "Please select VHD With Windows Server"
+        Write-Output "Please select VHD with Windows Server"
         [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
         $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-            Title="Please select VHD created using CreateVMFleetDisk.ps1"
+            Title="Please select VHD with Windows Server created using CreateParentDisk.ps1"
         }
         $openFile.Filter = "vhdx files (*.vhdx)|*.vhdx|All files (*.*)|*.*" 
         If($openFile.ShowDialog() -eq "OK"){
@@ -1481,7 +1481,7 @@
     $accounts+="corp\Domain Users"
     New-SmbShare -Name $FolderName -Path "D:\Shares\$FolderName" -ReadAccess $accounts -CimSession $FileServerName
     #Set NTFS permissions
-    Invoke-Command -ComputerName $$FileServerName -ScriptBlock {(Get-SmbShare $using:FolderName).PresetPathAcl | Set-Acl}
+    Invoke-Command -ComputerName $FileServerName -ScriptBlock {(Get-SmbShare $using:FolderName).PresetPathAcl | Set-Acl}
 
     #Download MSIX Package
     if (!(Test-Path "$env:USERPROFILE\Downloads\msixmgr\x64\msixmgr.exe")){

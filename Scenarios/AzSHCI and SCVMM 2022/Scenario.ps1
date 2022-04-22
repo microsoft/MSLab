@@ -449,7 +449,7 @@
     #convert external switch to Logical Switch
         Foreach($vmHostName in $vmHostNames){
             # Get Host Network Adapter
-            $networkAdapter = Get-SCVMHostNetworkAdapter -VMHost $vmHostName | Select-Object -first 1
+            $networkAdapter = (Get-SCVirtualNetwork -VMHost $VMHostName).VMHostNetworkAdapters[0]
             # Get Logical Switch
             $logicalSwitch = Get-SCLogicalSwitch -Name $vSwitchName
             # Get Virtual Network
@@ -466,9 +466,9 @@
     #finish configuration
         #little bit more variables
         $vNICDefinitions=@()
-        $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB01"    ; VMSubnetName="SMB01"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB01_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB02"    ; VMSubnetName="SMB02"        ;PortClassificationName="vNIC RDMA"                  ;IPAddressPoolName="SMB01_IPPool"}
-        $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management"     ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB01"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB01"      ; VMSubnetName="SMB01"      ;PortClassificationName="vNIC RDMA" ;IPAddressPoolName="SMB01_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="SMB02"      ; Management=$false ; InheritSettings=$false ; IPv4AddressType="Static" ; VMNetworkName="SMB02"      ; VMSubnetName="SMB02"      ;PortClassificationName="vNIC RDMA" ;IPAddressPoolName="SMB02_IPPool"}
+        $vNICDefinitions+=@{NetAdapterName="Management" ; Management=$true  ; InheritSettings=$true  ; IPv4AddressType="Dynamic"; VMNetworkName="Management" ; VMSubnetName="Management" ;PortClassificationName="vNIC mgmt" ;IPAddressPoolName="Management_IPPool"}
     
         foreach ($vmHostName in $vmHostNames){
             $vmHost = Get-SCVMHost -ComputerName $vmHostName
@@ -808,7 +808,7 @@
     New-SCHardwareProfile -CPUType $CPUType -Name "TemporaryProfile" -Description "Profile used to create a VM/Template" -CPUCount 2 -MemoryMB 2048 -DynamicMemoryEnabled $true -DynamicMemoryMinimumMB 2048 -DynamicMemoryMaximumMB 1048576 -DynamicMemoryBufferPercentage 20 -MemoryWeight 5000 -VirtualVideoAdapterEnabled $false -CPUExpectedUtilizationPercent 20 -DiskIops 0 -CPUMaximumPercent 100 -CPUReserve 0 -NumaIsolationRequired $false -NetworkUtilizationMbps 0 -CPURelativeWeight 100 -HighlyAvailable $true -HAVMPriority 2000 -DRProtectionRequired $false -CPULimitFunctionality $false -CPULimitForMigration $false -CheckpointType Production -Generation 1 -JobGroup $JobGUID
     $VirtualHardDisk = Get-SCVirtualHardDisk | where-object {$_.Location -eq "\\library.corp.contoso.com\VMMLibrary\VHDs\OMIMSSC_v7.3.0_for_VMM_and_ConfigMgr.vhdx"}
     New-SCVirtualDiskDrive -IDE -Bus 0 -LUN 0 -JobGroup $JobGUID -CreateDiffDisk $false -VirtualHardDisk $VirtualHardDisk -FileName "OMIMSSC_OMIMSSC_v7.3.0_for_VMM_and_ConfigMgr.vhdx" -VolumeType BootAndSystem 
-    $HardwareProfile = Get-SCHardwareProfile -VMMServer localhost | Where-Object {$_.Name -eq "TemporaryProfile"}
+    $HardwareProfile = Get-SCHardwareProfile | Where-Object {$_.Name -eq "TemporaryProfile"}
     New-SCVMTemplate -Name "TemporaryTemplate" -EnableNestedVirtualization $false -Generation 1 -HardwareProfile $HardwareProfile -JobGroup $JobGUID -NoCustomization 
     $template = Get-SCVMTemplate -All | Where-Object { $_.Name -eq "TemporaryTemplate" }
     $virtualMachineConfiguration = New-SCVMConfiguration -VMTemplate $template -Name "OMIMSSC"
@@ -838,9 +838,10 @@
     #5) download and install extension - in OMIMSSC navigate to downloads and download OMIMSSC console extension for SCVMM. Install it.
     #6) after extension is installed, import extension in SCVMM console (Settings -> Import Console Add-in) from C:\Program Files\OMIMSSC\VMM Console Extension
     #7) check if console extension registration profile contains OMIMMSC IP Address, not localhost.
+
         #$IPAddress="10.0.0.20"
         $mac=(hyper-v\get-vm -CimSession azsvmm1,azsvmm2 -VMName OMIMSSC | Get-VMNetworkAdapter).macaddress
-        $IPAddress=(Get-DhcpServerv4Lease -ScopeID 10.0.0.0 -ClientId $mac).IPAddress.IPAddressToString
+        $IPAddress=(Get-DhcpServerv4Lease -ScopeID 10.0.0.0 -ClientId $mac -computername DC).IPAddress.IPAddressToString
         $profile=Get-SCApplicationProfile -Name "OMIMSSC SCVMM Console Extension Registration Profile"
         $command = Get-SCScriptCommand -ApplicationProfile $profile | Where-Object { $_.ScriptType -eq "PreInstall" -and $_.DeploymentOrder -eq "1" }
         if ($command.Parameters -eq "Localhost"){
@@ -850,5 +851,5 @@
         }
 
     #8) disable IE Enhanced Security Configuration for admins
-    #8) navigate to All Hosts in VMs and Services and open IMIMSSC from Ribbon
+    #9) navigate to All Hosts in VMs and Services and open IMIMSSC from Ribbon
 #endregion

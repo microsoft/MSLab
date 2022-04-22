@@ -176,7 +176,7 @@
     }
 
     #Import Operating System
-    $ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_20348.288_en-us.iso" -PassThru
+    $ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_20348.587_en-us.iso" -PassThru
     $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
     Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Azure Stack HCI SERVERAZURESTACKHCICORE x64" -Verbose
 
