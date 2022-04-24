@@ -1116,7 +1116,39 @@
         Set-ADComputer -Identity $computerObject -PrincipalsAllowedToDelegateToAccount $gatewayObject
     }
 
-    #Install Edge
+    #update installed extensions
+    #https://docs.microsoft.com/en-us/windows-server/manage/windows-admin-center/configure/use-powershell
+        #Copy Posh Modules from wacgw
+        $Session=New-PSSession -ComputerName $WACGateway
+        Copy-Item -Path "C:\Program Files\Windows Admin Center\PowerShell\" -Destination "C:\Program Files\Windows Admin Center\PowerShell\" -Recurse -FromSession $Session
+        $Session | Remove-PSSession
+
+        #Import Posh Modules
+        $Items=Get-ChildItem -Path "C:\Program Files\Windows Admin Center\PowerShell\Modules" -Recurse | Where-Object Extension -eq ".psm1"
+        foreach ($Item in $Items){
+            Import-Module $Item.fullName
+        }
+
+        #list commands
+        Get-Command -Module ExtensionTools
+
+        #grab installed extensions 
+        $InstalledExtensions=Get-Extension -GatewayEndpoint $WACGateway  | Where-Object status -eq Installed
+        $ExtensionsToUpdate=$InstalledExtensions | Where-Object IsLatestVersion -eq $False
+
+        foreach ($Extension in $ExtensionsToUpdate){
+            Update-Extension -GatewayEndpoint https://$wacgateway -ExtensionId $Extension.ID
+        }
+
+    #Install OpenManage extension and increase MaxEvenlope size
+        if ($DellHW){
+            Install-Extension -GatewayEndpoint https://$wacgateway -ExtensionId dell-emc.openmanage-integration
+            Invoke-Command -ComputerName $Servers -ScriptBlock {
+                Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096
+            }
+        }
+
+    #Install Edge if not available on system
     if (-not (test-path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")){
         Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
         #start install
