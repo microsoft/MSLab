@@ -327,14 +327,14 @@
 
         #deploy control plane and export kube config
         az arcappliance deploy hci --config-file  \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml --outfile $env:USERPROFILE\.kube\config
-        #create connection to Azure (will throw error, dont worry! It's being deployed on background)
+        #create connection to Azure (might throw error, dont worry! It's being deployed on background)
         az arcappliance create hci --config-file  \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml --kubeconfig $env:USERPROFILE\.kube\config
 
-    #wait until appliance is running 
+    #wait until appliance is running
         do {
-            $Status=az arcappliance show --resource-group $HCIResourceGroupName --name $BridgeResourceName | ConvertFrom-Json
-            Write-Output "Waiting for Appliance to be running"
-            Start-Sleep 5
+            $Status=az arcappliance show --only-show-errors --resource-group $HCIResourceGroupName --name $BridgeResourceName | ConvertFrom-Json
+            Write-Host -NoNewline -Object "."
+            Start-Sleep 2
         } until ($status.status -match "Running")
 
     #verify if appliance is running
