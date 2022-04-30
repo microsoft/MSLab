@@ -296,10 +296,10 @@
     $ClusterName="Arc-Cluster"
 
     #register cluster to Azure
-        #download Azure module
+        #download Azure module (intentionally download "broken" version to demo troubleshooting)
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
         if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
-            Install-Module -Name Az.StackHCI -Force
+            Install-Module -Name Az.StackHCI -Force -RequiredVersion "1.0.0"
         }
 
         #login to azure
