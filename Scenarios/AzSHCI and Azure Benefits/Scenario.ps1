@@ -168,7 +168,7 @@ $VMs+=@{VMName="WS2022AzCore02"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true
         }
         $OSInfo | Select-Object PSComputerName,CurrentBuildNumber,DisplayVersion,UBR
 
-        if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+        if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuild -ge 20348){
             Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
         }
         #All nodes has to be at least 12b update (UBR 405 on 21H2)
@@ -232,7 +232,7 @@ $VMs+=@{VMName="WS2022AzCore02"   ; MemoryStartupBytes=1GB ; DynamicMemory=$true
         $OSInfo=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
             Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
         }
-        if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuildNumber -ge 20348){
+        if ($OSInfo.productname -eq "Azure Stack HCI" -and $OSInfo.CurrentBuild -ge 20348){
             Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -ProvisioningTypeDefault Thin
         }
         #validate pool setting
