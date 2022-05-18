@@ -1,6 +1,6 @@
 #region download MSCatalog module
-Write-Output "Checking if MSCatalog PS Module is Installed"
-if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore).version -ne ((Find-Module mscatalog).version)){
+Write-Output "Checking if latest MSCatalog PS Module is Installed"
+if ((Get-InstalledModule -Name MSCatalog -ErrorAction Ignore).version -ne ((Find-Module mscatalog).version)){
     # Verify Running as Admin
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
     If (!( $isAdmin )) {
@@ -25,13 +25,15 @@ if ($version.Minor -eq 27){
     #patch
     $ContentNew=$Content.Replace($Regex1,$Regex2)
     if (Compare-Object $ContentNew $Content){
+        Write-Output "Current version of MSCatalog needs to be patched"
         # Verify Running as Admin
         $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
         If (!( $isAdmin )) {
-            Write-Host "-- Restarting as Administrator to install Modules" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+            Write-Host "-- Restarting as Administrator to patch MSCatalog module" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
             Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
             exit
         }
+        Write-Output "Writing new Get-UpdateLinks.ps1 content"
         $ContentNew | Out-File "C:\Program Files\WindowsPowerShell\Modules\MSCatalog\$version\Private\Get-UpdateLinks.ps1"
     }
 }
