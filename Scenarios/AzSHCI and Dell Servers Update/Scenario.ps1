@@ -54,8 +54,11 @@
 
         #upload DSU to servers
         $Sessions=New-PSSession -ComputerName $Nodes
+        Invoke-Command -Session $Sessions -ScriptBlock {
+            if (-not (Test-Path $using:DSUDownloadFolder -ErrorAction Ignore)){New-Item -Path $using:DSUDownloadFolder -ItemType Directory}
+        }
         foreach ($Session in $Sessions){
-            Copy-Item -Path $DSUDownloadFolder -Destination $DSUDownloadFolder -ToSession $Session -Recurse -Force
+            Copy-Item -Path "$DSUDownloadFolder\DSU.exe" -Destination "$DSUDownloadFolder" -ToSession $Session -Force -Recurse
         }
         $Sessions | Remove-PSSession
         #install DSU
