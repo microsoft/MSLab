@@ -1,6 +1,6 @@
 #region download MSCatalog module
-Write-Output "Checking if MSCatalog PS Module is Installed"
-if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
+Write-Output "Checking if latest MSCatalog PS Module is Installed"
+if ((Get-InstalledModule -Name MSCatalog -ErrorAction Ignore).version -ne ((Find-Module mscatalog).version)){
     # Verify Running as Admin
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
     If (!( $isAdmin )) {
@@ -12,6 +12,31 @@ if (!(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore)){
     Install-Module -Name MSCatalog -Force
 }
 #endregion
+
+#patch MSCatalog https://github.com/ryan-jan/MSCatalog/pull/16/commits/7785b061103f0eaa7477c151234bc8bb7bb1ff4a
+$version=(Get-InstalledModule -Name MSCatalog -ErrorAction Ignore).version
+if ($version.Minor -eq 27){
+
+    $Content=Get-Content "C:\Program Files\WindowsPowerShell\Modules\MSCatalog\$version\Private\Get-UpdateLinks.ps1"
+
+    $Regex1 = "(http[s]?\://dl\.delivery\.mp\.microsoft\.com\/[^\'\`"`"]*)|(http[s]?\://download\.windowsupdate\.com\/[^\'\`"`"]*)"
+    $Regex2 = "(http[s]?\:\/\/dl\.delivery\.mp\.microsoft\.com\/[^\'\`"`"]*)|(http[s]?\:\/\/.+download\.windowsupdate\.com\/[^\'\`"`"]*)"
+
+    #patch
+    $ContentNew=$Content.Replace($Regex1,$Regex2)
+    if (Compare-Object $ContentNew $Content){
+        Write-Output "Current version of MSCatalog needs to be patched"
+        # Verify Running as Admin
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+        If (!( $isAdmin )) {
+            Write-Host "-- Restarting as Administrator to patch MSCatalog module" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
+            Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+            exit
+        }
+        Write-Output "Writing new Get-UpdateLinks.ps1 content"
+        $ContentNew | Out-File "C:\Program Files\WindowsPowerShell\Modules\MSCatalog\$version\Private\Get-UpdateLinks.ps1"
+    }
+}
 
 $Products=@()
 $Products+=@{Product="Azure Stack HCI 21H2 and Windows Server 2022" ;SearchString="Cumulative Update for Microsoft server operating system version 21H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 21H2 for x64-based Systems" ; ID="Microsoft Server operating system-21H2"}
