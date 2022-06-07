@@ -749,7 +749,14 @@ If (-not $isAdmin) {
         #configure native VLAN and AllowedVLANs
         WriteInfo "`t Configuring NativeVLAN and AllowedVLANs"
         if ($ManagementSubnetIDs){
-            $AllowedVLANs="$($LabConfig.AllowedVLANs),$(($HighestVLAN+1))-$($HighestVLAN+$($ManagementSubnetIDs.Count))"
+            $number1=$(($HighestVLAN+1))
+            $number2=$($HighestVLAN+$($ManagementSubnetIDs.Count))
+            if ($number1 -eq $number2){
+                $number=$number1
+            }else{
+                $number="$number1-$number2"
+            }
+            $AllowedVLANs="$($LabConfig.AllowedVLANs),$number"
         }else{
             $AllowedVLANs=$($LabConfig.AllowedVLANs)
         }
@@ -1458,7 +1465,7 @@ If (-not $isAdmin) {
             Foreach ($number in $using:ManagementSubnetIDs){
                 $IP="10.0.$number.1"
                 $AdapterName="Subnet$Number"
-                $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq $AdapterName).Name
+                $NetAdapterName=(Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq $AdapterName).Name
                 if (Get-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -ErrorAction Ignore){
                     Write-Output "`t`t Subnet $AdapterName already configured"
                 }else{
@@ -1467,9 +1474,6 @@ If (-not $isAdmin) {
                     #add dhcp scope
                     Write-Output "`t`t Adding DHCP Scope ID 10.0.$number.0 and it's DHCP options"
                     Add-DhcpServerv4Scope -StartRange "10.0.$number.10" -EndRange "10.0.$number.254" -Name "Scope$number" -State Active -SubnetMask 255.255.255.0
-                    Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
-                    Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
-                    Set-DhcpServerv4OptionValue -OptionId 15 -Value "$($using:Labconfig.DomainName)" -ScopeId "10.0.$number.0"
                 }
             }
             #make sure RRAS features are installed
@@ -1484,6 +1488,13 @@ If (-not $isAdmin) {
             #restart routing... just to make sure
             Write-Output "`t`t  Restarting service RemoteAccess"
             Restart-Service RemoteAccess
+
+            #configure DHCP Options
+            Foreach ($number in $using:ManagementSubnetIDs){
+                Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
+                Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
+                Set-DhcpServerv4OptionValue -OptionId 15 -Value "$($using:Labconfig.DomainName)" -ScopeId "10.0.$number.0"
+            }
         }
     }
 
