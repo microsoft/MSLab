@@ -90,6 +90,14 @@
         Copy-Item -Path 'C:\Program Files\WindowsPowerShell\Modules\PrivateCloud.DiagnosticInfo' -Destination 'C:\Program Files\WindowsPowerShell\Modules\' -ToSession $Session -Recurse -Force
     }
 
+    #make sure iDRAC NICs are disabled (since it's same APIPA range like vmfleet adapters, it's better to be disabled as it might disturb results copy from vmfleet VMs)
+    Get-Netadapter -CimSession $Nodes -InterfaceDescription "Remote NDIS Compatible Device" | Disable-NetAdapter -Confirm:0
+
+    #Configure VMFleet cluster network role to be none, and name to be vmfleet
+    $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Name -like *FleetInternal*).Network | Select-Object -Unique
+    $Network.Role="none"
+    $Network.Name="vmfleet"
+
     # Temporarily enable CredSSP delegation to avoid double-hop issue
     foreach ($Node in $Nodes){
         Enable-WSManCredSSP -Role "Client" -DelegateComputer $Node -Force
@@ -106,6 +114,10 @@
     # Disable CredSSP
     Disable-WSManCredSSP -Role Client
     Invoke-Command -ComputerName $nodes -ScriptBlock { Disable-WSManCredSSP Server }
+
+    #re-enable iDRAC NICs
+    Get-Netadapter -CimSession $Nodes -InterfaceDescription "Remote NDIS Compatible Device" | Enable-NetAdapter -Confirm:0
+
 #endregion
 
 #region Remove Fleet
