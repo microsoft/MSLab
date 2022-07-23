@@ -689,6 +689,12 @@ If (-not $isAdmin) {
             $VMTemp | Set-VMProcessor -Count 2
         }
 
+        #Disable Time Integration Components
+        If ($VMConfig.DisableTimeIC){
+            WriteInfo  "`t`t Disabling Time Synchronization Integration Service"
+            $VMTemp | Disable-VMIntegrationService -Name "Time Synchronization"
+        }
+
         $Name=$VMConfig.VMName
         #add run synchronous commands
         WriteInfo "`t Adding Sync Commands"

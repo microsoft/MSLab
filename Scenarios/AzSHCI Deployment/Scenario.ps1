@@ -28,7 +28,7 @@
         <#
         $CloudWitnessStorageAccountName="MyStorageAccountName"
         $CloudWitnessStorageKey="qi8QB/VSHHiA9lSvz1kEIEt0JxIucPL3l99nRHhkp+n1Lpabu4Ydi7Ih192A4VW42vccIgUnrXxxxxxxxxxxxx=="
-        $CloudWitnessEndpoint="core.windows.net“
+        $CloudWitnessEndpoint="core.windows.net"
         #>
 
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
@@ -545,6 +545,11 @@
                 }
             }
 
+        #Configure dcbxmode to be host in charge (default is firmware in charge) on mellanox adapters
+        if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
+            Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
+        }
+
     #configure DCB if requested
         if ($DCB -eq $True){
             #Install DCB
@@ -595,6 +600,8 @@
         Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
         #verify RDMA settings
         Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property Systemname | Format-Table systemname,interfacedescription,name,enabled -AutoSize -GroupBy Systemname
+        #verify DCBXMode
+        Get-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode'
         #validate if VLANs were set
         Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
         #verify ip config 
@@ -1108,6 +1115,7 @@
     Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
 
     #Configure Resource-Based constrained delegation
+    Install-WindowsFeature -Name RSAT-AD-PowerShell
     $gatewayObject = Get-ADComputer -Identity $GatewayServerName
     $computers = (Get-ADComputer -Filter {OperatingSystem -eq "Azure Stack HCI"}).Name
 
