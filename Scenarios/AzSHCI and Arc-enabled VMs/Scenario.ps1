@@ -206,11 +206,15 @@
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module -Name PowershellGet -Force -Confirm:$false -SkipPublisherCheck
     Update-Module -Name PowerShellGet
+
     #to be able to install ArcHci and MOC, powershellget 2.2.5 needs to be used - to this posh restart is needed
     Start-Process -Wait -FilePath PowerShell -ArgumentList {
         Install-Module -Name MOC    -Repository PSGallery -Force -AcceptLicense
-        Install-Module -Name ArcHci -RequiredVersion 0.2.6 -Force -Confirm:$false -SkipPublisherCheck -AcceptLicense
+        Install-Module -Name ArcHci -Force -Confirm:$false -SkipPublisherCheck -AcceptLicense
     }
+
+    #Increase MaxEvenlope and create session to copy files to
+    Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
 
     #distribute modules to cluster nodes
         $ModuleNames="ArcHci","Moc","DownloadSDK"
@@ -316,9 +320,23 @@
         }
     #create arc appliance
         #generate config files
-        Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-            New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "\\$using:ClusterName\ClusterStorage$\$using:VolumeName\workingDir"
-        }
+            #Enable CredSSP
+            # Temporarily enable CredSSP delegation to avoid double-hop issue
+            foreach ($ClusterNodeName in $ClusterNodeNames){
+                Enable-WSManCredSSP -Role "Client" -DelegateComputer $ClusterNodeName -Force
+            }
+            Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+            $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+            $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
+
+            Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "\\$using:ClusterName\ClusterStorage$\$using:VolumeName\workingDir"
+            }
+            # Disable CredSSP
+            Disable-WSManCredSSP -Role Client
+            Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Disable-WSManCredSSP Server }
+
         #prepare
         az arcappliance prepare hci --config-file \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml
 
