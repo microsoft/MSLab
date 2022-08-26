@@ -2,7 +2,8 @@
 
 ## tl;dr
 
-To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository.
+To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository or follow [Dell GEOS hands-on-labs](https://www.geos.to/azslabs).
+
 
 💡 Shortcut to the latest version is https://aka.ms/mslab/download
 
@@ -27,7 +28,8 @@ To start using MSLab just download the latest version of the scripts from the [R
         - [Hands on Labs](#hands-on-labs)
         - [Issue reproduction](#issue-reproduction)
         - [Sessions](#sessions)
-    - [Run in PowerShell Core 7](#run-in-powershell-core-7)
+    - [Run in PowerShell 7](#run-in-powershell-7)
+    - [Linux preview](#linux-preview)
 
 <!-- /TOC -->
 
