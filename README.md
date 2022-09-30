@@ -122,11 +122,13 @@ Set-ItemProperty -Path "HKCR:\Microsoft.PowerShellScript.1\Shell\1\Command" -Nam
 ```
 
 ## Execution Policy
-If your environment enforces running signed PowerShell scripts, scripts in release ZIP archive (starting from September 2022) are signed with our Code signing certificate. Although the code signing certificate is trusted, by design of PowerShell, you might see this warning when running the MSLab scripts as certificates for scripts are in separate certificate store (`Cert:\CurrentUser\TrustedPublisher\`) and explicit decision is required for each certificate:
+If your environment enforces running signed PowerShell scripts, scripts in release ZIP archive (starting from September 2022) are now signed with a code signing certificate. Although the code signing certificate is trusted you might see this warning when running the MSLab scripts:
 ![](Docs/media/mslab-sign-allow.png) 
+This is by design behavior of PowerShell runtime, as certificates for scripts are stored in separate certificate store (`Cert:\CurrentUser\TrustedPublisher\`) and explicit decision is required for each certificate.
 
-The only manual part needed is to sign again `LabConfig.ps1` file if you'd do any change in Lab configuration as initial signature would then be invalid.
+Also please keep in mind that any change to `LabConfig.ps1` file would then require to sign that file again as any change in LabConfig would invalidate initial signature.
 
+To sign `LabConfig.ps1` file you can use this snippet that would select first available Code Signing certificate on your computer:
 ```powershell
 # Get a Code signing certificate from store
 $certificate = Get-ChildItem -Path Cert:\CurrentUser\My\ -CodeSigningCert | Select-Object -First 1
