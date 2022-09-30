@@ -4,15 +4,15 @@ function WriteInfo($message) {
 }
 
 function WriteInfoHighlighted($message) {
-Write-Host $message -ForegroundColor Cyan
+    Write-Host $message -ForegroundColor Cyan
 }
 
 function WriteSuccess($message) {
-Write-Host $message -ForegroundColor Green
+    Write-Host $message -ForegroundColor Green
 }
 
 function WriteError($message) {
-Write-Host $message -ForegroundColor Red
+    Write-Host $message -ForegroundColor Red
 }
 
 function WriteErrorAndExit($message) {
@@ -96,8 +96,8 @@ function Get-TelemetryLevel {
         }
 
         # Environment variable as a fallback
-        if($env:WSLAB_TELEMETRY_LEVEL -and $env:WSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
-            return $env:WSLAB_TELEMETRY_LEVEL
+        if($env:MSLAB_TELEMETRY_LEVEL -and $env:MSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
+            return $env:MSLAB_TELEMETRY_LEVEL
         }
 
         # If nothing is explicitely configured and OptOut flag enabled, explicitely disable telemetry
@@ -127,7 +127,7 @@ function Get-TelemetryLevelSource {
         }
 
         # Environment variable as a fallback
-        if($env:WSLAB_TELEMETRY_LEVEL -and $env:WSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
+        if($env:MSLAB_TELEMETRY_LEVEL -and $env:MSLAB_TELEMETRY_LEVEL -in $acceptedTelemetryLevels) {
             return "Environment"
         }
     }
@@ -323,13 +323,13 @@ function Read-TelemetryLevel {
     process {
         # Ask user for consent
         WriteInfoHighlighted "`nLab telemetry"
-        WriteInfo "By providing a telemetry information you will help us to improve WSLab scripts. There are two levels of a telemetry information and we are not collecting any personally identifiable information (PII)."
-        WriteInfo "Details about telemetry levels and the content of telemetry messages can be found in documentation https://aka.ms/wslab/telemetry"
+        WriteInfo "By providing a telemetry information you will help us to improve MSLab scripts. There are two levels of a telemetry information and we are not collecting any personally identifiable information (PII)."
+        WriteInfo "Details about telemetry levels and the content of telemetry messages can be found in documentation https://aka.ms/mslab/telemetry"
         WriteInfo "Available telemetry levels are:"
         WriteInfo " * None  -- No information will be sent"
         WriteInfo " * Basic -- Information about lab will be sent (e.g. script execution time, number of VMs, guest OSes)"
         WriteInfo " * Full  -- Information about lab and the host machine (e.g. type of disk)"
-        WriteInfo "Would you be OK with providing an information about your WSLab usage?"
+        WriteInfo "Would you be OK with providing an information about your MSLab usage?"
         WriteInfo "`nTip: You can also configure telemetry settings explicitly in LabConfig.ps1 file or by setting an environmental variable and suppress this prompt."
 
         $options = [System.Management.Automation.Host.ChoiceDescription[]] @(
@@ -337,7 +337,7 @@ function Read-TelemetryLevel {
           <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Basic", "Lab info will be sent (e.g. script execution time, number of VMs)"
           <# 2 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Full", "More details about the host machine and deployed VMs (e.g. guest OS)"
         )
-        $response = $host.UI.PromptForChoice("WSLab telemetry level", "Please choose a telemetry level for this WSLab instance. For more details please see WSLab documentation.", $options, 1 <#default option#>)
+        $response = $host.UI.PromptForChoice("MSLab telemetry level", "Please choose a telemetry level for this MSLab instance. For more details please see MSLab documentation.", $options, 1 <#default option#>)
 
         $telemetryLevel = $null
         switch($response) {
