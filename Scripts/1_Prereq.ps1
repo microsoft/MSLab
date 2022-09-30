@@ -42,11 +42,11 @@ function  Get-WindowsBuildNumber {
     }
 
 #define some variables if it does not exist in labconfig
-    If (!$LabConfig.DomainNetbiosName){
+    If (!$LabConfig.DomainNetbiosName) {
         $LabConfig.DomainNetbiosName="Corp"
     }
 
-    If (!$LabConfig.DomainName){
+    If (!$LabConfig.DomainName) {
         $LabConfig.DomainName="Corp.contoso.com"
     }
 
