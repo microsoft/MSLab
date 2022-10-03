@@ -161,6 +161,9 @@ If (-not $isAdmin) {
                     20348 {
                         "AzSHCI21H2_G2.vhdx"
                     }
+                    22621 {
+                        "AzSHCI22H2_G2.vhdx"
+                    }
                 }
                 if ($BuildNumber -GT 20348){
                     $tempvhdname="AzSHCIInsider_$BuildNumber.vhdx"
@@ -296,8 +299,11 @@ If (-not $isAdmin) {
                     22000 {
                         "Win1121H2_G2.vhdx"
                     }
+                    22621 {
+                        "Win1122H2_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 22000){
+                if ($BuildNumber -GT 22621){
                     $tempvhdname="Win11Insider_$BuildNumber.vhdx"
                 }
             }
