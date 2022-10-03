@@ -1,12 +1,21 @@
+[CmdletBinding(DefaultParameterSetName = 'BuildOnly')]
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$Version
+    [Parameter(Mandatory = $true, ParameterSetName = 'BuildOnly')]
+    [Parameter(Mandatory = $true, ParameterSetName = 'BuildAndSign')]
+    [string]$Version,
+    [Parameter(Mandatory = $false, ParameterSetName = 'BuildAndSign')]
+    [bool]$SignScripts = $false,
+    [Parameter(Mandatory = $true, ParameterSetName = 'BuildAndSign')]
+    [string]$SignScriptUri,
+    [Parameter(Mandatory = $true, ParameterSetName = 'BuildAndSign')]
+    [string]$ClientId
 )
 
 $baseDir = ".\Scripts\"
 $outputDir = ".\Output"
 $outputFile = "Release.zip"
 [array]$ignoredFiles = "0_Shared.ps1"
+[array]$ignoredFilesToSign = @() #"LabConfig.ps1"
 
 if(Test-Path -Path $outputDir) {
     Remove-Item -Path $outputDir -Recurse -Force
@@ -51,4 +60,34 @@ foreach($file in $files) {
     Set-Content -Path $outFile -Value $output
 }
 
-Compress-Archive -Path "$($releaseDirectory.FullName)\*" -DestinationPath $outputFile -CompressionLevel Optimal -Force
+$outputFullPath = $releaseDirectory.FullName
+
+if($SignScripts) {
+    # Download signing script
+    Invoke-WebRequest -Uri $SignScriptUri -OutFile .\sign.ps1
+
+    . .\sign.ps1
+
+    $signedOutputDir = "$($outputDir)\Signed"
+    if(Test-Path -Path $signedOutputDir) {
+        Remove-Item -Path $signedOutputDir -Recurse -Force
+    }
+
+    $signedReleaseDirectory = New-Item -ItemType "Directory" -Path ".\" -Name $signedOutputDir
+    $files = Get-ChildItem -Path $releaseDirectory -File | Where-Object Name -NotIn $ignoredFilesToSign 
+
+    # sign scripts
+    Invoke-CodeSign -Files $files -OutputPath $signedReleaseDirectory -ClientId $ClientId
+
+    $signedFiles = Get-ChildItem -Path $signedReleaseDirectory.FullName
+    if($files.Length -ne $signedFiles.Length) {
+        throw "Signing files failed (source count: $($files.Length), signedCount: $($signedFiles.Length))"
+    }
+
+    # and copy scripts that are ignored from signing
+    Get-ChildItem -Path $releaseDirectory -File | Where-Object Name -In $ignoredFilesToSign | Copy-Item -Destination $signedReleaseDirectory.FullName
+
+    $outputFullPath = $signedReleaseDirectory.FullName
+}
+
+Compress-Archive -Path "$($outputFullPath)\*" -DestinationPath $outputFile -CompressionLevel Optimal -Force

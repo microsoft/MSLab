@@ -42,11 +42,11 @@ function  Get-WindowsBuildNumber {
     }
 
 #define some variables if it does not exist in labconfig
-    If (!$LabConfig.DomainNetbiosName){
+    If (!$LabConfig.DomainNetbiosName) {
         $LabConfig.DomainNetbiosName="Corp"
     }
 
-    If (!$LabConfig.DomainName){
+    If (!$LabConfig.DomainName) {
         $LabConfig.DomainName="Corp.contoso.com"
     }
 
@@ -308,6 +308,10 @@ if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
 
 # finishing 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
+
 Stop-Transcript
-WriteSuccess "Press enter to continue..."
-Read-Host | Out-Null
+
+If (!$LabConfig.AutoClosePSWindows) {
+    WriteSuccess "Press enter to continue..."
+    Read-Host | Out-Null
+}
