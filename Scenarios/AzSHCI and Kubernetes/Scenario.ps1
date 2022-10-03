@@ -31,36 +31,40 @@ Foreach ($VM in $VMs){
 # LabConfig
 $Servers="AksHCI1","AksHCI2"
 $ClusterName="AksHCI-Cluster"
+$windowsupdate=$false
 
 # Install features for management on server
 Install-WindowsFeature -Name RSAT-DHCP,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
-# Update servers
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
-    Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
-} -ErrorAction Ignore
-# Run Windows Update via ComObject.
-Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
-    $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-    $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
-                            IsPresent=1 and DeploymentAction='Uninstallation' or
-                            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
-    $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-    $Session = New-Object -ComObject Microsoft.Update.Session
-    $Downloader = $Session.CreateUpdateDownloader()
-    $Downloader.Updates = $SearchResult
-    $Downloader.Download()
-    $Installer = New-Object -ComObject Microsoft.Update.Installer
-    $Installer.Updates = $SearchResult
-    $Result = $Installer.Install()
-    $Result
-}
-#remove temporary PSsession config
-Invoke-Command -ComputerName $servers -ScriptBlock {
-    Unregister-PSSessionConfiguration -Name 'VirtualAccount'
-    Remove-Item -Path $env:TEMP\VirtualAccount.pssc
+#update servers if requested
+if ($windowsupdate){
+    # Update servers
+    Invoke-Command -ComputerName $servers -ScriptBlock {
+        New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+        Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+    } -ErrorAction Ignore
+    # Run Windows Update via ComObject.
+    Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+        $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+        $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                                IsPresent=1 and DeploymentAction='Uninstallation' or
+                                IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+        $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+        $Session = New-Object -ComObject Microsoft.Update.Session
+        $Downloader = $Session.CreateUpdateDownloader()
+        $Downloader.Updates = $SearchResult
+        $Downloader.Download()
+        $Installer = New-Object -ComObject Microsoft.Update.Installer
+        $Installer.Updates = $SearchResult
+        $Result = $Installer.Install()
+        $Result
+    }
+    #remove temporary PSsession config
+    Invoke-Command -ComputerName $servers -ScriptBlock {
+        Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+        Remove-Item -Path $env:TEMP\VirtualAccount.pssc
+    }
 }
 
 # Update servers with all updates (including preview)
@@ -740,6 +744,31 @@ kubectl -n azure-arc get deployments,pods
 
 #endregion
 
+#region deploy Open Service Mesh extension https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/tutorial-arc-enabled-open-service-mesh
+    $ClusterName="AksHCI-Cluster"
+    $resourcegroup="$ClusterName-rg"
+    $KubernetesClusterName="demo"
+
+    $ExtensionName="openservicemesh-ext"
+
+    #register provider
+    $Provider="Microsoft.Kubernetes"
+    Register-AzResourceProvider -ProviderNamespace $Provider
+    #wait for provider to finish registration
+    do {
+        $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+        Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+        Start-Sleep 1
+    } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+
+    #deploy extension
+    az k8s-extension create --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --extension-type Microsoft.openservicemesh --name $ExtensionName
+
+    #validate deployment (show azurepolicy extension)
+    az k8s-extension show --name $ExtensionName --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters | ConvertFrom-Json
+
+#endregion
+
 #region create Arc app service extension
 #https://docs.microsoft.com/en-us/azure/app-service/manage-create-arc-environment?tabs=powershell
 #looks like exstension fails https://github.com/Azure/azure-cli-extensions/issues/3661
@@ -915,6 +944,9 @@ $StorageContainerName="AKSStorageContainer"
 $StorageContainerPath="c:\ClusterStorage\AKSContainer"
 $StorageContainerVolumeName=$StorageContainerPath | Split-Path -Leaf
 $StorageContainerSize=1TB
+
+#add kubectl to system environment variable, so it can be run by simply typing kubectl
+[System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
 
     #Create volume for AKS if does not exist
     if (-not (Get-Volume -FriendlyName $StorageContainerVolumeName -CimSession $ClusterName -ErrorAction SilentlyContinue)) {

@@ -46,6 +46,8 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         Linux=$false;                                # (Optional) If set to $true, required prerequisities for building Linux images with Packer will be configured.
         LinuxAdminName="linuxadmin";                 # (Optional) If set, local user account with that name will be created in Linux image. If not, DomainAdminName will be used as a local account.
         SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa" # (Optional) If set, specified SSH key will be used to build and access Linux images.
+        AutoClosePSWindows=$false;                   # (Optional) If set, the PowerShell console windows will automatically close once the script has completed successfully. Best suited for use in automated deployments.
+        AutoCleanUp=$false;                          # (Optional) If set, after creating initial parent disks, files that are no longer necessary will be cleaned up. Best suited for use in automated deployments.
         AdditionalNetworksConfig=@();                # Just empty array for config below
         VMs=@();                                     # Just empty array for config below
     }
@@ -206,6 +208,15 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     SshKeyPath (optional)
         Example: SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa"
         If configured, existing SSH key will be used for building and connecting to Linux images. If not, 0_Prereq.ps1 will generate a new SSH key pair and store it locally in LAB folder.
+
+    AutoStartAfterDeploy (optional)
+        Example: AutoClosePSWindows=$true
+        If set to true, the PowerShell console windows will automatically close once the script has completed successfully. Best suited for use in automated deployments.
+
+    AutoCleanup (optional)
+        Example: AutoCleanUp=$true
+        If set to true, after creating initial parent disks, files that are no longer necessary will be cleaned up. Best suited for use in automated deployments.
+
     #>
 #endregion
 
