@@ -208,6 +208,15 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     SshKeyPath (optional)
         Example: SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa"
         If configured, existing SSH key will be used for building and connecting to Linux images. If not, 0_Prereq.ps1 will generate a new SSH key pair and store it locally in LAB folder.
+
+    AutoStartAfterDeploy (optional)
+        Example: AutoClosePSWindows=$true
+        If set to true, the PowerShell console windows will automatically close once the script has completed successfully. Best suited for use in automated deployments.
+
+    AutoCleanup (optional)
+        Example: AutoCleanUp=$true
+        If set to true, after creating initial parent disks, files that are no longer necessary will be cleaned up. Best suited for use in automated deployments.
+
     #>
 #endregion
 
