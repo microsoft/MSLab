@@ -1120,13 +1120,7 @@ If (-not $isAdmin) {
         <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Cleanup .\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy.ps1 to just deploy.ps1"
         <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Keep files (in case DC was not created sucessfully)"
     )
-    
-    If (!$LabConfig.AutoCleanUp) {
-        $response = $host.UI.PromptForChoice("Unnecessary files cleanup","Do you want to cleanup unnecessary files and folders?", $options, 0 <#default option#>)
-    }
-    else {
-        $response = 0
-    }
+    $response = $host.UI.PromptForChoice("Unnecessary files cleanup","Do you want to cleanup unnecessary files and folders?", $options, 0 <#default option#>)
 
     If ($response -eq 1){
         $renamed = $false
@@ -1207,11 +1201,8 @@ If (-not $isAdmin) {
         Send-TelemetryEvents -Events $events | Out-Null
     }
 
-Stop-Transcript
-
-If (!$LabConfig.AutoClosePSWindows) {
+    Stop-Transcript
     WriteSuccess "Job Done. Press enter to continue..."
     Read-Host | Out-Null
-}
 
 #endregion

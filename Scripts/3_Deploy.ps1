@@ -1808,13 +1808,11 @@ If (-not $isAdmin) {
         Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
     }
 
-#write how much it took to deploy
-WriteInfo "Script finished at $CheckPointTime and took $(($CheckPointTime - $StartDateTime).TotalMinutes) Minutes"
+    #write how much it took to deploy
+        WriteInfo "Script finished at $CheckPointTime and took $(($CheckPointTime - $StartDateTime).TotalMinutes) Minutes"
 
-Stop-Transcript
+    Stop-Transcript
 
-If (!$LabConfig.AutoClosePSWindows) {
-    WriteSuccess "Press enter to continue..."
+    WriteSuccess "Press enter to continue ..."
     Read-Host | Out-Null
-}
 #endregion

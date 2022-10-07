@@ -13,7 +13,7 @@
 
     $ManagedDiskName = "AVD_OS_Disk_Windows11_m365"
     $Offer="windows11preview"
-    $SKU="win11-22h2-avd-m365"
+    $SKU="win11-21h2-avd-m365"
 
     #Install Azure packages
         Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -1440,12 +1440,12 @@
         $OUPath="ou=workshop,dc=corp,dc=contoso,dc=com"
         $names=(Get-ChildItem -Path "$env:UserProfile\Downloads\WVDBackups" -Filter *.htm).BaseName
         foreach ($name in $names) {
-            #create GPO and import to OU (uncomment if needed)
-            New-GPO -Name $name #| New-GPLink -Target $OUPath
-            Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
+            New-GPO -Name $name  | New-GPLink -Target $OUPath
+            #Import-GPO -BackupGpoName $name -TargetName $name -path "$env:UserProfile\Downloads\WVDBackups"
         }
 
-    #update FSLogix (if not needed, installer will gratefully shut down)
+    #install FSLogix to session hosts (not needed, since in 21H2 agent is already present)
+    <#
         #create sessions
         $Sessions=New-PSSession -ComputerName $VMs.VMName
         foreach ($session in $Sessions){
@@ -1459,7 +1459,8 @@
         }
 
     #reboot machines
-        #Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+        Restart-Computer -ComputerName $VMs.VMName -Protocol WSMan -Wait -For PowerShell
+    #>
 
     #Create users with password LS1setup!
         New-ADUser -Name JohnDoe -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path  "ou=workshop,dc=corp,dc=contoso,dc=com"
@@ -1564,7 +1565,7 @@
     Remove-AzResourceGroup -Name $AVDResourceGroupName -Force
 #remove Azure Service Principal
     $SP=Get-AzADServicePrincipal -DisplayName "Arc-for-servers"
-    Remove-AzADServicePrincipal -ObjectId $SP.Id
+    Remove-AzADServicePrincipal -ObjectId $SP.Id -Force
 #remove VMs
     foreach ($VM in $VMs){
         $VMObject=Get-VM -CimSession (Get-ClusterNode -Cluster $ClusterName).Name -Name $VM.VMName -ErrorAction Ignore

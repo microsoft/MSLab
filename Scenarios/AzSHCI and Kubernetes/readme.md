@@ -21,19 +21,16 @@ https://aka.ms/AKSonHCI-Docs
 Note: please download latest [WSLab](https://aka.ms/wslab/download) as there is new VMProcessorCount value Max, that will configure maximum available LP to VMs.
 
 ```PowerShell
-$LabConfig=@{ManagementSubnetIDs=0..1 ; DomainAdminName='LabAdmin'; AdminPassword='LS1setup!' ; Prefix = 'MSLab-' ; DCEdition='4'; Internet=$true ; TelemetryLevel='Full' ; TelemetryNickname='' ; AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!' ; <#Prefix = 'WSLab-'#> ; DCEdition='4'; Internet=$true ; TelemetryLevel='Full' ; TelemetryNickname='' ; AdditionalNetworksConfig=@(); VMs=@()}
 
 #2 nodes for AzSHCI Cluster
-1..2 | ForEach-Object {$VMNames="AksHCI" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI21H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 24GB; VMProcessorCount="Max" ; NestedVirt=$true ; VirtualTPM=$true}}
+1..2 | ForEach-Object {$VMNames="AzSHCI" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI20H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 24GB; VMProcessorCount="Max" ; NestedVirt=$true}}
 
-#or 2 nodes for Windows Server 2022
-#1..2 | ForEach-Object {$VMNames="AksHCI" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2022Core_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 4TB ; MemoryStartupBytes= 24GB; VMProcessorCount="Max" ; NestedVirt=$true ; VirtualTPM=$true}}
+#Windows 10 management machine (for Windows Admin Center)
+$LabConfig.VMs += @{ VMName = 'Win10'; ParentVHD = 'Win1020H1_G2.vhdx' ; AddToolsVHD = $True ; MGMTNICs=1 }
 
 #Windows Admin Center gateway
-#$LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2022Core_G2.vhdx' ; MGMTNICs=1 }
-
-#Management machine
-$LabConfig.VMs += @{ VMName = 'Management' ; ParentVHD = 'Win2022_G2.vhdx' ; MGMTNICs=1 }
+#$LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2019Core_G2.vhdx' ; MGMTNICs=1 }
  
 ```
 

@@ -308,10 +308,6 @@ if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
 
 # finishing 
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
-
 Stop-Transcript
-
-If (!$LabConfig.AutoClosePSWindows) {
-    WriteSuccess "Press enter to continue..."
-    Read-Host | Out-Null
-}
+WriteSuccess "Press enter to continue..."
+Read-Host | Out-Null
