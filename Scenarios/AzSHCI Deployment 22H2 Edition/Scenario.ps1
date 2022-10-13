@@ -1,7 +1,6 @@
-#region LAB Config
-
+#region Variables
     #servers list
-    $Servers="AzSHCI1","AzSHCI2","AzSHCI","AzSHCI4"
+    $Servers="AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
     #alternatively you can generate server names
         #$Servers=1..4 | ForEach-Object {"AzSHCI$_"}
 
@@ -36,25 +35,17 @@
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
         $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
-    #Memory dump type (Active or Kernel) https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
-        $MemoryDump="Active"
-
     #Delete Storage Pool (like after reinstall there might be data left from old cluster)
         $DeletePool=$false
 
 #endregion
 
 #region validate servers connectivity with Azure Stack HCI Environment Checker https://www.powershellgallery.com/packages/AzStackHci.EnvironmentChecker
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-    Install-Module -Name PowershellGet -Force -Confirm:$false -SkipPublisherCheck
-    Update-Module -Name PowerShellGet
+    Install-PackageProvider -Name NuGet -Force
+    Install-Module -Name AzStackHci.EnvironmentChecker -Force
 
-    #to be able to install AzStackHci.EnvironmentChecker, powershellget 2.2.5 needs to be used - to this posh restart is needed
-    Start-Process -Wait -FilePath PowerShell -ArgumentList {
-        Install-Module -Name AzStackHci.EnvironmentChecker -AllowPrerelease -Force
-    }
-
-    Invoke-AzStackHciConnectivityValidation -ComputerName $Servers
+    $PSSessions=New-PSSession $Servers
+    Invoke-AzStackHciConnectivityValidation -PsSession $PSSessions
 #endregion
 
 #region Update all servers (2022 and 21H2+ systems, for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
@@ -152,7 +143,7 @@ if ($WindowsUpdate -eq "Recommended"){
 #endregion
 
 #region configure OS settings
-    #Configure Active memory dump
+    #Configure Active memory dump https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/varieties-of-kernel-mode-dump-files
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name CrashDumpEnabled -value 1
         Set-ItemProperty -Path HKLM:\System\CurrentControlSet\Control\CrashControl -Name FilterPages -value 1
