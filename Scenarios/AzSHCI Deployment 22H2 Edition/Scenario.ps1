@@ -8,7 +8,7 @@
     $ClusterName="AzSHCI-Cluster"
 
     #Cluster-Aware-Updating role name
-    $CAURoleName="" #if empty, CAU will not be installed
+    $CAURoleName="AzSHCI-Cl-CAU" #if empty, CAU will not be installed
 
     #Cluster IP
     $ClusterIP="" #If blank (you can write just $ClusterIP="", DHCP will be used). If $DistributedManagementPoint is true, then IP is not used
@@ -16,27 +16,27 @@
     #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS). If $ClusterIP is set, then $clusterIP will be ignored).
     $DistributedManagementPoint=$false
 
-    #Windows Update
-    $WindowsUpdate="Recommended" #or blank, or all (all = including preview)
+    #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
+    $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
     #Dell updates
     $DellUpdates=$true
 
     #Witness type
-        $WitnessType="FileShare" #or Cloud
-        $WitnessServer="DC" #name of server where witness will be configured
-        #if cloud then configure following (use your own, these are just examples)
-        <#
-        $CloudWitnessStorageAccountName="MyStorageAccountName"
-        $CloudWitnessStorageKey="qi8QB/VSHHiA9lSvz1kEIEt0JxIucPL3l99nRHhkp+n1Lpabu4Ydi7Ih192A4VW42vccIgUnrXxxxxxxxxxxxx=="
-        $CloudWitnessEndpoint="core.windows.net"
-        #>
+    $WitnessType="FileShare" #or Cloud
+    $WitnessServer="DC" #name of server where witness will be configured
+    #if cloud then configure following (use your own, these are just examples)
+    <#
+    $CloudWitnessStorageAccountName="MyStorageAccountName"
+    $CloudWitnessStorageKey="qi8QB/VSHHiA9lSvz1kEIEt0JxIucPL3l99nRHhkp+n1Lpabu4Ydi7Ih192A4VW42vccIgUnrXxxxxxxxxxxxx=="
+    $CloudWitnessEndpoint="core.windows.net"
+    #>
 
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
-        $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
+    $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
     #Delete Storage Pool (like after reinstall there might be data left from old cluster)
-        $DeletePool=$false
+    $DeletePool=$false
 
 #endregion
 
@@ -55,12 +55,9 @@
         Get-ItemProperty -Path $using:RegistryPath
     }
     $ComputersInfo | Select-Object PSComputerName,CurrentBuildNumber,UBR
-    
 
-if ($WindowsUpdate -eq "Recommended"){
-    $CurrentBuildNumber=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
-        Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
-    }
+    #Update servers
+    if ($WindowsUpdate -eq "Recommended"){
         #Create virtual account to be able to run command without credssp
         Invoke-Command -ComputerName $servers -ScriptBlock {
             New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
@@ -90,38 +87,38 @@ if ($WindowsUpdate -eq "Recommended"){
             Unregister-PSSessionConfiguration -Name 'VirtualAccount'
             Remove-Item -Path $env:TEMP\VirtualAccount.pssc
         }
-}elseif ($WindowsUpdate -eq "All"){
-    # Update servers with all updates (including preview)
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
-        Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
-    } -ErrorAction Ignore
-    # Run Windows Update via ComObject.
-    Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
-        $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-        $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
-                                IsInstalled=0 and DeploymentAction='OptionalInstallation' or
-                                IsPresent=1 and DeploymentAction='Uninstallation' or
-                                IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
-                                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
-        $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
-        if ($SearchResult.Count -gt 0){
-            $Session = New-Object -ComObject Microsoft.Update.Session
-            $Downloader = $Session.CreateUpdateDownloader()
-            $Downloader.Updates = $SearchResult
-            $Downloader.Download()
-            $Installer = New-Object -ComObject Microsoft.Update.Installer
-            $Installer.Updates = $SearchResult
-            $Result = $Installer.Install()
-            $Result
+    }elseif ($WindowsUpdate -eq "All"){
+        # Update servers with all updates (including preview)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+            Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+        } -ErrorAction Ignore
+        # Run Windows Update via ComObject.
+        Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
+            $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+            $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                                    IsInstalled=0 and DeploymentAction='OptionalInstallation' or
+                                    IsPresent=1 and DeploymentAction='Uninstallation' or
+                                    IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                                    IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+            $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+            if ($SearchResult.Count -gt 0){
+                $Session = New-Object -ComObject Microsoft.Update.Session
+                $Downloader = $Session.CreateUpdateDownloader()
+                $Downloader.Updates = $SearchResult
+                $Downloader.Download()
+                $Installer = New-Object -ComObject Microsoft.Update.Installer
+                $Installer.Updates = $SearchResult
+                $Result = $Installer.Install()
+                $Result
+            }
+        }
+        #remove temporary PSsession config
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+            Remove-Item -Path $env:TEMP\VirtualAccount.pssc
         }
     }
-    #remove temporary PSsession config
-    Invoke-Command -ComputerName $servers -ScriptBlock {
-        Unregister-PSSessionConfiguration -Name 'VirtualAccount'
-        Remove-Item -Path $env:TEMP\VirtualAccount.pssc
-    }
-}
 #endregion
 
 #region install required features
@@ -172,6 +169,10 @@ if ($WindowsUpdate -eq "Recommended"){
                 Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
             }
         }
+
+    #Configure max evenlope size to be 4kb to be able to copy files using PSSession (useful for dell drivers update region)
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+
 #endregion
 
 #region configure OS Security
@@ -197,8 +198,10 @@ if ($WindowsUpdate -eq "Recommended"){
     }
 #endregion
 
-#region install Dell drivers
-    if ($DellUpdates){
+#region install Dell drivers https://github.com/microsoft/MSLab/tree/master/Scenarios/AzSHCI%20and%20Dell%20Servers%20Update
+    if ($DellUpdates -and ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Manufacturer -like "*Dell Inc.")){
+        $DSUDownloadFolder="$env:USERPROFILE\Downloads\DSU"
+        $DSUPackageDownloadFolder="$env:USERPROFILE\Downloads\DSUPackage"
         #region prepare DSU binaries
             #Download DSU
                 #https://github.com/DellProSupportGse/Tools/blob/main/DART.ps1
@@ -265,7 +268,7 @@ if ($WindowsUpdate -eq "Recommended"){
                 c
                 @'
                 Set-Content -Path "$DSUPackageDownloadFolder\answer.txt" -Value $content -NoNewline
-                $content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
+                $content='"C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
                 Set-Content -Path "$DSUPackageDownloadFolder\install.cmd" -Value $content -NoNewline
 
                 #upload DSU package to servers
@@ -279,8 +282,8 @@ if ($WindowsUpdate -eq "Recommended"){
         
         #region check if there are any updates needed
             $ScanResult=Invoke-Command -ComputerName $Servers -ScriptBlock {
-                & "C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
-                $Result=(Get-content "C:\ProgramData\Dell\DELL EMC System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon).systemupdatestatus.invokerinfo.statusmessage
+                & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
+                $Result=(Get-content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon).systemupdatestatus.invokerinfo.statusmessage
                 if ($Result -like "No Applicable Update*" ){
                     $DellUpdateRequired=$false
                 }else{
@@ -288,8 +291,12 @@ if ($WindowsUpdate -eq "Recommended"){
                 }
             
                 #scan for microsoft updates
+                $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+                IsPresent=1 and DeploymentAction='Uninstallation' or
+                IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+                IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
                 $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-                $SearchResult = $Searcher.Search($using:SearchCriteriaAllUpdates).Updates
+                $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
                 if ($SearchResult.Count -gt 0){
                     $MicrosoftUpdateRequired=$True
                 }else{
@@ -322,7 +329,7 @@ if ($WindowsUpdate -eq "Recommended"){
                         #install DSU updates
                         Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
                         #display result
-                        Get-Content "C:\ProgramData\Dell\DELL EMC System Update\dell_dup\DSU_STATUS.json"
+                        Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
                     }
                 }else{
                     Write-Output "$($Server): Dell System Updates not required"
@@ -404,6 +411,8 @@ if ($WindowsUpdate -eq "Recommended"){
     #add role
         Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
     }
+    #disable self-updating
+    Disable-CauClusterRole -ClusterName $ClusterName -Force
 #endregion
 
 #region Configure networking with NetATC https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
@@ -425,7 +434,7 @@ if ($WindowsUpdate -eq "Recommended"){
             #virtual environment (skipping RDMA config)
             $AdapterOverride = New-NetIntentAdapterPropertyOverrides
             $AdapterOverride.NetworkDirect = 0
-            Add-NetIntent -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose
+            Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose
         }else{
             #real hardware
             #grab fastest adapters names (assuming that we are deploying converged intent with just Mellanox or Intel E810)
@@ -451,19 +460,28 @@ if ($WindowsUpdate -eq "Recommended"){
         foreach ($intent in $intents){
             Remove-NetIntent -Name $intent.IntentName -ClusterName $clustername
         }
-    #>
+        #>
+
+    #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
+        #Get-ClusterNode -Cluster $ClusterName| Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
 #endregion
 
-#region configure what was not configured with NetATC
+#region configure what was not configured with NetATC (I need to research bit more, there few bits missing for netATC)
     #disable unused adapters
         Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
 
     #rename cluster networks (assuming default 711-719 VLANs are used) - BUG (should be done automatically)
         1..9 | ForEach-Object {
-            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.71.$_.0" -ErrorAction Ignore).Name="SMB0$_"
+            $network=Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.71.$_.0" -ErrorAction Ignore
+            if ($network){
+                $Network.Name="SMB0$_"
+            }
         }
         0..9  | ForEach-Object {
-            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.72.$_.0"  -ErrorAction Ignore).Name="SMB1$_"
+            $network=Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.72.$_.0"  -ErrorAction Ignore
+            if ($network){
+                $Network.Name="SMB0$_"
+            }
         }
         #Rename Management Network
         (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq "ClusterAndClient").Name="Management"
