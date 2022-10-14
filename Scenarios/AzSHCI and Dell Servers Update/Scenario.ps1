@@ -97,7 +97,7 @@
         c
         @'
         Set-Content -Path "$DSUPackageDownloadFolder\answer.txt" -Value $content -NoNewline
-        $content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
+        $content='"C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
         Set-Content -Path "$DSUPackageDownloadFolder\install.cmd" -Value $content -NoNewline
 
         #upload DSU package to servers
@@ -110,8 +110,8 @@
 
 #region check if there are any updates needed
 $ScanResult=Invoke-Command -ComputerName $Nodes -ScriptBlock {
-    & "C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
-    $Result=(Get-content "C:\ProgramData\Dell\DELL EMC System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon).systemupdatestatus.invokerinfo.statusmessage
+    & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
+    $Result=(Get-content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon).systemupdatestatus.invokerinfo.statusmessage
     if ($Result -like "No Applicable Update*" ){
         $DellUpdateRequired=$false
     }else{
@@ -161,7 +161,7 @@ $ScanResult
                 #install DSU updates
                 Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
                 #display result
-                Get-Content "C:\ProgramData\Dell\DELL EMC System Update\dell_dup\DSU_STATUS.json"
+                Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
             }
         }else{
             Write-Output "$($Node): Dell System Updates not required"
