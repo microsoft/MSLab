@@ -32,9 +32,6 @@
     $CloudWitnessEndpoint="core.windows.net"
     #>
 
-    #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
-    $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
-
     #Delete Storage Pool (like after reinstall there might be data left from old cluster)
     $DeletePool=$false
 
@@ -391,6 +388,7 @@
             Invoke-Command -ComputerName $WitnessServer -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory -ErrorAction Ignore}
             $accounts=@()
             $accounts+="$env:userdomain\$ClusterName$"
+            #$accounts+="$env:userdomain\Domain Admins"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession $WitnessServer
         #Set NTFS permissions 
             Invoke-Command -ComputerName $WitnessServer -ScriptBlock {(Get-SmbShare $using:WitnessName).PresetPathAcl | Set-Acl}
@@ -410,9 +408,9 @@
         }
     #add role
         Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
-    }
     #disable self-updating
-    Disable-CauClusterRole -ClusterName $ClusterName -Force
+        Disable-CauClusterRole -ClusterName $ClusterName -Force
+    }
 #endregion
 
 #region Configure networking with NetATC https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
@@ -421,20 +419,26 @@
         Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
     }
 
-    #since ATC is not available on managment machine, PowerShell module needs to be copied. This is workaround since RSAT is not availalbe.
-    $session=New-PSSession -ComputerName $ClusterName
-    $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
-    foreach ($item in $items){
-        Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
-    }
-    Import-Module NetworkATC
+    #netatc CredSSP (hopefully CredSSP and "-ClusterName LocalHost" will go away in 11c)
+        # Temporarily enable CredSSP delegation to avoid double-hop issue
+        $CredSSPUserName="corp\LabAdmin"
+        $CredSSPPassword="LS1setup!"
+        foreach ($Server in $Servers){
+            Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
+        }
+        Invoke-Command -ComputerName $Servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-    #add network intent
+        $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+        $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
+
         if ((Get-CimInstance -ClassName win32_computersystem -CimSession $ClusterName).Model -eq "Virtual Machine"){
-            #virtual environment (skipping RDMA config)
-            $AdapterOverride = New-NetIntentAdapterPropertyOverrides
-            $AdapterOverride.NetworkDirect = 0
-            Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose
+            Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                Import-Module NetworkATC
+                #virtual environment (skipping RDMA config)
+                $AdapterOverride = New-NetIntentAdapterPropertyOverrides
+                $AdapterOverride.NetworkDirect = 0
+                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose
+            }
         }else{
             #real hardware
             #grab fastest adapters names (assuming that we are deploying converged intent with just Mellanox or Intel E810)
@@ -442,51 +446,54 @@
             #grab adapters
             $AdapterNames=(Get-NetAdapter -CimSession $ClusterName | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
             #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
-            Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName $AdapterNames -Verbose
+            Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                Import-Module NetworkATC
+                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose
+            }
         }
 
         #check
         Start-Sleep 20 #let intent propagate a bit
         Write-Output "applying intent"
         do {
-            $status=Get-NetIntentStatus -ClusterName $ClusterName
+            $status=Invoke-Command -ComputerName $servers[0] -ScriptBlock {Get-NetIntentStatus -ClusterName LocalHost}
             Write-Host "." -NoNewline
             Start-Sleep 5
         } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
 
-    #remove if necessary
-        <#
-        $intents = Get-NetIntent -ClusterName $ClusterName
-        foreach ($intent in $intents){
-            Remove-NetIntent -Name $intent.IntentName -ClusterName $clustername
-        }
-        #>
+        #remove if necessary
+            <#
+            Invoke-Command -ComputerName $servers[0] -ScriptBlock {
+                $intents = Get-NetIntent -ClusterName localhost
+                foreach ($intent in $intents){
+                    Remove-NetIntent -Name $intent.IntentName -ClusterName Localhost
+                }
+            }
+            #>
 
-    #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
-        #Get-ClusterNode -Cluster $ClusterName| Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
+        #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
+            #Get-ClusterNode -Cluster $ClusterName | Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
+
+        # Disable CredSSP
+        Disable-WSManCredSSP -Role Client
+        Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
+
+    <#
+    #since ATC is not available on managment machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
+        $session=New-PSSession -ComputerName $ClusterName
+        $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
+        foreach ($item in $items){
+            Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
+        }
+    #>
+
 #endregion
 
-#region configure what was not configured with NetATC (I need to research bit more, there few bits missing for netATC)
+#region configure what was/was not configured with NetATC
     #disable unused adapters
         Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
 
-    #rename cluster networks (assuming default 711-719 VLANs are used) - BUG (should be done automatically)
-        1..9 | ForEach-Object {
-            $network=Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.71.$_.0" -ErrorAction Ignore
-            if ($network){
-                $Network.Name="SMB0$_"
-            }
-        }
-        0..9  | ForEach-Object {
-            $network=Get-ClusterNetwork -Cluster $clustername | Where-Object Address -like "10.72.$_.0"  -ErrorAction Ignore
-            if ($network){
-                $Network.Name="SMB0$_"
-            }
-        }
-        #Rename Management Network
-        (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq "ClusterAndClient").Name="Management"
-
-        #Rename and Configure USB NICs (iDRAC Network)
+    #Rename and Configure USB NICs (iDRAC Network)
         $USBNics=get-netadapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -ErrorAction Ignore
         if ($USBNics){
             $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
@@ -494,12 +501,38 @@
             $Network.Role="none"
         }
 
-    #configure live migration networks (use cluster only networks)
-        #note: this should be also somehow taken care of with NetATC https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
-        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -ne "Cluster"}).ID))
+    #Check what networks were excluded from Live Migration
+    $Networks=(Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value -split ";"
+    foreach ($Network in $Networks){Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -Match $Network}
 
-    #configure live migration performance option (this should be configured automatically, bug? https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442)
-        Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+    #check Live Migration option
+    Get-VMHost -CimSession $Servers | Select-Object *Migration*
+
+    #Check LiveMigrationPerf option and Limit
+    Get-Cluster -Name $ClusterName | Select-Object *SMB*
+
+    #adjust if necessary
+    Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
+        $overrides=New-NetIntentGlobalClusterOverrides
+        $overrides.MaximumVirtualMachineMigrations=4
+        $overrides.MaximumSMBMigrationBandwidthInGbps=20
+        $overrides.VirtualMachineMigrationPerformanceOption="SMB"
+        Set-NetIntent -ClusterName LocalHost -GlobalClusterOverrides $overrides
+    }
+
+    Start-Sleep 20 #let intent propagate a bit
+    Write-Output "applying overrides intent"
+    do {
+        $status=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-NetIntentStatus -Globaloverrides -ClusterName LocalHost}
+        Write-Host "." -NoNewline
+        Start-Sleep 5
+    } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
+
+        #check Live Migration option
+        Get-VMHost -CimSession $Servers | Select-Object *Migration*
+
+        #Check LiveMigrationPerf option and Limit (Need more research on how the bandwidth works as it seems unchanged)
+        Get-Cluster -Name $ClusterName | Select-Object *SMB*
 
     #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
         #note: this should be normally configured with NetATC... docs needed https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
@@ -718,7 +751,7 @@ if ($numberofnodes -eq 16){
     #download Azure module
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
-        Install-Module -Name Az.StackHCI -Force
+        Install-Module -Name Az.StackHCI -Force -AllowClobber
     }
 
     #login to azure
