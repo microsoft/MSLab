@@ -35,6 +35,20 @@
     #Delete Storage Pool (like after reinstall there might be data left from old cluster)
     $DeletePool=$false
 
+    #iDRAC settings
+        #$iDRACCredentials=Get-Credential #grab iDRAC credentials
+        $iDracUsername="LabAdmin"
+        $iDracPassword="LS1setup!"
+        $SecureStringPassword = ConvertTo-SecureString $iDracPassword -AsPlainText -Force
+        $iDRACCredentials = New-Object System.Management.Automation.PSCredential ($iDracUsername, $SecureStringPassword)
+    
+        #IP = Idrac IP Address, USBNICIP = IP Address of  that will be configured in OS to iDRAC Pass-through USB interface
+        $iDRACs=@()
+        $iDRACs+=@{IP="192.168.100.130" ; USBNICIP="169.254.11.1"}
+        $iDRACs+=@{IP="192.168.100.131" ; USBNICIP="169.254.11.3"}
+        $iDRACs+=@{IP="192.168.100.139" ; USBNICIP="169.254.11.5"}
+        $iDRACs+=@{IP="192.168.100.140" ; USBNICIP="169.254.11.7"}
+
 #endregion
 
 #region validate servers connectivity with Azure Stack HCI Environment Checker https://www.powershellgallery.com/packages/AzStackHci.EnvironmentChecker
@@ -836,6 +850,66 @@ if ($numberofnodes -eq 16){
 
 #endregion
 
+#region configure iDRAC USB NICs (IP and State) using RedFish
+if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Manufacturer -like "*Dell*"){
+    #ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck to Invoke-WebRequest
+    function Ignore-SSLCertificates {
+        $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+        $Compiler = $Provider.CreateCompiler()
+        $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+        $Params.GenerateExecutable = $false
+        $Params.GenerateInMemory = $true
+        $Params.IncludeDebugInformation = $false
+        $Params.ReferencedAssemblies.Add("System.DLL") > $null
+        $TASource=@'
+        namespace Local.ToolkitExtensions.Net.CertificatePolicy
+        {
+            public class TrustAll : System.Net.ICertificatePolicy
+            {
+                public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                {
+                    return true;
+                }
+            }
+        }
+'@ 
+        $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+        $TAAssembly=$TAResults.CompiledAssembly
+        $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+        [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+    }
+    Ignore-SSLCertificates
+
+    #Patch Enable OS to iDrac Pass-through and configure IP
+    $Headers=@{"Accept"="application/json"}
+    $ContentType='application/json'
+    foreach ($iDRAC in $iDRACs){
+        $uri="https://$($idrac.IP)/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+        $JSONBody=@{"Attributes"=@{"OS-BMC.1.UsbNicIpAddress"="$($iDRAC.USBNICIP)";"OS-BMC.1.AdminState"="Enabled"}} | ConvertTo-Json -Compress
+        Invoke-WebRequest -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials
+    }
+
+    #wait a bit to propagate
+    Start-Sleep 5
+
+    #Check if it was patched
+    $Headers=@{"Accept"="application/json"}
+    $ContentType='application/json'
+    $results=@()
+    foreach ($IP in $Idracs.IP){
+        $uri="https://$IP/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+        $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials
+        $uri="https://$IP/redfish/v1/Systems/System.Embedded.1/"
+        $HostName=(Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials).HostName
+        $IPInsideOS=(get-Netadapter -CimSession $HostName -InterfaceDescription "Remote NDIS Compatible Device" | Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Ignore).IPAddress
+        $Result.Attributes | Add-Member -NotePropertyName HostName -NotePropertyValue $HostName
+        $Result.Attributes | Add-Member -NotePropertyName IPInsideOS -NotePropertyValue $IPInsideOS
+        $results+=$Result.Attributes
+    }
+    $Results | Select-Object "HostName","CurrentIPv4.1.Address","OS-BMC.1.UsbNicIpAddress","IPInsideOS","OS-BMC.1.AdminState"
+}
+#endregion
+
 #region (optional) Install Windows Admin Center Gateway https://github.com/microsoft/WSLab/tree/master/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA#gw-mode-installation-with-self-signed-cert
     ##Install Windows Admin Center Gateway 
     $GatewayServerName="WACGW"
@@ -903,3 +977,4 @@ if ($numberofnodes -eq 16){
             Install-Extension -GatewayEndpoint https://$GatewayServerName -ExtensionId dell-emc.openmanage-integration
         }
 #endregion
+
