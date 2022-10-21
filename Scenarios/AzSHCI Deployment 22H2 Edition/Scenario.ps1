@@ -123,17 +123,16 @@
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
 
     #install roles and features on servers
-        #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
-            if ($result.ExitCode -eq "failed"){
-                Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
-            }
+    #install Hyper-V using DISM if Install-WindowsFeature fails (if nested virtualization is not enabled install-windowsfeature fails)
+    Invoke-Command -ComputerName $servers -ScriptBlock {
+        $Result=Install-WindowsFeature -Name "Hyper-V" -ErrorAction SilentlyContinue
+        if ($result.ExitCode -eq "failed"){
+            Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
         }
-
-        #define and install other features
-        $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","Data-Center-Bridging","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
-        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+    }
+    #define and install other features
+    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+    Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
 #endregion
 
 #region configure OS settings
@@ -144,35 +143,51 @@
     }
 
     #Configure high performance power plan
-        #set high performance if not VM
-        Invoke-Command -ComputerName $servers -ScriptBlock {
-            if ((Get-ComputerInfo).CsSystemFamily -ne "Virtual Machine"){
-                powercfg /SetActive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
-            }
+    #set high performance if not VM
+    Invoke-Command -ComputerName $servers -ScriptBlock {
+        if ((Get-ComputerInfo).CsSystemFamily -ne "Virtual Machine"){
+            powercfg /SetActive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
         }
-        #check settings
-        Invoke-Command -ComputerName $servers -ScriptBlock {powercfg /list}
+    }
+    #check settings
+    Invoke-Command -ComputerName $servers -ScriptBlock {powercfg /list}
 
     #Delete Storage Pool if there is any from last install
-        if ($DeletePool){
-            #Grab pools
-            $StoragePools=Get-StoragePool -CimSession $Servers -IsPrimordial $False -ErrorAction Ignore
-            #remove pools if any
-            if ($StoragePools){
-                $StoragePools | Remove-StoragePool -Confirm:0
-            }
-            #Reset disks (to clear spaces metadata)
-            Invoke-Command -ComputerName $Servers -ScriptBlock {
-                Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
-            }
+    if ($DeletePool){
+        #Grab pools
+        $StoragePools=Get-StoragePool -CimSession $Servers -IsPrimordial $False -ErrorAction Ignore
+        #remove pools if any
+        if ($StoragePools){
+            $StoragePools | Remove-StoragePool -Confirm:0
         }
+        #Reset disks (to clear spaces metadata)
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
+        }
+    }
 
-    #Configure max evenlope size to be 4kb to be able to copy files using PSSession (useful for dell drivers update region)
-        Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+    #Configure max evenlope size to be 8kb to be able to copy files using PSSession (useful for dell drivers update region and Windows Admin Center)
+    Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 8192}
+
+    #Configure MaxTimeout (10s for Dell hardware, 30s for Virtual environment)
+    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
+    }
+    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $ClusterName).Model -eq "Virtual Machine"){
+        Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530}
+    }
+
+    #Configure dcbxmode to be host in charge (default is firmware in charge) on mellanox adapters (Dell recommendation)
+    #Caution: This disconnects adapters!
+    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
+        if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
+            Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
+        }
+    }
 
 #endregion
 
-#region configure OS Security
+#region configure OS Security (tbd: )
     #Enable secured core
     Invoke-Command -ComputerName $servers -ScriptBlock {
         #Device Guard
@@ -491,15 +506,15 @@
 
 #region configure what was/was not configured with NetATC
     #disable unused adapters
-        Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
+    Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
 
     #Rename and Configure USB NICs (iDRAC Network)
-        $USBNics=get-netadapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -ErrorAction Ignore
-        if ($USBNics){
-            $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
-            $Network.Name="iDRAC"
-            $Network.Role="none"
-        }
+    $USBNics=get-netadapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -ErrorAction Ignore
+    if ($USBNics){
+        $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
+        $Network.Name="iDRAC"
+        $Network.Role="none"
+    }
 
     #Check what networks were excluded from Live Migration
     $Networks=(Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value -split ";"
@@ -831,7 +846,8 @@ if ($numberofnodes -eq 16){
         #Start-BitsTransfer -Source https://aka.ms/WACInsiderDownload -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi"
     }
     #Create PS Session and copy install files to remote server
-    Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096}
+    #make sure maxevenlope is 8k
+    Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 8192}
     $Session=New-PSSession -ComputerName $GatewayServerName
     Copy-Item -Path "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -Destination "$env:USERPROFILE\Downloads\WindowsAdminCenter.msi" -ToSession $Session
 
@@ -885,8 +901,5 @@ if ($numberofnodes -eq 16){
     #Install OpenManage extension and increase MaxEvenlope size
         if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
             Install-Extension -GatewayEndpoint https://$GatewayServerName -ExtensionId dell-emc.openmanage-integration
-            Invoke-Command -ComputerName $Servers -ScriptBlock {
-                Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 4096
-            }
         }
 #endregion
