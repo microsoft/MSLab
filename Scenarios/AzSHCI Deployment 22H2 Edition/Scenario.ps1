@@ -53,13 +53,13 @@
 
 #region validate servers connectivity with Azure Stack HCI Environment Checker https://www.powershellgallery.com/packages/AzStackHci.EnvironmentChecker
     Install-PackageProvider -Name NuGet -Force
-    Install-Module -Name AzStackHci.EnvironmentChecker -Force
+    Install-Module -Name AzStackHci.EnvironmentChecker -Force -AllowClobber
 
     $PSSessions=New-PSSession $Servers
     Invoke-AzStackHciConnectivityValidation -PsSession $PSSessions
 #endregion
 
-#region Update all servers (2022 and 21H2+ systems, for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
+#region Update all servers (2022 and 21H2+ systems, for more info visit WU Scenario https://github.com/microsoft/MSLab/tree/dev/Scenarios/Windows%20Update)
     #check OS Build Number
     $RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
     $ComputersInfo  = Invoke-Command -ComputerName $servers -ScriptBlock {
@@ -146,7 +146,7 @@
     }
     #define and install other features
     $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
-    Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features} 
+    Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features}
 #endregion
 
 #region configure OS settings
@@ -183,7 +183,7 @@
     #Configure max evenlope size to be 8kb to be able to copy files using PSSession (useful for dell drivers update region and Windows Admin Center)
     Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 8192}
 
-    #Configure MaxTimeout (10s for Dell hardware, 30s for Virtual environment)
+    #Configure MaxTimeout (10s for Dell hardware, 30s for Virtual environment https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm)
     if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
         Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
     }
@@ -201,7 +201,7 @@
 
 #endregion
 
-#region configure OS Security (tbd: )
+#region configure OS Security (tbd: https://aka.ms/hci-securitybase)
     #Enable secured core
     Invoke-Command -ComputerName $servers -ScriptBlock {
         #Device Guard
@@ -460,13 +460,13 @@
         $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
         $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
-        if ((Get-CimInstance -ClassName win32_computersystem -CimSession $ClusterName).Model -eq "Virtual Machine"){
+        if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Model -eq "Virtual Machine"){
             Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
                 Import-Module NetworkATC
                 #virtual environment (skipping RDMA config)
                 $AdapterOverride = New-NetIntentAdapterPropertyOverrides
                 $AdapterOverride.NetworkDirect = 0
-                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose
+                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose #-StorageVlans 1,2
             }
         }else{
             #real hardware
@@ -477,7 +477,7 @@
             #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
             Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
                 Import-Module NetworkATC
-                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose
+                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose #-StorageVlans 1,2
             }
         }
 
@@ -539,6 +539,9 @@
 
     #Check LiveMigrationPerf option and Limit
     Get-Cluster -Name $ClusterName | Select-Object *SMB*
+
+    #check VLAN settings
+    Get-VMNetworkAdapterIsolation -CimSession $Servers -ManagementOS
 
     #adjust if necessary
     Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
@@ -978,3 +981,6 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         }
 #endregion
 
+#region collect diagnostic data
+    Send-DiagnosticData
+#endregion
