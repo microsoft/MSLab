@@ -34,7 +34,8 @@
         $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2166133" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE for Windows 11 21H2"}
         $Files+=@{Uri="https://download.microsoft.com/download/3/3/9/339BE62D-B4B8-4956-B58D-73C4685FC492/MicrosoftDeploymentToolkit_x64.msi" ; FileName="MicrosoftDeploymentToolkit_x64.msi" ; Description="Microsoft Deployment Toolkit"}
         #$Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI_17784.1408_EN-US.iso" ; FileName="AzureStackHCI_17784.1408_EN-US.iso" ; Description="Azure Stack HCI ISO"}
-        $Files+=@{Uri="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/AzureStackHCI_20348.587_en-us.iso" ; FileName="AzureStackHCI_20348.587_en-us.iso" ; Description="Azure Stack HCI ISO"}
+        #$Files+=@{Uri="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/AzureStackHCI_20348.587_en-us.iso" ; FileName="AzureStackHCI_20348.587_en-us.iso" ; Description="Azure Stack HCI ISO"}
+        $Files+=@{Uri="https://software-static.download.prss.microsoft.com/dbazure/988969d5-f34g-4e03-ac9d-1f9786c66751/20349.1129.221007-2120.fe_release_hciv3_svc_refresh_SERVERAZURESTACKHCICOR_OEMRET_x64FRE_en-us.iso" ; FileName="AzureStackHCI_20349.1129_en-us.iso" ; Description="Azure Stack HCI ISO"}
         $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=866658" ; FileName="SQL2019-SSEI-Expr.exe" ; Description="SQL Express 2019"}
         #$Files+=@{Uri="https://aka.ms/ssmsfullsetup" ; FileName="SSMS-Setup-ENU.exe" ; Description="SQL Management Studio"}
         foreach ($file in $files){
@@ -176,7 +177,7 @@
     }
 
     #Import Operating System
-    $ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_20348.587_en-us.iso" -PassThru
+    $ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_20349.1129_en-us.iso" -PassThru
     $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
     Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Azure Stack HCI SERVERAZURESTACKHCICORE x64" -Verbose
 
@@ -209,7 +210,7 @@
 #region configure MDT run-as account
     #create identity for MDT
     $DefaultOUPath=(Get-ADDomain).UsersContainer
-    New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path $DefaultOUPath
+    New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path $DefaultOUPath -PasswordNeverExpires $True
 
     #add FileShare permissions for MDT Account
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {
@@ -304,6 +305,8 @@ SkipBDDWelcome=YES
     Invoke-Command -ComputerName $MDTServer -ScriptBlock {
         Wdsutil /Set-TransportServer /EnableTftpVariableWindowExtension:No
     }
+
+    #In case you have 
 #endregion
 
 #region configure MDT Monitoring
@@ -827,7 +830,7 @@ $HVHosts
 #$Credentials=Get-Credential
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
-$idrac_ips="192.168.100.130","192.168.100.131"
+$idrac_ips="192.168.100.130","192.168.100.131","192.168.100.139","192.168.100.140"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
 function Ignore-SSLCertificates
@@ -900,6 +903,8 @@ foreach ($idrac_ip in $idrac_ips){
     $HVHosts = @()
     $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DC" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
     $HVHosts+=@{ComputerName="AxNode2"  ;IPAddress="10.0.0.121" ; MACAddress="0C:42:A1:DD:57:C8" ; GUID="4C4C4544-004D-5410-8033-B4C04F373733"}
+    $HVHosts+=@{ComputerName="AxNode3"  ;IPAddress="10.0.0.122" ; MACAddress="10:70:FD:08:E6:B4" ; GUID="4C4C4544-004D-5810-8046-B2C04F574D33"}
+    $HVHosts+=@{ComputerName="AxNode4"  ;IPAddress="10.0.0.123" ; MACAddress="10:70:FD:08:E6:BC" ; GUID="4C4C4544-004D-5810-8046-B3C04F574D33"}
     #>
 
     #grab machines that attempted to boot in last 5 minutes and create hash table.
@@ -1186,7 +1191,7 @@ $TextToSearch
 #$Credentials=Get-Credential
 $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
 $Credentials = New-Object System.Management.Automation.PSCredential ("LabAdmin", $password)
-$idrac_ips="192.168.100.130","192.168.100.131"
+$idrac_ips="192.168.100.130","192.168.100.131","192.168.100.139","192.168.100.140"
 $Headers=@{"Accept"="application/json"}
 $ContentType='application/json'
 function Ignore-SSLCertificates
@@ -1382,8 +1387,8 @@ foreach ($idrac_ip in $idrac_ips){
     #in real world scenairos you can have hash table like this:
     <#
     $HVHosts = @()
-    $HVHosts+=@{ComputerName="R440Node1"  ;IPAddress="10.0.0.122" ; MACAddress="34:80:0D:91:0B:66" ; GUID="4C4C4544-0051-5610-8056-B8C04F323333"}
-    $HVHosts+=@{ComputerName="R440Node2"  ;IPAddress="10.0.0.123" ; MACAddress="34:80:0D:91:0B:54" ; GUID="4C4C4544-0051-5610-8054-B8C04F323333"}
+    $HVHosts+=@{ComputerName="R440Node1"  ;IPAddress="10.0.0.131" ; MACAddress="34:80:0D:91:0B:66" ; GUID="4C4C4544-0051-5610-8056-B8C04F323333"}
+    $HVHosts+=@{ComputerName="R440Node2"  ;IPAddress="10.0.0.132" ; MACAddress="34:80:0D:91:0B:54" ; GUID="4C4C4544-0051-5610-8054-B8C04F323333"}
     #>
 
     #grab machines that attempted to boot in last 5 minutes and create hash table.
