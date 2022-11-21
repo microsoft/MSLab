@@ -21,6 +21,8 @@
         foreach ($PowerShellModule in $PowerShellModules){
             Save-Module -Name $PowerShellModule -Path $PSModulesDownloadFolder
         }
+    #grab nuget packages
+    Install-PackageProvider -Name NuGet -Force
 
     #grab some binaries to tools folder
         $ToolsDownloadFolder="$Env:UserProfile\Downloads\Tools\"
@@ -31,6 +33,8 @@
         & "$ToolsDownloadFolder\DownloadLatestCUs.ps1"
         #grab windows admin center
         Start-BitsTransfer -Source https://aka.ms/WACDownload -Destination "$ToolsDownloadFolder\WindowsAdminCenter.msi"
+        #grab latest defender update
+        Start-BitsTransfer -Source "https://go.microsoft.com/fwlink/?LinkID=121721&arch=x64" -Destination "$ToolsDownloadFolder\mpam-fe.exe"
 
     #grab dell tools and updates
         $DellToolsDownloadFolder="$Env:UserProfile\Downloads\Dell\"
@@ -155,7 +159,9 @@
         if (-not (Test-NetConnection -ComputerName $Server -CommonTCPPort SMB).TcpTestSucceeded){
             Enable-NetFirewallRule -Name FPS-SMB-In-TCP -CimSession $Server
         }
-        Copy-item -Path $Update.FullName -Destination \\$Server\C$\users\$env:USERNAME\Downloads
+        foreach ($update in $Updates){
+            Copy-item -Path $Update.FullName -Destination \\$Server\C$\users\$env:USERNAME\Downloads
+        }
     }
 
     Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -163,42 +169,54 @@
             Start-Process -FilePath "$env:systemroot\System32\wusa.exe" -ArgumentList "$env:userprofile\Downloads\$($Update.Name) /quiet /norestart" -Wait
         }
     }
-#endregion
+    #Check pending reboot
+    Invoke-CimMethod -CimSession $Servers -Namespace "root/Microsoft/Windows/WindowsUpdate" -ClassName "MSFT_WUSettings" -MethodName IsPendingReboot
 
-#region perform Dell Drivers update https://www.dell.com/support/home/en-us/product-support/product/system-update/docs
-    #region prepare DSU binaries
-        #copy dell tools to c:\Dell
-        $DellToolsDownloadFolder="$Env:UserProfile\Downloads\Dell\"
+    #install defender definition update
+        #copy it to servers (in this case failover clustering is not yet installed-firewall will not allow SMB, therefore enabling smb rule if not reachable)
         foreach ($Server in $Servers){
             if (-not (Test-NetConnection -ComputerName $Server -CommonTCPPort SMB).TcpTestSucceeded){
                 Enable-NetFirewallRule -Name FPS-SMB-In-TCP -CimSession $Server
             }
-            Copy-item -Path $DellToolsDownloadFolder -Destination \\$Server\C$\ -Recurse
+            Copy-item -Path "$ToolsDownloadFolder\mpam-fe.exe" -Destination \\$Server\C$\users\$env:USERNAME\Downloads
         }
-
-        #install DSU on servers
-            Invoke-Command -ComputerName $Nodes -ScriptBlock {
-                Start-Process -FilePath "c:\Dell\DSU.exe" -ArgumentList "/silent" -Wait 
-            }
-
-        #install dell updates
+        #install
         Invoke-Command -ComputerName $Servers -ScriptBlock {
-            #create answerfile for DU
-            $content='@
-            a
-            c
-            @'
-            Set-Content -Path "C:\Dell\answer.txt" -Value $content -NoNewline
-            #Create CMD to install updates
-            $content='"C:\Program Files\Dell\DELL System Update\DSU.exe" --source-location="C:\Dell" --source-type="Repository" --catalog-location="C:\Dell\ASHCI-Catalog.xml" --ic-location="C:\Dell\IC.exe" --apply-upgrades <answer.txt'
-            Set-Content -Path "C:\Dell\install.cmd" -Value $content -NoNewline
-            #install DSU updates
-            Start-Process -FilePath "C:\Dell\install.cmd" -Wait -WorkingDirectory "C:\Dell"
-            #display result
-            Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
+            Start-Process -FilePath "$env:userprofile\Downloads\mpam-fe.exe" -Wait
         }
-    #endregion
+#endregion
 
+#region perform Dell Drivers update https://www.dell.com/support/home/en-us/product-support/product/system-update/docs
+    #copy dell tools to c:\Dell
+    $DellToolsDownloadFolder="$Env:UserProfile\Downloads\Dell\"
+    foreach ($Server in $Servers){
+        if (-not (Test-NetConnection -ComputerName $Server -CommonTCPPort SMB).TcpTestSucceeded){
+            Enable-NetFirewallRule -Name FPS-SMB-In-TCP -CimSession $Server
+        }
+        Copy-item -Path $DellToolsDownloadFolder -Destination \\$Server\C$\ -Recurse
+    }
+
+    #install DSU on servers
+        Invoke-Command -ComputerName $Nodes -ScriptBlock {
+            Start-Process -FilePath "c:\Dell\DSU.exe" -ArgumentList "/silent" -Wait 
+        }
+
+    #install dell updates
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        #create answerfile for DU
+        $content='@
+        a
+        c
+        @'
+        Set-Content -Path "C:\Dell\answer.txt" -Value $content -NoNewline
+        #Create CMD to install updates
+        $content='"C:\Program Files\Dell\DELL System Update\DSU.exe" --source-location="C:\Dell" --source-type="Repository" --catalog-location="C:\Dell\ASHCI-Catalog.xml" --ic-location="C:\Dell\IC.exe" --apply-upgrades <answer.txt'
+        Set-Content -Path "C:\Dell\install.cmd" -Value $content -NoNewline
+        #install DSU updates
+        Start-Process -FilePath "C:\Dell\install.cmd" -Wait -WorkingDirectory "C:\Dell"
+        #display result
+        Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
+    }
 #endregion
 
 #region install WAC + Dell Openmanage extension

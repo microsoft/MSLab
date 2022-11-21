@@ -16,6 +16,25 @@
     #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS). If $ClusterIP is set, then $clusterIP will be ignored).
     $DistributedManagementPoint=$false
 
+    #Deploy network using Network ATC?
+    $NetATC=$False
+
+    #Variables for traditional networking (no NetATC)
+        $vSwitchName="vSwitch"
+        #start IP for Storage networks
+        $IP=1
+        #storage networks
+        $StorNet1="172.16.1."
+        $StorNet2="172.16.2."
+        $StorVLAN1=1
+        $StorVLAN2=2
+        #Jumbo Frames? Might be necessary to increase for iWARP. If not default, make sure all switches are configured end-to-end and (for example 9216). Also if non-default is set, you might run into various issues such as https://blog.workinghardinit.work/2019/09/05/fixing-slow-roce-rdma-performance-with-winof-2-to-winof/.
+        #if 1514 is set, setting JumboFrames is skipped. All NICs are configured (vNICs + pNICs)
+        $JumboSize=1514 #9014, 4088 or 1514 (default)
+        #DCB for ROCE RDMA?
+        $RoCE=$True
+        $iWARP=$False
+
     #Perform Windows update? (for more info visit WU Scenario https://github.com/microsoft/WSLab/tree/dev/Scenarios/Windows%20Update)
     $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
@@ -187,16 +206,8 @@
     if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
         Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
     }
-    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $ClusterName).Model -eq "Virtual Machine"){
+    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Model -eq "Virtual Machine"){
         Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00007530}
-    }
-
-    #Configure dcbxmode to be host in charge (default is firmware in charge) on mellanox adapters (Dell recommendation)
-    #Caution: This disconnects adapters!
-    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
-        if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
-            Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
-        }
     }
 
 #endregion
@@ -305,7 +316,7 @@
                 $Sessions | Remove-PSSession
 
         #endregion
-        
+
         #region check if there are any updates needed
             $ScanResult=Invoke-Command -ComputerName $Servers -ScriptBlock {
                 & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
@@ -355,7 +366,9 @@
                         #install DSU updates
                         Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
                         #display result
-                        Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
+                        $json=Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-Json
+                        $output=$json.SystemUpdateStatus.updateablecomponent | Select-Object Name,Version,Baselineversion,UpdateStatus,RebootRequired
+                        Return $output
                     }
                 }else{
                     Write-Output "$($Server): Dell System Updates not required"
@@ -371,6 +384,134 @@
     #make sure computers are restarted
     Foreach ($Server in $Servers){
         do{$Test= Test-NetConnection -ComputerName $Server -CommonTCPPort WINRM}while ($test.TcpTestSucceeded -eq $False)
+    }
+#endregion
+
+#region configure network (traditional, not NetATC)  (best practices are covered in this guide http://aka.ms/ConvergedRDMA ). For more information about networking you can look at this scenario: https://github.com/microsoft/WSLab/tree/master/Scenarios/S2D%20and%20Networks%20deep%20dive
+    if (-not($NetATC)){
+        #Disable unused (disconnected) adapters
+        Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
+
+        #Create vSwitch and use the fastest NICs in the server (SR-IOV enabled). Grabs fastest unique NIC
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            $FastestLinkSpeed=(get-netadapter | Where-Object Status -eq Up).Speed| Sort-Object -Descending | Select-Object -First 1
+            $NetAdapters=Get-NetAdapter | Where-Object Status -eq Up | Where-Object Speed -eq $FastestLinkSpeed | Sort-Object Name
+            New-VMSwitch -Name $using:vSwitchName -EnableEmbeddedTeaming $TRUE -EnableIov $true -NetAdapterName $NetAdapters.Name
+        }
+
+        #add vNICs
+        foreach ($Server in $Servers){
+            #rename Management vNIC first
+            Rename-VMNetworkAdapter -ManagementOS -Name $vSwitchName -NewName Management -ComputerName $Server
+            #add SMB vNICs (number depends on how many NICs are connected to vSwitch)
+            $SMBvNICsCount=(Get-VMSwitch -CimSession $Server -Name $vSwitchName).NetAdapterInterfaceDescriptions.Count
+            foreach ($number in (1..$SMBvNICsCount)){
+                $TwoDigitNumber="{0:D2}" -f $Number
+                Add-VMNetworkAdapter -ManagementOS -Name "SMB$TwoDigitNumber" -SwitchName $vSwitchName -CimSession $Server
+            }
+            
+            #configure IP Addresses
+            foreach ($number in (1..$SMBvNICsCount)){
+                    $TwoDigitNumber="{0:D2}" -f $Number
+                    if ($number % 2 -eq 1){
+                        New-NetIPAddress -IPAddress ($StorNet1+$IP.ToString()) -InterfaceAlias "vEthernet (SMB$TwoDigitNumber)" -CimSession $Server -PrefixLength 24
+                    }else{
+                        New-NetIPAddress -IPAddress ($StorNet2+$IP.ToString()) -InterfaceAlias "vEthernet (SMB$TwoDigitNumber)" -CimSession $Server -PrefixLength 24
+                        $IP++
+                    }
+                }
+        }
+
+        Start-Sleep 5
+        Clear-DnsClientCache
+
+    #Configure the host vNIC to use a Vlan.  They can be on the same or different VLans 
+        If ($NumberOfStorageNets -eq 1){
+            Set-VMNetworkAdapterVlan -VMNetworkAdapterName SMB* -VlanId $StorVLAN -Access -ManagementOS -CimSession $Servers
+        }else{
+            #configure Odds and Evens for VLAN1 and VLAN2
+            foreach ($Server in $Servers){
+                $NetAdapters=Get-VMNetworkAdapter -CimSession $server -ManagementOS -Name *SMB* | Sort-Object Name
+                $i=1
+                foreach ($NetAdapter in $NetAdapters){
+                    if (($i % 2) -eq 1){
+                        Set-VMNetworkAdapterVlan -VMNetworkAdapterName $NetAdapter.Name -VlanId $StorVLAN1 -Access -ManagementOS -CimSession $Server
+                        $i++
+                    }else{
+                        Set-VMNetworkAdapterVlan -VMNetworkAdapterName $NetAdapter.Name -VlanId $StorVLAN2 -Access -ManagementOS -CimSession $Server
+                        $i++
+                    }
+                }
+            }
+        }
+
+    #Restart each host vNIC adapter so that the Vlan is active.
+        Get-NetAdapter -CimSession $Servers -Name "vEthernet (SMB*)" | Restart-NetAdapter
+
+    #Enable RDMA on the host vNIC adapters
+        Enable-NetAdapterRDMA -Name "vEthernet (SMB*)" -CimSession $Servers
+
+    #Associate each of the vNICs configured for RDMA to a physical adapter that is up and is not virtual (to be sure that each RDMA enabled ManagementOS vNIC is mapped to separate RDMA pNIC)
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            #grab adapter names
+            $physicaladapternames=(get-vmswitch $using:vSwitchName).NetAdapterInterfaceDescriptions
+            #map pNIC and vNICs
+            $vmNetAdapters=Get-VMNetworkAdapter -Name "SMB*" -ManagementOS
+            $i=0
+            foreach ($vmNetAdapter in $vmNetAdapters){
+                $TwoDigitNumber="{0:D2}" -f ($i+1)
+                Set-VMNetworkAdapterTeamMapping -VMNetworkAdapterName "SMB$TwoDigitNumber" -ManagementOS -PhysicalNetAdapterName (get-netadapter -InterfaceDescription $physicaladapternames[$i]).name
+                $i++
+            }
+        }
+
+        #Configure Jumbo Frames
+            if ($JumboSize -ne 1514){
+                Set-NetAdapterAdvancedProperty -CimSession $Servers  -DisplayName "Jumbo Packet" -RegistryValue $JumboSize
+            }
+
+        #Configure dcbxmode to be host in charge (default is firmware in charge) on mellanox adapters (Dell recommendation)
+            if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
+                Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
+            }
+
+
+    #configure DCB if requested
+        if ($ROCE -eq $True){
+            #Install DCB
+                foreach ($server in $servers) {Install-WindowsFeature -Name "Data-Center-Bridging" -ComputerName $server} 
+            ##Configure QoS
+                New-NetQosPolicy "SMB"       -NetDirectPortMatchCondition 445 -PriorityValue8021Action 3 -CimSession $servers
+                New-NetQosPolicy "ClusterHB" -Cluster                         -PriorityValue8021Action 7 -CimSession $servers
+                New-NetQosPolicy "Default"   -Default                         -PriorityValue8021Action 0 -CimSession $servers
+
+            #Turn on Flow Control for SMB
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetQosFlowControl -Priority 3}
+
+            #Disable flow control for other traffic than 3 (pause frames should go only from prio 3)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
+
+            #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+
+            #Configure IeeePriorityTag
+                #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-VMNetworkAdapter -ManagementOS -Name "SMB*" -IeeePriorityTag on}
+
+            #Apply policy to the target adapters.  The target adapters are adapters connected to vSwitch
+                Invoke-Command -ComputerName $servers -ScriptBlock {Enable-NetAdapterQos -InterfaceDescription (Get-VMSwitch).NetAdapterInterfaceDescriptions}
+
+            #Create a Traffic class and give SMB Direct 50% of the bandwidth minimum. The name of the class will be "SMB".
+            #This value needs to match physical switch configuration. Value might vary based on your needs.
+            #If connected directly (in 2 node configuration) skip this step.
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "SMB"       -Priority 3 -BandwidthPercentage 50 -Algorithm ETS}
+                Invoke-Command -ComputerName $servers -ScriptBlock {New-NetQosTrafficClass "ClusterHB" -Priority 7 -BandwidthPercentage 1  -Algorithm ETS}
+        }
+
+        #enable iWARP firewall rule if requested
+            if ($iWARP -eq $True){
+                Enable-NetFirewallRule -Name "FPSSMBD-iWARP-In-TCP" -CimSession $servers
+            }
     }
 #endregion
 
@@ -428,12 +569,40 @@
     }
 #endregion
 
+#region configure cluster networking (not NetATC)
+    if (-not($NetATC)){
+        #rename networks
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet1"0").Name="SMB01"
+            (Get-ClusterNetwork -Cluster $clustername | Where-Object Address -eq $StorNet2"0").Name="SMB02"
+        #Rename Management Network
+        (Get-ClusterNetwork -Cluster $clustername | Where-Object Role -eq "ClusterAndClient").Name="Management"
+        #Rename and Configure USB NICs
+        if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Manufacturer -like "*Dell Inc."){
+            $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
+            $Network.Name="iDRAC"
+            $Network.Role="none"
+        }
+        #configure Live Migration network
+        Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Set-ClusterParameter -Name MigrationExcludeNetworks -Value ([String]::Join(";",(Get-ClusterNetwork -Cluster $clustername | Where-Object {$_.Role -ne "Cluster"}).ID))
+        #Configure Live Migration Performance option
+        Set-VMHost -VirtualMachineMigrationPerformanceOption SMB -cimsession $servers
+        #Configure number of Live migrations
+
+    #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+        #install feature
+        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+        #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+        $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+        $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+        Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+    }
+#endregion
+
 #region configure Cluster-Aware-Updating
     if ($CAURoleName){
     #Install required features on nodes.
-        $ClusterNodes=(Get-ClusterNode -Cluster $ClusterName).Name
-        foreach ($ClusterNode in $ClusterNodes){
-            Install-WindowsFeature -Name RSAT-Clustering-PowerShell -ComputerName $ClusterNode
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Install-WindowsFeature -Name RSAT-Clustering-PowerShell
         }
     #add role
         Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
@@ -443,137 +612,159 @@
 #endregion
 
 #region Configure networking with NetATC https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
-    #make sure NetATC and other required features are installed on servers
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
-    }
-
-    #netatc CredSSP (hopefully CredSSP and "-ClusterName LocalHost" will go away in 11c)
-        # Temporarily enable CredSSP delegation to avoid double-hop issue
-        $CredSSPUserName="corp\LabAdmin"
-        $CredSSPPassword="LS1setup!"
-        foreach ($Server in $Servers){
-            Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
-        }
-        Invoke-Command -ComputerName $Servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
-
-        $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
-        $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
-
-        if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Model -eq "Virtual Machine"){
-            Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-                Import-Module NetworkATC
-                #virtual environment (skipping RDMA config)
-                $AdapterOverride = New-NetIntentAdapterPropertyOverrides
-                $AdapterOverride.NetworkDirect = 0
-                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose #-StorageVlans 1,2
-            }
-        }else{
-            #real hardware
-            #grab fastest adapters names (assuming that we are deploying converged intent with just Mellanox or Intel E810)
-            $FastestLinkSpeed=(get-netadapter -CimSession $Servers | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True}).Speed | Sort-Object -Descending | Select-Object -First 1
-            #grab adapters
-            $AdapterNames=(Get-NetAdapter -CimSession $ClusterName | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
-            #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
-            Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-                Import-Module NetworkATC
-                Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose #-StorageVlans 1,2
-            }
+    if ($NetATC){
+        #make sure NetATC and other required features are installed on servers
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
         }
 
-        #check
-        Start-Sleep 20 #let intent propagate a bit
-        Write-Output "applying intent"
-        do {
-            $status=Invoke-Command -ComputerName $servers[0] -ScriptBlock {Get-NetIntentStatus -ClusterName LocalHost}
-            Write-Host "." -NoNewline
-            Start-Sleep 5
-        } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
+        #netatc CredSSP (hopefully CredSSP and "-ClusterName LocalHost" will go away in 11c)
+            # Temporarily enable CredSSP delegation to avoid double-hop issue
+            $CredSSPUserName="corp\LabAdmin"
+            $CredSSPPassword="LS1setup!"
+            foreach ($Server in $Servers){
+                Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
+            }
+            Invoke-Command -ComputerName $Servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
 
-        #remove if necessary
-            <#
-            Invoke-Command -ComputerName $servers[0] -ScriptBlock {
-                $intents = Get-NetIntent -ClusterName localhost
-                foreach ($intent in $intents){
-                    Remove-NetIntent -Name $intent.IntentName -ClusterName Localhost
+            $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+            $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
+
+            if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Model -eq "Virtual Machine"){
+                Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                    Import-Module NetworkATC
+                    #virtual environment (skipping RDMA config)
+                    $AdapterOverride = New-NetIntentAdapterPropertyOverrides
+                    $AdapterOverride.NetworkDirect = 0
+                    Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName "Ethernet","Ethernet 2" -AdapterPropertyOverrides $AdapterOverride -Verbose #-StorageVlans 1,2
+                }
+            }else{
+                #real hardware
+                #grab fastest adapters names (assuming that we are deploying converged intent with just Mellanox or Intel E810)
+                $FastestLinkSpeed=(get-netadapter -CimSession $Servers | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True}).Speed | Sort-Object -Descending | Select-Object -First 1
+                #grab adapters
+                $AdapterNames=(Get-NetAdapter -CimSession $ClusterName | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
+                #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
+                Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                    Import-Module NetworkATC
+                    Add-NetIntent -ClusterName LocalHost -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose #-StorageVlans 1,2
                 }
             }
-            #>
 
-        #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
-            #Get-ClusterNode -Cluster $ClusterName | Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
+            #check
+            Start-Sleep 20 #let intent propagate a bit
+            Write-Output "applying intent"
+            do {
+                $status=Invoke-Command -ComputerName $servers[0] -ScriptBlock {Get-NetIntentStatus -ClusterName LocalHost}
+                Write-Host "." -NoNewline
+                Start-Sleep 5
+            } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
 
-        # Disable CredSSP
-        Disable-WSManCredSSP -Role Client
-        Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
+            #remove if necessary
+                <#
+                Invoke-Command -ComputerName $servers[0] -ScriptBlock {
+                    $intents = Get-NetIntent -ClusterName localhost
+                    foreach ($intent in $intents){
+                        Remove-NetIntent -Name $intent.IntentName -ClusterName Localhost
+                    }
+                }
+                #>
 
-    <#
-    #since ATC is not available on managment machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
-        $session=New-PSSession -ComputerName $ClusterName
-        $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
-        foreach ($item in $items){
-            Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
-        }
-    #>
+            #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
+                #Get-ClusterNode -Cluster $ClusterName | Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
 
+            # Disable CredSSP
+            Disable-WSManCredSSP -Role Client
+            Invoke-Command -ComputerName $servers -ScriptBlock { Disable-WSManCredSSP Server }
+
+        <#
+        #since ATC is not available on managment machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
+            $session=New-PSSession -ComputerName $ClusterName
+            $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
+            foreach ($item in $items){
+                Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
+            }
+        #>
+    }
+#endregion
+
+#region install network HUD (NetATC)
+if ($NetATC){
+    #make sure NetworkHUD feature is installed and started on servers
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Install-WindowsFeature -Name "NetworkHUD"
+        Set-Service -Name NetworkHUD -StartupType Automatic
+        Start-Service -Name NetworkHUD
+    }
+}
 #endregion
 
 #region configure what was/was not configured with NetATC
-    #disable unused adapters
-    Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
+    if ($NetATC){
+        #disable unused adapters
+        Get-Netadapter -CimSession $Servers | Where-Object Status -ne "Up" | Disable-NetAdapter -Confirm:0
 
-    #Rename and Configure USB NICs (iDRAC Network)
-    $USBNics=get-netadapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -ErrorAction Ignore
-    if ($USBNics){
-        $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
-        $Network.Name="iDRAC"
-        $Network.Role="none"
-    }
+        #Rename and Configure USB NICs (iDRAC Network)
+        $USBNics=get-netadapter -CimSession $Servers -InterfaceDescription "Remote NDIS Compatible Device" -ErrorAction Ignore
+        if ($USBNics){
+            $Network=(Get-ClusterNetworkInterface -Cluster $ClusterName | Where-Object Adapter -eq "Remote NDIS Compatible Device").Network | Select-Object -Unique
+            $Network.Name="iDRAC"
+            $Network.Role="none"
+        }
 
-    #Check what networks were excluded from Live Migration
-    $Networks=(Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value -split ";"
-    foreach ($Network in $Networks){Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -Match $Network}
-
-    #check Live Migration option
-    Get-VMHost -CimSession $Servers | Select-Object *Migration*
-
-    #Check LiveMigrationPerf option and Limit
-    Get-Cluster -Name $ClusterName | Select-Object *SMB*
-
-    #check VLAN settings
-    Get-VMNetworkAdapterIsolation -CimSession $Servers -ManagementOS
-
-    #adjust if necessary
-    Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
-        $overrides=New-NetIntentGlobalClusterOverrides
-        $overrides.MaximumVirtualMachineMigrations=4
-        $overrides.MaximumSMBMigrationBandwidthInGbps=20
-        $overrides.VirtualMachineMigrationPerformanceOption="SMB"
-        Set-NetIntent -ClusterName LocalHost -GlobalClusterOverrides $overrides
-    }
-
-    Start-Sleep 20 #let intent propagate a bit
-    Write-Output "applying overrides intent"
-    do {
-        $status=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-NetIntentStatus -Globaloverrides -ClusterName LocalHost}
-        Write-Host "." -NoNewline
-        Start-Sleep 5
-    } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
+        #Check what networks were excluded from Live Migration
+        $Networks=(Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value -split ";"
+        foreach ($Network in $Networks){Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -Match $Network}
 
         #check Live Migration option
         Get-VMHost -CimSession $Servers | Select-Object *Migration*
 
-        #Check LiveMigrationPerf option and Limit (Need more research on how the bandwidth works as it seems unchanged)
+        #Check LiveMigrationPerf option and Limit
         Get-Cluster -Name $ClusterName | Select-Object *SMB*
 
-    #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
-        #note: this should be normally configured with NetATC... docs needed https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
-        #install feature
-        Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
-        #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
-        $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
-        $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
-        Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+        #check VLAN settings
+        Get-VMNetworkAdapterIsolation -CimSession $Servers -ManagementOS
+
+        #adjust if necessary (Global cluster overrides may/may not work as there is a bug in 22h2 importing this piece of powershell module - [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled() sometimes work, sometimes not. Need to explore more)
+        Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
+            $overrides=New-NetIntentGlobalClusterOverrides
+            $overrides.MaximumVirtualMachineMigrations=4
+            $overrides.MaximumSMBMigrationBandwidthInGbps=20
+            $overrides.VirtualMachineMigrationPerformanceOption="SMB"
+            Set-NetIntent -ClusterName LocalHost -GlobalClusterOverrides $overrides
+        }
+
+        Start-Sleep 20 #let intent propagate a bit
+        Write-Output "applying overrides intent"
+        do {
+            $status=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-NetIntentStatus -Globaloverrides -ClusterName LocalHost}
+            Write-Host "." -NoNewline
+            Start-Sleep 5
+        } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
+
+            #check Live Migration option
+            Get-VMHost -CimSession $Servers | Select-Object *Migration*
+
+            #Check LiveMigrationPerf option and Limit (Need more research on how the bandwidth works as it seems unchanged)
+            Get-Cluster -Name $ClusterName | Select-Object *SMB*
+
+            #Configure dcbxmode to be host in charge (default is firmware in charge) on mellanox adapters (Dell recommendation)
+            #Caution: This disconnects adapters!
+            if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
+                if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
+                    Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
+                }
+            }
+
+        #Configure SMB Bandwidth Limits for Live Migration https://techcommunity.microsoft.com/t5/Failover-Clustering/Optimizing-Hyper-V-Live-Migrations-on-an-Hyperconverged/ba-p/396609
+            #note: this should be normally configured with NetATC... docs needed https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
+            #install feature
+            Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name "FS-SMBBW"}
+            #Calculate 40% of capacity of NICs in vSwitch (considering 2 NICs, if 1 fails, it will not consume all bandwith, therefore 40%)
+            $Adapters=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+            $BytesPerSecond=((Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $adapters).TransmitLinkSpeed | Measure-Object -Sum).Sum/8
+            Set-SmbBandwidthLimit -Category LiveMigration -BytesPerSecond ($BytesPerSecond*0.4) -CimSession $Servers
+    }
 #endregion
 
 #region Create Fault Domains (just an example) https://docs.microsoft.com/en-us/windows-server/failover-clustering/fault-domains
@@ -981,6 +1172,97 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         }
 #endregion
 
-#region collect diagnostic data
-    Send-DiagnosticData
+#region troubleshooting
+    #check devices drivers
+    Get-CimInstance -ClassName Win32_PnPSignedDriver -CimSession $Servers | Select-Object DeviceName,DriverDate,DriverVersion, Manufacturer,PSComputerName | Out-GridView
+
+    #check OS Build Number
+    $RegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+    $ComputersInfo  = Invoke-Command -ComputerName $servers -ScriptBlock {
+        Get-ItemProperty -Path $using:RegistryPath
+    }
+    $ComputersInfo | Select-Object PSComputerName,CurrentBuildNumber,UBR
+
+    #check last driver update status
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        #display result
+        $json=Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-Json
+        $output=$json.SystemUpdateStatus.updateablecomponent #| Select-Object Name,Version,Baselineversion,UpdateStatus,RebootRequired
+        Return $output
+    } | Out-GridView
+
+    #region check if there are any updates are needed
+        $ScanResult=Invoke-Command -ComputerName $Servers -ScriptBlock {
+            & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
+            $JSON=Get-content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon
+            $Result=$JSON.systemupdatestatus.invokerinfo.statusmessage
+            if ($Result -like "No Applicable Update*" ){
+                Write-Output "No updates found"
+                $DellUpdates=$null
+            }else{
+                $DellUpdateRequired=$true
+                $DellUpdates=$json.SystemUpdateStatus.updateablecomponent | Select-Object Name,Version,Baselineversion,UpdateStatus,RebootRequired
+            }
+        
+            #scan for microsoft updates
+            $SearchCriteriaAllUpdates = "IsInstalled=0 and DeploymentAction='Installation' or
+            IsPresent=1 and DeploymentAction='Uninstallation' or
+            IsInstalled=1 and DeploymentAction='Installation' and RebootRequired=1 or
+            IsInstalled=0 and DeploymentAction='Uninstallation' and RebootRequired=1"
+            $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+            $SearchResult = $Searcher.Search($SearchCriteriaAllUpdates).Updates
+            if ($SearchResult.Count -gt 0){
+                $MicrosoftUpdateRequired=$True
+            }else{
+                $MicrosoftUpdateRequired=$False
+            }
+        
+            #grab windows version
+            $ComputersInfo  = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
+        
+            $Output=@()
+            $Output += [PSCustomObject]@{
+                    "DellUpdateRequired"      = $DellUpdateRequired
+                    "DellUpdates"             = $DellUpdates
+                    "MicrosoftUpdateRequired" = $MicrosoftUpdateRequired
+                    "MicrosoftUpdates"        = $SearchResult
+                    "ComputerName"            = $env:COMPUTERNAME
+                    "CurrentBuildNumber"      = $ComputersInfo.CurrentBuildNumber
+                    "UBR"                     = $ComputersInfo.UBR
+            }
+            return $Output
+        }
+        $ScanResult
+    #endregion
+
+    #Check cluster networks
+    Get-ClusterNetwork -Cluster $clustername
+
+    #Verify Networking
+        #validate vSwitch
+        Get-VMSwitch -CimSession $servers | Select-Object Name,IOV*,NetAdapterInterfaceDescriptions,ComputerName
+        #validate vNICs
+        Get-VMNetworkAdapter -CimSession $servers -ManagementOS
+        #validate vNICs to pNICs mapping
+        Get-VMNetworkAdapterTeamMapping -CimSession $servers -ManagementOS | Select-Object ComputerName,NetAdapterName,ParentAdapter
+        #validate JumboFrames setting
+        Get-NetAdapterAdvancedProperty -CimSession $servers -DisplayName "Jumbo Packet"
+        #verify RDMA settings
+        Get-NetAdapterRdma -CimSession $servers | Sort-Object -Property PSComputerName,Name
+        #validate if VLANs were set
+        Get-VMNetworkAdapterVlan -CimSession $Servers -ManagementOS
+        #VLANs in NetATC are set with VMNetworkAdapterIsolation
+        Get-VMNetworkAdapterIsolation -CimSession $Servers -ManagementOS
+        #verify ip config 
+        Get-NetIPAddress -CimSession $servers -InterfaceAlias vEthernet* -AddressFamily IPv4 | Sort-Object -Property PSComputerName,InterfaceAlias | Select-Object PSComputerName,InterfaceALias,IPAddress
+        #Validate DCBX setting
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosDcbxSetting} | Sort-Object PSComputerName | Select-Object PSComputerName,Willing
+        #validate policy (no result since it's not available in VM)
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
+        #Validate QOS Policies
+        Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName,Name | Select-Object PSComputerName,NetDirectPort,PriorityValue
+        #validate flow control setting
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername,Priority | Select-Object PSComputerName,Priority,Enabled
+        #validate QoS Traffic Classes
+        Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName,Name |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
 #endregion
