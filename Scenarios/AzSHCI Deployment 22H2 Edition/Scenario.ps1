@@ -10,16 +10,19 @@
     #Cluster-Aware-Updating role name
     $CAURoleName="AzSHCI-Cl-CAU" #if empty, CAU will not be installed
 
+    #Enable Kernel Soft Reboot? https://learn.microsoft.com/en-us/azure-stack/hci/manage/kernel-soft-reboot
+    $KSR=$True
+
     #Cluster IP
     $ClusterIP="" #If blank (you can write just $ClusterIP="", DHCP will be used). If $DistributedManagementPoint is true, then IP is not used
 
     #Distributed Cluster ManagementPoint? (Cluster Name in DNS will have IP of every node - like SOFS). If $ClusterIP is set, then $clusterIP will be ignored).
-    $DistributedManagementPoint=$false
+    $DistributedManagementPoint=$False
 
-    #Deploy network using Network ATC?
-    $NetATC=$False
+    #Deploy network using Network ATC? https://learn.microsoft.com/en-us/azure-stack/hci/manage/manage-network-atc?tabs=22H2
+    $NetATC=$True
 
-    #Variables for traditional networking (no NetATC)
+    #Variables for traditional networking (if NetATC is $False)
         $vSwitchName="vSwitch"
         #start IP for Storage networks
         $IP=1
@@ -39,7 +42,7 @@
     $WindowsUpdate="Recommended" #Can be "All","Recommended" or "None"
 
     #Dell updates
-    $DellUpdates=$false
+    $DellUpdates=$False
 
     #Witness type
     $WitnessType="FileShare" #or Cloud
@@ -52,7 +55,7 @@
     #>
 
     #Delete Storage Pool (like after reinstall there might be data left from old cluster)
-    $DeletePool=$false
+    $DeletePool=$False
 
     #iDRAC settings
         #$iDRACCredentials=Get-Credential #grab iDRAC credentials
@@ -93,6 +96,8 @@
             New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
             Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
         } -ErrorAction Ignore
+        #sleep a bit
+        Start-Sleep 2
         # Run Windows Update via ComObject.
         Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
             $Searcher = New-Object -ComObject Microsoft.Update.Searcher
@@ -123,6 +128,8 @@
             New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
             Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
         } -ErrorAction Ignore
+        #sleep a bit
+        Start-Sleep 2
         # Run Windows Update via ComObject.
         Invoke-Command -ComputerName $servers -ConfigurationName 'VirtualAccount' {
             $Searcher = New-Object -ComObject Microsoft.Update.Searcher
@@ -322,7 +329,7 @@
                 & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
                 $Result=(Get-content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon).systemupdatestatus.invokerinfo.statusmessage
                 if ($Result -like "No Applicable Update*" ){
-                    $DellUpdateRequired=$false
+                    $DellUpdateRequired=$False
                 }else{
                     $DellUpdateRequired=$true
                 }
@@ -489,7 +496,7 @@
                 Invoke-Command -ComputerName $servers -ScriptBlock {Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7}
 
             #Disable Data Center bridging exchange (disable accept data center bridging (DCB) configurations from a remote device via the DCBX protocol, which is specified in the IEEE data center bridging (DCB) standard.)
-                Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $false -confirm:$false}
+                Invoke-Command -ComputerName $servers -ScriptBlock {Set-NetQosDcbxSetting -willing $False -confirm:$False}
 
             #Configure IeeePriorityTag
                 #IeePriorityTag needs to be On if you want tag your nonRDMA traffic for QoS. Can be off if you use adapters that pass vSwitch (both SR-IOV and RDMA bypasses vSwitch)
@@ -555,6 +562,7 @@
             Invoke-Command -ComputerName $WitnessServer -ScriptBlock {new-item -Path c:\Shares -Name $using:WitnessName -ItemType Directory -ErrorAction Ignore}
             $accounts=@()
             $accounts+="$env:userdomain\$ClusterName$"
+            $accounts+="$env:userdomain\$env:USERNAME"
             #$accounts+="$env:userdomain\Domain Admins"
             New-SmbShare -Name $WitnessName -Path "c:\Shares\$WitnessName" -FullAccess $accounts -CimSession $WitnessServer
         #Set NTFS permissions 
@@ -595,7 +603,7 @@
     }
 #endregion
 
-#region configure Cluster-Aware-Updating
+#region configure Cluster-Aware-Updating and Kernel Soft Reboot
     if ($CAURoleName){
     #Install required features on nodes.
         Invoke-Command -ComputerName $Servers -ScriptBlock {
@@ -606,6 +614,15 @@
     #disable self-updating
         Disable-CauClusterRole -ClusterName $ClusterName -Force
     }
+    if ($KSR){
+        #list cluster parameters - as you can see, CauEnableSoftReboot does not exist
+        Get-Cluster -Name $ClusterName | Get-ClusterParameter
+        #let's create the value and validate
+        Get-Cluster -Name $ClusterName | Set-ClusterParameter -Name CauEnableSoftReboot -Value 1 -Create
+        Get-Cluster -Name $ClusterName | Get-ClusterParameter -Name CauEnableSoftReboot
+        #to delete it again you can run following command
+        #Get-Cluster -Name $ClusterName | Set-ClusterParameter -Name CauEnableSoftReboot -Delete
+    }
 #endregion
 
 #region Configure networking with NetATC https://techcommunity.microsoft.com/t5/networking-blog/network-atc-what-s-coming-in-azure-stack-hci-22h2/ba-p/3598442
@@ -615,7 +632,7 @@
             Install-WindowsFeature -Name NetworkATC,Data-Center-Bridging,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,FS-SMBBW
         }
 
-        #since ATC is not available on managment machine, copy PowerShell module over to management machine from cluster. However global intents will not be automatically added as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
+        #since ATC is not available on management machine, copy PowerShell module over to management machine from cluster. However global intents will not be automatically added as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
         $session=New-PSSession -ComputerName $ClusterName
         $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
         foreach ($item in $items){
@@ -637,7 +654,7 @@
             $AdapterNames=(Get-NetAdapter -CimSession $ClusterName | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
             #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
             Import-Module NetworkATC
-            Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName $using:AdapterNames -Verbose #-StorageVlans 1,2
+            Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName $AdapterNames -Verbose #-StorageVlans 1,2
         }
 
         #Add default global intent
@@ -672,7 +689,7 @@
                 #Get-ClusterNode -Cluster $ClusterName | Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
 
         <#
-        #since ATC is not available on managment machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
+        #since ATC is not available on management machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
             $session=New-PSSession -ComputerName $ClusterName
             $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
             foreach ($item in $items){
@@ -722,25 +739,30 @@ if ($NetATC){
             $Networks=(Get-ClusterResourceType -Cluster $clustername -Name "Virtual Machine" | Get-ClusterParameter -Name MigrationExcludeNetworks).Value -split ";"
             foreach ($Network in $Networks){Get-ClusterNetwork -Cluster $ClusterName | Where-Object ID -Match $Network}
 
-            #check Live Migration option
+            #check Live Migration option (probably bug, because it should default to SMB - version tested 1366)
             Get-VMHost -CimSession $Servers | Select-Object *Migration*
 
-            #Check smbbandwith limit cluster settings
+            #Check smbbandwith limit cluster settings (notice for some reason is SetSMBBandwidthLimit=1)
             Get-Cluster -Name $ClusterName | Select-Object *SMB*
 
-            #check SMBBandwidthLimit settings
+            #check SMBBandwidthLimit settings (should be pouplated already with defaults - it calculated 1562500000 bytes per second on 2x25Gbps NICs)
             Get-SmbBandwidthLimit -CimSession $Servers
 
-            #check VLAN settings
+            #check VLAN settings (notice it's using Adapter Isolation, not VLAN)
             Get-VMNetworkAdapterIsolation -CimSession $Servers -ManagementOS
+
+            #check number of live migrations (default is 1)
+            get-vmhost -CimSession $Servers | Select-Object Name,MaximumVirtualMachineMigrations
         #endregion
 
-        #region Adjust NetATC global overrides
+        #region Adjust NetATC global overrides (assuming there is one vSwitch)
+            $vSwitchNics=(Get-VMSwitch -CimSession $Servers[0]).NetAdapterInterfaceDescriptions
+            $LinkCapacityInGbps=(Get-NetAdapter -CimSession $Servers[0] -InterfaceDescription $vSwitchNics | Measure-Object Speed -Sum).sum/1000000000
             Invoke-Command -ComputerName $Servers[0] -ScriptBlock {
                 Import-Module NetworkATC
                 $overrides=New-NetIntentGlobalClusterOverrides
                 $overrides.MaximumVirtualMachineMigrations=4
-                $overrides.MaximumSMBMigrationBandwidthInGbps=20 #assuming you have 25Gbps NICs
+                $overrides.MaximumSMBMigrationBandwidthInGbps=$using:LinkCapacityInGbps*0.4 #40%, if one switch is down, LM will not saturate bandwidth
                 $overrides.VirtualMachineMigrationPerformanceOption="SMB"
                 Set-NetIntent -GlobalClusterOverrides $overrides
             }
@@ -765,12 +787,14 @@ if ($NetATC){
             #check Live Migration option
             Get-VMHost -CimSession $Servers | Select-Object *Migration*
 
-            #Check LiveMigrationPerf option and Limit (it was disabled)
+            #Check LiveMigrationPerf option and Limit (SetSMBBandwidthLimit was 1, now is 0)
             Get-Cluster -Name $ClusterName | Select-Object *SMB*
 
-            #check SMBBandwidthLimit settings (is now 20Gbps = 2.5GBps = 2500000000)
+            #check SMBBandwidthLimit settings
             Get-SmbBandwidthLimit -CimSession $Servers
 
+            #check number of live migrations
+            get-vmhost -CimSession $Servers | Select-Object Name,MaximumVirtualMachineMigrations
         #endregion
 
         #remove net intent global overrides if necessary
@@ -1070,9 +1094,9 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
         $Compiler = $Provider.CreateCompiler()
         $Params = New-Object System.CodeDom.Compiler.CompilerParameters
-        $Params.GenerateExecutable = $false
+        $Params.GenerateExecutable = $False
         $Params.GenerateInMemory = $true
-        $Params.IncludeDebugInformation = $false
+        $Params.IncludeDebugInformation = $False
         $Params.ReferencedAssemblies.Add("System.DLL") > $null
         $TASource=@'
         namespace Local.ToolkitExtensions.Net.CertificatePolicy
