@@ -171,7 +171,7 @@
         }
     }
     #define and install other features
-    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","FS-SMBBW","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","RSAT-DataCenterBridging-LLDP-Tools","FS-SMBBW","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
     Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features}
 #endregion
 
@@ -701,13 +701,32 @@
 
 #region install network HUD (NetATC)
 if ($NetATC){
-    #make sure NetworkHUD feature is installed and started on servers
+    #make sure NetworkHUD features are installed and network HUD is started on servers
     Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Install-WindowsFeature -Name "NetworkHUD"
+        Install-WindowsFeature -Name "NetworkHUD","Hyper-V","Hyper-V-PowerShell","Data-Center-Bridging", "RSAT-DataCenterBridging-LLDP-Tools","NetworkATC","Failover-Clustering"
         #make sure service is started and running (it is)
         #Set-Service -Name NetworkHUD -StartupType Automatic 
         #Start-Service -Name NetworkHUD
     }
+    #install Network HUD modules (Test-NetStack and az.stackhci.networkhud) on nodes
+        $Modules="Test-NetStack","az.stackhci.networkhud"
+        foreach ($Module in $Modules){
+            #download module to management node
+            Save-Module -Name $Module -Path $env:Userprofile\downloads\
+            #copy it to servers
+            foreach ($Server in $Servers){
+                Copy-Item -Path "$env:Userprofile\downloads\$module" -Destination "\\$Server\C$\Program Files\WindowsPowerShell\Modules\" -Recurse -Force
+            }
+        }
+    #restart NetworkHUD service
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Restart-Service NetworkHUD
+    }
+    #check event logs
+    $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkHUD";Id=105}
+    }
+    $events | Format-Table -AutoSize
 }
 #endregion
 
@@ -1277,6 +1296,18 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         }
         $ScanResult
     #endregion
+
+    #check NetworkHUD event logs
+    $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkHUD";StartTime=(get-date).AddMinutes(-15)}
+    }
+    $events | Format-Table -AutoSize
+
+    #check NetworkATC event logs
+    $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
+        Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkATC";StartTime=(get-date).AddMinutes(-15)}
+    }
+    $events | Format-Table -AutoSize
 
     #Check cluster networks
     Get-ClusterNetwork -Cluster $clustername
