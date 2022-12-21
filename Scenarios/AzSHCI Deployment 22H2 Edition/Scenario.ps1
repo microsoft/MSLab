@@ -11,7 +11,7 @@
     $CAURoleName="AzSHCI-Cl-CAU" #if empty, CAU will not be installed
 
     #Enable Kernel Soft Reboot? https://learn.microsoft.com/en-us/azure-stack/hci/manage/kernel-soft-reboot
-    $KSR=$True
+    $KSR=$False
 
     #Cluster IP
     $ClusterIP="" #If blank (you can write just $ClusterIP="", DHCP will be used). If $DistributedManagementPoint is true, then IP is not used
@@ -710,6 +710,7 @@ if ($NetATC){
     }
     #install Network HUD modules (Test-NetStack and az.stackhci.networkhud) on nodes
         $Modules="Test-NetStack","az.stackhci.networkhud"
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
         foreach ($Module in $Modules){
             #download module to management node
             Save-Module -Name $Module -Path $env:Userprofile\downloads\
@@ -764,7 +765,7 @@ if ($NetATC){
             #Check smbbandwith limit cluster settings (notice for some reason is SetSMBBandwidthLimit=1)
             Get-Cluster -Name $ClusterName | Select-Object *SMB*
 
-            #check SMBBandwidthLimit settings (should be pouplated already with defaults - it calculated 1562500000 bytes per second on 2x25Gbps NICs)
+            #check SMBBandwidthLimit settings (should be pouplated already with defaults on physical cluster - it calculated 1562500000 bytes per second on 2x25Gbps NICs)
             Get-SmbBandwidthLimit -CimSession $Servers
 
             #check VLAN settings (notice it's using Adapter Isolation, not VLAN)
@@ -1339,4 +1340,8 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername,Priority | Select-Object PSComputerName,Priority,Enabled
         #validate QoS Traffic Classes
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName,Name |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+
+    #run test-netstack
+        Install-Module -Name Test-NetStack
+        test-netstack -Nodes $Servers -LogPath c:\temp\testnetstack.log -Verbose -EnableFirewallRules -ContinueOnFailure
 #endregion
