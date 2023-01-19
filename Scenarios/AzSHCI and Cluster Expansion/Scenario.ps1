@@ -7,7 +7,7 @@
         $ClusterName="Exp-Cluster"
         $vSwitchName="vSwitch"
 
-        # Install features for management on server
+        # Install features for management
         Install-WindowsFeature -Name RSAT-DHCP,RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools
 
         # Install features on server
@@ -25,11 +25,11 @@
                 do{$Test= Test-NetConnection -ComputerName $Server -CommonTCPPort WINRM}while ($test.TcpTestSucceeded -eq $False)
             #}
         # create vSwitch from first connected NIC
-        $NetAdapterName=(Get-NetAdapter -Cimsession $Server | Where-Object HardwareInterface -eq $True | Where-Object Status -eq UP | Sort-Object InterfaceAlias | Select-Object -First 1).InterfaceAlias
-        New-VMSwitch -Cimsession $Server -Name $vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapterName -EnableIov $true
+        $NetAdapterName=(Get-NetAdapter -CimSession $Server | Where-Object HardwareInterface -eq $True | Where-Object Status -eq UP | Sort-Object InterfaceAlias | Select-Object -First 1).InterfaceAlias
+        New-VMSwitch -CimSession $Server -Name $vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapterName -EnableIov $true
 
         #rename vNIC
-        Rename-VMNetworkAdapter -Cimsession $Server -ManagementOS -Name $vSwitchName -NewName Management
+        Rename-VMNetworkAdapter -CimSession $Server -ManagementOS -Name $vSwitchName -NewName Management
 
         #create cluster with Distributed Network Name (to not consume extra IP, because why not)
         New-Cluster -Name $ClusterName -Node $Server -ManagementPointNetworkType "Distributed"
@@ -125,17 +125,16 @@
                 New-Item -Path "\\$ClusterName\ClusterStorage$\$VolumeFriendlyName\$VMName\Virtual Hard Disks" -ItemType Directory
                 Copy-Item -Path $VHDPath -Destination "\\$ClusterName\ClusterStorage$\$VolumeFriendlyName\$VMName\Virtual Hard Disks\$VMName.vhdx" 
                 $VM=New-VM -Name $VMName -MemoryStartupBytes 512MB -Generation 2 -Path "c:\ClusterStorage\$VolumeFriendlyName\" -VHDPath "c:\ClusterStorage\$VolumeFriendlyName\$VMName\Virtual Hard Disks\$VMName.vhdx" -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random)
-
+                #start VM
+                $VM | Start-VM
             }else{
                 Invoke-Command -ComputerName ((Get-ClusterNode -Cluster $ClusterName).Name | Get-Random) -ScriptBlock {
                     #create some fake VMs
-                    $VM=New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:VolumeFriendlyName)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:VolumeFriendlyName)\" -MemoryStartupBytes 32MB
+                    New-VM -Name $using:VMName -NewVHDPath "c:\ClusterStorage\$($using:VolumeFriendlyName)\$($using:VMName)\Virtual Hard Disks\$($using:VMName).vhdx" -NewVHDSizeBytes 32GB -SwitchName $using:vSwitchName -Generation 2 -Path "c:\ClusterStorage\$($using:VolumeFriendlyName)\" -MemoryStartupBytes 32MB
                 }
             }
             #make it HA
             Add-ClusterVirtualMachineRole -VMName $VMName -Cluster $ClusterName
-            #start VM
-            $VM | Start-VM
     #endregion
 #endregion
 
@@ -153,10 +152,8 @@
         Restart-Computer -ComputerName $SecondNodeName -Protocol WSMan -Wait -For PowerShell
         #failsafe - sometimes it evaluates, that servers completed restart after first restart (hyper-v needs 2)
         Start-sleep 20
-        #make sure computers are restarted
-            #Foreach ($Server in $Servers){
-                do{$Test= Test-NetConnection -ComputerName $SecondNodeName -CommonTCPPort WINRM}while ($test.TcpTestSucceeded -eq $False)
-            #}
+        #make sure computer is restarted
+        do{$Test= Test-NetConnection -ComputerName $SecondNodeName -CommonTCPPort WINRM}while ($test.TcpTestSucceeded -eq $False)
     #endregion
 
     #region configure networking (assuming scalable, converged networking).
@@ -180,9 +177,9 @@
         #create vSwitch on second node
             #create vSwitch
             $NetAdapterNames=(Get-NetAdapter -CimSession $SecondNodeName | Where-Object HardwareInterface -eq $True | Where-Object Status -eq UP | Sort-Object InterfaceAlias).InterfaceAlias
-            New-VMSwitch -Cimsession $SecondNodeName -Name $vSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName $NetAdapterNames -EnableIov $true
+            New-VMSwitch -CimSession $SecondNodeName -Name $vSwitchName -EnableEmbeddedTeaming $True -NetAdapterName $NetAdapterNames -EnableIov $true
             #rename vNIC
-            Rename-VMNetworkAdapter -Cimsession $SecondNodeName -ManagementOS -Name $vSwitchName -NewName Management
+            Rename-VMNetworkAdapter -CimSession $SecondNodeName -ManagementOS -Name $vSwitchName -NewName Management
 
         #add SMB vNICs and configure IP
             foreach ($Server in ($FirstNodeName,$SecondNodeName)){
@@ -195,7 +192,7 @@
                     Add-VMNetworkAdapter -ManagementOS -Name "SMB$TwoDigitNumber" -SwitchName $vSwitchName -CimSession $Server
                 }
 
-                #assign IP Adresses
+                #assign IP Addresses
                 foreach ($number in (1..$SMBvNICsCount)){
                     $TwoDigitNumber="{0:D2}" -f $Number
                     if ($number % 2 -eq 1){
@@ -349,15 +346,16 @@
     #endregion
 
     #region configure pool fault domain to be Storage Scale Unit and create new volume
-        #config
+        #Config
         $ClusterName="Exp-Cluster"
         $VolumeFriendlyName="TwoNodesMirror"
+        $VolumeSize=1TB
 
         #configure storage pool
         Set-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName" -FaultDomainAwarenessDefault StorageScaleUnit
 
         #create new volume
-        New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $VolumeFriendlyName -Size 1TB -ProvisioningType Thin
+        New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $VolumeFriendlyName -Size $VolumeSize -ProvisioningType Thin
 
         #validate volume fault domain awareness
         Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,FaultDomainAwareness
@@ -370,7 +368,7 @@
         #delete performance history including volume (without invoking it returned error "get-srpartnership : The WS-Management service cannot process the request. The CIM namespace")
         Invoke-Command -ComputerName $CLusterName -ScriptBlock {Stop-ClusterPerformanceHistory -DeleteHistory}
         #recreate performance history
-        Start-ClusterPerformanceHistory -cimsession $ClusterName
+        Start-ClusterPerformanceHistory -CimSession $ClusterName
 
         #validate volume fault domain awareness again (takes some time to recreate volume)
         Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,FaultDomainAwareness
@@ -393,7 +391,7 @@
 #region expand cluster (2node->3node, or more)
     #region install roles and features on third node
         #Config
-        $Servers="Exp3"
+        $Servers="Exp3"#,"Exp4"
         # Install features on server(s)
         Invoke-Command -computername $Servers -ScriptBlock {
             Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Online -NoRestart 
@@ -413,7 +411,7 @@
     #region configure networking (assuming scalable, converged networking).
     #Direct connectivity would be bit different, but since we will add 3rd node and simulating direct connectivity in MSLab would add another layer of complexity, I decided to demonstrate converged
         #Config
-        $Servers="Exp3"
+        $Servers="Exp3"#,"Exp4"
         $ClusterName="Exp-Cluster"
         $vSwitchName="vSwitch"
         $IP=3 #start IP
@@ -527,15 +525,16 @@
     #region add cluster member(s)
         #Config
         $ClusterName="Exp-Cluster"
-        $ClusterNodeNames="Exp3"
+        $ClusterNodeNames="Exp3"#,"Exp4"
         #add node
         Add-ClusterNode -Name $ClusterNodeNames -Cluster $ClusterName
     #endregion
 
-    #region configure ResiliencySettingNameDefault to have 3 data copies and create 3 way mirror volume
+    #region configure ResiliencySettingNameDefault to have 3 data copies and create 3-way mirror volume
         #config
         $ClusterName="Exp-Cluster"
         $VolumeFriendlyName="Three+NodesMirror"
+        $VolumeSize=1TB
 
         #check configuration of mirror resiliency setting (notice 2 data copies)
         Get-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName" | get-resiliencysetting
@@ -547,7 +546,7 @@
         Get-StoragePool -CimSession $ClusterName -FriendlyName "S2D on $ClusterName" | get-resiliencysetting -Name Mirror
 
         #create new volume
-        New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $VolumeFriendlyName -Size 1TB -ProvisioningType Thin
+        New-Volume -CimSession $ClusterName -StoragePoolFriendlyName "S2D on $ClusterName" -FriendlyName $VolumeFriendlyName -Size $VolumeSize -ProvisioningType Thin
 
         #validate volume resiliency
         Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,NumberOfDataCopies
@@ -560,7 +559,7 @@
         #delete performance history including volume (without invoking it returned error "get-srpartnership : The WS-Management service cannot process the request. The CIM namespace")
         Invoke-Command -ComputerName $CLusterName -ScriptBlock {Stop-ClusterPerformanceHistory -DeleteHistory}
         #recreate performance history
-        Start-ClusterPerformanceHistory -cimsession $ClusterName
+        Start-ClusterPerformanceHistory -CimSession $ClusterName
 
         #validate volume resiliency again (takes some time to recreate volume)
         Get-VirtualDisk -CimSession $ClusterName | Select-Object FriendlyName,NumberOfDataCopies
