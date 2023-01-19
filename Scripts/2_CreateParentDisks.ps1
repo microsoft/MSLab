@@ -525,7 +525,7 @@ If (-not $isAdmin) {
         }
         if (!(Test-Path "$PSScriptRoot\ParentDisks\tools.vhdx")){
             WriteInfoHighlighted "Creating Tools.vhdx"
-            $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
+            $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 300GB -Dynamic
             #mount and format VHD
                 $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
                 $vhddisk = $VHDMount| get-disk 
