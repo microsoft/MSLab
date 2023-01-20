@@ -31,7 +31,7 @@
 
 #region Deploy - run from ASNode1!
     #make D drives online
-    $Servers="ASNode2","ASNode3","ASNode4"
+    $Servers="ASNode1","ASNode2","ASNode3","ASNode4"
     #add $Servers into trustedhosts
     Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($Servers -join ',') -Force
     #invoke command
@@ -284,9 +284,9 @@ $Content | Out-File -FilePath d:\config.json
 #endregion
 
 #region Validate deployment - run from management VM!
-$StagingNode="ASNode1"
+$SeedNode="ASNode1"
 
-Invoke-Command -ComputerName $StagingNode -ScriptBlock {
+Invoke-Command -ComputerName $SeedNode -ScriptBlock {
     ([xml](Get-Content C:\ecestore\efb61d70-47ed-8f44-5d63-bed6adc0fb0f\086a22e3-ef1a-7b3a-dc9d-f407953b0f84)) | Select-Xml -XPath "//Action/Steps/Step" | ForEach-Object { $_.Node } | Select-Object FullStepIndex, Status, Name, StartTimeUtc, EndTimeUtc, @{Name="Durration";Expression={new-timespan -Start $_.StartTimeUtc -End $_.EndTimeUtc } } | ft -AutoSize
 }
 #endregion
