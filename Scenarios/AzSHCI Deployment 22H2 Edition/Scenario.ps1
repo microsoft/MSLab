@@ -159,7 +159,7 @@
 #endregion
 
 #region install required features
-    #install features for management (assuming you are running these commands from Windows Server)
+    #install features for management (assuming you are running these commands on Windows Server with GUI)
     Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-Hyper-V-Tools,RSAT-Feature-Tools-BitLocker-BdeAducExt,RSAT-Storage-Replica
 
     #install roles and features on servers
@@ -610,7 +610,7 @@
             Install-WindowsFeature -Name RSAT-Clustering-PowerShell
         }
     #add role
-        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -GroupName $CAURoleName -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
     #disable self-updating
         Disable-CauClusterRole -ClusterName $ClusterName -Force
     }
@@ -670,7 +670,7 @@
         Start-Sleep 20 #let intent propagate a bit
         Write-Output "applying intent"
         do {
-            $status=Invoke-Command -ComputerName $servers[0] -ScriptBlock {Get-NetIntentStatus}
+            $status=Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-NetIntentStatus}
             Write-Host "." -NoNewline
             Start-Sleep 5
         } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
@@ -687,15 +687,6 @@
 
             #if deploying in VMs, some nodes might fail (quarantined state) and even CNO can go to offline ... go to cluadmin and fix
                 #Get-ClusterNode -Cluster $ClusterName | Where-Object State -eq down | Start-ClusterNode -ClearQuarantine
-
-        <#
-        #since ATC is not available on management machine, you can copy PowerShell module over. However not everything works as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is often being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
-            $session=New-PSSession -ComputerName $ClusterName
-            $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
-            foreach ($item in $items){
-                Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
-            }
-        #>
     }
 #endregion
 
@@ -719,10 +710,13 @@ if ($NetATC){
                 Copy-Item -Path "$env:Userprofile\downloads\$module" -Destination "\\$Server\C$\Program Files\WindowsPowerShell\Modules\" -Recurse -Force
             }
         }
-    #restart NetworkHUD service
+    #restart NetworkHUD service to activate
     Invoke-Command -ComputerName $Servers -ScriptBlock {
         Restart-Service NetworkHUD
     }
+    #wait a bit
+    Start-Sleep 10
+
     #check event logs
     $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
         Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkHUD";Id=105}
@@ -790,7 +784,7 @@ if ($NetATC){
             Start-Sleep 20 #let intent propagate a bit
             Write-Output "applying overrides intent"
             do {
-                $status=Invoke-Command -ComputerName $Servers[0] -ScriptBlock {Get-NetIntentStatus -Globaloverrides}
+                $status=Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-NetIntentStatus -Globaloverrides}
                 Write-Host "." -NoNewline
                 Start-Sleep 5
             } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
@@ -1191,7 +1185,7 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
 
     #add certificate to trusted root certs (workaround to trust HTTPs cert on WACGW)
     start-sleep 30
-    $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ |where subject -eq "CN=Windows Admin Center"}
+    $cert = Invoke-Command -ComputerName $GatewayServerName -ScriptBlock {Get-ChildItem Cert:\LocalMachine\My\ | Where-Object subject -eq "CN=Windows Admin Center"}
     $cert | Export-Certificate -FilePath $env:TEMP\WACCert.cer
     Import-Certificate -FilePath $env:TEMP\WACCert.cer -CertStoreLocation Cert:\LocalMachine\Root\
 
@@ -1229,7 +1223,7 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
             Update-Extension -GatewayEndpoint https://$GatewayServerName -ExtensionId $Extension.ID
         }
 
-    #Install OpenManage extension and increase MaxEvenlope size
+    #Install OpenManage extension
         if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
             Install-Extension -GatewayEndpoint https://$GatewayServerName -ExtensionId dell-emc.openmanage-integration
         }

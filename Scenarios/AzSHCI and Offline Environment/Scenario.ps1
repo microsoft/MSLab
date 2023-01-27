@@ -115,8 +115,8 @@
             #https://dev.azure.com/WindowsAdminCenter/Windows%20Admin%20Center%20Feed/_artifacts/feed/WAC
             #or wac extension from dell site
             #https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=ynvkt
-            Start-BitsTransfer -Source "https://dl.dell.com/FOLDER08583345M/1/Dell_OpenManage_Integration_MS_WAC_2.3.0_707_A00.zip" -Destination "$env:userprofile\Downloads\Dell_OpenManage_Integration_MS_WAC_2.3.0_707_A00.zip"
-            Expand-Archive -Path "$env:userprofile\Downloads\Dell_OpenManage_Integration_MS_WAC_2.3.0_707_A00.zip" -DestinationPath $DellToolsDownloadFolder
+            Start-BitsTransfer -Source "https://dl.dell.com/FOLDER09324133M/1/Dell_OpenManage_Integration_MS_WAC_3.0.0.zip" -Destination "$env:userprofile\Downloads\Dell_OpenManage_Integration_MS_WAC_3.0.0.zip"
+            Expand-Archive -Path "$env:userprofile\Downloads\Dell_OpenManage_Integration_MS_WAC_3.0.0.zip" -DestinationPath $DellToolsDownloadFolder
 #endregion
 
 #region Proxy
