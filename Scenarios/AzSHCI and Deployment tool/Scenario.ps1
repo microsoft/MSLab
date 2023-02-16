@@ -39,8 +39,6 @@
         get-disk -Number 1 | Set-Disk -IsReadOnly $false
         get-disk -Number 1 | Set-Disk -IsOffline $false
     }
-    #set trusted hosts back to $Null
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -force
 
     #Download files
     $downloadfolder="D:"
@@ -92,10 +90,10 @@
     }
 
     #Create Azure Stack HCI registration role https://learn.microsoft.com/en-us/azure-stack/hci/deploy/register-with-azure#assign-permissions-from-azure-portal
-    if (-not (Get-AzRoleDefinition -Name "Azure Stack HCI registration role")){
+    if (-not (Get-AzRoleDefinition -Name "Azure Stack HCI registration role - Custom")){
         $Content=@"
 {
-    "Name": "Azure Stack HCI registration role",
+    "Name": "Azure Stack HCI registration role - Custom",
     "Id": null,
     "IsCustom": true,
     "Description": "Custom Azure role to allow subscription-level access to register Azure Stack HCI",
@@ -125,7 +123,7 @@
     #Create AzADServicePrincipal for Azure Stack HCI registration
     $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
     if (-not $SP){
-        $SP=New-AzADServicePrincipal -DisplayName $ServicePrincipalName -Role "Azure Stack HCI registration role"
+        $SP=New-AzADServicePrincipal -DisplayName $ServicePrincipalName -Role "Azure Stack HCI registration role - Custom"
         #remove default cred
         Remove-AzADAppCredential -ApplicationId $SP.AppId
     }
@@ -278,6 +276,9 @@
 "@
 $Content | Out-File -FilePath d:\config.json
 
+#set trusted hosts back to $Null
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -force
+
 #start deployment
 .\Invoke-CloudDeployment -JSONFilePath D:\config.json -DeploymentUserCredential  $DeploymentUserCred  -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName $CloudName -RegistrationSubscriptionID $SubscriptionID
 
@@ -287,6 +288,6 @@ $Content | Out-File -FilePath d:\config.json
 $SeedNode="ASNode1"
 
 Invoke-Command -ComputerName $SeedNode -ScriptBlock {
-    ([xml](Get-Content C:\ecestore\efb61d70-47ed-8f44-5d63-bed6adc0fb0f\086a22e3-ef1a-7b3a-dc9d-f407953b0f84)) | Select-Xml -XPath "//Action/Steps/Step" | ForEach-Object { $_.Node } | Select-Object FullStepIndex, Status, Name, StartTimeUtc, EndTimeUtc, @{Name="Durration";Expression={new-timespan -Start $_.StartTimeUtc -End $_.EndTimeUtc } } | ft -AutoSize
+    ([xml](Get-Content C:\ecestore\efb61d70-47ed-8f44-5d63-bed6adc0fb0f\086a22e3-ef1a-7b3a-dc9d-f407953b0f84)) | Select-Xml -XPath "//Action/Steps/Step" | ForEach-Object { $_.Node } | Select-Object FullStepIndex, Status, Name, StartTimeUtc, EndTimeUtc, @{Name="Duration";Expression={new-timespan -Start $_.StartTimeUtc -End $_.EndTimeUtc } } | ft -AutoSize
 }
 #endregion
