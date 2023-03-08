@@ -225,13 +225,18 @@
         #Device Guard
         #REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "Locked" /t REG_DWORD /d 1 /f 
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 1 /f
-        REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 3 /f
+        #there s different setting for VM and Bare metal
+        if ((Get-CimInstance -ClassName win32_computersystem).Model -eq "Virtual Machine"){
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 1 /f
+        }else{
+            REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 3 /f
+        }
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequireMicrosoftSignedBootChain" /t REG_DWORD /d 1 /f
 
         #Cred Guard
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "LsaCfgFlags" /t REG_DWORD /d 1 /f
 
-        #System Guard Secure Launch
+        #System Guard Secure Launch (bare meta only)
         #https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-defender-system-guard/system-guard-secure-launch-and-smm-protection
         REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" /v "Enabled" /t REG_DWORD /d 1 /f
 
@@ -610,9 +615,7 @@
             Install-WindowsFeature -Name RSAT-Clustering-PowerShell
         }
     #add role
-        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -GroupName $CAURoleName -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -StartDate "3/2/2017 3:00:00 AM" -DaysOfWeek 4 -WeeksOfMonth @(3) -verbose
-    #disable self-updating
-        Disable-CauClusterRole -ClusterName $ClusterName -Force
+        Add-CauClusterRole -ClusterName $ClusterName -MaxFailedNodes 0 -RequireAllNodesOnline -EnableFirewallRules -GroupName $CAURoleName -VirtualComputerObjectName $CAURoleName -Force -CauPluginName Microsoft.WindowsUpdatePlugin -MaxRetriesPerNode 3 -CauPluginArguments @{ 'IncludeRecommendedUpdates' = 'False' } -verbose
     }
     if ($KSR){
         #list cluster parameters - as you can see, CauEnableSoftReboot does not exist
@@ -1074,9 +1077,14 @@ if ($numberofnodes -eq 16){
         }
 
         #Register AzSHCI with prompting for creds
-        #Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+        if ($ResourceGroupName){
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication -ResourceGroupName $ResourceGroupName
+        }else{
+            Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
+        }
 
         #Register AZSHCi without prompting for creds again
+        <#
         $armTokenItemResource = "https://management.core.windows.net/"
         #$graphTokenItemResource = "https://graph.windows.net/"
         $azContext = Get-AzContext
@@ -1088,6 +1096,7 @@ if ($numberofnodes -eq 16){
         }else{
             Register-AzStackHCI -Region $Region -SubscriptionID $subscriptionID -ArmAccessToken $armToken -ComputerName $ClusterName -AccountId $id -ResourceName $ClusterName
         }
+        #>
 
     #validate registration status
         #grab available commands for registration
@@ -1159,6 +1168,55 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
     }
     $Results | Select-Object "HostName","CurrentIPv4.1.Address","OS-BMC.1.UsbNicIpAddress","IPInsideOS","OS-BMC.1.AdminState"
 }
+#endregion
+
+#region (optional) install iDRAC Service Module (ism) https://www.dell.com/support/search/en-us#q=ism&sort=relevancy&f:langFacet=[en]
+    #note: ismrfutil is installed anyway as part of managing AzSHCI With Windows Admin Center
+    if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Manufacturer -like "*Dell*"){
+        #download and extract latest catalog
+            #Download catalog
+            Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+            #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
+            Function Expand-GZipArchive{
+                Param(
+                    $infile,
+                    $outfile = ($infile -replace '\.gz$','')
+                    )
+                $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+                $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+                $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+                $buffer = New-Object byte[](1024)
+                while($true){
+                    $read = $gzipstream.Read($buffer, 0, 1024)
+                    if ($read -le 0){break}
+                    $output.Write($buffer, 0, $read)
+                    }
+                $gzipStream.Close()
+                $output.Close()
+                $input.Close()
+            }
+            Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
+        #find binary in catalog
+            #load catalog
+            [xml]$XML=Get-Content "$env:UserProfile\Downloads\ASHCI-Catalog.xml"
+            $component=$xml.manifest.SoftwareComponent | Where-Object Path -Like *systems-management*
+            #find binary
+            $url="https://dl.dell.com/$($component.path)"
+            $filename=$url | Split-Path -Leaf
+        #download
+        Start-BitsTransfer -Source $url -Destination $env:USERPROFILE\Downloads\$filename
+        #extract
+        & $env:USERPROFILE\Downloads\$filename /auto $env:USERPROFILE\Downloads
+        #copy ism to nodes and install
+        $Sessions=New-PSSession -ComputerName $Servers
+        foreach ($session in $sessions){
+            Copy-Item -Path $env:USERPROFILE\Downloads\$filename -Destination $env:USERPROFILE\Downloads\$filename -ToSession $Session
+        }
+        #install
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Start-Process -FilePath $env:USERPROFILE\Downloads\$using:FileName -ArgumentList "/s" -Wait
+        }
+    }
 #endregion
 
 #region (optional) Install Windows Admin Center Gateway https://github.com/microsoft/WSLab/tree/master/Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA#gw-mode-installation-with-self-signed-cert
