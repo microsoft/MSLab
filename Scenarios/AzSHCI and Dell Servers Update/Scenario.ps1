@@ -154,39 +154,6 @@ $ScanResult
 
     #let's update do node by node (in case something goes wrong). It would be definitely faster if we would install both updates at once. But if something would go wrong on one node, it's easier to roll back
     foreach ($Node in $Nodes){
-        #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
-        if (($ScanResult | Where-Object ComputerName -eq $node).DellUpdateRequired){
-            Write-Output "$($Node): Installing Dell System Updates"
-            Invoke-Command -ComputerName $Node -ScriptBlock {
-                #install DSU updates
-                Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
-                #display result
-                Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
-            }
-        }else{
-            Write-Output "$($Node): Dell System Updates not required"
-        }
-
-        #install Microsoft updates
-        if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
-            Write-Output "$($Node): Installing $Updates Microsoft Updates"
-            $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
-                $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-                $SearchResult = $Searcher.Search($using:SearchCriteriaAllUpdates).Updates
-                $Session = New-Object -ComObject Microsoft.Update.Session
-                $Downloader = $Session.CreateUpdateDownloader()
-                $Downloader.Updates = $SearchResult
-                $Downloader.Download()
-                $Installer = New-Object -ComObject Microsoft.Update.Installer
-                $Installer.Updates = $SearchResult
-                $Result = $Installer.Install()
-                $Result
-            }
-        }else{
-            Write-Output "$($Node): Microsoft Updates not required"
-            $MSUpdateInstallResult=$Null
-        }
-
         #Check if reboot is required
         if (($ScanResult | Where-Object ComputerName -eq $node).DellUpdateRequired -or $MSUpdateInstallResult.RebootRequired -or $ForceReboot){
             Write-Output "$($Node): Reboot is required"
@@ -223,6 +190,26 @@ $ScanResult
                 do{Start-Sleep 5}while(Get-StorageFaultDomain -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy")
             }
 
+            #install Microsoft updates
+            if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
+                Write-Output "$($Node): Installing $Updates Microsoft Updates"
+                $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
+                    $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+                    $SearchResult = $Searcher.Search($using:SearchCriteriaAllUpdates).Updates
+                    $Session = New-Object -ComObject Microsoft.Update.Session
+                    $Downloader = $Session.CreateUpdateDownloader()
+                    $Downloader.Updates = $SearchResult
+                    $Downloader.Download()
+                    $Installer = New-Object -ComObject Microsoft.Update.Installer
+                    $Installer.Updates = $SearchResult
+                    $Result = $Installer.Install()
+                    $Result
+                }
+            }else{
+                Write-Output "$($Node): Microsoft Updates not required"
+                $MSUpdateInstallResult=$Null
+            }
+
             #Suspend node
             Write-Output "$($Node): Suspending Cluster Node"
             Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait | Out-Null
@@ -230,6 +217,19 @@ $ScanResult
             #enable storage maintenance mode
             Write-Output "$($Node): Enabling Storage Maintenance mode"
             Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
+
+            #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
+            if (($ScanResult | Where-Object ComputerName -eq $node).DellUpdateRequired){
+                Write-Output "$($Node): Installing Dell System Updates"
+                Invoke-Command -ComputerName $Node -ScriptBlock {
+                    #install DSU updates
+                    Start-Process -FilePath "install.cmd" -Wait -WorkingDirectory $using:DSUPackageDownloadFolder
+                    #display result
+                    Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json"
+                }
+            }else{
+                Write-Output "$($Node): Dell System Updates not required"
+            }
 
             #restart node and wait for PowerShell to come up
             Write-Output "$($Node): Restarting Cluster Node"
@@ -246,7 +246,7 @@ $ScanResult
             #wait for machines to finish live migration
             Write-Output "$($Node): Waiting for Live migrations to finish"
             do {Start-Sleep 5}while(
-                Invoke-Command -ComputerName $Nodes -ScriptBlock {Get-CimInstance -Namespace root\virtualization\v2 -ClassName Msvm_MigrationJob} | Where-Object StatusDescriptions -eq "Job is running"
+                Get-CimInstance -CimSession $Nodes -Namespace root\virtualization\v2 -ClassName Msvm_MigrationJob | Where-Object StatusDescriptions -eq "Job is running"
             )
         }else{
             Write-Output "$($Node): Reboot is not required"
