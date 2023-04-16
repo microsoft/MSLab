@@ -137,18 +137,18 @@ Enable-ClusterS2D -CimSession $ClusterName -Verbose -Confirm:0
 #region Register Azure Stack HCI to Azure - if not registered, VMs are not added as cluster resources = AKS script will fail
 $ClusterName="AksHCI-Cluster"
 
-#download Azure module
+#download Azure modules
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-if (!(Get-InstalledModule -Name Az.StackHCI -ErrorAction Ignore)){
-    Install-Module -Name Az.StackHCI -Force
+$Modules="az.accounts","az.resources","Az.StackHCI"
+foreach ($module in $Modules){
+    if (!(Get-InstalledModule -Name $module -ErrorAction Ignore)){
+        Install-Module -Name $module -Force
+    }
 }
 
-#login to azure
-#download Azure module
-if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
-    Install-Module -Name Az.Accounts -Force
+if (-not (Get-AzContext)){
+    Connect-AzAccount -UseDeviceAuthentication
 }
-Connect-AzAccount -UseDeviceAuthentication
 <# or download edge and do it without device authentication
 #download
 Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
@@ -185,11 +185,11 @@ $subscriptionID=(Get-AzContext).Subscription.id
    $graphTokenItemResource = "https://graph.windows.net/"
    $azContext = Get-AzContext
    $authFactory = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory
-   $graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
+   #$graphToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $graphTokenItemResource).AccessToken
    $armToken = $authFactory.Authenticate($azContext.Account, $azContext.Environment, $azContext.Tenant.Id, $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, $armTokenItemResource).AccessToken
    $id = $azContext.Account.Id
-   Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
-
+   #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -GraphAccessToken $graphToken -ArmAccessToken $armToken -AccountId $id
+   Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -ArmAccessToken $armToken -AccountId $id
 # or register Azure Stack HCI with device authentication
 #Register-AzStackHCI -SubscriptionID $subscriptionID -ComputerName $ClusterName -UseDeviceAuthentication
 
@@ -321,12 +321,13 @@ Foreach ($PSSession in $PSSessions){
         Install-WindowsFeature -Name RSAT-Clustering-PowerShell
     }
     #configure aks
+    #note: I'm assigning larger control plane VM than default as I saw IP disapperaring IP address if it was smaller in virtual environment (I tested manually incresed size to 8cores and 8GB RAM)
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         #DHCP
         #$vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
         #Static
         $vnet = New-AksHciNetworkSetting -Name $using:vNetName -ipAddressPrefix $using:IPAddressPrefix -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolEnd -vlanID $using:VLANID -DNSServers $using:DNSServers -gateway $Using:Gateway
-        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\ImagesStore -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'default' # Get-AksHciVmSize
+        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\ImagesStore -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'Standard_A4_v2' # Get-AksHciVmSize
     }
 
     #validate config
@@ -361,7 +362,14 @@ Foreach ($PSSession in $PSSessions){
         } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
     }
 
-    #Register AZSHCi without prompting for creds
+    #Register AKS HCI with Device Authentication
+    Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+        Set-AksHciRegistration -SubscriptionID $using:subscriptionID -ResourceGroupName $using:resourcegroupname -UseDeviceAuthentication
+    }
+
+    #or without prompting for creds
+    <#
     $armTokenItemResource = "https://management.core.windows.net/"
     $graphTokenItemResource = "https://graph.windows.net/"
     $azContext = Get-AzContext
@@ -372,12 +380,6 @@ Foreach ($PSSession in $PSSessions){
 
     Invoke-Command -computername $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
         Set-AksHciRegistration -SubscriptionID $using:subscriptionID -GraphAccessToken $using:graphToken -ArmAccessToken $using:armToken -AccountId $using:id -ResourceGroupName $using:resourcegroupname
-    }
-
-    #or with Device Authentication
-    <#
-    Invoke-Command -computername $servers[0] -ScriptBlock {
-        Set-AksHciRegistration -SubscriptionID $using:subscriptionID -ResourceGroupName $using:resourcegroupname -UseDeviceAuthentication
     }
     #>
 
@@ -407,7 +409,7 @@ Invoke-Command -ComputerName $ClusterNode -ScriptBlock {
     New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool
 
     # or Create new cluster with 1 linux node with D4s VM size (needed for Data Controller, but in nested virtualization I also needed to adjust cpu number - increased to 8)
-    # New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool -nodeCount 1 -NodeVmSize Standard_D4s_v3 -osType linux
+    # New-AksHciCluster -Name $using:KubernetesClusterName -NodePoolName linux-pool -nodeCount 1 -NodeVmSize Standard_D8s_v3 -osType linux
 
     # or Create new cluster with 1 linux node in 1 node pool, with AD AuthZ and Monitoring enabled (Optionally)
     # New-AksHciCluster -Name demo -NodePoolName linux-pool -enableAdAuth -enableMonitoring
@@ -449,6 +451,8 @@ Standard_DS13_v2 8   56
  Standard_K8S_v1 4   2
 Standard_K8S2_v1 2   2
 Standard_K8S3_v1 4   6
+    Standard_NK6 6   12
+   Standard_NK12 12  24
 
 #>
 
@@ -584,13 +588,14 @@ kubectl -n azure-arc get deployments,pods
             az account set --subscription $subscription.id
         }
 
-    #create configuration
+    #create configuration (note, looks like it needs to use az k8s-configuration flux create in the future as az k8s-configuration create is deprecated https://github.com/Azure/arc-k8s-demo/issues/20) 
         az extension add --name k8s-configuration
         az k8s-configuration create --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --operator-instance-name cluster-config --operator-namespace cluster-config --repository-url https://github.com/Azure/arc-k8s-demo --scope cluster --cluster-type connectedClusters
         #az connectedk8s delete --name cluster-config --resource-group $resourcegroup
 
     #validate
-        az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+        #az k8s-configuration show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
+        az k8s-configuration flux show --name cluster-config --cluster-name $KubernetesClusterName --resource-group $resourcegroup --cluster-type connectedClusters
         #add kubectl to system environment variable, so it can be run by simply typing kubectl
         [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
         kubectl get ns --show-labels
@@ -639,6 +644,11 @@ kubectl -n azure-arc get deployments,pods
     $KubernetesClusterName="demo"
     if (-not (Get-AzContext)){
         Connect-AzAccount -UseDeviceAuthentication
+    }
+
+    #Install module
+    if (!(Get-InstalledModule -Name Az.OperationalInsights -ErrorAction Ignore)){
+        Install-Module -Name Az.OperationalInsights -Force
     }
 
     #remove old az.accounts module https://github.com/Azure/azure-powershell/issues/16951
@@ -769,7 +779,7 @@ kubectl -n azure-arc get deployments,pods
 
 #endregion
 
-#region create Arc app service extension
+#region create Arc app service extension (make sure workload VM has at least 16GB RAM)
 #https://docs.microsoft.com/en-us/azure/app-service/manage-create-arc-environment?tabs=powershell
 #looks like exstension fails https://github.com/Azure/azure-cli-extensions/issues/3661
 
@@ -782,7 +792,7 @@ $extensionName="appservice-ext"
 $kubeEnvironmentName=$KubernetesClusterName
 $aksClusterGroupName=$resourcegroup
 
-$CustomLocationName="AzSHCI-MyDC-EastUS" #existing, or if does not exists, it will be created
+$CustomLocationName="AKSHCI-MyDC-EastUS" #existing, or if does not exists, it will be created
 $CustomLocationNamespace=$AppServiceNamespace #namespace has to be same as appservice environment (or it fails to create)
 
 $SubscriptionID=(Get-AzContext).Subscription.ID
@@ -801,26 +811,26 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     az extension add --upgrade --yes --name appservice-kube
 
     az k8s-extension create `
-    --resource-group $resourcegroup `
-    --name $extensionName `
-    --cluster-type connectedClusters `
-    --cluster-name $KubernetesClusterName `
-    --extension-type 'Microsoft.Web.Appservice' `
-    --release-train stable `
-    --auto-upgrade-minor-version true `
-    --scope cluster `
-    --release-namespace $AppServiceNamespace `
-    --configuration-settings "Microsoft.CustomLocation.ServiceAccount=default" `
-    --configuration-settings "appsNamespace=${AppServiceNamespace}" `
-    --configuration-settings "clusterName=${kubeEnvironmentName}" `
-    --configuration-settings "keda.enabled=true" `
-    --configuration-settings "buildService.storageClassName=default" `
-    --configuration-settings "buildService.storageAccessMode=ReadWriteOnce" `
-    --configuration-settings "customConfigMap=${AppServiceNamespace}/kube-environment-config" `
-    --configuration-settings "envoy.annotations.service.beta.kubernetes.io/azure-load-balancer-resource-group=${aksClusterGroupName}" `
-    --configuration-settings "logProcessor.appLogs.destination=log-analytics" `
-    --configuration-protected-settings "logProcessor.appLogs.logAnalyticsConfig.customerId=${logAnalyticsWorkspaceIdEnc}" `
-    --configuration-protected-settings "logProcessor.appLogs.logAnalyticsConfig.sharedKey=${logAnalyticsKeyEnc}"
+        --resource-group $resourcegroup `
+        --name $extensionName `
+        --cluster-type connectedClusters `
+        --cluster-name $KubernetesClusterName `
+        --extension-type 'Microsoft.Web.Appservice' `
+        --release-train stable `
+        --auto-upgrade-minor-version true `
+        --scope cluster `
+        --release-namespace $AppServiceNamespace `
+        --configuration-settings "Microsoft.CustomLocation.ServiceAccount=default" `
+        --configuration-settings "appsNamespace=${AppServiceNamespace}" `
+        --configuration-settings "clusterName=${kubeEnvironmentName}" `
+        --configuration-settings "keda.enabled=true" `
+        --configuration-settings "buildService.storageClassName=default" `
+        --configuration-settings "buildService.storageAccessMode=ReadWriteOnce" `
+        --configuration-settings "customConfigMap=${AppServiceNamespace}/kube-environment-config" `
+        --configuration-settings "envoy.annotations.service.beta.kubernetes.io/azure-load-balancer-resource-group=${aksClusterGroupName}" `
+        --configuration-settings "logProcessor.appLogs.destination=log-analytics" `
+        --config-protected-settings "logProcessor.appLogs.logAnalyticsConfig.customerId=${logAnalyticsWorkspaceIdEnc}" `
+        --config-protected-settings "logProcessor.appLogs.logAnalyticsConfig.sharedKey=${logAnalyticsKeyEnc}"
 
     #grab extension id and wait for install
     <#
@@ -911,6 +921,7 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
         --custom-location $customLocationId
 
     #Wait for appservice to be provisioned
+    #note: I'm hitting this issue: https://github.com/Azure/azure-cli/issues/24744
     do {
         $Status=az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName | ConvertFrom-Json
         Write-Host "Status is: $($Status.provisioningState)" -ForegroundColor Yellow
@@ -921,7 +932,9 @@ $logAnalyticsKeyEnc=[Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBy
     az appservice kube show --resource-group $resourcegroup --name $kubeEnvironmentName | ConvertFrom-Json
 #endregion
 
-#region create Arc data services extension (deploying azure arc data controller fails if kubernetes cluster VM size is small - not enough cores/memory, expecially cores in nested environment might cause an endless loop)
+#region create Arc data services extension (make sure workload VM has at least 16GB RAM & 8cores - deploying azure arc data controller fails if kubernetes cluster VM size is small - not enough cores/memory, expecially cores in nested environment might cause an endless loop)
+#Note: this part has to be re-validated as it's failing right in extension deployment complaining about AutoUpgradeMinorVersion
+
 #https://docs.microsoft.com/en-us/azure/azure-arc/data/create-data-controller-direct-cli
 #https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/custom-locations
 #https://docs.microsoft.com/en-us/azure-stack/aks-hci/container-storage-interface-disks#create-a-custom-storage-class-for-an-aks-on-azure-stack-hci-disk
@@ -957,7 +970,19 @@ $StorageContainerSize=1TB
         #add extension
         az extension add --name k8s-extension
         #deploy
-        az k8s-extension create --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name $extensionName --cluster-type connectedClusters --extension-type microsoft.arcdataservices --auto-upgrade false --scope cluster --release-namespace $DataControllerNamespace --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper
+        az k8s-extension create `
+            --name $extensionName `
+            --extension-type microsoft.arcdataservices `
+            --cluster-type connectedClusters `
+            --cluster-name $KubernetesClusterName `
+            --resource-group $resourcegroup `
+            --auto-upgrade false `
+            --scope cluster `
+            --release-namespace $DataControllerNamespace `
+            --config Microsoft.CustomLocation.ServiceAccount=sa-arc-bootstrapper `
+            --version "1.18.0" `
+            --auto-upgrade-minor-version false
+
     #wait
     $extensionId=$(az k8s-extension show --cluster-type connectedClusters --cluster-name $KubernetesClusterName --resource-group $resourcegroup --name $extensionName --query id --output tsv)
     az resource wait --ids $extensionId --custom "properties.installState!='Pending'" --api-version "2020-07-01-preview"
@@ -992,7 +1017,7 @@ $StorageContainerSize=1TB
         $CustomLocation=$CustomLocations | Where-Object Name -eq $CustomLocationName
         if ($CustomLocation){
             $connectedClusterId=$(az connectedk8s show --resource-group $resourcegroup --name $KubernetesClusterName --query id --output tsv)
-            #if custom locatin exists, just add clusterextensionid
+            #if custom location exists, just add clusterextensionid
             az customlocation patch `
             --resource-group $resourcegroup `
             --name $customLocationName `
@@ -1081,10 +1106,23 @@ volumeBindingMode: WaitForFirstConsumer # or Immediate https://docs.microsoft.co
 #region get admin token and use it in Azure Portal to view resources in AKS HCI https://docs.microsoft.com/en-us/azure/azure-arc/kubernetes/cluster-connect#option-2-service-account-bearer-token
     #add kubectl to system environment variable, so it can be run by simply typing kubectl
     [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';c:\program files\AksHci')
-    kubectl create serviceaccount admin-user
+    $ServiceAccountName="admin-user"
+    $ServiceAccountSecretName="admin-user-secret"
+    kubectl create serviceaccount $ServiceAccountName
     kubectl create clusterrolebinding admin-user-binding --clusterrole cluster-admin --serviceaccount default:admin-user
-    $SecretName = $(kubectl get serviceaccount admin-user -o jsonpath='{$.secrets[0].name}')
-    $EncodedToken = $(kubectl get secret ${SecretName} -o=jsonpath='{.data.token}')
+    $tempfile = New-TemporaryFile
+    $Content=@"
+apiVersion: v1
+kind: Secret
+metadata:
+    name: $ServiceAccountSecretName
+    annotations:
+        kubernetes.io/service-account.name: $ServiceAccountName
+type: kubernetes.io/service-account-token
+"@
+    $tempfile | Set-Content -Value $Content
+    kubectl apply -f $tempfile.FullName
+    $EncodedToken = $(kubectl get secret $ServiceAccountSecretName -o jsonpath='{$.data.token}')
     $Token = [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($EncodedToken))
     $Token
     #copy token to clipboard
@@ -1161,16 +1199,6 @@ if (-not (Get-AzContext)){
 #endregion
 
 #region Windows Admin Center on GW
-
-#Install Edge
-if (-not (test-path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")){
-    Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-    #start install
-    Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
-    #start Edge
-    start-sleep 5
-    & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-}
 
 #install WAC
 $GatewayServerName="WACGW"
