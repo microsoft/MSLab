@@ -951,7 +951,7 @@ $DataControllerNamespace="arc-services-ns" #extension and data controller namesp
 $extensionName="datacontroller-ext"
 
 $CustomLocationNamespace=$DataControllerNamespace
-$CustomLocationName="AzSHCI-MyDC-EastUS"  #existing, or if does not exists, it will be created
+$CustomLocationName="AKSHCI-MyDC-EastUS"  #existing, or if does not exists, it will be created
 
 $StorageContainerName="AKSStorageContainer"
 $StorageContainerPath="c:\ClusterStorage\AKSContainer"
