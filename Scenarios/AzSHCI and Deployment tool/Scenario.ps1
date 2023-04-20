@@ -44,7 +44,7 @@
     $downloadfolder="D:"
     $files=@()
     $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210545" ; FileName="BootstrapCloudDeploymentTool.ps1" ; Description="Bootstrap PowerShell"}
-    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210546" ; FileName="CloudDeployment_10.2210.0.32.zip" ; Description="Cloud Deployment Package"}
+    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210546" ; FileName="CloudDeployment_10.2303.0.36.zip" ; Description="Cloud Deployment Package"}
     $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210608" ; FileName="Verify-CloudDeployment.zip_Hash.ps1" ; Description="Verify Cloud Deployment PowerShell"}
 
     foreach ($file in $files){
@@ -60,7 +60,7 @@
     $UserName="ASClus01-DeployUser"
     $Password="LS1setup!"
     $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
-    $DeploymentUserCred = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
+    $AzureStackLCMUserCredential = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
 
     $UserName="Administrator"
     $Password="LS1setup!"
@@ -79,8 +79,10 @@
     }
     #select subscription if more available
     $subscriptions=Get-AzSubscription
+    #list subscriptions
+    $subscriptions
     if (($subscriptions).count -gt 1){
-        $SubscriptionID=($subscriptions | Out-GridView -OutputMode Single | Select-AzSubscription).Subscription.Id
+        $SubscriptionID=Read-Host "Please give me subscription ID"
     }else{
         $SubscriptionID=$subscriptions.id
     }
@@ -280,7 +282,22 @@ $Content | Out-File -FilePath d:\config.json
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -force
 
 #start deployment
-.\Invoke-CloudDeployment -JSONFilePath D:\config.json -DeploymentUserCredential  $DeploymentUserCred  -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName $CloudName -RegistrationSubscriptionID $SubscriptionID
+#make sure some prereqs (that will be fixed in future) are set
+    #Make sure Windows Update is disabled and ping enabled (https://learn.microsoft.com/en-us/azure-stack/hci/hci-known-issues-2303)
+    Invoke-Command -ComputerName $Servers -ScriptBlock {
+        reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f
+        reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v AUOptions /t REG_DWORD /d 3 /f
+        Set-Service "WUAUSERV" -StartupType Disabled
+        #enable v4 and v6 ping on both domain and private/public profiles
+        Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In,FPS-ICMP6-ERQ-In,FPS-ICMP4-ERQ-In-NoScope,FPS-ICMP6-ERQ-In-NoScope
+    }
+    #add IPs to trusted hosts (bug that in BareMetal.psm1 is invoke-command with IP that is not in trusted hosts)
+    $IPs=@()
+    foreach ($Server in $Servers){$IPs+=(Resolve-DnsName -Name $Server -Type A).IPAddress}
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($IPs -join ',') -Force
+
+#deploy
+.\Invoke-CloudDeployment -JSONFilePath D:\config.json -AzureStackLCMUserCredential $AzureStackLCMUserCredential -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName $CloudName -RegistrationSubscriptionID $SubscriptionID
 
 #endregion
 
