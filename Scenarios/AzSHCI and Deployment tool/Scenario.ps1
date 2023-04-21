@@ -278,23 +278,21 @@
 "@
 $Content | Out-File -FilePath d:\config.json
 
-#set trusted hosts back to $Null
-Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -force
-
 #start deployment
 #make sure some prereqs (that will be fixed in future) are set
     #Make sure Windows Update is disabled and ping enabled (https://learn.microsoft.com/en-us/azure-stack/hci/hci-known-issues-2303)
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
+    Microsoft.PowerShell.Core\Invoke-Command -ComputerName $Servers -ScriptBlock {
         reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f
         reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v AUOptions /t REG_DWORD /d 3 /f
         Set-Service "WUAUSERV" -StartupType Disabled
         #enable v4 and v6 ping on both domain and private/public profiles
-        Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In,FPS-ICMP6-ERQ-In,FPS-ICMP4-ERQ-In-NoScope,FPS-ICMP6-ERQ-In-NoScope
+        Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In,FPS-ICMP6-ERQ-In
     }
-    #add IPs to trusted hosts (bug that in BareMetal.psm1 is invoke-command with IP that is not in trusted hosts)
-    $IPs=@()
-    foreach ($Server in $Servers){$IPs+=(Resolve-DnsName -Name $Server -Type A).IPAddress}
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($IPs -join ',') -Force
+    #add hostnames and IPs to trusted hosts (bug that in BareMetal.psm1 is invoke-command with IP that is not in trusted hosts)
+    $TrustedHosts=@()
+    $TrustedHosts+=(Get-NetIPAddress -CimSession $Servers -InterfaceAlias Ethernet* -AddressFamily IPv4).IPAddress
+    $TrustedHosts+=$Servers
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($TrustedHosts -join ',') -Force
 
 #deploy
 .\Invoke-CloudDeployment -JSONFilePath D:\config.json -AzureStackLCMUserCredential $AzureStackLCMUserCredential -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName $CloudName -RegistrationSubscriptionID $SubscriptionID
