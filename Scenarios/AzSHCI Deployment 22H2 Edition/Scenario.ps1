@@ -1207,8 +1207,6 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
             $filename=$url | Split-Path -Leaf
         #download
         Start-BitsTransfer -Source $url -Destination $env:USERPROFILE\Downloads\$filename
-        #extract
-        & $env:USERPROFILE\Downloads\$filename /auto $env:USERPROFILE\Downloads
         #copy ism to nodes and install
         $Sessions=New-PSSession -ComputerName $Servers
         foreach ($session in $sessions){
@@ -1300,14 +1298,6 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
     }
     $ComputersInfo | Select-Object PSComputerName,ProductName,DisplayVersion,UBR
 
-    #check last driver update status
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        #display result
-        $json=Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-Json
-        $output=$json.SystemUpdateStatus.updateablecomponent #| Select-Object Name,Version,Baselineversion,UpdateStatus,RebootRequired
-        Return $output
-    } | Out-GridView
-
     #region check if there are any updates are needed
         $ScanResult=Invoke-Command -ComputerName $Servers -ScriptBlock {
             & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
@@ -1352,22 +1342,7 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         $ScanResult
     #endregion
 
-    #check NetworkHUD event logs
-    $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkHUD";StartTime=(get-date).AddMinutes(-15)}
-    }
-    $events | Format-Table -AutoSize
-
-    #check NetworkATC event logs
-    $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
-        Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkATC";StartTime=(get-date).AddMinutes(-15)}
-    }
-    $events | Format-Table -AutoSize
-
-    #Check cluster networks
-    Get-ClusterNetwork -Cluster $clustername
-
-    #Verify Networking
+    #region Verify Networking
         #validate vSwitch
         Get-VMSwitch -CimSession $servers | Select-Object Name,IOV*,NetAdapterInterfaceDescriptions,ComputerName
         #validate vNICs
@@ -1394,8 +1369,123 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername,Priority | Select-Object PSComputerName,Priority,Enabled
         #validate QoS Traffic Classes
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName,Name |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+    #endregion
 
-    #run test-netstack
-        Install-Module -Name Test-NetStack
-        test-netstack -Nodes $Servers -LogPath c:\temp\testnetstack.log -Verbose -EnableFirewallRules -ContinueOnFailure
+    #region others
+        #run test-netstack
+            Install-Module -Name Test-NetStack
+            test-netstack -Nodes $Servers -LogPath c:\temp\testnetstack.log -Verbose -EnableFirewallRules -ContinueOnFailure
+        #check NetworkHUD event logs
+        $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkHUD";StartTime=(get-date).AddMinutes(-15)}
+        }
+        $events | Format-Table -AutoSize
+
+        #check NetworkATC event logs
+        $events=Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-WinEvent -FilterHashtable @{"ProviderName"="Microsoft-Windows-Networking-NetworkATC";StartTime=(get-date).AddMinutes(-15)}
+        }
+        $events | Format-Table -AutoSize
+
+        #Check cluster networks
+        Get-ClusterNetwork -Cluster $clustername
+
+        #check last driver update status
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            #display result
+            $json=Get-Content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-Json
+            $output=$json.SystemUpdateStatus.updateablecomponent #| Select-Object Name,Version,Baselineversion,UpdateStatus,RebootRequired
+            Return $output
+        } | Out-GridView
+    #endregion
+
+    #region reset iDRAC NICs
+        #Variables
+            #$iDRACCredentials=Get-Credential #grab iDRAC credentials
+            $iDracUsername="LabAdmin"
+            $iDracPassword="LS1setup!"
+            $SecureStringPassword = ConvertTo-SecureString $iDracPassword -AsPlainText -Force
+            $iDRACCredentials = New-Object System.Management.Automation.PSCredential ($iDracUsername, $SecureStringPassword)
+        
+            #IP = Idrac IP Address, USBNICIP = IP Address of  that will be configured in OS to iDRAC Pass-through USB interface
+            $iDRACs=@()
+            $iDRACs+=@{IP="192.168.100.130" ; USBNICIP="169.254.11.1"}
+            $iDRACs+=@{IP="192.168.100.131" ; USBNICIP="169.254.11.3"}
+            $iDRACs+=@{IP="192.168.100.139" ; USBNICIP="169.254.11.5"}
+            $iDRACs+=@{IP="192.168.100.140" ; USBNICIP="169.254.11.7"}
+
+        #first disable NICs in IDRAC
+            #ignoring cert is needed for posh5. In 6 and newer you can just add -SkipCertificateCheck to Invoke-WebRequest
+            function Ignore-SSLCertificates {
+                $Provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+                $Compiler = $Provider.CreateCompiler()
+                $Params = New-Object System.CodeDom.Compiler.CompilerParameters
+                $Params.GenerateExecutable = $False
+                $Params.GenerateInMemory = $true
+                $Params.IncludeDebugInformation = $False
+                $Params.ReferencedAssemblies.Add("System.DLL") > $null
+                $TASource=@'
+                namespace Local.ToolkitExtensions.Net.CertificatePolicy
+                {
+                    public class TrustAll : System.Net.ICertificatePolicy
+                    {
+                        public bool CheckValidationResult(System.Net.ServicePoint sp,System.Security.Cryptography.X509Certificates.X509Certificate cert, System.Net.WebRequest req, int problem)
+                        {
+                            return true;
+                        }
+                    }
+                }
+'@ 
+                $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+                $TAAssembly=$TAResults.CompiledAssembly
+                $TrustAll = $TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+                [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
+            }
+            Ignore-SSLCertificates
+
+            $Headers=@{"Accept"="application/json"}
+            $ContentType='application/json'
+            #disable first
+            foreach ($iDRAC in $iDRACs){
+                $uri="https://$($idrac.IP)/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+                $JSONBody=@{"Attributes"=@{"OS-BMC.1.AdminState"="Disabled"}} | ConvertTo-Json -Compress
+                Invoke-WebRequest -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials
+            }
+
+            #Then list unkwnown adapters (iDRAC NICs should be in Unknown state now)
+            $Devices=Get-PnpDevice -CimSession $Servers -Class Net | Where-Object Status -eq "Unknown" 
+            $Devices
+
+            #then clean it from registry
+            ForEach ($Device in $Devices) {
+                Write-Host "Removing $($Device.FriendlyName)" -ForegroundColor Cyan
+                $RemoveKey = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($Device.InstanceId)"
+                Invoke-Command -ComputerName $Device.PSComputerName -ScriptBlock {
+                    Get-Item $using:RemoveKey | Select-Object -ExpandProperty Property | Foreach-Object { Remove-ItemProperty -Path $using:RemoveKey -Name $_ -Verbose }
+                }
+            }
+
+            #and then re-enable
+            foreach ($iDRAC in $iDRACs){
+                $uri="https://$($idrac.IP)/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+                $JSONBody=@{"Attributes"=@{"OS-BMC.1.UsbNicIpAddress"="$($iDRAC.USBNICIP)";"OS-BMC.1.AdminState"="Enabled"}} | ConvertTo-Json -Compress
+                Invoke-WebRequest -Body $JsonBody -Method Patch -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials
+            }
+
+            #and now check how it looks like in OS
+            $Headers=@{"Accept"="application/json"}
+            $ContentType='application/json'
+            $results=@()
+            foreach ($IP in $Idracs.IP){
+                $uri="https://$IP/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+                $Result=Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials
+                $uri="https://$IP/redfish/v1/Systems/System.Embedded.1/"
+                $HostName=(Invoke-RestMethod -Method Get -ContentType $ContentType -Headers $Headers -Uri $uri -Credential $iDRACCredentials).HostName
+                $IPInsideOS=(get-Netadapter -CimSession $HostName -InterfaceDescription "Remote NDIS Compatible Device" | Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Ignore).IPAddress
+                $Result.Attributes | Add-Member -NotePropertyName HostName -NotePropertyValue $HostName
+                $Result.Attributes | Add-Member -NotePropertyName IPInsideOS -NotePropertyValue $IPInsideOS
+                $results+=$Result.Attributes
+            }
+            $Results | Select-Object "HostName","CurrentIPv4.1.Address","OS-BMC.1.UsbNicIpAddress","IPInsideOS","OS-BMC.1.AdminState"
+    #endregion
 #endregion
