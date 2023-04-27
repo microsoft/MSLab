@@ -4,7 +4,7 @@
     $LibraryVolumeName="Library" #volume for images for VMs
     $VMsVolumeSize=1TB #size of volumes for AVD VMs
     $OUPath="OU=Workshop,DC=Corp,DC=contoso,DC=com" #OU where AVD VMs will be djoined
-    $vSwitchName="vSwitch"
+    $vSwitchName=(Get-VMSwitch -CimSession $ClusterNodes[0]).Name
     $MountDir="c:\temp\MountDir" #cannot be CSV. Location for temporary mount of VHD to inject answer file
 
     $AVDResourceGroupName="MSLabAVD"
@@ -49,7 +49,7 @@
 
     #automation account
         $AutomationAccountName="MSLabLabAVDAutomationAccount"
-        $AutomationAccountLocation=$HostPoolLocation=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.Automation" | Where-Object Location -ne $WorkspaceLocation | Out-GridView -OutputMode Single -Title "Please select Location for Automation Accout (Canot be $WorkspaceLocation").Location
+        $AutomationAccountLocation=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.Automation" | Where-Object Location -ne $WorkspaceLocation | Out-GridView -OutputMode Single -Title "Please select Location for Automation Accout (Cannot be $WorkspaceLocation)").Location
 
     #Define ARC Agents
         $ARCResourceGroupName=$AVDResourceGroupName
@@ -153,7 +153,7 @@
         #list win11 preview SKUs
         Get-AzVMImageSku -Location $HostPoolLocation -PublisherName  "microsoftwindowsdesktop" -Offer "Windows11preview"
 
-    #let's work with win11-21h2-avd-m365
+    #let's work with win11-22h2-avd-m365
         $image=Get-AzVMImage -Location $HostPoolLocation -PublisherName  "microsoftwindowsdesktop" -Offer $Offer -SKU $SKU | Sort-Object Version -Descending |Select-Object -First 1
 
     #export image to a disk https://docs.microsoft.com/en-us/powershell/module/az.compute/new-azdisk?view=azps-6.6.0#example-3--export-a-gallery-image-version-to-disk-
@@ -369,15 +369,26 @@
             & "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show -j | ConvertFrom-Json
         }
         $Output | Select-Object Status,PSComputerName
+
+    #if there are any disconnected, you can try again
+    <#
+        $DisconnectedVMs=($output | Where status -ne "Connected").PSComputerName
+        Invoke-Command -ComputerName $DisconnectedVMs -ScriptBlock {
+            Start-Process -FilePath "$env:ProgramFiles\AzureConnectedMachineAgent\azcmagent.exe" -ArgumentList "connect --service-principal-id $($using:SP.AppID) --service-principal-secret $using:password --resource-group $using:ARCResourceGroupName --tenant-id $using:TenantID --location $($using:ArcLocation) --subscription-id $using:SubscriptionID --tags $using:Tags" -Wait
+        }
+    #>
 #endregion
 
 #region install and register AVD agent
 #https://docs.microsoft.com/en-us/azure/virtual-desktop/create-host-pools-powershell?tabs=azure-powershell#register-the-virtual-machines-to-the-azure-virtual-desktop-host-pool
 
     #Download Agent and Bootloader
-        Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv -Destination "$env:UserProfile\Downloads\AVDAgent.msi"
-        Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH -Destination "$env:UserProfile\Downloads\AVDAgentBootloader.msi"
-
+        $ProgressPreference="Silent" #Increase speed of Invoke-WebRequest download
+        Invoke-WebRequest -Uri https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv -OutFile "$env:UserProfile\Downloads\AVDAgent.msi"
+        Invoke-WebRequest -Uri https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH -OutFile "$env:UserProfile\Downloads\AVDAgentBootloader.msi"
+        #Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrmXv -Destination "$env:UserProfile\Downloads\AVDAgent.msi"
+        #Start-BitsTransfer -Source https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RWrxrH -Destination "$env:UserProfile\Downloads\AVDAgentBootloader.msi"
+        #$ProgressPreference="Continue"
     #Copy agent and bootloader to VMs
         #create sessions
         $sessions=New-PSSession -ComputerName $VMs.VMName
@@ -644,26 +655,6 @@
             "name": "[parameters('workspaceName')]",
             "location": "[parameters('location')]",
             "resources": [
-                {
-                    "apiVersion": "2015-11-01-preview",
-                    "type": "datasources",
-                    "name": "sampleWindowsEvent1",
-                    "dependsOn": [
-                        "[concat('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]"
-                    ],
-                    "kind": "WindowsEvent",
-                    "properties": {
-                        "eventLogName": "Application",
-                        "eventTypes": [
-                            {
-                                "eventType": "Error"
-                            },
-                            {
-                                "eventType": "Warning"
-                            }
-                        ]
-                    }
-                },
                 {
                     "apiVersion": "2015-11-01-preview",
                     "type": "datasources",
@@ -966,29 +957,7 @@
                 }
             ]
         }
-    ],
-    "outputs": {
-        "workspaceName": {
-            "type": "string",
-            "value": "[parameters('workspaceName')]"
-        },
-        "provisioningState": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').provisioningState]"
-        },
-        "source": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').source]"
-        },
-        "customerId": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').customerId]"
-        },
-        "sku": {
-            "type": "string",
-            "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').sku.name]"
-        }
-    }
+    ]
 }
 '@
     $templateFile = New-TemporaryFile
@@ -1213,7 +1182,7 @@
 #endregion
 
 #region setup Azure Update (add Automation account)
-    New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $WorkspaceResourceGroupName -Location $AutomationAccountLocation -Plan Free 
+    New-AzAutomationAccount -Name $AutomationAccountName -ResourceGroupName $WorkspaceResourceGroupName -Plan Free  -Location $AutomationAccountLocation 
 
     #link workspace to Automation Account (via an ARM template deployment)
     $json = @"
