@@ -1365,10 +1365,60 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetAdapterQos | Where-Object enabled -eq true} | Sort-Object PSComputerName
         #Validate QOS Policies
         Get-NetQosPolicy -CimSession $servers | Sort-Object PSComputerName,Name | Select-Object PSComputerName,NetDirectPort,PriorityValue
-        #validate flow control setting
+        #validate flow control setting 
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosFlowControl} | Sort-Object  -Property PSComputername,Priority | Select-Object PSComputerName,Priority,Enabled
         #validate QoS Traffic Classes
         Invoke-Command -ComputerName $servers -ScriptBlock {Get-NetQosTrafficClass} |Sort-Object PSComputerName,Name |Select-Object PSComputerName,Name,PriorityFriendly,Bandwidth
+    #endregion
+
+    #region Verify Networking with Test-RDMA
+        #download test-rdma
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/microsoft/SDN/master/Diagnostics/Test-Rdma.ps1 -OutFile $env:userprofile\Downloads\Test-Rdma.ps1
+
+        #download diskspd
+        $downloadurl="https://github.com/microsoft/diskspd/releases/download/v2.1/DiskSpd.ZIP"
+        Invoke-WebRequest -Uri $downloadurl -OutFile "$env:userprofile\Downloads\diskspd.zip"
+        #unzip
+        Expand-Archive "$env:userprofile\Downloads\diskspd.zip" -DestinationPath "$env:userprofile\Downloads\Unzip"
+        Copy-Item -Path (Get-ChildItem -Path "$env:userprofile\Downloads\Unzip\" -Recurse | Where-Object {$_.Directory -like '*amd64*' -and $_.name -eq 'diskspd.exe' }).fullname -Destination "$env:userprofile\Downloads\"
+        Remove-Item -Path "$env:userprofile\Downloads\diskspd.zip"
+        Remove-Item -Path "$env:userprofile\Downloads\Unzip" -Recurse -Force
+        
+        #distribute to nodes
+            $items="$env:userprofile\Downloads\Test-Rdma.ps1","$env:userprofile\Downloads\diskspd.exe"
+            $sessions=New-PSSession -ComputerName $Servers
+            foreach ($item in $items){
+                foreach ($Session in $Sessions){
+                    Copy-Item -Path $item -Destination $item -ToSession $Session
+                }
+            }
+        
+        #test RDMA
+            #grab connections
+            $connections = Get-SmbMultichannelConnection -CimSession $Servers -SmbInstance SBL | Group-Object PSComputerName,ClientIPAddress,ServerIPAddress,ClientInterfaceIndex | foreach-object {$_.Group | Select-Object -First 1 } | Sort-Object -Property PSComputerName,ClientIPAddress
+
+            #test each connection
+                # Temporarily enable CredSSP delegation to avoid double-hop issue
+                foreach ($Server in $servers){
+                    Enable-WSManCredSSP -Role "Client" -DelegateComputer $Server -Force
+                }
+                Invoke-Command -ComputerName $servers -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+                $password = ConvertTo-SecureString "LS1setup!" -AsPlainText -Force
+                $Credentials = New-Object System.Management.Automation.PSCredential ("CORP\LabAdmin", $password)
+
+            #test
+            foreach ($Connection in $Connections){
+                Invoke-Command -ComputerName $Connection.PSComputerName -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                    Write-Host -ForegroundColor Green "$($Using:Connection.PSComputerName): $($Using:Connection.ClientIpAddress)->$($Using:Connection.ServerIpAddress)"
+                    & $env:USERPROFILE\Downloads\Test-Rdma.ps1 -IfIndex $using:Connection.ClientInterfaceIndex -IsRoCE $True -RemoteIpAddress $using:Connection.ServerIpAddress -PathToDiskspd $env:USERPROFILE\Downloads -outputlevel None
+                    Start-Sleep 10
+                }
+            }
+
+        # Disable CredSSP
+        Disable-WSManCredSSP -Role Client
+        Invoke-Command -ComputerName $Servers -ScriptBlock { Disable-WSManCredSSP Server }
     #endregion
 
     #region others
