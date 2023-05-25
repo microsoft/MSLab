@@ -485,11 +485,12 @@ foreach ($Number in $Numbers){
     $r | where Datavolume -like "C:\ClusterStorage*" | select Datavolume,ReplicationStatus
 
 #Configure Network Constraints
+#Network Constraints network settings shal only contain Source Interafaces from the source site for the -SourceNWInterface paramater, and Destination Interfaces for the other site for the -DestinationNWInterface
 $Numbers=1..$NumberOfVolumesPerSite
 foreach ($Number in $Numbers){
     $SourceRGName="$SourceRGNamePrefix$Number"
     $DestinationRGName="$DestinationRGNamePrefix$Number"
-    Set-SRNetworkConstraint -SourceComputerName $ClusterName -DestinationComputerName $ClusterName -SourceRGName $SourceRGName -DestinationRGName $DestinationRGName -SourceNWInterface "ReplicaNet1","ReplicaNet2" -DestinationNWInterface "ReplicaNet1","ReplicaNet2" -ErrorAction Ignore
+    Set-SRNetworkConstraint -SourceComputerName $ClusterName -DestinationComputerName $ClusterName -SourceRGName $SourceRGName -DestinationRGName $DestinationRGName -SourceNWInterface "ReplicaNet1" -DestinationNWInterface "ReplicaNet2" -ErrorAction Ignore
 }
 
 #Validate Network Constraints
