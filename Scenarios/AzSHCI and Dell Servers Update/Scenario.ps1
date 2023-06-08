@@ -17,9 +17,11 @@
     #folder on servers where all binaries will be staged
     $BinariesLocation="c:\Dell\"
 
-    $Offline=$True #assuming nodes are offline. If true, all tools will be downloaded to management machine, all updates will be installed "offline"
+    $Offline=$false #assuming nodes are offline. If true, all tools will be downloaded to management machine, all updates will be installed "offline"
 
-    $MSUpdates="Recommended" #or "All" - for online version only
+    $MSUpdates="Recommended" #or $false (to skip MS updates) or "All" - for online version only
+
+    $DellUpdates=$True #or $False to skip dell updates
 
     $ForceReboot=$false #or $true, to reboot even if there were no updates applied
 
@@ -275,107 +277,108 @@ if ($offline){
 
 #region apply updates on nodes
     foreach ($Node in $Nodes){
-        #Check if reboot is required
-        if (($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.rebootrequired -eq $True}) -or ($Scanresult | Where-Object ($_.ComputerName -eq $node -and $_.MicrosoftUpdateRequired -eq $True) -or ($ForceReboot -eq $True))){
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is required"
-            #check for repair jobs, if found, wait until finished
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Storage jobs to finish"
-            if ((Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName | Where-Object Name -eq Repair) -ne $Null){
-                do{
-                    $jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
-                    if ($jobs | Where-Object Name -eq Repair){
-                        $count=($jobs | Measure-Object).count
-                        $BytesTotal=($jobs | Measure-Object BytesTotal -Sum).Sum
-                        $BytesProcessed=($jobs | Measure-Object BytesProcessed -Sum).Sum
-                        [System.Console]::Write("$count Repair Storage Job(s) Running. GBytes Processed: $($BytesProcessed/1GB) GBytes Total: $($BytesTotal/1GB)               `r")
-                        #Check for Suspended jobs (if there are no running repair jobs, only suspended and still unhealthy disks). Kick the repair with Repair-Virtual disk if so... 
-                        if ((($jobs | where-Object Name -eq Repair | where-Object JobState -eq "Running") -eq $Null) -and ($jobs | where-Object Name -eq Repair | where-Object JobState -eq "Suspended") -and (Get-VirtualDisk -CimSession $ClusterName | where healthstatus -ne Healthy)){
-                            Write-Output "Suspended repair job and Degraded virtual disk found. Invoking Virtual Disk repair"
-                            Get-VirtualDisk -CimSession $ClusterName | where-Object HealthStatus -ne "Healthy" | Repair-VirtualDisk
-                        }
-                        Start-Sleep 5
+        #check for repair jobs, if found, wait until finished
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Storage jobs to finish"
+        if ((Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName | Where-Object Name -eq Repair) -ne $Null){
+            do{
+                $jobs=(Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName)
+                if ($jobs | Where-Object Name -eq Repair){
+                    $count=($jobs | Measure-Object).count
+                    $BytesTotal=($jobs | Measure-Object BytesTotal -Sum).Sum
+                    $BytesProcessed=($jobs | Measure-Object BytesProcessed -Sum).Sum
+                    [System.Console]::Write("$count Repair Storage Job(s) Running. GBytes Processed: $($BytesProcessed/1GB) GBytes Total: $($BytesTotal/1GB)               `r")
+                    #Check for Suspended jobs (if there are no running repair jobs, only suspended and still unhealthy disks). Kick the repair with Repair-Virtual disk if so... 
+                    if ((($jobs | where-Object Name -eq Repair | where-Object JobState -eq "Running") -eq $Null) -and ($jobs | where-Object Name -eq Repair | where-Object JobState -eq "Suspended") -and (Get-VirtualDisk -CimSession $ClusterName | where healthstatus -ne Healthy)){
+                        Write-Output "Suspended repair job and Degraded virtual disk found. Invoking Virtual Disk repair"
+                        Get-VirtualDisk -CimSession $ClusterName | where-Object HealthStatus -ne "Healthy" | Repair-VirtualDisk
                     }
-                }until (($jobs | Where-Object Name -eq Repair) -eq $null)
-            }
+                    Start-Sleep 5
+                }
+            }until (($jobs | Where-Object Name -eq Repair) -eq $null)
+        }
 
-            #Check if all disks are healthy. Wait if not
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Checking if all disks are healthy"
-            if (Get-VirtualDisk -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy"){
-                Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for virtual disks to become healthy"
-                do{Start-Sleep 5}while(Get-VirtualDisk -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy")
-            }
+        #Check if all disks are healthy. Wait if not
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Checking if all disks are healthy"
+        if (Get-VirtualDisk -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy"){
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for virtual disks to become healthy"
+            do{Start-Sleep 5}while(Get-VirtualDisk -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy")
+        }
 
-            #Check if all fault domains are healthy. Wait if not
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Checking if all fault domains are healthy"
-            if (Get-StorageFaultDomain -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy"){
-                Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for fault domains to become healthy"
-                do{Start-Sleep 5}while(Get-StorageFaultDomain -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy")
-            }
+        #Check if all fault domains are healthy. Wait if not
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Checking if all fault domains are healthy"
+        if (Get-StorageFaultDomain -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy"){
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for fault domains to become healthy"
+            do{Start-Sleep 5}while(Get-StorageFaultDomain -CimSession $ClusterName | Where-Object HealthStatus -ne "Healthy")
+        }
 
-            #install microsoft updates (we will do it online to limit when node is suspended)
-                if ($offline){
-                    Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Applying offline MSUs"
-                    #apply all MSU from $BinariesLocation
-                    Invoke-Command -ComputerName $Node -ScriptBlock {
-                        $MSUs=Get-ChildItem -Path $using:BinariesLocation\Updates | Where-Object Extension -eq ".msu"
-                        foreach ($MSU in $MSUs) {
-                            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($using:Node): Applying MSU $($MSU.FullName)"
-                            <#
-                            $CabName="$($MSU.basename -split "_" | Select-Object -First 1).cab"
-                            expand.exe $MSU.FullName $using:BinariesLocation\Updates\ -f:"$CabName" | Out-Null
-                            Add-WindowsPackage -PackagePath "$using:BinariesLocation\Updates\$CabName" -Online | Out-Null
-                            #>
-                            Start-Process -FilePath "$env:systemroot\System32\wusa.exe" -ArgumentList "$($MSU.FullName) /quiet /norestart" -Wait
-                        }
-                    }
-                }else{
-                    #install Microsoft updates
-                    if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
-                        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Installing $MSUpdates Microsoft Updates online"
-                        #Configure virtual account
-                        Invoke-Command -ComputerName $node -ScriptBlock {
-                            New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
-                            Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
-                        } -ErrorAction Ignore
-                        #install update
-                        $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
-                            $Searcher = New-Object -ComObject Microsoft.Update.Searcher
-                            $SearchResult = $Searcher.Search($using:UpdatesSearchCriteria).Updates
-                            $Session = New-Object -ComObject Microsoft.Update.Session
-                            $Downloader = $Session.CreateUpdateDownloader()
-                            $Downloader.Updates = $SearchResult
-                            $Downloader.Download()
-                            $Installer = New-Object -ComObject Microsoft.Update.Installer
-                            $Installer.Updates = $SearchResult
-                            $Result = $Installer.Install()
-                            $Result
-                        }
-                        #remove temporary virtual account config
-                        Invoke-Command -ComputerName $Node -ScriptBlock {
-                            Unregister-PSSessionConfiguration -Name 'VirtualAccount'
-                            Remove-Item -Path $env:TEMP\VirtualAccount.pssc
-                        }
-                    }else{
-                        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Microsoft Updates not required"
-                        $MSUpdateInstallResult=$Null
+        #install microsoft updates (we will do it online to limit time when node is suspended)
+        if ($MSUpdates){
+            if ($offline){
+                Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Applying offline MSUs"
+                #apply all MSU from $BinariesLocation
+                Invoke-Command -ComputerName $Node -ScriptBlock {
+                    $MSUs=Get-ChildItem -Path $using:BinariesLocation\Updates | Where-Object Extension -eq ".msu"
+                    foreach ($MSU in $MSUs) {
+                        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($using:Node): Applying MSU $($MSU.FullName)"
+                        <#
+                        $CabName="$($MSU.basename -split "_" | Select-Object -First 1).cab"
+                        expand.exe $MSU.FullName $using:BinariesLocation\Updates\ -f:"$CabName" | Out-Null
+                        Add-WindowsPackage -PackagePath "$using:BinariesLocation\Updates\$CabName" -Online | Out-Null
+                        #>
+                        Start-Process -FilePath "$env:systemroot\System32\wusa.exe" -ArgumentList "$($MSU.FullName) /quiet /norestart" -Wait
                     }
                 }
-
-            #Suspend node
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node"
-            Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait | Out-Null
-
-            if (Get-ClusterResource -Cluster $ClusterName | Where-Object OwnerNode -eq $Node | Where-Object State -eq "Online"){
-                Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node Failed. Resuming and terminating patch run"
-                Resume-ClusterNode -Name "$Node" -Cluster $ClusterName -Failback Immediate | Out-Null
-                break
+            }else{
+                #install Microsoft updates
+                if (($ScanResult | Where-Object ComputerName -eq $node).MicrosoftUpdateRequired){
+                    Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Installing $MSUpdates Microsoft Updates online"
+                    #Configure virtual account
+                    Invoke-Command -ComputerName $node -ScriptBlock {
+                        New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
+                        Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
+                    } -ErrorAction Ignore
+                    #install update
+                    $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
+                        $Searcher = New-Object -ComObject Microsoft.Update.Searcher
+                        $SearchResult = $Searcher.Search($using:UpdatesSearchCriteria).Updates
+                        $Session = New-Object -ComObject Microsoft.Update.Session
+                        $Downloader = $Session.CreateUpdateDownloader()
+                        $Downloader.Updates = $SearchResult
+                        $Downloader.Download()
+                        $Installer = New-Object -ComObject Microsoft.Update.Installer
+                        $Installer.Updates = $SearchResult
+                        $Result = $Installer.Install()
+                        $Result
+                    }
+                    #remove temporary virtual account config
+                    Invoke-Command -ComputerName $Node -ScriptBlock {
+                        Unregister-PSSessionConfiguration -Name 'VirtualAccount'
+                        Remove-Item -Path $env:TEMP\VirtualAccount.pssc
+                    }
+                }else{
+                    Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Microsoft Updates not required"
+                    $MSUpdateInstallResult=$Null
+                }
             }
+        }
 
-            #enable storage maintenance mode
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Enabling Storage Maintenance mode"
-            Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
+        #Suspend node
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node"
+        Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait | Out-Null
 
-            #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
+        if (Get-ClusterResource -Cluster $ClusterName | Where-Object OwnerNode -eq $Node | Where-Object State -eq "Online"){
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node Failed. Resuming and terminating patch run"
+            Resume-ClusterNode -Name "$Node" -Cluster $ClusterName -Failback Immediate | Out-Null
+            break
+        }
+
+        #enable storage maintenance mode
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Enabling Storage Maintenance mode"
+        Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
+
+        #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
+        #assuming dell updates might interrupt server, therefore it's done during maintenance mode
+        if ($DellUpdates){
             $UpdateNames=(($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.compliancestatus -eq $false}).PackageFilePath | Split-Path -Leaf) -join ","
             if ($UpdateNames){
                 if ($offline){
@@ -390,32 +393,34 @@ if ($offline){
                     }
                 }
             }
+        }
 
+        #Check if reboot is required and reboot
+        if (($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.rebootrequired -eq $True}) -or ($Scanresult | Where-Object ($_.ComputerName -eq $node -and $_.MicrosoftUpdateRequired -eq $True) -or ($ForceReboot -eq $True))){
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is required"
             #restart node and wait for PowerShell to come up (with powershell 7 you need to wait for WINRM :)
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Restarting Cluster Node"
             Restart-Computer -ComputerName $Node -Protocol WSMan -Wait -For PowerShell | Out-Null
-
-            #disable storage maintenance mode
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling Storage Maintenance mode"
-            Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $Node | Where-Object FriendlyName -eq $Node | Disable-StorageMaintenanceMode -CimSession $Node
-
-            #resume cluster node
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Resuming Cluster Node"
-            Resume-ClusterNode -Name "$Node" -Cluster $ClusterName -Failback Immediate | Out-Null
-
-            #wait for machines to finish live migration
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Live migrations to finish"
-            do {Start-Sleep 5}while(
-                Get-CimInstance -CimSession $Nodes -Namespace root\virtualization\v2 -ClassName Msvm_MigrationJob | Where-Object StatusDescriptions -eq "Job is running"
-            )
-        }else{
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is not required"
         }
+
+        #disable storage maintenance mode
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling Storage Maintenance mode"
+        Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $Node | Where-Object FriendlyName -eq $Node | Disable-StorageMaintenanceMode -CimSession $Node
+
+        #resume cluster node
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Resuming Cluster Node"
+        Resume-ClusterNode -Name "$Node" -Cluster $ClusterName -Failback Immediate | Out-Null
+
+        #wait for machines to finish live migration
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Live migrations to finish"
+        do {Start-Sleep 5}while(
+            Get-CimInstance -CimSession $Nodes -Namespace root\virtualization\v2 -ClassName Msvm_MigrationJob | Where-Object StatusDescriptions -eq "Job is running"
+        )
     }
 
     #cleanup updates folder on nodes
     Invoke-Command -ComputerName $Nodes -ScriptBlock {
-        Remove-Item -Path $using:BinariesLocation\Updates -Recurse -Force
+        Remove-Item -Path $using:BinariesLocation\Updates -Recurse -Force -ErrorAction Ignore
     }
 #endregion
 
