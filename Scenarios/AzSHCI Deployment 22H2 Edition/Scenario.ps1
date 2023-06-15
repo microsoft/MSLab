@@ -171,7 +171,9 @@
         }
     }
     #define and install other features
-    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","RSAT-DataCenterBridging-LLDP-Tools","FS-SMBBW","Bitlocker","RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","RSAT-DataCenterBridging-LLDP-Tools","FS-SMBBW"
+    #optional - affects perf even if not enabled on volumes as filter driver is attached (Bitlocker,SR,Dedup)
+    #$features+="RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
     Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features}
 #endregion
 
@@ -209,7 +211,7 @@
     #Configure max evenlope size to be 8kb to be able to copy files using PSSession (useful for dell drivers update region and Windows Admin Center)
     Invoke-Command -ComputerName $servers -ScriptBlock {Set-Item -Path WSMan:\localhost\MaxEnvelopeSizekb -Value 8192}
 
-    #Configure MaxTimeout (10s for Dell hardware, 30s for Virtual environment https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm)
+    #Configure MaxTimeout (10s for Dell hardware - especially if you have HDDs, 30s for Virtual environment https://learn.microsoft.com/en-us/windows-server/storage/storage-spaces/storage-spaces-direct-in-vm)
     if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
         Invoke-Command -ComputerName $servers -ScriptBlock {Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\spaceport\Parameters -Name HwTimeout -Value 0x00002710}
     }
@@ -638,7 +640,7 @@
         }
 
         #since ATC is not available on management machine, copy PowerShell module over to management machine from cluster. However global intents will not be automatically added as in C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC\NetWorkATC.psm1 is being checked if NetATC feature is installed [FabricManager.FeatureStaging]::Feature_NetworkATC_IsEnabled()
-        $session=New-PSSession -ComputerName $ClusterName
+        $session=New-PSSession -ComputerName $Servers[0]
         $items="C:\Windows\System32\WindowsPowerShell\v1.0\Modules\NetworkATC","C:\Windows\System32\NetworkAtc.Driver.dll","C:\Windows\System32\Newtonsoft.Json.dll","C:\Windows\System32\NetworkAtcFeatureStaging.dll"
         foreach ($item in $items){
             Copy-Item -FromSession $session -Path $item -Destination $item -Recurse -Force
@@ -656,7 +658,7 @@
             #grab fastest adapters names (assuming that we are deploying converged intent with just Mellanox or Intel E810)
             $FastestLinkSpeed=(get-netadapter -CimSession $Servers | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True}).Speed | Sort-Object -Descending | Select-Object -First 1
             #grab adapters
-            $AdapterNames=(Get-NetAdapter -CimSession $ClusterName | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
+            $AdapterNames=(Get-NetAdapter -CimSession $Servers[0] | Where-Object {$_.Status -eq "up" -and $_.HardwareInterface -eq $True} | where-object Speed -eq $FastestLinkSpeed | Sort-Object Name).Name
             #$AdapterNames="SLOT 3 Port 1","SLOT 3 Port 2"
             Import-Module NetworkATC
             Add-NetIntent -ClusterName $ClusterName -Name ConvergedIntent -Management -Compute -Storage -AdapterName $AdapterNames -Verbose #-StorageVlans 1,2
@@ -751,6 +753,13 @@ if ($NetATC){
                     Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Dcbxmode' -DisplayValue 'Host in charge'
                 }
             }
+            #configure larger receive buffers on Mellanox adapters
+            if ((Get-CimInstance -ClassName win32_computersystem -CimSession $servers[0]).Manufacturer -like "*Dell Inc."){
+                if (Get-NetAdapter -CimSession $Servers -InterfaceDescription Mellanox*){
+                    Set-NetAdapterAdvancedProperty -CimSession $Servers -InterfaceDescription Mellanox* -DisplayName 'Receive buffers' -DisplayValue '4096'
+                }
+            }
+
         #endregion
 
         #region Check settings before applying NetATC
@@ -1071,7 +1080,9 @@ if ($numberofnodes -eq 16){
             Install-Module -Name Az.Resources -Force
         }
         #choose location for cluster (and RG)
-        $region=(Get-AzLocation | Where-Object Providers -Contains "Microsoft.AzureStackHCI" | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata").Location
+        $region=(Get-AzResourceProvider -ProviderNamespace Microsoft.AzureStackHCI).Where{($_.ResourceTypes.ResourceTypeName -eq 'clusters' -and $_.RegistrationState -eq 'Registered')}.Locations | Out-GridView -OutputMode Single -Title "Please select Location for AzureStackHCI metadata"
+        $region = $region -replace '\s',''
+        $region = $region.ToLower()
         if ($ResourceGroupName){
             If (-not (Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
                 New-AzResourceGroup -Name $ResourceGroupName -Location $region
@@ -1300,7 +1311,7 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
 
     #region check if there are any updates are needed
         $ScanResult=Invoke-Command -ComputerName $Servers -ScriptBlock {
-            & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$using:DSUPackageDownloadFolder\ASHCI-Catalog.xml" --preview | Out-Null
+            & "C:\Program Files\Dell\DELL System Update\DSU.exe" --catalog-location="$env:UserProfile\Downloads\ASHCI-Catalog.xml" --preview | Out-Null
             $JSON=Get-content "C:\ProgramData\Dell\DELL System Update\dell_dup\DSU_STATUS.json" | ConvertFrom-JSon
             $Result=$JSON.systemupdatestatus.invokerinfo.statusmessage
             if ($Result -like "No Applicable Update*" ){
@@ -1537,5 +1548,38 @@ if ((Get-CimInstance -ClassName win32_computersystem -CimSession $Servers[0]).Ma
                 $results+=$Result.Attributes
             }
             $Results | Select-Object "HostName","CurrentIPv4.1.Address","OS-BMC.1.UsbNicIpAddress","IPInsideOS","OS-BMC.1.AdminState"
+    #endregion
+
+    #region reset pool/disks in existing cluster
+    <#
+        #disable S2D
+        Disable-ClusterS2D -CimSession $ClusterName -Confirm:0
+
+        #remove cluster disk in SDDC Group
+        Get-ClusterResource -Cluster $ClusterName | Where-Object OwnerGroup -eq "SDDC Group" | Remove-clusterResource -Force
+        #remove cluster disk from available storage
+        Get-ClusterResource -Cluster $ClusterName | Where-Object OwnerGroup -eq "Available Storage" | Remove-clusterResource -Force
+        #remove Storage Pool from cluster resources
+        Get-ClusterResource -Cluster $ClusterName | Where-Object resourcetype -eq "Storage Pool" | Remove-ClusterResource -Force
+        #remove storage pool
+        Start-Sleep 5
+        Get-StoragePool -CimSession $ClusterName -FriendlyName S2D* | Set-StoragePool -IsReadOnly $False
+        Get-StoragePool -FriendlyName S2D* -CimSession $ClusterName | Get-VirtualDisk | Remove-VirtualDisk -Confirm:0
+        Get-StoragePool -FriendlyName S2D* -CimSession $ClusterName | Remove-StoragePool -Confirm:0
+        #wipe disks
+        Invoke-Command -ComputerName $Servers -ScriptBlock {
+            Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
+        }
+        Enable-ClusterS2D -CimSession $ClusterName -Confirm:0 -Verbose
+    #>
+    #endregion
+
+    #region reset health service/performance history
+    <#
+        #delete performance history including volume (without invoking it returned error "get-srpartnership : The WS-Management service cannot process the request. The CIM namespace")
+        Invoke-Command -ComputerName $CLusterName -ScriptBlock {Stop-ClusterPerformanceHistory -DeleteHistory}
+        #recreate performance history
+        Start-ClusterPerformanceHistory -CimSession $ClusterName
+    #>
     #endregion
 #endregion
