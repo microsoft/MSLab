@@ -78,7 +78,7 @@ jobs:
           }
           
           $changeLogContent = @"
-          :package: MSLab scripts are in **[mslab_${{ needs.new-version.outputs.new_tag }}.zip](${{ github.server_url }}/${{ github.repository }}//releases/${{ needs.new-version.outputs.new_tag }}/download/mslab_${{ needs.new-version.outputs.new_tag }}.zip)** file. 
+          :package: MSLab scripts are in **[mslab_${{ needs.new-version.outputs.new_tag }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ needs.new-version.outputs.new_tag }}/mslab_${{ needs.new-version.outputs.new_tag }}.zip)** file. 
             
           :information_source: Remaining `.ps1` files in this release would be downloaded on-demand by MSLab scripts during deployment, only if needed.
 
