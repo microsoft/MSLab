@@ -96,7 +96,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
-          name: Release ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
+          name: MSLab ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
           generate_release_notes: true
           body_path: changelog.md
           files: |

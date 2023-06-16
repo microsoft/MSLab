@@ -16,9 +16,9 @@ $toolsDir = ".\Tools\"
 $scriptsDir = ".\Scripts\"
 $outputBaseDir = ".\Output\"
 $scriptsOutputDir = Join-Path $outputBaseDir "ScriptsCompiled"
-$signedScriptsOutputDir = Join-Path $outputBaseDir "ScriptsSigned"
+$signedScriptsOutputDir = Join-Path $outputBaseDir "Scripts"
 $toolsOutputDir = Join-Path $outputBaseDir "ToolsCompiled"
-$signedToolsOutputDir = Join-Path $outputBaseDir "ToolsSigned"
+$signedToolsOutputDir = Join-Path $outputBaseDir "Tools"
 $scriptsOutputFile = "Release.zip"
 
 # Files that would be skipped by Build function (no replacements)
