@@ -104,7 +104,7 @@ function  Get-WindowsBuildNumber {
                 $script = New-Item $Path -type File -Force
                 $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
                 $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
-                Set-Content -path $script -value $FileContent
+                Set-Content -Path $script -value $FileContent
             } else {
                 WriteErrorAndExit "Unable to download $Filename."
             }
@@ -117,29 +117,26 @@ function  Get-WindowsBuildNumber {
         $fileNames += "CreateLinuxParentDisk"
     }
     foreach ($filename in $fileNames) {
-        $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
-        If (Test-Path -Path $Path) {
-            WriteSuccess "`t $Filename is present, skipping download"
+        $path = "$PSScriptRoot\ParentDisks\$FileName.ps1"
+        If (Test-Path -Path $path) {
+            WriteSuccess "`t $filename is present, skipping download"
         } else {
             $FileContent = $null
 
             try {
                 # try to download release version first
-                $file = (Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/$Filename.ps1")
-                if($file.Headers["Content-Type"] -eq "application/octet-stream") {
-                    $FileContent = [System.Text.Encoding]::UTF8.GetString($file.Content)
-                }
+                Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/$Filename.ps1" -OutFile $path
             } catch {
                 WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
-                # if that fails, try main branch
+                
+                # if that fails, try master branch
                 $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$FileName.ps1").Content
-            }
-
-            if ($FileContent) {
-                $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
-                Set-Content -path $script -value $FileContent
-            } else {
-                WriteErrorAndExit "Unable to download $Filename."
+                if ($FileContent) {
+                    $script = New-Item $path -type File -Force
+                    Set-Content -Path $script -value $FileContent
+                } else {
+                    WriteErrorAndExit "Unable to download $Filename."
+                }
             }
         }
     }
