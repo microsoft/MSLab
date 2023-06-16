@@ -39,6 +39,8 @@ If (-not $isAdmin) {
 
     #endregion
 
+    $mslabVersion = "dev"
+
     #region download convert-windowsimage if needed and load it
     $convertWindowsImagePath = "$PSScriptRoot\Convert-WindowsImage.ps1"
     if (-not (Test-Path -Path $convertWindowsImagePath)) {
