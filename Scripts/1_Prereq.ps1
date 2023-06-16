@@ -83,37 +83,58 @@ function  Get-WindowsBuildNumber {
 #region Download Scripts
 
 #add scripts for VMM
-    $Filenames="1_SQL_Install","2_ADK_Install","3_SCVMM_Install"
-    foreach ($Filename in $filenames){
-        $Path="$PSScriptRoot\Temp\ToolsVHD\SCVMM\$Filename.ps1"
-        If (Test-Path -Path $Path){
+    $filenames = "1_SQL_Install", "2_ADK_Install", "3_SCVMM_Install"
+    foreach ($filename in $filenames) {
+        $Path = "$PSScriptRoot\Temp\ToolsVHD\SCVMM\$filename.ps1"
+        if (Test-Path -Path $Path) {
             WriteSuccess "`t $Filename is present, skipping download"
-        }else{
-            $FileContent=$null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$Filename.ps1").Content
-            if ($FileContent){
+        } else {
+            $FileContent = $null
+
+            try {
+                # try to download tagged version first
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/$mslabVersion/Tools/$filename.ps1").Content
+            } catch {
+                WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
+                # if that fails, try master branch
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$filename.ps1").Content
+            }
+
+            if ($FileContent) {
                 $script = New-Item $Path -type File -Force
                 $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
                 $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
                 Set-Content -path $script -value $FileContent
-            }else{
+            } else {
                 WriteErrorAndExit "Unable to download $Filename."
             }
         }
     }
 
 # add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
+    $fileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
     if($LabConfig.Linux) {
-        $FileNames += "CreateLinuxParentDisk"
+        $fileNames += "CreateLinuxParentDisk"
     }
-    foreach ($filename in $filenames) {
+    foreach ($filename in $fileNames) {
         $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
         If (Test-Path -Path $Path) {
             WriteSuccess "`t $Filename is present, skipping download"
         } else {
             $FileContent = $null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
+
+            try {
+                # try to download release version first
+                $file = (Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/$Filename.ps1")
+                if($file.Headers["Content-Type"] -eq "application/octet-stream") {
+                    $FileContent = [System.Text.Encoding]::UTF8.GetString($file.Content)
+                }
+            } catch {
+                WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
+                # if that fails, try main branch
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$FileName.ps1").Content
+            }
+
             if ($FileContent) {
                 $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
                 Set-Content -path $script -value $FileContent
@@ -124,17 +145,23 @@ function  Get-WindowsBuildNumber {
     }
 
 # Download convert-windowsimage into Temp
-WriteInfoHighlighted "Testing Convert-windowsimage presence"
-If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
-    WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
-}else{ 
-    WriteInfo "`t Downloading Convert-WindowsImage"
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
-    } catch {
-        WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+    WriteInfoHighlighted "Testing Convert-windowsimage presence"
+    $convertWindowsImagePath = "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
+    If (Test-Path -Path $convertWindowsImagePath) {
+        WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
+    } else {
+        WriteInfo "`t Downloading Convert-WindowsImage"
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
+        } catch {
+            try {
+                WriteInfo "Download Convert-windowsimage.ps1 failed with $($_.Exception.Message), trying master branch now"
+                Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
+            } catch {
+                WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+            }
+        }
     }
-}
 #endregion
 
 #region some tools to download
