@@ -40,13 +40,18 @@ If (-not $isAdmin) {
     #endregion
 
     #region download convert-windowsimage if needed and load it
-
-    if (!(Test-Path "$PSScriptRoot\Convert-WindowsImage.ps1")){
+    $convertWindowsImagePath = "$PSScriptRoot\Convert-WindowsImage.ps1"
+    if (-not (Test-Path -Path $convertWindowsImagePath)) {
         WriteInfo "`t Downloading Convert-WindowsImage"
         try {
-            Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Convert-WindowsImage.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
         } catch {
-            WriteErrorAndExit "`t Failed to download Convert-WindowsImage.ps1!"
+            try {
+                WriteInfo "Download Convert-windowsimage.ps1 from releases ($mslabVersion) failed with $($_.Exception.Message), trying master branch now"
+                Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
+            } catch {
+                WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+            }
         }
     }
 

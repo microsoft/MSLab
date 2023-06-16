@@ -8,10 +8,12 @@ on:
   push:
     paths: 
       - 'Scripts/**'
+      - 'Tools/**'
     branches: [ master ]
 
 jobs:
   new-version:
+    environment: production
     name: Bump version
     if: "!contains(github.event.head_commit.message, '[no release]')"
     runs-on: windows-2019
@@ -19,14 +21,15 @@ jobs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
       new_tag: ${{ steps.bump.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - id: bump
         name: Bump version
         run: |
           $today = Get-Date
           $newVersion = @($today.ToString("yy"), $today.ToString("MM"), "1")
           git fetch --tags
-          $hash = git rev-list --tags --topo-order --max-count=1
+          # Get the latest tag that matches our versioning schema (starts with letter v)
+          $hash = git rev-list --tags=v* --topo-order --max-count=1
           if($hash) {
             $currentTag = git describe --tags $hash
             $parts = $currentTag.Substring(1) -split '\.'
@@ -35,72 +38,67 @@ jobs:
           
           $newTag = "v" + ($newVersion -join ".")
           git tag $newTag
+          if(-not $?) {
+            throw "Tagging of new release version failed!"
+          }
+          
+          git push origin $newTag
+
           "New version: $newTag"
-          echo "::set-output name=previous_tag::$currentTag"
-          echo "::set-output name=new_tag::$newTag"
-      
-      - name: Push version tag
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tags: true
+          echo "previous_tag=$currentTag" >> $env:GITHUB_OUTPUT
+          echo "new_tag=$newTag" >> $env:GITHUB_OUTPUT
 
   new-release:
     name: Create release
     if: "!contains(github.event.head_commit.message, '[no release]')"
-    runs-on: windows-2019
+    runs-on: self-hosted
     needs: new-version
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-          enable-AzPSSession: true
-      - name: "Build scripts"
-        uses: azure/powershell@v1
+      - name: Build and sign release scripts
+        shell: pwsh
         env:
           SIGN_SCRIPT_URI: ${{ secrets.SIGN_SCRIPT_URI }}
-          CLIENT_ID: ${{ secrets.CLIENT_ID }} # just to ofusctate it in the output
-        with:
-          azPSVersion: "latest"
-          inlineScript: |
-            ./build.ps1 -Version ${{ needs.new-version.outputs.new_tag }} -SignScripts $true -SignScriptUri $env:SIGN_SCRIPT_URI -ClientId $env:CLIENT_ID
+          CLIENT_ID: ${{ secrets.CLIENT_ID }} # just to obfusctate it in the output
+        run: |
+          ./build.ps1 -Version ${{ needs.new-version.outputs.new_tag }} -SignScripts $true -SignScriptUri $env:SIGN_SCRIPT_URI -ClientId $env:CLIENT_ID
+          Move-Item ./Release.zip mslab_${{ needs.new-version.outputs.new_tag }}.zip
       - name: Create changelog
         id: changelog
         shell: powershell
         run: |
           if("${{ needs.new-version.outputs.previous_tag }}" -ne "") {
-            $changelog = (& { git log ${{ needs.new-version.outputs.previous_tag }}..HEAD --pretty=format:'- %s (%h)' --abbrev-commit -- Scripts }) -join '%0D%0A'
+            $changelog = (& { git log ${{ needs.new-version.outputs.previous_tag }}..HEAD --pretty=format:'- %s (%h)' --abbrev-commit -- Scripts Tools }) -join "`n"
             "Changes for ${{ needs.new-version.outputs.previous_tag }} are:"
             $changelog
           } else {
             $changelog = ""
           }
-          echo "::set-output name=changelog::$changelog"
-        
-      - name: Create Github Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          $changeLogContent = @"
+          :package: All MSLab scripts are in **mslab_${{ needs.new-version.outputs.new_tag }}.zip** file. 
+            
+          :information_source: Remaining `.ps1` files in this release would be downloaded on-demand by MSLab scripts during deployment, only if needed.
+          "@
+          
+          if($changelog -ne "") {
+            $changeLogContent += @"
+          
+          :basket: Changes in this version:
+          $changelog
+          "@
+          }
+          
+          Set-Content -Value $changeLogContent -Path .\changelog.md
+      - name: Create new release
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
-          release_name: Release ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
-          body: |
-            Changes in this version:
-            ${{ steps.changelog.outputs.changelog }}
-          draft: false
-          prerelease: false
-
-      - name: Upload ZIP to Release
-        id: upload-scripts
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./Release.zip
-          asset_name: mslab_${{ needs.new-version.outputs.new_tag }}.zip
-          asset_content_type: application/zip
+          name: Release ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
+          generate_release_notes: true
+          body_path: changelog.md
+          files: |
+            mslab_${{ needs.new-version.outputs.new_tag }}.zip
+            Output/Tools/*.ps1
