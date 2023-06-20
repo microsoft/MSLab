@@ -446,6 +446,25 @@
             Start-Sleep 5
         } while ($status.ConfigurationStatus -contains "Provisioning" -or $status.ConfigurationStatus -contains "Retrying")
 
+        #make sure automatic IP Generation is disabled, as in 3+ node configuration in 22h2 NetATC cannot determine individual connections
+        Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+            Import-Module networkatc
+            $overrides=New-NetIntentStorageOverrides
+            $overrides.EnableAutomaticIPGeneration=$false
+            Set-NetIntent -Name storage -StorageOverrides $overrides
+        }
+
+        #configure static IP Addresses
+        $Pairs=@()
+        $Pairs+=@{Node1="Switchless1" ; Node2="Switchless2" ; Node1NICName="Ethernet 3" ; Node2NICName="Ethernet 3"; Node1NICIP="172.16.1.1"; Node2NICIP="172.16.1.2" ; PrefixLength=24}
+        $Pairs+=@{Node1="Switchless1" ; Node2="Switchless3" ; Node1NICName="Ethernet 4" ; Node2NICName="Ethernet 4"; Node1NICIP="172.16.2.1"; Node2NICIP="172.16.2.2" ; PrefixLength=24}
+        $Pairs+=@{Node1="Switchless2" ; Node2="Switchless3" ; Node1NICName="Ethernet 4" ; Node2NICName="Ethernet 3"; Node1NICIP="172.16.3.1"; Node2NICIP="172.16.3.2" ; PrefixLength=24}
+
+        foreach ($pair in $pairs){
+            New-NetIPAddress -CimSession $pair.Node1 -IPAddress $pair.Node1NICIP -InterfaceAlias $pair.Node1NicName -PrefixLength $pair.PrefixLength
+            New-NetIPAddress -CimSession $pair.Node2 -IPAddress $pair.Node2NICIP -InterfaceAlias $pair.Node2NicName -PrefixLength $pair.PrefixLength
+        }
+
         #remove if necessary
             <#
             Invoke-Command -ComputerName $servers[0] -ScriptBlock {
