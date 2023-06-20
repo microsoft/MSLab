@@ -44,8 +44,11 @@
     #create downloads folder
     if (-not (Test-Path $DellToolsDownloadFolder -ErrorAction Ignore)){New-Item -Path $DellToolsDownloadFolder -ItemType Directory}
         #grab DSU links from Dell website
+            if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            }
             $URL="https://dl.dell.com/omimswac/dsu/"
-            $Results=Invoke-WebRequest $URL -UseDefaultCredentials
+            $Results=Invoke-WebRequest $URL -UseDefaultCredentials -UseBasicParsing
             $Links=$results.Links.href | Select-Object -Skip 1
             #create PSObject from results
             $DSUs=@()
@@ -337,6 +340,8 @@ if ($offline){
                         New-PSSessionConfigurationFile -RunAsVirtualAccount -Path $env:TEMP\VirtualAccount.pssc
                         Register-PSSessionConfiguration -Name 'VirtualAccount' -Path $env:TEMP\VirtualAccount.pssc -Force
                     } -ErrorAction Ignore
+                    #wait a bit for virtual account
+                    Start-Sleep 5
                     #install update
                     $MSUpdateInstallResult=Invoke-Command -ComputerName $Node -ConfigurationName 'VirtualAccount' {
                         $Searcher = New-Object -ComObject Microsoft.Update.Searcher
@@ -400,8 +405,14 @@ if ($offline){
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is required"
             #restart node and wait for PowerShell to come up (with powershell 7 you need to wait for WINRM :)
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Restarting Cluster Node"
-            Restart-Computer -ComputerName $Node -Protocol WSMan -Wait -For PowerShell | Out-Null
+            Restart-Computer -ComputerName $Node -Protocol WSMan -Wait -For PowerShell -Force | Out-Null
         }
+
+        #wait until node is in paused state (might not be yet up - cluster service)
+        do {
+            $State=(Get-ClusterNode -Cluster $ClusterName).State
+            Start-Sleep 5
+        }while($state -ne "Paused")
 
         #disable storage maintenance mode
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling Storage Maintenance mode"
