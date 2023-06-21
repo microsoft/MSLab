@@ -42,69 +42,68 @@
 
 #region download all required Dell binaries
     #create downloads folder
-    if (-not (Test-Path $DellToolsDownloadFolder -ErrorAction Ignore)){New-Item -Path $DellToolsDownloadFolder -ItemType Directory}
-        #grab DSU links from Dell website
-            if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
-                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        if (-not (Test-Path $DellToolsDownloadFolder -ErrorAction Ignore)){New-Item -Path $DellToolsDownloadFolder -ItemType Directory}
+    #grab DSU links from Dell website
+        if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        }
+        $URL="https://dl.dell.com/omimswac/dsu/"
+        $Results=Invoke-WebRequest $URL -UseDefaultCredentials -UseBasicParsing
+        $Links=$results.Links.href | Select-Object -Skip 1
+        #create PSObject from results
+        $DSUs=@()
+        foreach ($Link in $Links){
+            $DSUs+=[PSCustomObject]@{
+                Link = "https://dl.dell.com$Link"
+                Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
             }
-            $URL="https://dl.dell.com/omimswac/dsu/"
-            $Results=Invoke-WebRequest $URL -UseDefaultCredentials -UseBasicParsing
+        }
+        #download latest DSU
+        $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+        Start-BitsTransfer -Source $LatestDSU.Link -Destination $DellToolsDownloadFolder\DSU.exe
+
+    #grab IC (inventory collection tool. Required for offline patching)
+        if ($Offline){
+            #grab IC links from Dell website
+            $URL="https://downloads.dell.com/omimswac/ic/"
+            $Results=Invoke-WebRequest $URL -UseDefaultCredentials
             $Links=$results.Links.href | Select-Object -Skip 1
             #create PSObject from results
-            $DSUs=@()
+            $ICs=@()
             foreach ($Link in $Links){
-                $DSUs+=[PSCustomObject]@{
+                $ICs+=[PSCustomObject]@{
                     Link = "https://dl.dell.com$Link"
-                    Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
+                    Version = [int]($link -split "_" | Select-Object -Last 2 | Select-Object -First 1)
                 }
             }
-            #download latest DSU
-            $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
-            Start-BitsTransfer -Source $LatestDSU.Link -Destination $DellToolsDownloadFolder\DSU.exe
+            #download latest
+            $LatestIC=$ICs | Sort-Object Version | Select-Object -Last 1
+            Start-BitsTransfer -Source $LatestIC.Link -Destination $DellToolsDownloadFolder\IC.exe
+        }
 
-        #grab IC (inventory collection tool. Required for offline patching)
-            if ($Offline){
-                #grab IC links from Dell website
-                $URL="https://downloads.dell.com/omimswac/ic/"
-                $Results=Invoke-WebRequest $URL -UseDefaultCredentials
-                $Links=$results.Links.href | Select-Object -Skip 1
-                #create PSObject from results
-                $ICs=@()
-                foreach ($Link in $Links){
-                    $ICs+=[PSCustomObject]@{
-                        Link = "https://dl.dell.com$Link"
-                        Version = [int]($link -split "_" | Select-Object -Last 2 | Select-Object -First 1)
-                    }
+    #grab Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
+        #Download catalog
+        Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+        #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
+        Function Expand-GZipArchive{
+            Param(
+                $infile,
+                $outfile = ($infile -replace '\.gz$','')
+                )
+            $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
+            $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
+            $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
+            $buffer = New-Object byte[](1024)
+            while($true){
+                $read = $gzipstream.Read($buffer, 0, 1024)
+                if ($read -le 0){break}
+                $output.Write($buffer, 0, $read)
                 }
-                #download latest
-                $LatestIC=$ICs | Sort-Object Version | Select-Object -Last 1
-                Start-BitsTransfer -Source $LatestIC.Link -Destination $DellToolsDownloadFolder\IC.exe
-            }
-
-        #grab Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
-            #Download catalog
-            Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
-            #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
-            Function Expand-GZipArchive{
-                Param(
-                    $infile,
-                    $outfile = ($infile -replace '\.gz$','')
-                    )
-                $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
-                $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
-                $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
-                $buffer = New-Object byte[](1024)
-                while($true){
-                    $read = $gzipstream.Read($buffer, 0, 1024)
-                    if ($read -le 0){break}
-                    $output.Write($buffer, 0, $read)
-                    }
-                $gzipStream.Close()
-                $output.Close()
-                $input.Close()
-            }
-            Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$DellToolsDownloadFolder\ASHCI-Catalog.xml"
-        #
+            $gzipStream.Close()
+            $output.Close()
+            $input.Close()
+        }
+        Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$DellToolsDownloadFolder\ASHCI-Catalog.xml"
 #endregion
 
 #region download all Microsoft updates
@@ -280,6 +279,10 @@ if ($offline){
 
 #region apply updates on nodes
     foreach ($Node in $Nodes){
+        #make sure there is no maintenance mode
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling maintenance mode - if there is any"
+        Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $ClusterName | Disable-StorageMaintenanceMode -CimSession $ClusterName
+
         #check for repair jobs, if found, wait until finished
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Storage jobs to finish"
         if ((Get-StorageSubSystem -CimSession $ClusterName -FriendlyName Clus* | Get-StorageJob -CimSession $ClusterName | Where-Object Name -eq Repair) -ne $Null){
@@ -401,7 +404,7 @@ if ($offline){
         }
 
         #Check if reboot is required and reboot
-        if (($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.rebootrequired -eq $True}) -or ($Scanresult | Where-Object ($_.ComputerName -eq $node -and $_.MicrosoftUpdateRequired -eq $True) -or ($ForceReboot -eq $True))){
+        if (($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.rebootrequired -eq $True}) -or ($Scanresult | Where-Object ($_.ComputerName -eq $node -and $_.MicrosoftUpdateRequired -eq $True)) -or ($ForceReboot -eq $True)){
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is required"
             #restart node and wait for PowerShell to come up (with powershell 7 you need to wait for WINRM :)
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Restarting Cluster Node"
