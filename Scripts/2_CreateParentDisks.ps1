@@ -354,13 +354,13 @@ If (-not $isAdmin) {
             Kind = "Full"
             Edition="4" 
             VHDName="Win2016_G2.vhdx"
-            Size=60GB
+            Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
             Edition="3" 
             VHDName="Win2016Core_G2.vhdx"
-            Size=30GB
+            Size=127GB
         }
         <# Removed since it does not work with newer than 14393.2724
         $ServerVHDs += @{
@@ -376,13 +376,13 @@ If (-not $isAdmin) {
             Kind = "Full"
             Edition="4" 
             VHDName="Win2019_G2.vhdx"
-            Size=60GB
+            Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
             Edition="3" 
             VHDName="Win2019Core_G2.vhdx"
-            Size=30GB
+            Size=127GB
         }
     }elseif ($BuildNumber -eq 20348){
         #Windows Server 2022
@@ -390,20 +390,20 @@ If (-not $isAdmin) {
             Kind = "Full"
             Edition="4" 
             VHDName="Win2022_G2.vhdx"
-            Size=60GB
+            Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
             Edition="3" 
             VHDName="Win2022Core_G2.vhdx"
-            Size=30GB
+            Size=127GB
         }
     }elseif ($BuildNumber -gt 20348 -and $SAC){
         $ServerVHDs += @{
             Kind = "Core"
             Edition="2" 
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
-            Size=30GB
+            Size=127GB
         }
         #DCEdition fix
         if ($LabConfig.DCEdition -gt 2){
@@ -415,13 +415,13 @@ If (-not $isAdmin) {
             Kind = "Full"
             Edition="4" 
             VHDName="WinSrvInsider_$BuildNumber.vhdx"
-            Size=60GB
+            Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
             Edition="3" 
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
-            Size=30GB
+            Size=127GB
         }
     }else{
         $ISOServer | Dismount-DiskImage

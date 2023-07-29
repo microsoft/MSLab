@@ -161,11 +161,14 @@ If (-not $isAdmin) {
                     20348 {
                         "AzSHCI21H2_G2.vhdx"
                     }
-                    22621 {
+                    20349 {
                         "AzSHCI22H2_G2.vhdx"
                     }
+                    25398 {
+                        "AzSHCI23H2_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 20348){
+                if ($BuildNumber -GT 25398){
                     $tempvhdname="AzSHCIInsider_$BuildNumber.vhdx"
                 }
             }elseif (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
@@ -314,9 +317,9 @@ If (-not $isAdmin) {
         if(!$vhdname){$vhdname=$tempvhdname}
         
         #ask for size
-        [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 60 is used")
+        [int64]$size=(Read-Host -Prompt "Please type size of the Image in GB. If nothing specified, 127 is used")
         $size=$size*1GB
-        if (!$size){$size=60GB}
+        if (!$size){$size=127GB}
         
         #Create VHD
         if ($nanoserver -eq "y"){
