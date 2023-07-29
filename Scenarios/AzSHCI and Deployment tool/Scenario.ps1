@@ -23,77 +23,75 @@
     Install-WindowsFeature -Name RSAT-AD-PowerShell,GPMC
 
     #populate objects
-    New-HciAdObjectsPreCreation -Deploy -AsHciDeploymentUserCredential $Credentials -AsHciOUName $AsHCIOUName -AsHciPhysicalNodeList $Servers -DomainFQDN $DomainFQDN -AsHciClusterName $ClusterName -AsHciDeploymentPrefix $Prefix
+    New-HciAdObjectsPreCreation -Deploy -AzureStackLCMUserCredential  $Credentials -AsHciOUName $AsHCIOUName -AsHciPhysicalNodeList $Servers -DomainFQDN $DomainFQDN -AsHciClusterName $ClusterName -AsHciDeploymentPrefix $Prefix
 
     #install management features to explore cluster,settings...
     Install-WindowsFeature -Name "RSAT-ADDS","RSAT-Clustering"
 #endregion
 
-#region Deploy - run from ASNode1!
-    #make D drives online
-    $Servers="ASNode1","ASNode2","ASNode3","ASNode4"
-    #add $Servers into trustedhosts
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($Servers -join ',') -Force
-    #invoke command
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        get-disk -Number 1 | Set-Disk -IsReadOnly $false
-        get-disk -Number 1 | Set-Disk -IsOffline $false
-    }
+#region prepare azure prerequisites - run from ASNode1 or Management (you can run from Management, just copy the resulting variables and use it in next region)
+        #variables
+        $StorageAccountName="asclus01$(Get-Random -Minimum 100000 -Maximum 999999)"
+        $ServicePrincipal=$True #or false if you want to use MFA (and skip SP creation)
+        $ServicePrincipalName="Azure-Stack-Registration"
+        $ResourceGroupName="ASClus01-RG"
+        $Location="EastUS"
 
-    #Download files
-    $downloadfolder="D:"
-    $files=@()
-    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210545" ; FileName="BootstrapCloudDeploymentTool.ps1" ; Description="Bootstrap PowerShell"}
-    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210546" ; FileName="CloudDeployment_10.2303.0.36.zip" ; Description="Cloud Deployment Package"}
-    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210608" ; FileName="Verify-CloudDeployment.zip_Hash.ps1" ; Description="Verify Cloud Deployment PowerShell"}
+        #login to azure
+            #download Azure module
+            if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
+                Install-Module -Name Az.Accounts -Force
+            }
+            if (-not (Get-AzContext)){
+                Connect-AzAccount -UseDeviceAuthentication
+            }
 
-    foreach ($file in $files){
-        if (-not (Test-Path "$downloadfolder\$($file.filename)")){
-            Start-BitsTransfer -Source $file.uri -Destination "$downloadfolder\$($file.filename)" -DisplayName "Downloading: $($file.filename)"
-        }
-    }
+        #select subscription if more available
+            $subscriptions=Get-AzSubscription
+            #list subscriptions
+            $subscriptions
+            if (($subscriptions).count -gt 1){
+                $SubscriptionID=Read-Host "Please give me subscription ID"
+            }else{
+                $SubscriptionID=$subscriptions.id
+            }
 
-    #Start bootstrap (script is looking for file "CloudDeployment_*.zip"
-    & D:\BootstrapCloudDeploymentTool.ps1
+        #make sure resource providers are registered
+            if (!(Get-InstalledModule -Name "az.resources" -ErrorAction Ignore)){
+                Install-Module -Name "az.resources" -Force
+            }
+            $Providers="Microsoft.ResourceConnector","Microsoft.Authorization","Microsoft.AzureStackHCI","Microsoft.HybridCompute","Microsoft.GuestConfiguration"
+            foreach ($Provider in $Providers){
+                Register-AzResourceProvider -ProviderNamespace $Provider
+                #wait for provider to finish registration
+                do {
+                    $Status=Get-AzResourceProvider -ProviderNamespace $Provider
+                    Write-Output "Registration Status - $Provider : $(($status.RegistrationState -match 'Registered').Count)/$($Status.Count)"
+                    Start-Sleep 1
+                } while (($status.RegistrationState -match "Registered").Count -ne ($Status.Count))
+            }
+        
+        #Create Storage Account
+            if (!(Get-InstalledModule -Name "az.storage"-ErrorAction Ignore)){
+                    Install-Module -Name "az.storage" -Force
+                }
 
-    #create deployment credentials
-    $UserName="ASClus01-DeployUser"
-    $Password="LS1setup!"
-    $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
-    $AzureStackLCMUserCredential = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
+            #create resource group first
+            if (-not(Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction Ignore)){
+                New-AzResourceGroup -Name $ResourceGroupName -Location $location
+            }
+            #create Storage Account
+            If (-not(Get-AzStorageAccountKey -Name $StorageAccountName -ResourceGroupName $ResourceGroupName -ErrorAction Ignore)){
+                New-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName -SkuName Standard_LRS -Location $location -Kind StorageV2 -AccessTier Cool 
+            }
+            $StorageAccountAccessKey=(Get-AzStorageAccountKey -Name $StorageAccountName -ResourceGroupName $ResourceGroupName | Select-Object -First 1).Value
 
-    $UserName="Administrator"
-    $Password="LS1setup!"
-    $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
-    $LocalAdminCred = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
-    $CloudName="AzureCloud"
-    $ServicePrincipalName="Azure-Stack-Registration"
-
-    #login to azure
-    #download Azure module
-    if (!(Get-InstalledModule -Name az.accounts -ErrorAction Ignore)){
-        Install-Module -Name Az.Accounts -Force
-    }
-    if (-not (Get-AzContext)){
-        Connect-AzAccount -UseDeviceAuthentication
-    }
-    #select subscription if more available
-    $subscriptions=Get-AzSubscription
-    #list subscriptions
-    $subscriptions
-    if (($subscriptions).count -gt 1){
-        $SubscriptionID=Read-Host "Please give me subscription ID"
-    }else{
-        $SubscriptionID=$subscriptions.id
-    }
-
-    if (!(Get-InstalledModule -Name az.Resources -ErrorAction Ignore)){
-        Install-Module -Name Az.Resources -Force
-    }
-
-    #Create Azure Stack HCI registration role https://learn.microsoft.com/en-us/azure-stack/hci/deploy/register-with-azure#assign-permissions-from-azure-portal
-    if (-not (Get-AzRoleDefinition -Name "Azure Stack HCI registration role - Custom")){
-        $Content=@"
+        #create service principal if requested
+        if ($ServicePrincipal){
+            #Create Azure Stack HCI registration role https://learn.microsoft.com/en-us/azure-stack/hci/deploy/register-with-azure#assign-permissions-from-azure-portal
+            #https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#azure-connected-machine-onboarding
+            if (-not (Get-AzRoleDefinition -Name "Azure Stack HCI registration role - Custom" -ErrorAction Ignore)){
+                $Content=@"
 {
     "Name": "Azure Stack HCI registration role - Custom",
     "Id": null,
@@ -110,7 +108,13 @@
         "Microsoft.Authorization/roleAssignments/read",
         "Microsoft.HybridCompute/register/action",
         "Microsoft.GuestConfiguration/register/action",
-        "Microsoft.HybridConnectivity/register/action"
+        "Microsoft.HybridConnectivity/register/action",
+        "Microsoft.HybridCompute/machines/extensions/write",
+        "Microsoft.HybridCompute/machines/extensions/read",
+        "Microsoft.HybridCompute/machines/read",
+        "Microsoft.HybridCompute/machines/write",
+        "Microsoft.HybridCompute/privateLinkScopes/read",
+        "Microsoft.GuestConfiguration/guestConfigurationAssignments/read"
     ],
     "NotActions": [
     ],
@@ -119,50 +123,119 @@
     ]
     }
 "@
-        $Content | Out-File "$env:USERPROFILE\Downloads\customHCIRole.json"
-        New-AzRoleDefinition -InputFile "$env:USERPROFILE\Downloads\customHCIRole.json"
-    }
-    #Create AzADServicePrincipal for Azure Stack HCI registration
-    $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
-    if (-not $SP){
-        $SP=New-AzADServicePrincipal -DisplayName $ServicePrincipalName -Role "Azure Stack HCI registration role - Custom"
-        #remove default cred
-        Remove-AzADAppCredential -ApplicationId $SP.AppId
-    }
+                $Content | Out-File "$env:USERPROFILE\Downloads\customHCIRole.json"
+                New-AzRoleDefinition -InputFile "$env:USERPROFILE\Downloads\customHCIRole.json"
+            }
 
-    #Create new SPN password
-    $credential = New-Object -TypeName "Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPasswordCredential" -Property @{
-        "KeyID"         = (new-guid).Guid ;
-        "EndDateTime" = [DateTime]::UtcNow.AddYears(10)
+            #Create AzADServicePrincipal for Azure Stack HCI registration (if it does not exist)
+                $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
+                if (-not $SP){
+                    $SP=New-AzADServicePrincipal -DisplayName $ServicePrincipalName -Role "Azure Stack HCI registration role - Custom"
+                    #remove default cred
+                    Remove-AzADAppCredential -ApplicationId $SP.AppId
+                }
+
+            #Create new SPN password
+                $credential = New-Object -TypeName "Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPasswordCredential" -Property @{
+                    "KeyID"         = (new-guid).Guid ;
+                    "EndDateTime" = [DateTime]::UtcNow.AddYears(1)
+                }
+                $Creds=New-AzADAppCredential -PasswordCredentials $credential -ApplicationID $SP.AppID
+                $SPNSecret=$Creds.SecretText
+                $SPAppID=$SP.AppID
+        }
+
+    Disconnect-AzAccount
+    #output variables
+    Write-Host -ForegroundColor Cyan @"
+        #Variables to copy
+        `$SubscriptionID=`"$SubscriptionID`"
+        `$SPAppID=`"$SPAppID`"
+        `$SPNSecret=`"$SPNSecret`"
+        `$ResourceGroupName=`"$ResourceGroupName`"
+        `$StorageAccountName=`"$StorageAccountName`"
+        `$StorageAccountAccessKey=`"$StorageAccountAccessKey`"
+        `$Location=`"$Location`"
+"@ 
+
+
+#endregion
+
+#region Deploy - run from ASNode1!
+    #variables
+        #create deployment credentials
+        $UserName="ASClus01-DeployUser"
+        $Password="LS1setup!"
+        $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
+        $AzureStackLCMUserCredential = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
+        $UserName="Administrator"
+        $Password="LS1setup!"
+        $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
+        $LocalAdminCred = New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
+
+        #the one you have to populate if you did not run above region from Seed node
+        <#
+        $SubscriptionID=""
+        $SPAppID="" #not needed if you use MFA
+        $SPNSecret="" #not needed if you use MFA
+        $ResourceGroupName=""
+        $StorageAccountName=""
+        $StorageAccountAccessKey=""
+        $Location=""
+        #>
+
+        #download folder
+        $downloadfolder="c:\temp"
+
+        $Servers="ASNode1","ASNode2","ASNode3","ASNode4"
+
+    #Download files
+        #create folder
+        if (-not (Test-Path $downloadfolder)){New-Item -Path $downloadfolder -ItemType Directory}
+        $files=@()
+        $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210545" ; FileName="BootstrapCloudDeploymentTool.ps1" ; Description="Bootstrap PowerShell"}
+        $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210546" ; FileName="CloudDeployment_10.2306.0.47.zip" ; Description="Cloud Deployment Package"}
+        $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2210608" ; FileName="Verify-CloudDeployment.zip_Hash.ps1" ; Description="Verify Cloud Deployment PowerShell"}
+
+        foreach ($file in $files){
+            if (-not (Test-Path "$downloadfolder\$($file.filename)")){
+                Start-BitsTransfer -Source $file.uri -Destination "$downloadfolder\$($file.filename)" -DisplayName "Downloading: $($file.filename)"
+            }
+        }
+
+    #Start bootstrap (script is looking for file "CloudDeployment_*.zip"
+    & $downloadfolder\BootstrapCloudDeploymentTool.ps1
+
+    #create authentication token (Service Principal or MFA)
+    if ($SPAppID){
+        $SPNsecStringPassword = ConvertTo-SecureString $SPNSecret -AsPlainText -Force
+        $SPNCred=New-Object System.Management.Automation.PSCredential ($SPAppID, $SPNsecStringPassword)
+    }else{
+        Set-AuthenticationToken -RegistrationCloudName AzureCloud -RegistrationSubscriptionID $SubscriptionID
     }
-    $Creds=New-AzADAppCredential -PasswordCredentials $credential -ApplicationID $SP.AppID
-    $SPNSecret=$Creds.SecretText
-    Write-Host "Your Password is: " -NoNewLine ; Write-Host $SPNSecret -ForegroundColor Cyan
-    $SPNsecStringPassword = ConvertTo-SecureString $SPNSecret -AsPlainText -Force
-    $SPNCred=New-Object System.Management.Automation.PSCredential ($SP.AppID, $SPNsecStringPassword)
 
     #create config.json
+    #add servers to trusted hosts so you can query IP address dynamically (in the lab we dont exactly now which adapter is first and what IP was assigned
+    $TrustedHosts=@()
+    $TrustedHosts+=$Servers
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($TrustedHosts -join ',') -Force
+
     $Content=@"
 {
-    "Version": "3.0.0.0",
+    "Version": "10.0.0.0",
     "ScaleUnits": [
         {
             "DeploymentData": {
                 "SecuritySettings": {
-                    "SecurityModeSealed": true,
-                    "SecuredCoreEnforced": true,
-                    "VBSProtection": true,
                     "HVCIProtection": true,
                     "DRTMProtection": true,
-                    "KernelDMAProtection": true,
                     "DriftControlEnforced": true,
-                    "CredentialGuardEnforced": false,
+                    "CredentialGuardEnforced": true,
                     "SMBSigningEnforced": true,
                     "SMBClusterEncryption": false,
                     "SideChannelMitigationEnforced": true,
                     "BitlockerBootVolume": true,
-                    "BitlockerDataVolumes": true,
-                    "SEDProtectionEnforced": true,
+                    "BitlockerDataVolumes": false,
                     "WDACEnforced": true
                 },
                 "Observability": {
@@ -172,6 +245,10 @@
                 },
                 "Cluster": {
                     "Name": "ASClus01",
+                    "WitnessType": "Cloud",
+                    "WitnessPath": "",
+                    "CloudAccountName": "$StorageAccountName",
+                    "AzureServiceEndpoint": "core.windows.net",
                     "StaticAddress": [
                         ""
                     ]
@@ -179,15 +256,9 @@
                 "Storage": {
                     "ConfigurationMode": "Express"
                 },
-                "OptionalServices": {
-                    "VirtualSwitchName": "",
-                    "CSVPath": "",
-                    "ARBRegion": "westeurope"
-                },
                 "TimeZone": "Pacific Standard Time",
                 "NamingPrefix": "ASClus01",
                 "DomainFQDN": "corp.contoso.com",
-                "ExternalDomainFQDN": "corp.contoso.com",
                 "InfrastructureNetwork": [
                     {
                         "VlanId": "0",
@@ -196,7 +267,7 @@
                         "IPPools": [
                             {
                                 "StartingAddress": "10.0.0.100",
-                                "EndingAddress": "10.0.0.199"
+                                "EndingAddress": "10.0.0.110"
                             }
                         ],
                         "DNSServers": [
@@ -276,10 +347,14 @@
     ]
 }
 "@
-$Content | Out-File -FilePath d:\config.json
+$Content | Out-File -FilePath c:\config.json
+
+#set trusted hosts back
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -Force
 
 #start deployment
 #make sure some prereqs (that will be fixed in future) are set
+<#
     #Make sure Windows Update is disabled and ping enabled (https://learn.microsoft.com/en-us/azure-stack/hci/hci-known-issues-2303)
     Microsoft.PowerShell.Core\Invoke-Command -ComputerName $Servers -ScriptBlock {
         reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f
@@ -290,19 +365,25 @@ $Content | Out-File -FilePath d:\config.json
     }
     #add hostnames and IPs to trusted hosts (bug that in BareMetal.psm1 is invoke-command with IP that is not in trusted hosts)
     $TrustedHosts=@()
-    $TrustedHosts+=(Get-NetIPAddress -CimSession $Servers -InterfaceAlias Ethernet* -AddressFamily IPv4).IPAddress
     $TrustedHosts+=$Servers
     Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($TrustedHosts -join ',') -Force
+#>
+
+#create secured storage access key
+$StorageAccountAccessKeySecured = ConvertTo-SecureString $StorageAccountAccessKey -AsPlainText -Force
 
 #deploy
-.\Invoke-CloudDeployment -JSONFilePath D:\config.json -AzureStackLCMUserCredential $AzureStackLCMUserCredential -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName $CloudName -RegistrationSubscriptionID $SubscriptionID
-
+if ($SPAppID){
+    .\Invoke-CloudDeployment -JSONFilePath c:\config.json -AzureStackLCMUserCredential $AzureStackLCMUserCredential -LocalAdminCredential $LocalAdminCred -RegistrationSPCredential $SPNCred -RegistrationCloudName AzureCloud -RegistrationSubscriptionID $SubscriptionID -RegistrationResourceGroupName $ResourceGroupName -WitnessStorageKey $StorageAccountAccessKeySecured -RegistrationRegion $Location
+}else{
+    .\Invoke-CloudDeployment -JSONFilePath c:\config.json -AzureStackLCMUserCredential $AzureStackLCMUserCredential -LocalAdminCredential $LocalAdminCred -RegistrationCloudName AzureCloud -RegistrationSubscriptionID $SubscriptionID -RegistrationResourceGroupName $ResourceGroupName -WitnessStorageKey $StorageAccountAccessKeySecured -RegistrationRegion $Location 
+}
 #endregion
 
 #region Validate deployment - run from management VM!
 $SeedNode="ASNode1"
 
 Invoke-Command -ComputerName $SeedNode -ScriptBlock {
-    ([xml](Get-Content C:\ecestore\efb61d70-47ed-8f44-5d63-bed6adc0fb0f\086a22e3-ef1a-7b3a-dc9d-f407953b0f84)) | Select-Xml -XPath "//Action/Steps/Step" | ForEach-Object { $_.Node } | Select-Object FullStepIndex, Status, Name, StartTimeUtc, EndTimeUtc, @{Name="Duration";Expression={new-timespan -Start $_.StartTimeUtc -End $_.EndTimeUtc } } | ft -AutoSize
+    ([xml](Get-Content C:\ecestore\efb61d70-47ed-8f44-5d63-bed6adc0fb0f\086a22e3-ef1a-7b3a-dc9d-f407953b0f84)) | Select-Xml -XPath "//Action/Steps/Step" | ForEach-Object { $_.Node } | Select-Object FullStepIndex, Status, Name, StartTimeUtc, EndTimeUtc, @{Name="Duration";Expression={new-timespan -Start $_.StartTimeUtc -End $_.EndTimeUtc } } | Format-Table -AutoSize
 }
 #endregion
