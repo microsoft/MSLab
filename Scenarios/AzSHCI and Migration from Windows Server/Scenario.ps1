@@ -163,6 +163,7 @@
     $DestinationClusterName="AzSHCI-Cluster"
     $SourceStoragePath="C:\ClusterStorage\CSV1"
     $DestinationStoragePath="C:\ClusterStorage\CSV1"
+    $DestinationSwitchName=(Get-VMSwitch -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Select-Object -First 1)).Name
     $VMNames=(Get-VM -cimsession (get-clusternode -cluster $SourceClusterName).Name | Where-Object Path -Like "$SourceStoragePath*").Name
 
     # Temporarily enable CredSSP delegation to avoid double-hop issue
@@ -178,27 +179,42 @@
     #do the move
     foreach ($VMName in $VMNames){
         #remove VM from HA Resources
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Removing VM $($VM.VMName) From Cluster resources"
         Get-ClusterResource -Cluster $SourceClusterName -name "Virtual Machine $VMName" -ErrorAction Ignore | Remove-ClusterResource -force
         Get-ClusterGroup -Cluster $SourceClusterName -Name $VMName -ErrorAction Ignore | Remove-ClusterGroup -force
-        #Grab random node in cluster $DestinationClusterName
+        #Grab random node in cluster $DestinationClusterName (does not have to be random of course)
         $VM=Get-VM -Cimsession (get-clusternode -cluster $SourceClusterName).Name -Name $VMName
-        $VM | Stop-VM -Save
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Stopping VM $($VM.VMName)"
+        $VM | Stop-VM
+        #or just save it, but we need to update version anyway
+        #$VM | Stop-VM -Save
+        #If there is different switch name in destination node, you should consider disconnecting vNICs before removing VM and saving config
+        $VM | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
         #Backup config
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Backing up VM config"
         Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Copy-Item -Path "$($using:VM.Path)\Virtual Machines" -Destination "$($using:VM.Path)\Virtual Machines Bak" -Recurse}
         #If there is different switch name in destination node, you should consider disconnecting vNICs first
         #$VM | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
-        #Remove VM
-        $VM | Remove-VM -Force
+        #Remove VM (Just making sure hyper-v command is used, because SCVMM Remove-VM also removes VHDs)
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Removing VM"
+        $VM | Hyper-V\Remove-VM -Force
         #Restore Config
         #Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Copy-Item -Path "$($using:VM.Path)\Virtual Machines Bak\*" -Destination "$($using:VM.Path)\Virtual Machines" -Recurse}
         Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Move-Item -Path "$($using:VM.Path)\Virtual Machines Bak\*" -Destination "$($using:VM.Path)\Virtual Machines"}
         Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Remove-Item -Path "$($using:VM.Path)\Virtual Machines Bak\"}
+        #zip config to have a backup (in case something goes wrong with updating VM version)
+        Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Compress-Archive -Path "$($using:VM.Path)\Virtual Machines\" -DestinationPath "$($using:VM.Path)\Virtual Machines.zip"}
         #Copy machine to destination node using CredSSP
         $VolumeName=$DestinationStoragePath | Split-Path -Leaf
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Copying VM $($VM.VMName) to \\$DestinationClusterName\ClusterStorage$\$VolumeName\"
         Invoke-Command -ComputerName ($Servers | Get-Random) -Credential $Credentials -Authentication Credssp  -ScriptBlock {Copy-Item -Path "$($using:VM.Path)" -Destination "\\$using:DestinationClusterName\ClusterStorage$\$using:VolumeName\" -Recurse}
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Copying VM $($VM.VMName) Finished"
         #Import VM and Start
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Importing VM $($VM.VMName) And Starting"
         $DestinationHost=(get-clusternode -cluster $DestinationClusterName | get-random).Name
         $NewVM=Import-VM -Path "$DestinationStoragePath\$($VM.Name)\Virtual Machines\$($VM.ID.GUID).vmcx" -CimSession $DestinationHost
+        $NewVM | Update-VMVersion -Force
+        $NewVM | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $DestinationSwitchName
         $NewVM | Start-VM
     }
 
@@ -213,6 +229,7 @@
     $DestinationClusterName="AzSHCI-Cluster"
     $SourceClusterVolumes=(Get-ClusterSharedVolume -Cluster $SourceClusterName).sharedvolumeinfo.Friendlyvolumename
     $DestinationClusterVolumes=(Get-ClusterSharedVolume -Cluster $DestinationClusterName).sharedvolumeinfo.Friendlyvolumename
+    $DestinationSwitchName=(Get-VMSwitch -CimSession ((Get-ClusterNode -Cluster $ClusterName).Name | Select-Object -First 1)).Name
 
     # Temporarily enable CredSSP delegation to avoid double-hop issue
     $Servers=(get-clusternode -cluster $SourceClusterName).Name
@@ -234,27 +251,45 @@
         }
         $VMNames=(Get-VM -cimsession (get-clusternode -cluster $SourceClusterName).Name | Where-Object Path -Like "$SourceClusterVolume*").Name
         foreach ($VMName in $VMNames){
+
+
             #remove VM from HA Resources
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Removing VM $($VM.VMName) From Cluster resources"
             Get-ClusterResource -Cluster $SourceClusterName -name "Virtual Machine $VMName" -ErrorAction Ignore | Remove-ClusterResource -force
             Get-ClusterGroup -Cluster $SourceClusterName -Name $VMName -ErrorAction Ignore | Remove-ClusterGroup -force
+            #Grab random node in cluster $DestinationClusterName (does not have to be random of course)
             $VM=Get-VM -Cimsession (get-clusternode -cluster $SourceClusterName).Name -Name $VMName
-            $VM | Stop-VM -Save
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Stopping VM $($VM.VMName)"
+            $VM | Stop-VM
+            #or just save it, but we need to update version anyway
+            #$VM | Stop-VM -Save
+            #If there is different switch name in destination node, you should consider disconnecting vNICs before removing VM and saving config
+            $VM | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
+            #Backup config
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Backing up VM config"
+            Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Copy-Item -Path "$($using:VM.Path)\Virtual Machines" -Destination "$($using:VM.Path)\Virtual Machines Bak" -Recurse}
             #If there is different switch name in destination node, you should consider disconnecting vNICs first
             #$VM | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
-            #Backup config
-            Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Copy-Item -Path "$($using:VM.Path)\Virtual Machines" -Destination "$($using:VM.Path)\Virtual Machines Bak" -Recurse}
-            #Remove VM
-            $VM | Remove-VM -Force
+            #Remove VM (Just making sure hyper-v command is used, because SCVMM Remove-VM also removes VHDs)
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Removing VM"
+            $VM | Hyper-V\Remove-VM -Force
             #Restore Config
             #Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Copy-Item -Path "$($using:VM.Path)\Virtual Machines Bak\*" -Destination "$($using:VM.Path)\Virtual Machines" -Recurse}
             Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Move-Item -Path "$($using:VM.Path)\Virtual Machines Bak\*" -Destination "$($using:VM.Path)\Virtual Machines"}
             Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Remove-Item -Path "$($using:VM.Path)\Virtual Machines Bak\"}
+            #zip config to have a backup (in case something goes wrong with updating VM version)
+            Invoke-Command -ComputerName $SourceClusterName -ScriptBlock {Compress-Archive -Path "$($using:VM.Path)\Virtual Machines\" -DestinationPath "$($using:VM.Path)\Virtual Machines.zip"}
             #Copy machine to destination node using CredSSP
-            $VolumeName=$DestinationClusterVolumes[$index] | Split-Path -Leaf
+            $VolumeName=$DestinationStoragePath | Split-Path -Leaf
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Copying VM $($VM.VMName) to \\$DestinationClusterName\ClusterStorage$\$VolumeName\"
             Invoke-Command -ComputerName ($Servers | Get-Random) -Credential $Credentials -Authentication Credssp  -ScriptBlock {Copy-Item -Path "$($using:VM.Path)" -Destination "\\$using:DestinationClusterName\ClusterStorage$\$using:VolumeName\" -Recurse}
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Copying VM $($VM.VMName) Finished"
             #Import VM and Start
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') : Importing VM $($VM.VMName) And Starting"
             $DestinationHost=(get-clusternode -cluster $DestinationClusterName | get-random).Name
-            $NewVM=Import-VM -Path "$($DestinationClusterVolumes[$index])\$($VM.Name)\Virtual Machines\$($VM.ID.GUID).vmcx" -CimSession $DestinationHost
+            $NewVM=Import-VM -Path "$DestinationStoragePath\$($VM.Name)\Virtual Machines\$($VM.ID.GUID).vmcx" -CimSession $DestinationHost
+            $NewVM | Update-VMVersion -Force
+            $NewVM | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName $DestinationSwitchName
             $NewVM | Start-VM
         }
     }

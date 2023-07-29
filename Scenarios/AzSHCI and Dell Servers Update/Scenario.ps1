@@ -279,9 +279,17 @@ if ($offline){
 
 #region apply updates on nodes
     foreach ($Node in $Nodes){
-        #make sure there is no maintenance mode
-        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling maintenance mode - if there is any"
-        Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $ClusterName | Disable-StorageMaintenanceMode -CimSession $ClusterName
+        #make sure all nodes are up
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') Make sure all nodes are up"
+        $NodesNotUp=Get-ClusterNode -Cluster $ClusterName | Where-Object state -ne up
+        if ($NodesNotUp){
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') Some nodes were not up, resuming : $($NodesNotUp.Name)"
+            $NodesNotUp | Resume-ClusterNode -Failback Immediate | Out-Null
+            if (Get-ClusterNode -Cluster $ClusterName | Where-Object state -ne up){
+                Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') Resuming nodes failed. Interrupting"
+                break
+            }
+        }
 
         #check for repair jobs, if found, wait until finished
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Storage jobs to finish"
@@ -368,11 +376,13 @@ if ($offline){
                     $MSUpdateInstallResult=$Null
                 }
             }
+        }else{
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Skipping Microsoft Updates as requested"
         }
 
         #Suspend node
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node"
-        Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait | Out-Null
+        Suspend-ClusterNode -Name "$Node" -Cluster $ClusterName -Drain -Wait -ErrorAction Ignore | Out-Null
 
         if (Get-ClusterResource -Cluster $ClusterName | Where-Object OwnerNode -eq $Node | Where-Object State -eq "Online"){
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Suspending Cluster Node Failed. Resuming and terminating patch run"
@@ -380,9 +390,9 @@ if ($offline){
             break
         }
 
-        #enable storage maintenance mode
-        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Enabling Storage Maintenance mode"
-        Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
+        #enable storage maintenance mode (not needed as node goes to maintenance mode when suspended)
+        #Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Enabling Storage Maintenance mode"
+        #Get-StorageFaultDomain -CimSession $ClusterName -FriendlyName $Node | Enable-StorageMaintenanceMode -CimSession $ClusterName
 
         #Install Dell updates https://dl.dell.com/content/manual36290092-dell-emc-system-update-version-1-9-3-0-user-s-guide.pdf?language=en-us&ps=true
         #assuming dell updates might interrupt server, therefore it's done during maintenance mode
@@ -401,11 +411,13 @@ if ($offline){
                     }
                 }
             }
+        }else{
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Skipping Dell Updates as requested"
         }
 
         #Check if reboot is required and reboot
         if (($Compliance | Where-Object {$_.NodeName -eq $Node -and $_.rebootrequired -eq $True}) -or ($Scanresult | Where-Object ($_.ComputerName -eq $node -and $_.MicrosoftUpdateRequired -eq $True)) -or ($ForceReboot -eq $True)){
-            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is required"
+            Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Reboot is requested"
             #restart node and wait for PowerShell to come up (with powershell 7 you need to wait for WINRM :)
             Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Restarting Cluster Node"
             Restart-Computer -ComputerName $Node -Protocol WSMan -Wait -For PowerShell -Force | Out-Null
@@ -417,9 +429,9 @@ if ($offline){
             Start-Sleep 5
         }while($state -ne "Paused")
 
-        #disable storage maintenance mode
-        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling Storage Maintenance mode"
-        Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $Node | Where-Object FriendlyName -eq $Node | Disable-StorageMaintenanceMode -CimSession $Node
+        #disable storage maintenance mode (not needed as node resumes from maintenance mode when resumed)
+        #Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Disabling Storage Maintenance mode"
+        #Get-StorageFaultDomain -Type StorageScaleUnit -CimSession $Node | Where-Object FriendlyName -eq $Node | Disable-StorageMaintenanceMode -CimSession $Node
 
         #resume cluster node
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Resuming Cluster Node"
@@ -429,6 +441,12 @@ if ($offline){
         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for Live migrations to finish"
         do {Start-Sleep 5}while(
             Get-CimInstance -CimSession $Nodes -Namespace root\virtualization\v2 -ClassName Msvm_MigrationJob | Where-Object StatusDescriptions -eq "Job is running"
+        )
+
+        #wait for node to resume from maintenance mode
+        Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($Node): Waiting for node to resume from Maintenance mode"
+        do {Start-Sleep 5}while(
+            Get-StorageFaultDomain -CimSession $Node | Where-Object OperationalStatus -eq "In Maintenance Mode"
         )
     }
 
