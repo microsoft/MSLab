@@ -171,9 +171,9 @@
         }
     }
     #define and install other features
-    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","RSAT-DataCenterBridging-LLDP-Tools","FS-SMBBW"
-    #optional - affects perf even if not enabled on volumes as filter driver is attached (Bitlocker,SR,Dedup)
-    #$features+="RSAT-Feature-Tools-BitLocker","Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","System-Insights","RSAT-System-Insights"
+    $features="Failover-Clustering","RSAT-Clustering-PowerShell","Hyper-V-PowerShell","NetworkATC","NetworkHUD","Data-Center-Bridging","RSAT-DataCenterBridging-LLDP-Tools","FS-SMBBW","System-Insights","RSAT-System-Insights"
+    #optional - affects perf even if not enabled on volumes as filter driver is attached (SR,Dedup) and also Bitlocker, that affects a little bit
+    #$features+="Storage-Replica","RSAT-Storage-Replica","FS-Data-Deduplication","BitLocker","RSAT-Feature-Tools-BitLocker"
     Invoke-Command -ComputerName $servers -ScriptBlock {Install-WindowsFeature -Name $using:features}
 #endregion
 
@@ -823,6 +823,10 @@ if ($NetATC){
 
             #check number of live migrations
             get-vmhost -CimSession $Servers | Select-Object Name,MaximumVirtualMachineMigrations
+
+            #check it in cluster (is only 1 - expected)
+            get-cluster -Name $ClusterName | Select-Object Name,MaximumParallelMigrations
+
         #endregion
 
         #remove net intent global overrides if necessary

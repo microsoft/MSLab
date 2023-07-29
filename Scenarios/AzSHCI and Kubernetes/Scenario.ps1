@@ -276,16 +276,17 @@ Foreach ($PSSession in $PSSessions){
     $VolumeName="AKS"
     $Servers=(Get-ClusterNode -Cluster $ClusterName).Name
     $DHCPServer="DC"
-    $DHCPScopeID="10.0.0.0"
     $VIPPoolStart="10.0.1.2"
     $VIPPoolEnd="10.0.1.100"
+    $VLANID=11
+    $resourcegroupname="$ClusterName-rg"
+
+    #if dhcp is disabled:
     $k8sNodeIpPoolStart="10.0.1.101"
     $k8sNodeIpPoolEnd="10.0.1.254"
     $IPAddressPrefix="10.0.1.0/24"
     $DNSServers="10.0.1.1"
     $Gateway="10.0.1.1"
-    $VLANID=11
-    $resourcegroupname="$ClusterName-rg"
 
     #JaromirK note: it would be great if I could simply run "Initialize-AksHciNode -ComputerName $ClusterName". I could simply skip credssp. Same applies for AksHciConfig and AksHciRegistration
 
@@ -323,11 +324,13 @@ Foreach ($PSSession in $PSSessions){
     #configure aks
     #note: I'm assigning larger control plane VM than default as I saw IP disapperaring IP address if it was smaller in virtual environment (I tested manually incresed size to 8cores and 8GB RAM)
     Invoke-Command -ComputerName $servers[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        #install nuget first
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
         #DHCP
-        #$vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend
+        $vnet = New-AksHciNetworkSetting -Name $using:vNetName -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend -vlanID $using:VLANID 
         #Static
-        $vnet = New-AksHciNetworkSetting -Name $using:vNetName -ipAddressPrefix $using:IPAddressPrefix -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolEnd -vlanID $using:VLANID -DNSServers $using:DNSServers -gateway $Using:Gateway
-        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\ImagesStore -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'Standard_A4_v2' # Get-AksHciVmSize
+        #$vnet = New-AksHciNetworkSetting -Name $using:vNetName -ipAddressPrefix $using:IPAddressPrefix -vSwitchName $using:vSwitchName -vippoolstart $using:vippoolstart -vippoolend $using:vippoolend -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolEnd -vlanID $using:VLANID -DNSServers $using:DNSServers -gateway $Using:Gateway
+        Set-AksHciConfig -vnet $vnet -workingDir c:\clusterstorage\$using:VolumeName\WorkDir -imageDir c:\clusterstorage\$using:VolumeName\Images -cloudConfigLocation c:\clusterstorage\$using:VolumeName\Config -ClusterRoleName "$($using:ClusterName)_AKS" -controlPlaneVmSize 'Standard_A4_v2' # Get-AksHciVmSize
     }
 
     #validate config
@@ -518,7 +521,7 @@ $password="" #if blank, password will be created
 #create credentials
 $ClientID=$sp.AppId
 $SecureSecret= ConvertTo-SecureString $password -AsPlainText -Force
-$Credentials = New-Object System.Management.Automation.PSCredential ($ClientID , $SecureSecret)
+$SPCredentials = New-Object System.Management.Automation.PSCredential ($ClientID , $SecureSecret)
 
 #register namespace Microsoft.KubernetesConfiguration and Microsoft.Kubernetes
 Register-AzResourceProvider -ProviderNamespace Microsoft.Kubernetes
@@ -529,7 +532,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     #Generate kubeconfig
     Get-AksHciCredential -Name $using:KubernetesClusterName -confirm:0
     #onboard
-    Enable-AksHciArcConnection -Name $using:KubernetesClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:Credentials
+    Enable-AksHciArcConnection -Name $using:KubernetesClusterName -tenantId $using:tenantID -subscriptionId $using:subscriptionID -resourcegroup $using:resourcegroup -Location $using:location -credential $using:SPCredentials
 }
 
 

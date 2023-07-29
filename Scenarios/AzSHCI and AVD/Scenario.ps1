@@ -392,7 +392,7 @@
     #Copy agent and bootloader to VMs
         #create sessions
         $sessions=New-PSSession -ComputerName $VMs.VMName
-        #copy ARC agent
+        #copy AVD agent
         foreach ($session in $sessions){
             Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgent.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
             Copy-Item -Path "$env:USERPROFILE\Downloads\AVDAgentBootloader.msi" -Destination "$env:USERPROFILE\Downloads\" -tosession $session -force
