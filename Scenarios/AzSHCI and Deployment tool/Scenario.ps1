@@ -119,7 +119,8 @@
         "Microsoft.Kubernetes/register/action",
         "Microsoft.KubernetesConfiguration/register/action",
         "Microsoft.ExtendedLocation/register/action",
-        "Microsoft.HybridContainerService/register/action"
+        "Microsoft.HybridContainerService/register/action",
+        "Microsoft.ResourceConnector/appliances/write"
     ],
     "NotActions": [
     ],
