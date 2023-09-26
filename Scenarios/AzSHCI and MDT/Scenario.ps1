@@ -36,7 +36,8 @@ If ($WindowsInstallationType -like "Server*"){
     #$Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI_17784.1408_EN-US.iso" ; FileName="AzureStackHCI_17784.1408_EN-US.iso" ; Description="Azure Stack HCI ISO"}
     #$Files+=@{Uri="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/AzureStackHCI_20348.587_en-us.iso" ; FileName="AzureStackHCI_20348.587_en-us.iso" ; Description="Azure Stack HCI ISO"}
     $Files+=@{Uri="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66750/AzureStackHCI_20349.1607_en-us.iso" ; FileName="AzureStackHCI_20349.1607_en-us.iso" ; Description="Azure Stack HCI ISO"}
-    $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=866658" ; FileName="SQL2019-SSEI-Expr.exe" ; Description="SQL Express 2019"}
+    #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=866658" ; FileName="SQL2019-SSEI-Expr.exe" ; Description="SQL Express 2019"}
+    $Files+=@{Uri="https://download.microsoft.com/download/5/1/4/5145fe04-4d30-4b85-b0d1-39533663a2f1/SQL2022-SSEI-Expr.exe" ; FileName="SQL2022-SSEI-Expr.exe" ; Description="SQL Express 2022"}
     #$Files+=@{Uri="https://aka.ms/ssmsfullsetup" ; FileName="SSMS-Setup-ENU.exe" ; Description="SQL Management Studio"}
     foreach ($file in $files){
         if (-not (Test-Path "$downloadfolder\$($file.filename)")){
@@ -86,7 +87,7 @@ If ($WindowsInstallationType -like "Server*"){
         Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
             $downloadfolder="D:\Install"
             #install
-            $exec="$downloadfolder\SQL2019-SSEI-Expr.exe"
+            $exec="$downloadfolder\SQL2022-SSEI-Expr.exe"
             $params="/Action=Install /MediaPath=$downloadfolder\SQLMedia /IAcceptSqlServerLicenseTerms /quiet"
             Start-Process -FilePath $exec -ArgumentList $params -NoNewWindow -Wait
         }
@@ -121,13 +122,13 @@ do{
 Invoke-Command -ComputerName $MDTServer -scriptblock {
     if ($using:Connection -eq "NamedPipes"){
         #Named Pipes
-        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Np\" -Name Enabled -Value 1
+        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Np\" -Name Enabled -Value 1
     }
 
     if ($using:Connection -eq "TCPIP"){
         #TCP
-        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\" -Name Enabled -Value 1
-        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\IPAll" -Name TcpPort -Value 1433
+        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\" -Name Enabled -Value 1
+        Set-ItemProperty -Path "hklm:\\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQLServer\SuperSocketNetLib\Tcp\IPAll" -Name TcpPort -Value 1433
     }
 
     Restart-Service 'MSSQL$SQLEXPRESS'
@@ -146,7 +147,7 @@ Invoke-Command -ComputerName $MDTServer -scriptblock {
         -Description "Inbound rule for SQL. [TCP-1433]" `
         -Enabled True `
         -Direction Inbound `
-        -Program "%ProgramFiles%\Microsoft SQL Server\MSSQL15.SQLEXPRESS\MSSQL\Binn\sqlservr.exe" `
+        -Program "%ProgramFiles%\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Binn\sqlservr.exe" `
         -Protocol TCP `
         -LocalPort 1433 `
         -Profile Any `
