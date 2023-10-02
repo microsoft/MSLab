@@ -34,11 +34,10 @@ $k8snodeippoolstart="10.0.1.51"
 $k8snodeippoolend="10.0.1.254"
 
 #if you want custom images to add
-$LibraryVolumeName="Library" #volume for Gallery images for VMs
-$AzureImages=@()
-$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
-$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
-
+#$LibraryVolumeName="Library" #volume for Gallery images for VMs
+#$AzureImages=@()
+#$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
+#$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
 
 #Install or update Azure packages
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -130,7 +129,7 @@ Restart-Computer -ComputerName $ClusterNodeNames -Protocol WSMan -Wait -For Powe
 Start-sleep 20
 
 # create vSwitch (sometimes happens, that I need to restart servers again and then it will create vSwitch...)
-Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {New-VMSwitch -Name $using:vswitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {New-VMSwitch -Name $using:VirtualSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
 
 #create cluster
 New-Cluster -Name $ClusterName -Node $ClusterNodeNames
@@ -305,11 +304,11 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
 
     #add Az extensions
-        az extension add --name customlocation
-        az extension add --name azurestackhci
-        az extension add --name arcappliance
-        az extension add --name k8s-extension
-        az extension add --name connectedk8s
+        az extension add --name customlocation --upgrade
+        az extension add --name azurestackhci --upgrade
+        az extension add --name arcappliance --upgrade
+        az extension add --name k8s-extension --upgrade
+        az extension add --name connectedk8s --upgrade
 
     #register namespaces
         #register
@@ -346,7 +345,7 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
             $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
             Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-                New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "C:\ClusterStorage\$using:VolumeName\workingDir" -controlPlaneIP $using:controlPlaneIP -vipPoolStart $using:controlPlaneIP -vipPoolEnd $using:controlPlaneIP -vswitchName $using:vswitchName #-vLanID $vlanID
+                New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "C:\ClusterStorage\$using:VolumeName\workingDir" -controlPlaneIP $using:controlPlaneIP -vipPoolStart $using:controlPlaneIP -vipPoolEnd $using:controlPlaneIP -vswitchName $using:VirtualSwitchName #-vLanID $vlanID
             }
 
             #prepare,(unfortunately this does not work against remote server, so it has to run locally, so invoke-command with credssp)
@@ -377,6 +376,8 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
             }
 
             #copy kube config to local machine
+            #Create folder for config
+            New-Item -Path $env:USERPROFILE\.kube -ItemType Directory -ErrorAction Ignore
             Copy-Item -Path $env:USERPROFILE\.kube\config -Destination $env:USERPROFILE\.kube\config -FromSession $session -Recurse
             Remove-PSSession $session
 
@@ -511,9 +512,9 @@ $Sessions | Remove-PSSession
 
     Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         #dhcp does not work as it keeps asking for gw, dns servers...
-        #New-ArcHciVirtualNetwork -name AKSvnet -vswitchname $using:vswitchname -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid 
+        #New-ArcHciVirtualNetwork -name AKSvnet -vswitchname $using:VirtualSwitchName -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid 
         #without dhcp
-        New-ArcHciVirtualNetwork -name $using:AKSVnetName -vswitchname $using:vswitchname -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid -ipAddressPrefix $Using:ipaddressprefix -gateway $using:gateway -dnsservers $using:DNSServers -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolend
+        New-ArcHciVirtualNetwork -name $using:AKSVnetName -vswitchname $using:VirtualSwitchName -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid -ipAddressPrefix $Using:ipaddressprefix -gateway $using:gateway -dnsservers $using:DNSServers -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolend
     }
 
     #Connect your on-premises AKS hybrid network to Azure
