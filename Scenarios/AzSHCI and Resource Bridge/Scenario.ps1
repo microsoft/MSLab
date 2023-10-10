@@ -483,6 +483,12 @@ $Sessions | Remove-PSSession
     az customlocation show --name $customLocationName --resource-group $HCIResourceGroupName --query "clusterExtensionIds" -o tsv
 #endregion
 
+#region add image for aks
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Add-ArcHciK8sGalleryImage -k8sVersion 1.24.11
+}
+#endregion
+
 #region create virtual network for AKS
 #https://learn.microsoft.com/en-us/azure/aks/hybrid/create-aks-hybrid-preview-networks?tabs=dhcp%2Clinux-vhd
 
@@ -538,9 +544,5 @@ $Sessions | Remove-PSSession
 
 #endregion
 
-#region add image for aks
-Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-    Add-ArcHciK8sGalleryImage -k8sVersion 1.24.11
-}
-#endregion
+
 
