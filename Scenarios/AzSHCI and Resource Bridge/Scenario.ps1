@@ -4,7 +4,7 @@
 #region Variables 
 $ClusterNodeNames="ASHCIRB1","ASHCIRB2"
 $ClusterName="ASHCIRB-Cluster"
-$vswitchName="vSwitch"
+$VirtualSwitchName="vSwitch" #with network atc the virtual switch name might be something like "ConvergedSwitch(compute_management_storage)"
 $controlPlaneIP="10.0.0.101"
 $VolumeName="MOC"
 $VolumePath="c:\ClusterStorage\$VolumeName"
@@ -13,11 +13,13 @@ $CredSSPPassword="LS1setup!"
 $CustomLocationName="$ClusterName"
 $CustomLocationNameSpace="customlocation-ns"
 
-#ARC VMs virtual network name (the one that is visible in portal when you create a VM)
-$vnetName="management"
+#ARC VMs virtual networks (the one that is visible in portal when you create a VM)
+$VirtualNetworks=@()
+$VirtualNetworks+=[PSCustomObject]@{ Name="Management" ; VLANID=$Null}
+$VirtualNetworks+=[PSCustomObject]@{ Name="VMs701" ; VLANID=701}
 
 #AKS config
-$AKSvnetName="AKSvnet"
+$AKSvnetName="aksvnet"
 $VIPPoolStart="10.0.1.2"
 $VIPPoolEnd="10.0.1.50"
 $DHCPServer="DC"
@@ -32,11 +34,10 @@ $k8snodeippoolstart="10.0.1.51"
 $k8snodeippoolend="10.0.1.254"
 
 #if you want custom images to add
-$LibraryVolumeName="Library" #volume for Gallery images for VMs
-$AzureImages=@()
-$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
-$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
-
+#$LibraryVolumeName="Library" #volume for Gallery images for VMs
+#$AzureImages=@()
+#$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
+#$AzureImages+=@{PublisherName = "microsoftwindowsserver";Offer="windowsserver";SKU="2022-datacenter-azure-edition-core-smalldisk";OSType="Windows"} #OS TYpe can be "Windows" or "Linux" - first letter has to be capital!
 
 #Install or update Azure packages
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
@@ -128,7 +129,7 @@ Restart-Computer -ComputerName $ClusterNodeNames -Protocol WSMan -Wait -For Powe
 Start-sleep 20
 
 # create vSwitch (sometimes happens, that I need to restart servers again and then it will create vSwitch...)
-Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {New-VMSwitch -Name $using:vswitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
+Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock {New-VMSwitch -Name $using:VirtualSwitchName -EnableEmbeddedTeaming $TRUE -NetAdapterName (Get-NetIPAddress -IPAddress 10.* ).InterfaceAlias}
 
 #create cluster
 New-Cluster -Name $ClusterName -Node $ClusterNodeNames
@@ -280,6 +281,11 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         Connect-AzAccount -UseDeviceAuthentication
     }
 
+    $subscription=Get-AzSubscription
+    if (($subscription).count -gt 1){
+        $subscription | Out-GridView -OutputMode Single | Set-AzContext
+    }
+
     #generate variables
         #Grab registration info
         $RegistrationInfo=Invoke-Command -ComputerName $CLusterName -ScriptBlock {Get-AzureStackHCI}
@@ -298,11 +304,11 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
 
     #add Az extensions
-        az extension add --name customlocation
-        az extension add --name azurestackhci
-        az extension add --name arcappliance
-        az extension add --name k8s-extension
-        az extension add --name connectedk8s
+        az extension add --name customlocation --upgrade
+        az extension add --name azurestackhci --upgrade
+        az extension add --name arcappliance --upgrade
+        az extension add --name k8s-extension --upgrade
+        az extension add --name connectedk8s --upgrade
 
     #register namespaces
         #register
@@ -339,22 +345,45 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
             $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
 
             Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
-                New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "\\$using:ClusterName\ClusterStorage$\$using:VolumeName\workingDir" -controlPlaneIP $using:controlPlaneIP -vipPoolStart $using:controlPlaneIP -vipPoolEnd $using:controlPlaneIP -vswitchName $using:vswitchName #-vLanID $vlanID
+                New-ArcHciConfigFiles -subscriptionID $using:HCISubscriptionID -location $using:ArcResourceBridgeLocation -resourceGroup $using:HCIResourceGroupName -resourceName $using:BridgeResourceName -workDirectory "C:\ClusterStorage\$using:VolumeName\workingDir" -controlPlaneIP $using:controlPlaneIP -vipPoolStart $using:controlPlaneIP -vipPoolEnd $using:controlPlaneIP -vswitchName $using:VirtualSwitchName #-vLanID $vlanID
             }
-            # Disable CredSSP
-            Disable-WSManCredSSP -Role Client
-            Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Disable-WSManCredSSP Server }
 
-        #prepare
-        az arcappliance prepare hci --config-file \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml
+            #prepare,(unfortunately this does not work against remote server, so it has to run locally, so invoke-command with credssp)
+ 
+            $session=New-PSSession -ComputerName $ClusterNodeNames[0]
+            Copy-Item -Path $env:userprofile\Downloads\AzureCLI.msi -Destination $env:userprofile\Downloads\AzureCLI.msi -ToSession $session
+            Invoke-Command -ComputerName $ClusterNodeNames[0] -Credential $Credentials -Authentication Credssp -ScriptBlock {
+                #install
+                Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+                #add az to enviromental variables so no posh restart is needed
+                [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
+                az login --use-device-code
+                az account set --subscription ($using:subscription).id
+                #add Az extensions
+                az extension add --name customlocation
+                az extension add --name azurestackhci
+                az extension add --name arcappliance
+                az extension add --name k8s-extension
+                az extension add --name connectedk8s
+                #prepare
+                az arcappliance prepare hci --config-file C:\ClusterStorage\$using:VolumeName\workingDir\hci-appliance.yaml
+                #Create folder for config
+                New-Item -Path $env:USERPROFILE\.kube -ItemType Directory -ErrorAction Ignore
+                #deploy
+                az arcappliance deploy hci --config-file  C:\ClusterStorage\$using:VolumeName\workingDir\hci-appliance.yaml --outfile $env:USERPROFILE\.kube\config
+                #create
+                az arcappliance create hci --config-file  C:\ClusterStorage\$using:VolumeName\workingDir\hci-appliance.yaml --kubeconfig $env:USERPROFILE\.kube\config
+            }
 
-        #Create folder for config
-        New-Item -Path $env:USERPROFILE\.kube -ItemType Directory -ErrorAction Ignore
+            #copy kube config to local machine
+            #Create folder for config
+            New-Item -Path $env:USERPROFILE\.kube -ItemType Directory -ErrorAction Ignore
+            Copy-Item -Path $env:USERPROFILE\.kube\config -Destination $env:USERPROFILE\.kube\config -FromSession $session -Recurse
+            Remove-PSSession $session
 
-        #deploy control plane and export kube config
-        az arcappliance deploy hci --config-file  \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml --outfile $env:USERPROFILE\.kube\config
-        #create connection to Azure (might throw error, dont worry! It's being deployed on background)
-        az arcappliance create hci --config-file  \\$ClusterName\ClusterStorage$\$VolumeName\workingDir\hci-appliance.yaml --kubeconfig $env:USERPROFILE\.kube\config
+        # Disable CredSSP
+        Disable-WSManCredSSP -Role Client
+        Invoke-Command -ComputerName $ClusterNodeNames -ScriptBlock { Disable-WSManCredSSP Server }
 
     #wait until appliance is running
         do {
@@ -391,8 +420,39 @@ Invoke-Command -ComputerName $ClusterName -ScriptBlock {
     $AzureResourceUri= $RegistrationInfo.AzureResourceUri
     $HCIResourceGroupName=$AzureResourceUri.split("/")[4]
     $HCISubscriptionID=$AzureResourceUri.split("/")[2]
+    $Location=$ArcResourceBridgeLocation
+    #if network atc is used, this code might be helpful to grab vswitch name
+        <#
+        $VirtualSwitchName=Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+            $IntentName=(get-netintent | Where-Object iscomputeintentset -eq $true).IntentName
+            (Get-VMSwitch | Where-Object Name -like "*($intentName)").name
+        }
+        #>
+
     #create network
-    az azurestackhci virtualnetwork create --subscription $HCISubscriptionID --resource-group $HCIResourceGroupName --extended-location name="/subscriptions/$HCISubscriptionID/resourceGroups/$HCIResourceGroupName/providers/Microsoft.ExtendedLocation/customLocations/$CustomLocationName" type="CustomLocation" --location $ArcResourceBridgeLocation --network-type "Transparent" --name $vnetName
+
+    #add virtual networks for VMs
+    $tags = @{
+    'VSwitch-Name' = $VirtualSwitchName #hyper-v switch name
+    }
+  
+    foreach ($VirtualNetwork in $VirtualNetworks){
+        if ($VirtualNetwork.VlanID){
+            Invoke-Command -ComputerName $CLusterName -ScriptBlock {
+                $VirtualNetwork=$using:VirtualNetwork
+                $Tags=$using:Tags
+                New-MocVirtualNetwork -Name $VirtualNetwork.Name -group "Default_Group" -tags $tags -vlanID $VirtualNetwork.VlanID
+            }
+             az azurestackhci virtualnetwork create --subscription $HCISubscriptionID --resource-group $HCIResourceGroupName --extended-location name="/subscriptions/$HCISubscriptionID/resourceGroups/$HCIResourceGroupName/providers/Microsoft.ExtendedLocation/customLocations/$CustomLocationName" type="CustomLocation" --location $Location --network-type "Transparent" --name $VirtualNetwork.Name
+        }else{
+            Invoke-Command -ComputerName $CLusterName -ScriptBlock {
+                $VirtualNetwork=$using:VirtualNetwork
+                $Tags=$using:Tags
+                New-MocVirtualNetwork -Name $VirtualNetwork.Name -group "Default_Group" -tags $tags
+            }
+             az azurestackhci virtualnetwork create --subscription $HCISubscriptionID --resource-group $HCIResourceGroupName --extended-location name="/subscriptions/$HCISubscriptionID/resourceGroups/$HCIResourceGroupName/providers/Microsoft.ExtendedLocation/customLocations/$CustomLocationName" type="CustomLocation" --location $Location --network-type "Transparent" --name $VirtualNetwork.Name
+        }
+   }
 #endregion
 
 #region Copy kube config to nodes to have it available there
@@ -423,13 +483,19 @@ $Sessions | Remove-PSSession
     az customlocation show --name $customLocationName --resource-group $HCIResourceGroupName --query "clusterExtensionIds" -o tsv
 #endregion
 
+#region add image for aks
+Invoke-Command -ComputerName $ClusterName -ScriptBlock {
+    Add-ArcHciK8sGalleryImage -k8sVersion 1.24.11
+}
+#endregion
+
 #region create virtual network for AKS
 #https://learn.microsoft.com/en-us/azure/aks/hybrid/create-aks-hybrid-preview-networks?tabs=dhcp%2Clinux-vhd
 
     #make sure latest module is installed (note required version)
     Start-Process -Wait -FilePath PowerShell -ArgumentList {
         Install-Module -Name MOC    -Repository PSGallery -Force -AcceptLicense
-        Install-Module -Name ArcHci -Force -Confirm:$false -SkipPublisherCheck -AcceptLicense -RequiredVersion 0.2.24
+        Install-Module -Name ArcHci -Force -Confirm:$false -SkipPublisherCheck -AcceptLicense
     }
 
     #distribute new module to cluster nodes
@@ -450,12 +516,11 @@ $Sessions | Remove-PSSession
     #exclude
     Add-DhcpServerv4ExclusionRange -StartRange $VIPPoolStart -EndRange $VIPPoolEnd -ScopeId $DHCPScopeID -ComputerName $DHCPServer
 
-    #
     Invoke-Command -ComputerName $ClusterName -ScriptBlock {
         #dhcp does not work as it keeps asking for gw, dns servers...
-        #New-ArcHciVirtualNetwork -name AKSvnet -vswitchname $using:vswitchname -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid 
+        #New-ArcHciVirtualNetwork -name AKSvnet -vswitchname $using:VirtualSwitchName -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid 
         #without dhcp
-        New-ArcHciVirtualNetwork -name $using:AKSVnetName -vswitchname $using:vswitchname -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid -ipAddressPrefix $Using:ipaddressprefix -gateway $using:gateway -dnsservers $using:DNSServers -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolend
+        New-ArcHciVirtualNetwork -name $using:AKSVnetName -vswitchname $using:VirtualSwitchName -vippoolstart $using:vipPoolStart -vippoolend $using:vipPoolEnd -vlanid $using:vlanid -ipAddressPrefix $Using:ipaddressprefix -gateway $using:gateway -dnsservers $using:DNSServers -k8sNodeIpPoolStart $using:k8sNodeIpPoolStart -k8sNodeIpPoolEnd $using:k8sNodeIpPoolend
     }
 
     #Connect your on-premises AKS hybrid network to Azure
@@ -479,9 +544,5 @@ $Sessions | Remove-PSSession
 
 #endregion
 
-#region add image for aks
-Invoke-Command -ComputerName $ClusterName -ScriptBlock {
-    Add-ArcHciK8sGalleryImage -k8sVersion 1.22.11 -version 1.0.16.10113
-}
-#endregion
+
 

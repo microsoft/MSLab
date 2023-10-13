@@ -35,7 +35,7 @@
         $ServicePrincipal=$True #or false if you want to use MFA (and skip SP creation)
         $ServicePrincipalName="Azure-Stack-Registration"
         $ResourceGroupName="ASClus01-RG"
-        $Location="EastUS"
+        $Location="eastus" #make sure location is lowercase as in 2308 was not able to deploy with "EastUS"
 
         #login to azure
             #download Azure module
@@ -114,7 +114,13 @@
         "Microsoft.HybridCompute/machines/read",
         "Microsoft.HybridCompute/machines/write",
         "Microsoft.HybridCompute/privateLinkScopes/read",
-        "Microsoft.GuestConfiguration/guestConfigurationAssignments/read"
+        "Microsoft.GuestConfiguration/guestConfigurationAssignments/read",
+        "Microsoft.ResourceConnector/register/action",
+        "Microsoft.Kubernetes/register/action",
+        "Microsoft.KubernetesConfiguration/register/action",
+        "Microsoft.ExtendedLocation/register/action",
+        "Microsoft.HybridContainerService/register/action",
+        "Microsoft.ResourceConnector/appliances/write"
     ],
     "NotActions": [
     ],
@@ -351,23 +357,6 @@ $Content | Out-File -FilePath c:\config.json
 
 #set trusted hosts back
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value "" -Force
-
-#start deployment
-#make sure some prereqs (that will be fixed in future) are set
-<#
-    #Make sure Windows Update is disabled and ping enabled (https://learn.microsoft.com/en-us/azure-stack/hci/hci-known-issues-2303)
-    Microsoft.PowerShell.Core\Invoke-Command -ComputerName $Servers -ScriptBlock {
-        reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v NoAutoUpdate /t REG_DWORD /d 1 /f
-        reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU /v AUOptions /t REG_DWORD /d 3 /f
-        Set-Service "WUAUSERV" -StartupType Disabled
-        #enable v4 and v6 ping on both domain and private/public profiles
-        Enable-NetFirewallRule -Name FPS-ICMP4-ERQ-In,FPS-ICMP6-ERQ-In
-    }
-    #add hostnames and IPs to trusted hosts (bug that in BareMetal.psm1 is invoke-command with IP that is not in trusted hosts)
-    $TrustedHosts=@()
-    $TrustedHosts+=$Servers
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value $($TrustedHosts -join ',') -Force
-#>
 
 #create secured storage access key
 $StorageAccountAccessKeySecured = ConvertTo-SecureString $StorageAccountAccessKey -AsPlainText -Force

@@ -41,49 +41,64 @@
 #endregion
 
 #region download all required Dell binaries
+    #Set up web client to download files with autheticated web request
+    $WebClient = New-Object System.Net.WebClient
+    #$proxy = new-object System.Net.WebProxy
+    $proxy = [System.Net.WebRequest]::GetSystemWebProxy()
+    $proxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
+    #$proxy.Address = $proxyAdr
+    #$proxy.useDefaultCredentials = $true
+    $WebClient.proxy = $proxy
+
     #create downloads folder
         if (-not (Test-Path $DellToolsDownloadFolder -ErrorAction Ignore)){New-Item -Path $DellToolsDownloadFolder -ItemType Directory}
     #grab DSU links from Dell website
         if (-not ([Net.ServicePointManager]::SecurityProtocol).tostring().contains("Tls12")){ #there is no need to set Tls12 in 1809 releases, therefore for insider it does not apply
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         }
-        $URL="https://dl.dell.com/omimswac/dsu/"
-        $Results=Invoke-WebRequest $URL -UseDefaultCredentials -UseBasicParsing
-        $Links=$results.Links.href | Select-Object -Skip 1
-        #create PSObject from results
-        $DSUs=@()
-        foreach ($Link in $Links){
-            $DSUs+=[PSCustomObject]@{
-                Link = "https://dl.dell.com$Link"
-                Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
-            }
+
+    #Find DSUs
+    $URL="https://dl.dell.com/omimswac/dsu/"
+    $htmlstring=$WebClient.DownloadString("$url")
+    $htmlobject = New-Object -Com "HTMLFile"
+    $htmlobject.IHTMLDocument2_write($htmlstring)
+    $Links=$htmlobject.links | Select-Object -Skip 1 
+    $DSUs=@()
+    foreach ($Link in $Links){
+        $DSUs+=[PSCustomObject]@{
+            Link = "https://dl.dell.com/$($link.pathname)"
+            Version = [Version]($link.pathname -split "_" | Select-Object -Last 2 | Select-Object -First 1)
         }
-        #download latest DSU
-        $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
-        Start-BitsTransfer -Source $LatestDSU.Link -Destination $DellToolsDownloadFolder\DSU.exe
+    }
+    #download latest DSU
+    $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+    $WebClient.DownloadFile($LatestDSU.Link,"$DellToolsDownloadFolder\DSU.exe")
 
     #grab IC (inventory collection tool. Required for offline patching)
         if ($Offline){
-            #grab IC links from Dell website
-            $URL="https://downloads.dell.com/omimswac/ic/"
-            $Results=Invoke-WebRequest $URL -UseDefaultCredentials
-            $Links=$results.Links.href | Select-Object -Skip 1
-            #create PSObject from results
+            #Find ICs
+            $URL="https://dl.dell.com/omimswac/ic/"
+            $htmlstring=$WebClient.DownloadString("$url")
+            $htmlobject = New-Object -Com "HTMLFile"
+            $htmlobject.IHTMLDocument2_write($htmlstring)
+            $Links=$htmlobject.links | Select-Object -Skip 1 
+
             $ICs=@()
             foreach ($Link in $Links){
                 $ICs+=[PSCustomObject]@{
-                    Link = "https://dl.dell.com$Link"
-                    Version = [int]($link -split "_" | Select-Object -Last 2 | Select-Object -First 1)
+                    Link = "https://dl.dell.com/$($link.pathname)"
+                    Version = [Version](($link.pathname -split "_" | Select-Object -Last 5 | Select-Object -First 4) -join ".")
                 }
             }
+
             #download latest
             $LatestIC=$ICs | Sort-Object Version | Select-Object -Last 1
-            Start-BitsTransfer -Source $LatestIC.Link -Destination $DellToolsDownloadFolder\IC.exe
+            $WebClient.DownloadFile($LatestIC.Link,"$DellToolsDownloadFolder\IC.exe")
         }
 
     #grab Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
         #Download catalog
-        Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
+        $WebClient.DownloadFile("https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz","$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz")
         #unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
         Function Expand-GZipArchive{
             Param(
@@ -334,12 +349,11 @@ if ($offline){
                     $MSUs=Get-ChildItem -Path $using:BinariesLocation\Updates | Where-Object Extension -eq ".msu"
                     foreach ($MSU in $MSUs) {
                         Write-Output "$(get-date -Format 'yyyy/MM/dd hh:mm:ss tt') $($using:Node): Applying MSU $($MSU.FullName)"
-                        <#
                         $CabName="$($MSU.basename -split "_" | Select-Object -First 1).cab"
                         expand.exe $MSU.FullName $using:BinariesLocation\Updates\ -f:"$CabName" | Out-Null
                         Add-WindowsPackage -PackagePath "$using:BinariesLocation\Updates\$CabName" -Online | Out-Null
-                        #>
-                        Start-Process -FilePath "$env:systemroot\System32\wusa.exe" -ArgumentList "$($MSU.FullName) /quiet /norestart" -Wait
+                        #wusa will complain about access denied
+                        #Start-Process -FilePath "$env:systemroot\System32\wusa.exe" -ArgumentList "$($MSU.FullName) /quiet /norestart" -Wait
                     }
                 }
             }else{

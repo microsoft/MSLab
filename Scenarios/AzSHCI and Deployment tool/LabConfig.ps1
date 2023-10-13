@@ -3,8 +3,8 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
 #Azure Stack HCI 22H2
 #labconfig will not domain join VMs, will add "Tools disk" and will also execute powershell command to make this tools disk online.
 1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 1GB; VMProcessorCount=4 ; vTPM=$true ; Unattend="NoDjoin" }}
-#labconfig for nested virtualization
-#1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 6GB; VMProcessorCount=4 ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
+#labconfig for nested virtualization (eith enough RAM to create ARC RB). You can decrease number of nodes to two - or even 1.
+#1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 20GB; VMProcessorCount=4 ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
 
 #Windows Admin Center in GW mode
 $LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2022Core_G2.vhdx'; MGMTNICs=1}
