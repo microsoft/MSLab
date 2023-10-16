@@ -2,7 +2,7 @@
     #grafana and influxdb variables
     $GrafanaServerName="Grafana"
     $InfluxDBServerName="InfluxDB"
-    $InfluxDBPath="E:\InfluxDB\" #path for DB and config. In lab is E drive, that is not initialized and will be formatted
+    $InfluxDBPath="E:\InfluxDB" #path for Database. In lab is E drive, that is not initialized and will be formatted
     $InfluxDBConfigPath=$InfluxDBPath+"influxdb.conf"
 
     #Certification Authority
@@ -20,58 +20,27 @@
     $Grafana_Admins_To_Add = "LabAdmin"
 
     #firewall vars
-    $IPSecEnabledServers="DC",$GrafanaServerName,$InfluxDBServerName,"S2D1","S2D2","S2D3","S2D4"
-    $InfluxDBAuthorizedServers="DC",$GrafanaServerName,"S2D1","S2D2","S2D3","S2D4"
+    $IPSecEnabledServers="Management",$GrafanaServerName,$InfluxDBServerName,"AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
+    $InfluxDBAuthorizedServers="Management",$GrafanaServerName,"AzSHCI1","AzSHCI2","AzSHCI3","AzSHCI4"
 
     #telegraf - monitored servers
-    $clusters=@("S2D-Cluster")
+    $clusters=@("AzSHCI-Cluster")
     #$clusters=(Get-Cluster -Domain $env:USERDOMAIN | Where-Object S2DEnabled -eq 1).Name
 
 #endregion
 
 #region download required files to downloads folder
-#influxDB and telegraph
-Start-BitsTransfer -Source https://dl.influxdata.com/influxdb/releases/influxdb-1.8.3_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip"
-Start-BitsTransfer -Source https://dl.influxdata.com/telegraf/releases/telegraf-1.16.2_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip"
-#Grafana
-Start-BitsTransfer -Source https://dl.grafana.com/oss/release/grafana-7.3.4.windows-amd64.zip -Destination "$env:USERPROFILE\Downloads\grafana-7.3.4.zip"
-#NSSM - the Non-Sucking Service Manager
-Start-BitsTransfer -Source https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -Destination "$env:USERPROFILE\Downloads\NSSM.zip"
+    #influxDB and telegraph
+    Start-BitsTransfer -Source https://dl.influxdata.com/influxdb/releases/influxdb-1.8.10_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\influxdb-1.8.10.zip"
+    Start-BitsTransfer -Source https://dl.influxdata.com/telegraf/releases/telegraf-1.28.2_windows_amd64.zip -Destination "$env:USERPROFILE\Downloads\telegraf-1.28.2.zip"
+    #Grafana
+    Start-BitsTransfer -Source https://dl.grafana.com/oss/release/grafana-10.1.5.windows-amd64.zip -Destination "$env:USERPROFILE\Downloads\grafana-10.1.5.zip"
+    #NSSM - the Non-Sucking Service Manager
+    Start-BitsTransfer -Source https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip -Destination "$env:USERPROFILE\Downloads\NSSM.zip"
 #endregion
 
-#region Download and Install Edge
-Start-BitsTransfer -Source "https://aka.ms/edge-msi" -Destination "$env:USERPROFILE\Downloads\MicrosoftEdgeEnterpriseX64.msi"
-#start install
-Start-Process -Wait -Filepath msiexec.exe -Argumentlist "/i $env:UserProfile\Downloads\MicrosoftEdgeEnterpriseX64.msi /q"
-#start Edge
-start-sleep 5
-& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-#endregion
-
-#region install management tools
-    $WindowsInstallationType=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name InstallationType
-    $CurrentBuildNumber=Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\' -Name CurrentBuildNumber
-    if ($WindowsInstallationType -eq "Server"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-AD-PowerShell,RSAT-ADCS,Web-Mgmt-Console,Web-Scripting-Tools
-    }elseif ($WindowsInstallationType -eq "Server Core"){
-        Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-PowerShell,RSAT-AD-PowerShell
-    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -lt 17763)){
-        #Validate RSAT Installed
-            if (!((Get-HotFix).hotfixid -contains "KB2693643") ){
-                Write-Host "Please install RSAT, Exitting in 5s"
-                Start-Sleep 5
-                Exit
-            }
-    }elseif (($WindowsInstallationType -eq "Client") -and ($CurrentBuildNumber -ge 17763)){
-        #Install RSAT tools
-            $Capabilities="Rsat.ServerManager.Tools~~~~0.0.1.0","Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0","Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0","Rsat.CertificateServices.Tools~~~~0.0.1.0"
-            foreach ($Capability in $Capabilities){
-                Add-WindowsCapability -Name $Capability -Online
-            }
-        #install IIS management tools
-            Enable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServerRole","IIS-WebServerManagementTools","IIS-ManagementConsole","IIS-ManagementScriptingTools" 
-            Disable-WindowsOptionalFeature -Online -FeatureName "IIS-WebServer" -NoRestart
-    }
+#region install management tools (assuming you are managing from Windows Server with GUI)
+    Install-WindowsFeature -Name RSAT-Clustering,RSAT-Clustering-Mgmt,RSAT-Clustering-PowerShell,RSAT-AD-PowerShell,RSAT-ADCS,Web-Mgmt-Console,Web-Scripting-Tools
 #endregion
 
 #region setup Certification Authority
@@ -417,18 +386,17 @@ renewServerCertificate: 1
     $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
     $InfluxDBSession=New-PSSession -ComputerName $InfluxDBServerName
 
-    Copy-Item -Path "$env:USERPROFILE\Downloads\influxdb-1.8.3-1.zip" -Destination "$env:temp\influxdb-1.8.3-1.zip" -tosession $InfluxDBSession
-    Copy-Item -Path "$env:USERPROFILE\Downloads\grafana-7.3.4.zip" -Destination "$env:temp\grafana-7.3.4.zip" -tosession $GrafanaSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\influxdb-1.8.10.zip" -Destination "$env:temp\influxdb-1.8.10.zip" -tosession $InfluxDBSession
+    Copy-Item -Path "$env:USERPROFILE\Downloads\grafana-10.1.5.zip" -Destination "$env:temp\grafana-10.1.5.zip" -tosession $GrafanaSession
     Copy-Item -Path "$env:USERPROFILE\Downloads\NSSM.zip" -Destination "$env:temp\NSSM.zip" -tosession $GrafanaSession
     Copy-Item -Path "$env:USERPROFILE\Downloads\NSSM.zip" -Destination "$env:temp\NSSM.zip" -tosession $InfluxDBSession
 
     #extract zip files and copy to destination folder
     invoke-command -Session $InfluxDBSession -scriptblock {
-        Expand-Archive -Path "$env:temp\influxdb-1.8.3-1.zip" -DestinationPath "$env:temp" -Force
-        Rename-Item -Path "$env:temp\influxdb-1.8.3-1" -NewName "InfluxDB"
+        Expand-Archive -Path "$env:temp\influxdb-1.8.10.zip" -DestinationPath "$env:temp" -Force
+        Rename-Item -Path "$env:temp\influxdb-1.8.10-1" -NewName "InfluxDB"
         Expand-Archive -Path "$env:temp\NSSM.zip" -DestinationPath "$env:temp" -Force
         #rename folder to remove version
-        Get-ChildItem -Path $env:temp  | Where-Object name -like influxdb-* | Rename-Item -NewName InfluxDB
         Get-ChildItem -Path $env:temp  | Where-Object name -like nssm-* | Rename-Item -NewName NSSM
         #move to program files
         Move-Item -Path "$env:temp\InfluxDB" -Destination $env:ProgramFiles -Force
@@ -441,11 +409,10 @@ renewServerCertificate: 1
     }
 
     invoke-command -Session $GrafanaSession -scriptblock {
-        Expand-Archive -Path "$env:temp\grafana-7.3.4.zip" -DestinationPath "$env:temp" -Force
-        Rename-Item -Path "$env:temp\grafana-7.3.4.zip" -NewName "Grafana"
+        Expand-Archive -Path "$env:temp\grafana-10.1.5.zip" -DestinationPath "$env:temp" -Force
+        Rename-Item -Path "$env:temp\grafana-10.1.5" -NewName "Grafana"
         Expand-Archive -Path "$env:temp\NSSM.zip" -DestinationPath "$env:temp" -Force
         #rename folder to remove version
-        Get-ChildItem -Path $env:temp  | Where-Object name -like grafana-* | Rename-Item -NewName Grafana
         Get-ChildItem -Path $env:temp  | Where-Object name -like nssm-* | Rename-Item -NewName NSSM
         #move to program files
         Move-Item -Path $env:temp\Grafana -Destination $env:ProgramFiles -Force
@@ -477,7 +444,6 @@ renewServerCertificate: 1
         $content=$content.Replace("/var/lib/influxdb/",$using:InfluxDBPathForeSlash)
         Set-Content -Value $Content -Path $using:InfluxDBConfigPath -Encoding UTF8
     }
- 
 #endregion
 
 #region Configure Grafana and Influx DB services
@@ -508,7 +474,7 @@ renewServerCertificate: 1
         -Action Allow `
         -Name "InfluxDB-HTTP-In-TCP" `
         -DisplayName "InfluxDB (HTTP-In)" `
-        -Description "Inbound rule for Grafana DB. [TCP-8086]" `
+        -Description "Inbound rule for Influx DB. [TCP-8086]" `
         -Enabled True `
         -Direction Inbound `
         -Program "%ProgramFiles%\InfluxDB\influxd.exe" `
@@ -525,7 +491,7 @@ renewServerCertificate: 1
         -Action Allow `
         -Name "InfluxDBBackup-HTTP-In-TCP" `
         -DisplayName "InfluxDBBackup (HTTP-In)" `
-        -Description "Inbound rule for Grafana DB. [TCP-8088]" `
+        -Description "Inbound rule for Influx DB. [TCP-8088]" `
         -Enabled True `
         -Direction Inbound `
         -Program "%ProgramFiles%\InfluxDB\influxd.exe" `
@@ -650,7 +616,7 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
         #Grab DN
         $CAcert=(Get-CertificationAuthority).certificate
         #download OpenSSL and transfer to GrafanaServer
-        Start-BitsTransfer -Source "http://wiki.overbyte.eu/arch/openssl-1.1.1g-win64.zip" -Destination $env:USERPROFILE\Downloads\OpenSSL.zip
+        Start-BitsTransfer -Source "https://wiki.overbyte.eu/arch/openssl-3.1.3-win64.zip" -Destination $env:USERPROFILE\Downloads\OpenSSL.zip
         #transfer OpenSSL to $GrafanaServer
         $GrafanaSession=New-PSSession -ComputerName $GrafanaServerName
         Copy-Item -Path $env:USERPROFILE\Downloads\OpenSSL.zip -Destination $env:USERPROFILE\Downloads\OpenSSL.zip -ToSession $GrafanaSession
@@ -676,8 +642,8 @@ Invoke-command -computername $GrafanaServerName -scriptblock {
                 $tomlfilecontent=$tomlfilecontent.Replace("port = 389","port = 636")
                 #configure SSL
                 $tomlfilecontent=$tomlfilecontent.Replace("use_ssl = false","use_ssl = true")
-                #configure disable CA validation as it root ca is not trusted even all is configured right (fixed in latest release, commenting)
-                #$tomlfilecontent=$tomlfilecontent.Replace("ssl_skip_verify = false","ssl_skip_verify = true")
+                #configure disable CA validation as it root ca is not trusted even all is configured right "tls: failed to verify certificate: x509: certificate relies on legacy Common Name field, use SANs instead\n[identity.not-found] no user fund: user not found"
+                $tomlfilecontent=$tomlfilecontent.Replace("ssl_skip_verify = false","ssl_skip_verify = true")
                 #set content to Toml file
                 $tomlfilecontent | Set-Content -Path "C:\Program Files\Grafana\conf\ldap.toml"
             #endregion
@@ -711,7 +677,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 -Description "Inbound rule for Grafana web. [TCP-443]" `
 -Enabled True `
 -Direction Inbound `
--Program "%ProgramFiles%\Grafana\bin\grafana-server.exe" `
+-Program "%ProgramFiles%\Grafana\bin\grafana.exe" `
 -Protocol TCP `
 -LocalPort 443 `
 -Profile Any `
@@ -722,11 +688,10 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 
 #region push telegraf agent to nodes
     $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
-    $clusters=@("S2D-Cluster")
 
     #expand telegraf
-    Expand-Archive -Path "$env:USERPROFILE\Downloads\telegraf-1.16.2.zip" -DestinationPath "$env:temp" -Force
-    Rename-Item -Path "$env:temp\telegraf-1.16.2" -NewName "telegraf"
+    Expand-Archive -Path "$env:USERPROFILE\Downloads\telegraf-1.28.2.zip" -DestinationPath "$env:temp" -Force
+    Rename-Item -Path "$env:temp\telegraf-1.28.2" -NewName "telegraf"
 
     #provide your telegraf and config
     $posh = Get-Content -Path $env:userprofile\Downloads\telegraf.ps1 -ErrorAction Ignore
@@ -734,8 +699,8 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 
     #or download telegraf configuration from WSLab Github and configure grafana URL
     if (!$config -or !$posh){
-        $config=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.conf).content
-        $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/WSLab/dev/Scenarios/S2D%20and%20Grafana/telegraf.ps1).content.substring(1)
+        $config=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/MSLab/dev/Scenarios/AzSHCI%20and%20Grafana/telegraf.conf).content
+        $posh=(invoke-webrequest -usebasicparsing -uri https://raw.githubusercontent.com/Microsoft/MSLab/dev/Scenarios/AzSHCI%20and%20Grafana/telegraf.ps1).content.substring(1)
         #save config and posh to Downloads folder
         $posh | out-file -Filepath $env:userprofile\Downloads\telegraf.ps1 -force -Encoding UTF8
         $config | out-file -Filepath $env:userprofile\Downloads\telegraf.conf -force -Encoding UTF8
@@ -769,7 +734,14 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
         #replace telegraf conf and drop posh script
         Invoke-command -Session $sessions -ScriptBlock {
             $config=$using:config
-            $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
+            $config=$config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')")
+            #raplace RDMA adapters
+            $RDMAAdapters=(Get-NetAdapterRdma | Where-Object OperationalState -eq $true | Where-Object Description -NotLike Hyper* |Sort-Object InterfaceDescription).InterfaceDescription
+            $output=$Null
+            foreach ($Adapter in $RDMAAdapters){$output+="`,`"$Adapter`""}
+            $output=$output.TrimStart(",")
+            $Config=$config.replace("PlaceRDMAAdaptersHere","$Output")
+            $Config | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
             $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
         }
         #install telegraf
@@ -781,7 +753,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
 
     #Example - Just replace telegraf conf on already deployed nodes
     <#
-    $clusters=@("S2D-Cluster")
+    $clusters=@("AzSHCI-Cluster")
     $InfluxDBServerURL="http://InfluxDB.corp.contoso.com:8086"
 
     #load posh and config from downloads
@@ -796,7 +768,14 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
         Invoke-command -ComputerName $servers -ScriptBlock {
             Stop-Service Telegraf
             $config=$using:config
-            $config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')") | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
+            $config=$config.replace("# clustername = ","clustername = $('"')$using:Cluster$('"')")
+            #raplace RDMA adapters
+            $RDMAAdapters=(Get-NetAdapterRdma | Where-Object OperationalState -eq $true | Where-Object Description -NotLike Hyper* |Sort-Object InterfaceDescription).InterfaceDescription
+            $output=$Null
+            foreach ($Adapter in $RDMAAdapters){$output+="`,`"$Adapter`""}
+            $output=$output.TrimStart(",")
+            $Config=$config.replace("PlaceRDMAAdaptersHere","$Output")
+            $Config | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
             $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
             Start-Service Telegraf
         }
