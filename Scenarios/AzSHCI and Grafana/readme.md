@@ -1,6 +1,6 @@
 <!-- TOC -->
 
-- [S2D and Grafana](#s2d-and-grafana)
+- [AzSHCI and Grafana](#azshci-and-grafana)
     - [About the lab](#about-the-lab)
     - [LabConfig](#labconfig)
     - [The lab](#the-lab)
@@ -26,7 +26,7 @@
 
 <!-- /TOC -->
 
-# S2D and Grafana
+# AzSHCI and Grafana
 
 ## About the lab
 
@@ -44,7 +44,7 @@ Further improvements welcomed - feel free to pull request!
 
 ## LabConfig
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/VMs.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/VMs.png)
 
 ```PowerShell
 $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!';<# Prefix = 'WSLab-';#> SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
@@ -65,9 +65,9 @@ $LabConfig.VMs += @{ VMName = 'InfluxDB' ; Configuration = 's2d' ; ParentVHD = '
 
 ## The lab
 
-Follow the code in [Scenario.ps1](/Scenarios/S2D%20and%20Grafana/Scenario.ps1). Run all code from DC (or Management machine).
+Follow the code in [Scenario.ps1](/Scenarios/AzSHCI%20and%20Grafana/Scenario.ps1). Run all code from DC (or Management machine).
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Scenario.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Scenario.png)
 
 ### Region Variables
 
@@ -77,11 +77,7 @@ Here you can decide where you want to host Grafana and InfluxDB. Servers can be 
 
 It worth checking if the links are the latest one (since I did not find a way to just download latest packages). So links may download some older version. NSSM does not change much (the latest version is more than 2 years old)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/DownloadedFiles.png)
-
-### Region Download and Install Edge Dev
-
-Edge dev is installed to have HTML5 enabled browser to work with Grafana from Windows Server.
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/DownloadedFiles.png)
 
 ### Region Install Management Tools
 
@@ -99,19 +95,19 @@ Second certificate is for Grafana and it is exportable - since it's needed later
 
 Both certs are RSA. Same functions are used as in [Certification Authority scenario](/Scenarios/Certification%20Authority))
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/CATemplates01.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/CATemplates01.png)
 
 ### Region distribute certificates to Domain Controller and Grafana
 
 Firt of all ACLs are set on templates to be able to autoenroll from DC and Grafana server
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/CATemplates02.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/CATemplates02.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/CATemplates03.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/CATemplates03.png)
 
 Then Autoenrollment policy is configured and certutil pulse is ran to refresh certs.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/AutoEnrolledCerts.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/AutoEnrolledCerts.png)
 
 ### Region Reload AD SSL Certificate
 
@@ -119,7 +115,7 @@ This piece of code just makes sure LDAPs is running on port 636 and is using cer
 
 You can use LDP.exe to validate. On my computer it asked for pin when succeeded.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/LDP.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/LDP.png)
 
 ### Region Copy NSSM, InfluxDB and Grafana to servers
 
@@ -129,7 +125,7 @@ NSSM is also copied into system32 folder to be able to run it anytime, anywhere.
 
 First we will download install files to downloads folder. You can run all code from DC or from Management machine.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/FoldersInProgramFiles.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/FoldersInProgramFiles.png)
 
 ### Region Configure InfluxDB to exist in different folder
 
@@ -139,29 +135,29 @@ It will be moved into location specified in variables (by default e:\InfluxDB\ )
 
 InfluxD service is then started with parameter that points it to config.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/InfluxDBFolders.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/InfluxDBFolders.png)
 
 ### Region Configure Grafana and Influx DB Services
 
 Services are configured to start using NSSM. Influx DB has parameter of the config. Notice that after starting InfluxDB, files containing database are created.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/InfluxDBService.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/InfluxDBService.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/InfluxDBServiceNSSM.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/InfluxDBServiceNSSM.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaService.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaService.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaServiceNSSM.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaServiceNSSM.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/InfluxDBFiles.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/InfluxDBFiles.png)
 
 ### Region Secure communication with IPSec
 
 This code will add default connection security rule to computers specified in $IPSecServers. It is necessary to understand kerberos traffic to create this default rule. You will find it under connection security rules in wf.msc
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/ConnectionSecurityRule.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/ConnectionSecurityRule.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/FWRuleInfluxDB.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/FWRuleInfluxDB.png)
 
 ```PowerShell
 #to be able to remotely query firewall rules with wf.msc
@@ -173,14 +169,14 @@ Enable-NetFirewallRule -CimSession Grafana,Influxdb -Name RemoteFwAdmin*
 
 Computers in $InfluxDBAuthorizedServers variable are added to FW rule.
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/FWRuleInfluxDBAuthorizedComputers.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/FWRuleInfluxDBAuthorizedComputers.png)
 
 
 ### Region Configure LDAP for Grafana
 
 Account specified in variables is created together with group GrafanaAdmins and added to C:\Program Files\Grafana\conf\ldap.toml. 
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/LDAPtoml.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/LDAPtoml.png)
 
 ### Region Secure LDAP to use SSL and Configure Grafana Certificate
 
@@ -204,66 +200,66 @@ Get-NetIPsecQuickModeSA | select *endpoint*,*first*,*second* |ft
  
 ```
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/EncryptedTrafficPosh.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/EncryptedTrafficPosh.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/EncryptedTrafficWFmsc.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/EncryptedTrafficWFmsc.png)
 
 You can log in with LabAdmin\LS1setup! as LDAP authorization is enabled
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaWeb.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaWeb.png)
 
 You might want to cleanup default admin (Settings->Users)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaUsers.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaUsers.png)
 
 Add Datasource
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource01.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaAddDatasource01.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource02.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaAddDatasource02.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource03.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaAddDatasource03.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaAddDatasource04.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaAddDatasource04.png)
 
-After that just import JSON by pasting query from dashboards [here](/Scenarios/S2D%20and%20Grafana/Dashboards)
+After that just import JSON by pasting query from dashboards [here](/Scenarios/AzSHCI%20and%20Grafana/Dashboards)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard01.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaImportDashboard01.png)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/GrafanaImportDashboard02.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/GrafanaImportDashboard02.png)
 
 As you can see, virtualized system is not performing much. But for validating counters in Grafana it's more than enough.
 
 ## Dashboard examples
 
-[AzSHCI-Cache](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Cache.json)
+[AzSHCI-Cache](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Cache.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Cache.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Cache.png)
 
-[AzSHCI-Host Health Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Host_Health_Dashboard.json)
+[AzSHCI-Host Health Dashboard](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Host_Health_Dashboard.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Host_Health_Dashboard.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Host_Health_Dashboard.png)
 
-[AzSHCI-Hyper-V Metrics](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Hyper-V_Metrics.json)
+[AzSHCI-Hyper-V Metrics](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Hyper-V_Metrics.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Hyper-V_Metrics.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Hyper-V_Metrics.png)
 
-[AzSHCI-Network Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Network_Dashboard.json)
+[AzSHCI-Network Dashboard](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Network_Dashboard.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Network_Dashboard.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Network_Dashboard.png)
 
-[AzSHCI-Overview](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Overview.json)
+[AzSHCI-Overview](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Overview.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Overview.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Overview.png)
 
-[AzSHCI-Storage Dashboard](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard.json)
+[AzSHCI-Storage Dashboard](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard.png)
 
-[AzSHCI-Storage Dashboard Small](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard_Small.json)
+[AzSHCI-Storage Dashboard Small](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-Storage_Dashboard_Small.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard_Small.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-Storage_Dashboard_Small.png)
 
-[AzSHCI-VMFleet](/Scenarios/S2D%20and%20Grafana/Dashboards/AzSHCI-VMFleet.json)
+[AzSHCI-VMFleet](/Scenarios/AzSHCI%20and%20Grafana/Dashboards/AzSHCI-VMFleet.json)
 
-![](/Scenarios/S2D%20and%20Grafana/Screenshots/Dash-AzSHCI-VMFleet.png)
+![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Dash-AzSHCI-VMFleet.png)
