@@ -34,7 +34,7 @@ In following lab you will install [Grafana](http://grafana.com), [influxDB and T
 
 The scenario demonstrates how to configure Grafana to use SSL and also to use LDAP over SSL. Scenario shares the code with [Certification Authority scenario](/Scenarios/Certification%20Authority)). To secure InfluxDB is IPSec used. Also InfluxDB access is restricted (and encrypted) using firewall rules to nodes and grafana server (and management server, in this case DC).
 
-As prerequisite, deploy [S2D hyperconverged scenario](/Scenarios/S2D%20Hyperconverged) just to have some data to play with. $realVMs=$true in Labconfig to have real virtual machines that provide workload. You can also consider loading some workload using [S2D and Diskspd scenario](/Scenarios/S2D%20and%20Diskspd)
+As prerequisite, deploy [Azure Stack HCI 22H2 scenario](/Scenarios/AzSHCI%20Deployment%2022H2%20Edition) just to have some data to play with. $realVMs=$true in Labconfig to have real virtual machines that provide workload. You can also consider loading some workload using [AzSHCI and VMFleet scenario](/Scenarios/AzSHCI%20and%20VMFleet)
 
 Big thanks to https://twitter.com/Vecteurinfo who provided telegraf.conf and telegraf.ps1 together with his [dashboard](https://twitter.com/Vecteurinfo/status/1116386589389856770?s=20) that was later modified by Martin Rasendorfer to be universal and to be able to switch between clusters. Also big help comes from https://twitter.com/vladimirmach and his insight into Linux world and certs. Lastly big thanks goes to Lee Harrison who provided his [dashboards and telegraf.conf](https://github.com/hciharrison/monitoring)
 
@@ -47,25 +47,23 @@ Further improvements welcomed - feel free to pull request!
 ![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/VMs.png)
 
 ```PowerShell
-$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!';<# Prefix = 'WSLab-';#> SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
+$LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!';<# Prefix = 'MSLab-';#> SwitchName = 'LabSwitch'; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
 
-1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 4GB ; NestedVirt=$true}}
+#Azure Stack HCI 22H2
+1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "AzSHCI$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI22H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 1GB; VMProcessorCount=4 ; vTPM=$true}}
+#Or with nested virtualization enabled
+#1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "AzSHCI$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI22H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 4GB; VMProcessorCount=4 ; vTPM=$true ; NestedVirt=$true}}
 
-#or without nested virt and just 512MB of memory
-#1..4 | ForEach-Object {$VMNames="S2D"; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB}}
-
-$LabConfig.VMs += @{ VMName = 'CA'       ; ParentVHD = 'Win2019Core_G2.vhdx'}
-$LabConfig.VMs += @{ VMName = 'Grafana'  ; ParentVHD = 'Win2019Core_G2.vhdx'; MemoryStartupBytes= 1GB }
-$LabConfig.VMs += @{ VMName = 'InfluxDB' ; Configuration = 's2d' ; ParentVHD = 'Win2019Core_G2.vhdx'; SSDNumber = 1; SSDSize=1GB ; HDDNumber = 0; HDDSize= 4TB ; MemoryStartupBytes= 1GB }
-
-#Optional management machine
-#$LabConfig.VMs += @{ VMName = 'Management'  ; ParentVHD = 'Win1019H1_G2.vhdx' ; AddToolsVHD=$True ; DisableWCF=$True }
+$LabConfig.VMs += @{ VMName = 'Management' ; ParentVHD = 'Win2022_G2.vhdx' ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'CA'         ; ParentVHD = 'Win2022Core_G2.vhdx' ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'Grafana'    ; ParentVHD = 'Win2022Core_G2.vhdx'; MemoryStartupBytes= 1GB ; MGMTNICs=1}
+$LabConfig.VMs += @{ VMName = 'InfluxDB'   ; ParentVHD = 'Win2022Core_G2.vhdx'; Configuration = 's2d' ; SSDNumber = 1 ; SSDSize=1GB ; HDDNumber = 0 ; HDDSize= 4TB ; MemoryStartupBytes= 1GB ; MGMTNICs=1}
  
 ```
 
 ## The lab
 
-Follow the code in [Scenario.ps1](/Scenarios/AzSHCI%20and%20Grafana/Scenario.ps1). Run all code from DC (or Management machine).
+Follow the code in [Scenario.ps1](/Scenarios/AzSHCI%20and%20Grafana/Scenario.ps1). Run all code from Management machine.
 
 ![](/Scenarios/AzSHCI%20and%20Grafana/Screenshots/Scenario.png)
 
