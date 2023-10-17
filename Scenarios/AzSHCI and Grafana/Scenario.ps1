@@ -739,7 +739,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
             $RDMAAdapters=(Get-NetAdapterRdma | Where-Object OperationalState -eq $true | Where-Object Description -NotLike Hyper* |Sort-Object InterfaceDescription).InterfaceDescription
             $output=$Null
             foreach ($Adapter in $RDMAAdapters){$output+="`,`"$Adapter`""}
-            $output=$output.TrimStart(",")
+            if ($output){$output=$output.TrimStart(",")}
             $Config=$config.replace("PlaceRDMAAdaptersHere","$Output")
             $Config | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
             $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
@@ -773,7 +773,7 @@ New-NetFirewallRule -CimSession $GrafanaServerName `
             $RDMAAdapters=(Get-NetAdapterRdma | Where-Object OperationalState -eq $true | Where-Object Description -NotLike Hyper* |Sort-Object InterfaceDescription).InterfaceDescription
             $output=$Null
             foreach ($Adapter in $RDMAAdapters){$output+="`,`"$Adapter`""}
-            $output=$output.TrimStart(",")
+            if ($output){$output=$output.TrimStart(",")}
             $Config=$config.replace("PlaceRDMAAdaptersHere","$Output")
             $Config | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.conf" -Encoding UTF8 -Force
             $using:posh | Out-File -FilePath "$env:ProgramFiles\telegraf\telegraf.ps1" -Encoding UTF8 -Force
