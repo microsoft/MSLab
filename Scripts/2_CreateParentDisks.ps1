@@ -4,9 +4,9 @@ If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 
     if($PSVersionTable.PSEdition -eq "Core") {
-        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     }
 
     exit
@@ -15,7 +15,7 @@ If (-not $isAdmin) {
 #region Functions
 . $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
-    #Create Unattend for VHD 
+    #Create Unattend for VHD
     Function CreateUnattendFileVHD{
         param (
             [parameter(Mandatory=$true)]
@@ -72,8 +72,8 @@ If (-not $isAdmin) {
       </UserAccounts>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <SkipMachineOOBE>true</SkipMachineOOBE> 
-        <SkipUserOOBE>true</SkipUserOOBE> 
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <TimeZone>$TimeZone</TimeZone>
     </component>
@@ -85,7 +85,7 @@ If (-not $isAdmin) {
         Set-Content -path $unattendFile -value $fileContent
 
         #return the file object
-        Return $unattendFile 
+        Return $unattendFile
     }
 
 #endregion
@@ -142,7 +142,7 @@ If (-not $isAdmin) {
         $LabConfig.DomainName.Split(".") | ForEach-Object {
             $DN+="DC=$_,"
         }
-        
+
         $LabConfig.DN=$DN.TrimEnd(",")
 
         $AdminPassword=$LabConfig.AdminPassword
@@ -158,7 +158,7 @@ If (-not $isAdmin) {
     #DCHP scope
     $DHCPscope = $LabConfig.DHCPscope
     $ReverseDNSrecord = $DHCPscope -replace '^(\d+)\.(\d+)\.\d+\.(\d+)$','$3.$2.$1.in-addr.arpa'
-    $DHCPscope = $DHCPscope.Substring(0,$DHCPscope.Length-1) 
+    $DHCPscope = $DHCPscope.Substring(0,$DHCPscope.Length-1)
 
 #endregion
 
@@ -191,7 +191,7 @@ If (-not $isAdmin) {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
                     }
-                }    
+                }
             }
 
             if ($LabConfig.InstallSCVMM -eq "Prereqs"){
@@ -199,16 +199,16 @@ If (-not $isAdmin) {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
                     }
-                } 
+                }
             }
-        
+
             if ($LabConfig.InstallSCVMM -eq "SQL"){
                 "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
                     }
                 }
-            }    
+            }
 
             if ($LabConfig.InstallSCVMM -eq "ADK"){
                 "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
@@ -221,7 +221,7 @@ If (-not $isAdmin) {
 
     #check if parent images already exist (this is useful if you have parent disks from another lab and you want to rebuild for example scvmm)
         WriteInfoHighlighted "Testing if some parent disk already exists and can be used"
-        
+
         #grab all files in parentdisks folder
             $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
 
@@ -245,7 +245,7 @@ If (-not $isAdmin) {
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
-        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir" 
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir"
         $mountdir="$env:Temp\MSLabMountdir"
         $VolumeFileSystem="CSVFS"
     }else{
@@ -279,10 +279,10 @@ If (-not $isAdmin) {
             $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
                 Title="Please select ISO image with Windows Server 2016, 2019, 2022 or Server Insider"
             }
-            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*" 
+            $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*"
             If($openFile.ShowDialog() -eq "OK"){
                 WriteInfo  "File $($openfile.FileName) selected"
-            } 
+            }
             if (!$openFile.FileName){
                 WriteErrorAndExit  "Iso was not selected... Exitting"
             }
@@ -332,7 +332,7 @@ If (-not $isAdmin) {
                 Multiselect = $true;
                 Title = "Please select Windows Server Updates (*.msu). Click Cancel if you don't want any."
             }
-            $msupackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*" 
+            $msupackages.Filter = "msu files (*.msu)|*.msu|All files (*.*)|*.*"
             If($msupackages.ShowDialog() -eq "OK"){
                 WriteInfoHighlighted  "Following patches selected:"
                 WriteInfo "`t $($msupackages.filenames)"
@@ -352,13 +352,13 @@ If (-not $isAdmin) {
         #Windows Server 2016
         $ServerVHDs += @{
             Kind = "Full"
-            Edition="4" 
+            Edition="4"
             VHDName="Win2016_G2.vhdx"
             Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
-            Edition="3" 
+            Edition="3"
             VHDName="Win2016Core_G2.vhdx"
             Size=127GB
         }
@@ -374,13 +374,13 @@ If (-not $isAdmin) {
         #Windows Server 2019
         $ServerVHDs += @{
             Kind = "Full"
-            Edition="4" 
+            Edition="4"
             VHDName="Win2019_G2.vhdx"
             Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
-            Edition="3" 
+            Edition="3"
             VHDName="Win2019Core_G2.vhdx"
             Size=127GB
         }
@@ -388,20 +388,20 @@ If (-not $isAdmin) {
         #Windows Server 2022
         $ServerVHDs += @{
             Kind = "Full"
-            Edition="4" 
+            Edition="4"
             VHDName="Win2022_G2.vhdx"
             Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
-            Edition="3" 
+            Edition="3"
             VHDName="Win2022Core_G2.vhdx"
             Size=127GB
         }
     }elseif ($BuildNumber -gt 20348 -and $SAC){
         $ServerVHDs += @{
             Kind = "Core"
-            Edition="2" 
+            Edition="2"
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
             Size=127GB
         }
@@ -413,13 +413,13 @@ If (-not $isAdmin) {
         #Windows Sever Insider
         $ServerVHDs += @{
             Kind = "Full"
-            Edition="4" 
+            Edition="4"
             VHDName="WinSrvInsider_$BuildNumber.vhdx"
             Size=127GB
         }
         $ServerVHDs += @{
             Kind = "Core"
-            Edition="3" 
+            Edition="3"
             VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
             Size=127GB
         }
@@ -450,7 +450,7 @@ If (-not $isAdmin) {
         'ParentDisks','Temp','Temp\mountdir' | ForEach-Object {
             if (!( Test-Path "$PSScriptRoot\$_" )) {
                 WriteInfoHighlighted "Creating Directory $_"
-                New-Item -Type Directory -Path "$PSScriptRoot\$_" 
+                New-Item -Type Directory -Path "$PSScriptRoot\$_"
             }
         }
 
@@ -528,8 +528,8 @@ If (-not $isAdmin) {
             $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 300GB -Dynamic
             #mount and format VHD
                 $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
-                $vhddisk = $VHDMount| get-disk 
-                $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
+                $vhddisk = $VHDMount| get-disk
+                $vhddiskpart = $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk
 
             $VHDPathTest=Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\"
             if (!$VHDPathTest){
@@ -539,7 +539,7 @@ If (-not $isAdmin) {
                 WriteInfo "Found $PSScriptRoot\Temp\ToolsVHD\*, copying files into VHDX"
                 Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
             }else{
-                WriteInfo "Files not found" 
+                WriteInfo "Files not found"
                 WriteInfoHighlighted "Add required tools into $PSScriptRoot\Temp\ToolsVHD and Press any key to continue..."
                 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
                 Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
@@ -632,7 +632,7 @@ If (-not $isAdmin) {
             New-item -type directory -Path $mountdir -force
             [System.Version]$VMVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
             Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
+            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile
             #&"$PSScriptRoot\Temp\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
             #&"$PSScriptRoot\Temp\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
             New-item -type directory -Path "$mountdir\Windows\Panther" -force
@@ -650,12 +650,12 @@ If (-not $isAdmin) {
         #Create DSC configuration
             configuration DCHydration
             {
-                param 
-                ( 
-                    [Parameter(Mandatory)] 
-                    [pscredential]$safemodeAdministratorCred, 
-            
-                    [Parameter(Mandatory)] 
+                param
+                (
+                    [Parameter(Mandatory)]
+                    [pscredential]$safemodeAdministratorCred,
+
+                    [Parameter(Mandatory)]
                     [pscredential]$domainCred,
 
                     [Parameter(Mandatory)]
@@ -670,12 +670,12 @@ If (-not $isAdmin) {
                 Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.10.0.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
 
-                Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
+                Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename
 
                 {
-                    WindowsFeature ADDSInstall 
-                    { 
-                        Ensure = "Present" 
+                    WindowsFeature ADDSInstall
+                    {
+                        Ensure = "Present"
                         Name = "AD-Domain-Services"
                     }
 
@@ -691,47 +691,47 @@ If (-not $isAdmin) {
                         Ensure = "Present"
                         Name = "RSAT-AD-PowerShell"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
+                    }
 
                     WindowsFeature FeatureADAdminCenter
                     {
                         Ensure = "Present"
                         Name = "RSAT-AD-AdminCenter"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
+                    }
 
                     WindowsFeature FeatureADDSTools
                     {
                         Ensure = "Present"
                         Name = "RSAT-ADDS-Tools"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
+                    }
 
                     WindowsFeature FeatureDNSTools
                     {
                         Ensure = "Present"
                         Name = "RSAT-DNS-Server"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
-            
-                    xADDomain FirstDS 
-                    { 
-                        DomainName = $Node.DomainName 
-                        DomainAdministratorCredential = $domainCred 
+                    }
+
+                    xADDomain FirstDS
+                    {
+                        DomainName = $Node.DomainName
+                        DomainAdministratorCredential = $domainCred
                         SafemodeAdministratorPassword = $safemodeAdministratorCred
                         DomainNetbiosName = $node.DomainNetbiosName
                         DependsOn = "[WindowsFeature]ADDSInstall"
                     }
-                
-                    xWaitForADDomain DscForestWait 
-                    { 
-                        DomainName = $Node.DomainName 
-                        DomainUserCredential = $domainCred 
-                        RetryCount = $Node.RetryCount 
-                        RetryIntervalSec = $Node.RetryIntervalSec 
-                        DependsOn = "[xADDomain]FirstDS" 
+
+                    xWaitForADDomain DscForestWait
+                    {
+                        DomainName = $Node.DomainName
+                        DomainUserCredential = $domainCred
+                        RetryCount = $Node.RetryCount
+                        RetryIntervalSec = $Node.RetryIntervalSec
+                        DependsOn = "[xADDomain]FirstDS"
                     }
-                    
+
                     xADOrganizationalUnit DefaultOU
                     {
                         Name = $Node.DefaultOUName
@@ -739,7 +739,7 @@ If (-not $isAdmin) {
                         ProtectedFromAccidentalDeletion = $true
                         Description = 'Default OU for all user and computer accounts'
                         Ensure = 'Present'
-                        DependsOn = "[xADDomain]FirstDS" 
+                        DependsOn = "[xADDomain]FirstDS"
                     }
 
                     xADUser SQL_SA
@@ -851,7 +851,7 @@ If (-not $isAdmin) {
                         Ensure = "Present"
                         Name = "RSAT-DHCP"
                         DependsOn = "[WindowsFeature]DHCPServer"
-                    } 
+                    }
 
 
                     xDhcpServerScope ManagementScope
@@ -878,7 +878,7 @@ If (-not $isAdmin) {
                         Router = ($DHCPscope+"1")
                         DependsOn = "[Service]DHCPServer"
                     }
-                    
+
                     xDhcpServerAuthorization LocalServerActivation
                     {
                         Ensure = 'Present'
@@ -913,7 +913,7 @@ If (-not $isAdmin) {
                             State                   = "Started"
                             DependsOn               = "[WindowsFeature]DSCServiceFeature"
                         }
-                        
+
                         File RegistrationKeyFile
                         {
                             Ensure = 'Present'
@@ -925,12 +925,12 @@ If (-not $isAdmin) {
                 }
             }
 
-            $ConfigData = @{ 
-            
-                AllNodes = @( 
-                    @{ 
-                        Nodename = $DCName 
-                        Role = "Parent DC" 
+            $ConfigData = @{
+
+                AllNodes = @(
+                    @{
+                        Nodename = $DCName
+                        Role = "Parent DC"
                         DomainAdminName=$LabConfig.DomainAdminName
                         DomainName = $LabConfig.DomainName
                         DomainNetbiosName = $LabConfig.DomainNetbiosName
@@ -938,15 +938,15 @@ If (-not $isAdmin) {
                         DefaultOUName=$LabConfig.DefaultOUName
                         RegistrationKey='14fc8e72-5036-4e79-9f89-5382160053aa'
                         PSDscAllowPlainTextPassword = $true
-                        PsDscAllowDomainUser= $true        
-                        RetryCount = 50  
-                        RetryIntervalSec = 30  
-                    }         
-                ) 
-            } 
+                        PsDscAllowDomainUser= $true
+                        RetryCount = 50
+                        RetryIntervalSec = 30
+                    }
+                )
+            }
 
         #create LCM config
-            [DSCLocalConfigurationManager()]          
+            [DSCLocalConfigurationManager()]
             configuration LCMConfig
             {
                 Node DC
@@ -954,7 +954,7 @@ If (-not $isAdmin) {
                     Settings
                     {
                         RebootNodeIfNeeded = $true
-                        ActionAfterReboot = 'ContinueConfiguration'    
+                        ActionAfterReboot = 'ContinueConfiguration'
                     }
                 }
             }
@@ -963,7 +963,7 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "`t Creating DSC Configs for DC"
             LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
             DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
-        
+
         #copy DSC MOF files to DC
             WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
             New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
@@ -979,7 +979,7 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "`t Starting DC"
             $DC | Start-VM
 
-            $VMStartupTime = 250 
+            $VMStartupTime = 250
             WriteInfoHighlighted "`t Configuring DC using DSC takes a while."
             WriteInfo "`t `t Initial configuration in progress. Sleeping $VMStartupTime seconds"
             Start-Sleep $VMStartupTime
@@ -991,7 +991,7 @@ If (-not $isAdmin) {
                     Start-Sleep 10
                 }elseif ($test.status -ne "Success" -and $i -eq 1) {
                     WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
-                    WriteInfoHighlighted "`t `t Invoking DSC Configuration again" 
+                    WriteInfoHighlighted "`t `t Invoking DSC Configuration again"
                     Invoke-Command -VMGuid $DC.id -ScriptBlock {Start-DscConfiguration -UseExisting} -Credential $cred
                     $i++
                 }elseif ($test.status -ne "Success" -and $i -gt 1) {
@@ -1000,7 +1000,7 @@ If (-not $isAdmin) {
                     Invoke-Command -VMGuid $DC.id -ScriptBlock {Restart-Computer} -Credential $cred
                 }elseif ($test.status -eq "Success" ) {
                     WriteInfo "`t `t Current DSC state: $($test.status), ResourncesNotInDesiredState: $($test.resourcesNotInDesiredState.count), ResourncesInDesiredState: $($test.resourcesInDesiredState.count)."
-                    WriteInfoHighlighted "`t `t DSC Configured DC Successfully" 
+                    WriteInfoHighlighted "`t `t DSC Configured DC Successfully"
                 }
             }until ($test.Status -eq 'Success' -and $test.rebootrequested -eq $false)
             $test
@@ -1010,7 +1010,7 @@ If (-not $isAdmin) {
                 Param($LabConfig);
                 redircmp "OU=$($LabConfig.DefaultOUName),$($LabConfig.DN)"
                 Add-DnsServerPrimaryZone -NetworkID ($DHCPscope+"/24") -ReplicationScope "Forest"
-            } 
+            }
         #install SCVMM or its prereqs if specified so
             if (($LabConfig.InstallSCVMM -eq "Yes") -or ($LabConfig.InstallSCVMM -eq "SQL") -or ($LabConfig.InstallSCVMM -eq "ADK") -or ($LabConfig.InstallSCVMM -eq "Prereqs")){
                 $DC | Add-VMHardDiskDrive -Path $toolsVHD.Path
@@ -1043,7 +1043,7 @@ If (-not $isAdmin) {
                 Start-Sleep 30 #Wait as sometimes VMM failed to install without this.
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
                     Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
-                    d:\scvmm\3_SCVMM_Install.ps1    
+                    d:\scvmm\3_SCVMM_Install.ps1
                 }
             }
 
@@ -1051,7 +1051,7 @@ If (-not $isAdmin) {
                 WriteInfoHighlighted "Installing SQL"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
                     Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
-                    d:\scvmm\1_SQL_Install.ps1  
+                    d:\scvmm\1_SQL_Install.ps1
                 }
             }
 
@@ -1084,7 +1084,7 @@ If (-not $isAdmin) {
     #cleanup DC
     if (-not $DCFilesExists){
         WriteInfoHighlighted "Backup DC and cleanup"
-        #shutdown DC 
+        #shutdown DC
             WriteInfo "`t Disconnecting VMNetwork Adapter from DC"
             $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
             WriteInfo "`t Shutting down DC"
@@ -1120,7 +1120,7 @@ If (-not $isAdmin) {
         <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Cleanup .\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy.ps1 to just deploy.ps1"
         <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Keep files (in case DC was not created sucessfully)"
     )
-    
+
     If (!$LabConfig.AutoCleanUp) {
         $response = $host.UI.PromptForChoice("Unnecessary files cleanup","Do you want to cleanup unnecessary files and folders?", $options, 0 <#default option#>)
     }
@@ -1134,11 +1134,11 @@ If (-not $isAdmin) {
     }else{
         $renamed = $true
         WriteInfo "`t `t Cleaning unnecessary items"
-        Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse 
+        Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
         "$PSScriptRoot\Temp","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
-        } 
+        }
         WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
     }
@@ -1198,13 +1198,13 @@ If (-not $isAdmin) {
                     $vhdProperties['vhd.os.language'] = $OSLanguage
                 }
             }
-            $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName 
+            $events += Initialize-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName
         }
 
         # and one overall
-        $events += New-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName 
+        $events += Initialize-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
 
-        Send-TelemetryEvents -Events $events | Out-Null
+        Send-TelemetryEvent -Events $events | Out-Null
     }
 
 Stop-Transcript

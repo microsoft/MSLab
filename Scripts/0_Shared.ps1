@@ -155,7 +155,7 @@ function Get-PcSystemType {
 
 $aiPropertyCache = @{}
 
-function New-TelemetryEvent {
+function Initialize-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Event,
@@ -303,12 +303,12 @@ function Send-TelemetryEvent {
     )
 
     process {
-        $telemetryEvent = New-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics -NickName $NickName
+        $telemetryEvent = Initialize-TelemetryEvent -Event $Event -Properties $Properties -Metrics $Metrics -NickName $NickName
         Send-TelemetryObject -Data $telemetryEvent
     }
 }
 
-function Send-TelemetryEvents {
+function Send-TelemetryEvent {
     param(
         [Parameter(Mandatory = $true)]
         [array]$Events

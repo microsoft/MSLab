@@ -4,9 +4,9 @@ If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 
     if($PSVersionTable.PSEdition -eq "Core") {
-        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     }
 
     exit
@@ -62,7 +62,7 @@ If (-not $isAdmin) {
     #just one more space
         WriteInfo ""
 
-    # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir. 
+    # This is only needed if you kill deployment script in middle when it mounts VHD into mountdir.
         if ((Get-ChildItem -Path "$PSScriptRoot\temp\mountdir" -ErrorAction SilentlyContinue)){
             Dismount-WindowsImage -Path "$PSScriptRoot\temp\mountdir" -Discard -ErrorAction SilentlyContinue
         }
@@ -105,18 +105,18 @@ If (-not $isAdmin) {
                 WriteInfo "`t Removing vSwitch $($extvSwitch.Name)"
                 $extvSwitch | Remove-VMSwitch -Force
             }
-            #Cleanup folders       
+            #Cleanup folders
             if ((test-path "$PSScriptRoot\LAB\VMs") -or (test-path "$PSScriptRoot\temp") ){
                 WriteInfoHighlighted "Cleaning folders"
                 "$PSScriptRoot\LAB\VMs","$PSScriptRoot\temp" | ForEach-Object {
                     if ((test-path -Path $_)){
                         WriteInfo "`t Removing folder $_"
                         remove-item $_ -Confirm:$False -Recurse
-                    }    
+                    }
                 }
             }
 
-            #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration... 
+            #Unzipping configuration files as VM was removed few lines ago-and it deletes vm configuration...
                 $zipfile = "$PSScriptRoot\LAB\DC\Virtual Machines.zip"
                 $zipoutput = "$PSScriptRoot\LAB\DC\"
                 Microsoft.PowerShell.Archive\Expand-Archive -Path $zipfile -DestinationPath $zipoutput -Force
@@ -131,7 +131,7 @@ If (-not $isAdmin) {
                 Send-TelemetryEvent -Event "Cleanup" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
             }
 
-            #finishing    
+            #finishing
                 WriteSuccess "Job Done! Press enter to continue ..."
                 $exit=Read-Host
         }else {

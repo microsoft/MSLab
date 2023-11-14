@@ -4,11 +4,11 @@ If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 
     if($PSVersionTable.PSEdition -eq "Core") {
-        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     }
-    
+
     exit
 }
 
@@ -18,10 +18,10 @@ If (-not $isAdmin) {
 #region Functions
 . $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
-function  Get-WindowsBuildNumber { 
+function  Get-WindowsBuildNumber {
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
-    return [int]($os.BuildNumber) 
-} 
+    return [int]($os.BuildNumber)
+}
 #endregion
 
 #region Initialization
@@ -128,7 +128,7 @@ function  Get-WindowsBuildNumber {
                 Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/$Filename.ps1" -OutFile $path
             } catch {
                 WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
-                
+
                 # if that fails, try master branch
                 $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$FileName.ps1").Content
                 if ($FileContent) {
@@ -166,7 +166,7 @@ function  Get-WindowsBuildNumber {
     WriteInfoHighlighted "Testing diskspd presence"
     If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.exe" ) {
         WriteSuccess "`t Diskspd is present, skipping download"
-    }else{ 
+    }else{
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
             <# aka.ms/diskspd changed. Commented
@@ -197,13 +197,13 @@ function  Get-WindowsBuildNumber {
 
     $modules=("xActiveDirectory","3.0.0.0"),("xDHCpServer","2.0.0.0"),("xDNSServer","1.15.0.0"),("NetworkingDSC","7.4.0.0"),("xPSDesiredStateConfiguration","8.10.0.0")
     foreach ($module in $modules){
-        WriteInfoHighlighted "Testing if modules are present" 
+        WriteInfoHighlighted "Testing if modules are present"
         $modulename=$module[0]
         $moduleversion=$module[1]
         if (!(Test-Path "$PSScriptRoot\Temp\DSC\$modulename\$Moduleversion")){
             WriteInfo "`t Module $module not found... Downloading"
-            #Install NuGET package provider   
-            if ((Get-PackageProvider -Name NuGet) -eq $null){   
+            #Install NuGET package provider
+            if ((Get-PackageProvider -Name NuGet) -eq $null){
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Confirm:$false -Force
             }
             Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Temp\DSC"
@@ -238,24 +238,24 @@ if($LabConfig.Linux -eq $true) {
     WriteInfo "`t Test Packer availability"
 
     # Packer
-    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue) 
-    { 
+    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue)
+    {
         WriteSuccess "`t Packer is in PATH."
     } else {
         WriteInfo "`t`t Downloading latest Packer binary"
 
         WriteInfo "`t`t Creating packer directory"
-        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin" 
+        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin"
         New-Item $linuxToolsDirPath -ItemType Directory -Force | Out-Null
-        
+
         if(-not (Test-Path (Join-Path $linuxToolsDirPath "packer.exe"))) {
             $packerReleaseInfo = Invoke-RestMethod -Uri "https://checkpoint-api.hashicorp.com/v1/check/packer"
-            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip" 
-            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip") 
+            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip"
+            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip")
             Expand-Archive -Path (Join-Path $linuxToolsDirPath "packer.zip")  -DestinationPath $linuxToolsDirPath -Force
-            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip") 
+            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip")
         }
-    
+
         WriteInfo "`t`t Creating Packer firewall rule"
         $id = $PSScriptRoot -replace '[^a-zA-Z0-9]'
         $fwRule = Get-NetFirewallRule -Name "mslab-packer-$id" -ErrorAction SilentlyContinue
@@ -268,7 +268,7 @@ if($LabConfig.Linux -eq $true) {
     WriteInfo "`t`t Downloading Packer templates"
     $packerTemplatesDirectory = "$PSScriptRoot\ParentDisks\PackerTemplates\"
     if (-not (Test-Path $packerTemplatesDirectory)) {
-        New-Item -Type Directory -Path $packerTemplatesDirectory 
+        New-Item -Type Directory -Path $packerTemplatesDirectory
     }
 
     $templatesBase = "https://github.com/microsoft/mslab-templates/releases/latest/download/"
@@ -309,11 +309,11 @@ if($LabConfig.Linux -eq $true) {
         if($comparison) {
             WriteError "`t SSH Keypair $($LabConfig.SshKeyPath) does not match."
         }
-    } 
-    else 
+    }
+    else
     {
         WriteInfo "`t`t Generating new SSH key pair"
-        $sshKeyDir = "$PSScriptRoot\LAB\.ssh" 
+        $sshKeyDir = "$PSScriptRoot\LAB\.ssh"
         $key = "$sshKeyDir\lab_rsa"
         New-Item -ItemType Directory $sshKeyDir -ErrorAction SilentlyContinue | Out-Null
         ssh-keygen.exe -t rsa -b 4096 -C "$($LabConfig.DomainAdminName)" -f $key -q -N '""'
@@ -326,11 +326,11 @@ if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
     $metrics = @{
         'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
     }
- 
+
     Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
 }
 
-# finishing 
+# finishing
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
 Stop-Transcript
