@@ -1,4 +1,4 @@
-Following lab is based on new Azure Stack HCI deployment tool: https://learn.microsoft.com/en-us/azure-stack/hci/deploy/deployment-tool-powershell
+Following lab is based on new Azure Stack HCI Cloud Based Deployment: https://learn.microsoft.com/en-us/azure-stack/hci/whats-new#cloud-based-deployment
 
 Notes: 
 * You can also notice in Labconfig, that nodes are not domain joined
