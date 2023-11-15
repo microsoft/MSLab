@@ -2,7 +2,7 @@
     #grafana and influxdb variables
     $GrafanaServerName="Grafana"
     $InfluxDBServerName="InfluxDB"
-    $InfluxDBPath="E:\InfluxDB" #path for Database. In lab is E drive, that is not initialized and will be formatted
+    $InfluxDBPath="E:\InfluxDB\" #path for Database. In lab is E drive, that is not initialized and will be formatted
     $InfluxDBConfigPath=$InfluxDBPath+"influxdb.conf"
 
     #Certification Authority
