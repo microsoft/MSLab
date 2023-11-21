@@ -284,71 +284,11 @@
             Install-Module -Name az.accounts  -Force
         } -Credential $Credentials
 
-        #region Create AzADServicePrincipal for Arc Onboarding with custom permissions (jaromirk note: "Microsoft.Authorization/roleAssignments/write" needs to go away, however this is something that will as it's preview)
-            #Create Azure Stack HCI ARC Onboarding role https://learn.microsoft.com/en-us/azure-stack/hci/deploy/register-with-azure#assign-permissions-from-azure-portal
-            #https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#azure-connected-machine-onboarding
-            if (-not (Get-AzRoleDefinition -Name "Azure Stack HCI ARC Onboarding - Custom" -ErrorAction Ignore)){
-                $Content=@"
-{
-    "Name": "Azure Stack HCI ARC Onboarding - Custom",
-    "Id": null,
-    "IsCustom": true,
-    "Description": "Custom Azure role to allow onboard Azure Stack HCI with azshci.arcinstaller",
-    "Actions": [
-        "Microsoft.HybridCompute/machines/read",
-        "Microsoft.HybridCompute/machines/write",
-        "Microsoft.HybridCompute/privateLinkScopes/read",
-        "Microsoft.GuestConfiguration/guestConfigurationAssignments/read",
-        "Microsoft.HybridCompute/machines/extensions/write",
-        "Microsoft.Authorization/roleAssignments/write"
-    ],
-    "NotActions": [
-    ],
-    "AssignableScopes": [
-        "/subscriptions/$SubscriptionID"
-    ]
-    }
-"@
-                $Content | Out-File "$env:USERPROFILE\Downloads\customHCIRole.json"
-                New-AzRoleDefinition -InputFile "$env:USERPROFILE\Downloads\customHCIRole.json"
-            }
-
-            #Create AzADServicePrincipal for Azure Stack HCI registration (if it does not exist)
-                $SP=Get-AZADServicePrincipal -DisplayName $ServicePrincipalName
-                if (-not $SP){
-                    $SP=New-AzADServicePrincipal -DisplayName $ServicePrincipalName -Role "Azure Stack HCI ARC Onboarding - Custom"
-                    #remove default cred
-                    Remove-AzADAppCredential -ApplicationId $SP.AppId
-                }
-
-            #Create new SPN password
-                $credential = New-Object -TypeName "Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPasswordCredential" -Property @{
-                    "KeyID"         = (new-guid).Guid ;
-                    "EndDateTime" = [DateTime]::UtcNow.AddYears(1)
-                }
-                $Creds=New-AzADAppCredential -PasswordCredentials $credential -ApplicationID $SP.AppID
-                $SPNSecret=$Creds.SecretText
-                $SPAppID=$SP.AppID
-                $SecuredPassword = ConvertTo-SecureString $SPNSecret -AsPlainText -Force
-                $SPNCredentials= New-Object System.Management.Automation.PSCredential ($SPAppID,$SecuredPassword)
-        #endregion
-
-        #deploy ARC Agent (It's failing, cant figure out why)
+        #deploy ARC Agent with device authentication
+        $ARMtoken = (Get-AzAccessToken).Token
+        $id = (Get-AzContext).Account.Id
         Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Invoke-AzStackHciArcInitialization -SubscriptionID $using:SubscriptionID -ResourceGroup $using:ResourceGroupName -TenantID $using:TenantID -Cloud $using:Cloud -Region $Using:Location -SpnCredential $Using:SPNCredentials
-        } -Credential $Credentials
-
-        #let's onboard ARC agent "manually"
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            $machineName = [System.Net.Dns]::GetHostName()
-            $SPNCredentials=$using:SPNCredentials
-            $SPNpassword=$SPNCredentials.GetNetworkCredential().Password
-            & "$env:ProgramW6432\AzureConnectedMachineAgent\azcmagent.exe" connect --service-principal-id $using:SpnCredentials.UserName --service-principal-secret $SPNpassword --resource-group $using:ResourceGroupName  --resource-name "$machineName"  --tenant-id $using:TenantID --location $Using:Location --subscription-id $using:SubscriptionID --cloud $using:Cloud
-        } -Credential $Credentials
-
-        #and let's run deployment again
-        Invoke-Command -ComputerName $Servers -ScriptBlock {
-            Invoke-AzStackHciArcInitialization -SubscriptionID $using:SubscriptionID -ResourceGroup $using:ResourceGroupName -TenantID $using:TenantID -Cloud $using:Cloud -Region $Using:Location -SpnCredential $Using:SPNCredentials
+            Invoke-AzStackHciArcInitialization -SubscriptionID $using:SubscriptionID -ResourceGroup $using:ResourceGroupName -TenantID $using:TenantID -Cloud $using:Cloud -Region $Using:Location -ArmAccessToken $using:ARMtoken -AccountID $using:id
         } -Credential $Credentials
 
     #endregion
@@ -495,15 +435,8 @@
 
     #make sure there is only one management NIC with IP address (setup is complaining about multiple gateways)
     Invoke-Command -ComputerName $servers -ScriptBlock {
-        $adapter=Get-NetIPConfiguration | Where-Object IPV4defaultGateway | Get-NetAdapter | Sort-Object Name | Select-Object -Skip 1
-        #disable netbios (otherwise the apipa might be resolved instead of 10.x address)
-        $query="select * From Win32_NetworkAdapterConfiguration where Description = `'$($Adapter.Interfacedescription)`'"
-        $arguments = @{'TcpipNetbiosOptions' = [UInt32](2) }
-        Invoke-CimMethod -Query $query -Namespace Root/CIMV2 -MethodName SetTcpipNetbios -Arguments $arguments
-        #disable receiving address from dhcp
-        $adapter | Set-NetIPInterface -Dhcp Disabled
+        Get-NetIPConfiguration | Where-Object IPV4defaultGateway | Get-NetAdapter | Sort-Object Name | Select-Object -Skip 1 | Set-NetIPInterface -Dhcp Disabled
     } -Credential $Credentials
-    Clear-DnsClientCache
 
     #add key vault admin of current user to Resource Group
     $objectId = (Get-AzADUser -SignedIn).Id
@@ -513,7 +446,6 @@
     Invoke-Command -ComputerName $servers -ScriptBlock {
         Set-LocalUser -Name Administrator -AccountNeverExpires -Password (ConvertTo-SecureString "LS1setup!LS1setup!" -AsPlainText -Force)
     } -Credential $Credentials
-
 
 #endregion
 
