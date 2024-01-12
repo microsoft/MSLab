@@ -4,9 +4,9 @@ If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 
     if($PSVersionTable.PSEdition -eq "Core") {
-        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     }
 
     exit
@@ -58,8 +58,8 @@ If (-not $isAdmin) {
       </UserAccounts>
       <OOBE>
        <HideEULAPage>true</HideEULAPage>
-       <SkipMachineOOBE>true</SkipMachineOOBE> 
-       <SkipUserOOBE>true</SkipUserOOBE> 
+       <SkipMachineOOBE>true</SkipMachineOOBE>
+       <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <TimeZone>$TimeZone</TimeZone>
     </component>
@@ -74,7 +74,7 @@ If (-not $isAdmin) {
         <RunSynchronous>
             $RunSynchronous
         </RunSynchronous>
-    </component>   
+    </component>
   </settings>
 </unattend>
 
@@ -82,11 +82,11 @@ If (-not $isAdmin) {
 
         Set-Content $unattendFile $fileContent
         #return the file object
-        $unattendFile 
+        $unattendFile
     }
 
     Function CreateUnattendFileNoDjoin{
-        #Create Unattend(without domain join)    
+        #Create Unattend(without domain join)
         param (
             [parameter(Mandatory=$true)]
             [string]
@@ -136,8 +136,8 @@ If (-not $isAdmin) {
       </UserAccounts>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <SkipMachineOOBE>true</SkipMachineOOBE> 
-        <SkipUserOOBE>true</SkipUserOOBE> 
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <TimeZone>$TimeZone</TimeZone>
     </component>
@@ -148,7 +148,7 @@ If (-not $isAdmin) {
 
         Set-Content $unattendFile $fileContent
         #return the file object
-        $unattendFile 
+        $unattendFile
     }
 
     Function CreateUnattendFileWin2012{
@@ -210,8 +210,8 @@ If (-not $isAdmin) {
       </UserAccounts>
       <OOBE>
         <HideEULAPage>true</HideEULAPage>
-        <SkipMachineOOBE>true</SkipMachineOOBE> 
-        <SkipUserOOBE>true</SkipUserOOBE> 
+        <SkipMachineOOBE>true</SkipMachineOOBE>
+        <SkipUserOOBE>true</SkipUserOOBE>
       </OOBE>
       <TimeZone>$TimeZone</TimeZone>
     </component>
@@ -222,7 +222,7 @@ If (-not $isAdmin) {
 
         Set-Content $unattendFile $fileContent
         #return the file object
-        $unattendFile 
+        $unattendFile
     }
 
     Function AdditionalLocalAccountXML{
@@ -251,10 +251,10 @@ If (-not $isAdmin) {
 "@
     }
 
-    function  Get-WindowsBuildNumber { 
+    function  Get-WindowsBuildNumber {
         $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        return [int]($os.BuildNumber) 
-    } 
+        return [int]($os.BuildNumber)
+    }
 
     Function Set-VMNetworkConfiguration {
         #source:http://www.ravichaganti.com/blog/?p=2766 with some changes
@@ -297,7 +297,7 @@ If (-not $isAdmin) {
             [Switch]$Dhcp
         )
 
-        $VM = Get-CimInstance -Namespace "root\virtualization\v2" -ClassName "Msvm_ComputerSystem" | Where-Object ElementName -eq $NetworkAdapter.VMName 
+        $VM = Get-CimInstance -Namespace "root\virtualization\v2" -ClassName "Msvm_ComputerSystem" | Where-Object ElementName -eq $NetworkAdapter.VMName
         $VMSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName "Msvm_VirtualSystemSettingData" | Where-Object VirtualSystemType -EQ "Microsoft:Hyper-V:System:Realized"
         $VMNetAdapters = Get-CimAssociatedInstance -InputObject $VMSettings -ResultClassName "Msvm_SyntheticEthernetPortSettingData"
 
@@ -339,7 +339,7 @@ If (-not $isAdmin) {
     }
 
     function WrapProcess{
-        #Using this function you can run legacy program and search in output string 
+        #Using this function you can run legacy program and search in output string
         #Example: WrapProcess -filename fltmc.exe -arguments "attach svhdxflt e:" -outputstring "Success"
         [CmdletBinding()]
         [Alias()]
@@ -382,11 +382,11 @@ If (-not $isAdmin) {
             # test if process is still running
             if(!$process.HasExited){
                 do{
-                   Start-Sleep 1 
+                   Start-Sleep 1
                 }until ($process.HasExited -eq $true)
             }
 
-            # get output 
+            # get output
             $out = $process.StandardOutput.ReadToEnd()
 
             if ($out.Contains($outputstring)) {
@@ -408,7 +408,7 @@ If (-not $isAdmin) {
         WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
         WriteInfo "`t Looking for Parent Disk"
         $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
-        
+
         if ($serverparent -eq $null) {
             WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
         }else{
@@ -423,7 +423,7 @@ If (-not $isAdmin) {
         }
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
-    
+
         $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath
 
         #Set dynamic memory
@@ -439,16 +439,16 @@ If (-not $isAdmin) {
             $VMTemp | Set-VM -AutomaticCheckpointsEnabled $False
         }
         $VMTemp | Set-VMFirmware -EnableSecureBoot Off
-    
+
         # only Debian Buster supports Secure Boot
         #$vm | Set-VMFirmware -EnableSecureBoot On -SecureBootTemplateId "272e7447-90a4-4563-a4b9-8e4ab00526ce" # -SecureBootTemplate MicrosoftUEFICertificateAuthority
-   
+
         Start-VM $VMTemp
 
         # wait for the IP address
         Write-Host "`t Waiting for network connectivity to the VM..." -NoNewLine
         $count = 0
-        do { 
+        do {
             $ip = $VMTemp | Get-VMNetworkAdapter | Select-Object -ExpandProperty IPAddresses
             Start-Sleep -Seconds 1
 
@@ -485,12 +485,12 @@ If (-not $isAdmin) {
         if(-not $VMConfig.LinuxDomainJoin -or $VMConfig.LinuxDomainJoin.ToLower() -eq "sssd") {
             WriteInfo "`t Creating AD Computer object..."
             Invoke-Command -VMGuid $DC.id -Credential $cred -ArgumentList $VMConfig.VMName,$path,$Labconfig -ScriptBlock {
-                param($Name,$path,$Labconfig); 
+                param($Name,$path,$Labconfig);
 
                 New-ADComputer -Name $Name -Path "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"
                 $password = ConvertTo-SecureString -String $Name -AsPlainText -Force
                 Get-ADComputer -Identity $Name | Set-ADAccountPassword -NewPassword:$password -Reset:$true
-            } 
+            }
 
             WriteInfo "`t Joining to AD..."
             $upn = ("$(($LabConfig.DomainAdminName).ToLower())@$($LabConfig.DomainName)")
@@ -503,12 +503,12 @@ If (-not $isAdmin) {
 
         # Wait for vm to shut down
         $count = 0
-        do { 
+        do {
             $vm = $VMTemp | Get-VM
             Start-Sleep -Seconds 1
             $count += 1
         } while ($vm.State -ne "Off" -and $count -le 60)
-        
+
         if($vm.State -ne "Off") {
             $VMTemp | Stop-VM
         }
@@ -530,7 +530,7 @@ If (-not $isAdmin) {
         WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
         WriteInfo "`t Looking for Parent Disk"
         $serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
-            
+
         if ($serverparent -eq $null){
             WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
         }else{
@@ -554,7 +554,7 @@ If (-not $isAdmin) {
         if ($VMConfig.Generation -eq 1){
             $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
         }else{
-            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2    
+            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
         }
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
@@ -805,7 +805,7 @@ If (-not $isAdmin) {
         if ($unattendFile){
             WriteInfo "`t Adding unattend to VHD"
             Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile 
+            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile
             #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
             #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
             New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
@@ -863,7 +863,6 @@ If (-not $isAdmin) {
             }
             Send-TelemetryEvent -Event "Deploy.Start" -NickName $LabConfig.TelemetryNickName | Out-Null
         }
-    
 #endregion
 
 #region Set variables
@@ -904,7 +903,7 @@ If (-not $isAdmin) {
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
     $SwitchName=($labconfig.prefix+$LabConfig.SwitchName)
-    WriteInfo "`t Switchname is $SwitchName" 
+    WriteInfo "`t Switchname is $SwitchName"
 
     WriteInfo "`t Workdir is $PSScriptRoot"
 
@@ -922,7 +921,7 @@ If (-not $isAdmin) {
     Get-CimInstance -ClassName "win32_processor" | ForEach-Object { $global:NumberOfLogicalProcessors += $_.NumberOfLogicalProcessors }
 
     #Calculate highest VLAN (for additional subnets)
-    [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select  -Last 1
+    [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select-Object -Last 1
 
     #Grab defined Management Subnet IDs and ignore 0
     $ManagementSubnetIDs=$labconfig.vms.ManagementSubnetID + $LabConfig.ManagementSubnetIDs | Select-Object -Unique | Sort-Object | Where-Object {$_ -ne 0}
@@ -991,7 +990,7 @@ If (-not $isAdmin) {
                 WriteInfo "`t Installing Failover Clustering Feature"
                 $FC=Install-WindowsFeature Failover-Clustering
                 If ($FC.Success -eq $True){
-                    WriteSuccess "`t`t Failover Clustering Feature installed with exit code: $($FC.ExitCode)" 
+                    WriteSuccess "`t`t Failover Clustering Feature installed with exit code: $($FC.ExitCode)"
                 }else{
                     WriteError "`t`t Failover Clustering Feature was not installed with exit code: $($FC.ExitCode)"
                 }
@@ -1008,10 +1007,10 @@ If (-not $isAdmin) {
                 }
             }
 
-            WriteInfoHighlighted "Adding svhdxflt to registry for autostart"    
+            WriteInfoHighlighted "Adding svhdxflt to registry for autostart"
             if (!(Test-Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters)){
                 New-Item HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters
-            }   
+            }
             New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\svhdxflt\Parameters -Name AutoAttachOnNonCSVVolumes -PropertyType DWORD -Value 1 -force
         }
 
@@ -1043,7 +1042,7 @@ If (-not $isAdmin) {
     WriteInfoHighlighted "Checking if volume filesystem is NTFS or ReFS"
     $driveletter=$PSScriptRoot -split ":" | Select-Object -First 1
     if ($PSScriptRoot -like "c:\ClusterStorage*"){
-        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir" 
+        WriteSuccess "`t Volume Cluster Shared Volume. Mountdir will be $env:Temp\MSLabMountdir"
         $mountdir="$env:Temp\MSLabMountDir"
         $VolumeFileSystem="CSVFS"
     }else{
@@ -1068,7 +1067,7 @@ If (-not $isAdmin) {
         WriteInfoHighlighted "Creating Switch"
         WriteInfo "`t Checking if $SwitchName already exists..."
 
-        if (-not (Get-VMSwitch -Name $SwitchName -ErrorAction Ignore)){ 
+        if (-not (Get-VMSwitch -Name $SwitchName -ErrorAction Ignore)){
             WriteInfo "`t Creating $SwitchName..."
             if ($LabConfig.SwitchNICs){
                 #test if NICs are not already connected to another switch
@@ -1144,7 +1143,7 @@ If (-not $isAdmin) {
                         if ($TempNetAdapters.name.count -gt 1){
                             WriteInfo "`t More than 1 NIC detected"
                             WriteInfoHighlighted "`t Please select NetAdapter you want to use for vSwitch"
-                            $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch" 
+                            $tempNetAdapter=get-netadapter | Where-Object Name -NotLike vEthernet* | Where-Object status -eq up | Out-GridView -OutputMode Single -Title "Please select adapter you want to use for External vSwitch"
                             if (!$tempNetAdapter){
                                 WriteErrorAndExit "You did not select any net adapter. Exitting."
                             }
@@ -1204,8 +1203,8 @@ If (-not $isAdmin) {
             $toolsVHD=New-VHD -Path "$PSScriptRoot\ParentDisks\tools.vhdx" -SizeBytes 30GB -Dynamic
             #mount and format VHD
                 $VHDMount = Mount-VHD $toolsVHD.Path -Passthru
-                $vhddisk = $VHDMount| get-disk 
-                $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk 
+                $vhddisk = $VHDMount| get-disk
+                $vhddisk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -UseMaximumSize -AssignDriveLetter |Format-Volume -FileSystem NTFS -AllocationUnitSize 8kb -NewFileSystemLabel ToolsDisk
             #dismount VHD
                 Dismount-VHD $vhddisk.Number
         }else{
@@ -1272,7 +1271,7 @@ If (-not $isAdmin) {
                     $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name $AdditionalNetworkConfig.NetName
                     WriteInfo "`t`t Adding Adapter $($AdditionalNetworkConfig.NetName) with IP $($AdditionalNetworkConfig.NetAddress)$global:IP"
                     $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName | Set-VMNetworkConfiguration -IPAddress "$($AdditionalNetworkConfig.NetAddress)$global:IP" -Subnet $AdditionalNetworkConfig.Subnet
-                    if($AdditionalNetworkConfig.NetVLAN -ne 0){ 
+                    if($AdditionalNetworkConfig.NetVLAN -ne 0){
                         $DC | Get-VMNetworkAdapter -Name $AdditionalNetworkConfig.NetName  | Set-VMNetworkAdapterVlan -VlanId $AdditionalNetworkConfig.NetVLAN -Access
                     }
                 }
@@ -1388,7 +1387,7 @@ If (-not $isAdmin) {
                 $IP="192.168.0.$startIP"
                 WriteInfo "`t Configure static IP $IP on Internet NIC"
                 Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-                    $NetAdapterName=(Get-NetAdapterAdvancedProperty | where displayvalue -eq Internet).Name
+                    $NetAdapterName=(Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq Internet).Name
                     New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $using:IP -PrefixLength 24 -DefaultGateway "192.168.0.1"
                 }
             }
@@ -1513,7 +1512,7 @@ If (-not $isAdmin) {
         WriteInfoHighlighted "Creating DSC config to configure DC as pull server"
 
         [DSCLocalConfigurationManager()]
-        Configuration PullClientConfig 
+        Configuration PullClientConfig
         {
             param
                 (
@@ -1536,7 +1535,7 @@ If (-not $isAdmin) {
                     ActionAfterReboot = 'ContinueConfiguration'
                     }
 
-                    ConfigurationRepositoryWeb PullServerWeb { 
+                    ConfigurationRepositoryWeb PullServerWeb {
                     ServerURL = "http://dc.$($DomainName):8080/PSDSCPullServer.svc"
                     AllowUnsecureConnection = $true
                     RegistrationKey = '14fc8e72-5036-4e79-9f89-5382160053aa'
@@ -1573,7 +1572,7 @@ If (-not $isAdmin) {
                 if(-not $VMConfig.MemoryStartupBytes) {
                     $VMConfig.MemoryStartupBytes = 512MB
                 }
-                
+
                 #create VM with Shared configuration
                     if ($VMConfig.configuration -eq 'Shared'){
                         #create disks (if not already created)
@@ -1581,11 +1580,11 @@ If (-not $isAdmin) {
                             if (!(Test-Path -Path "$LABfolder\VMs\*$VMSet*.VHDS")){
                                 $SharedSSDs=$null
                                 $SharedHDDs=$null
-                                If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){  
+                                If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){
                                     $SharedSSDs= 1..$VMConfig.ssdnumber | ForEach-Object {New-vhd -Path "$LABfolder\VMs\SharedSSD-$VMSet-$_.VHDS" -Dynamic -Size $VMConfig.SSDSize}
                                     $SharedSSDs | ForEach-Object {WriteInfo "`t Disk SSD $($_.path) size $($_.size /1GB)GB created"}
                                 }
-                                If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)){  
+                                If (($VMConfig.HDDNumber -ge 1) -and ($VMConfig.HDDNumber -ne $null)){
                                     $SharedHDDs= 1..$VMConfig.hddnumber | ForEach-Object {New-VHD -Path "$LABfolder\VMs\SharedHDD-$VMSet-$_.VHDS" -Dynamic -Size $VMConfig.HDDSize}
                                     $SharedHDDs | ForEach-Object {WriteInfo "`t Disk HDD $($_.path) size $($_.size /1GB)GB created"}
                                 }
@@ -1630,7 +1629,7 @@ If (-not $isAdmin) {
 
                         #Add disks
                             #add "SSDs"
-                                If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){         
+                                If (($VMConfig.SSDNumber -ge 1) -and ($VMConfig.SSDNumber -ne $null)){
                                     $SSDs= 1..$VMConfig.SSDNumber | ForEach-Object { New-vhd -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\SSD-$_.VHDX" -Dynamic -Size $VMConfig.SSDSize}
                                     WriteInfoHighlighted "`t Adding Virtual SSD Disks"
                                     $SSDs | ForEach-Object {
@@ -1651,7 +1650,7 @@ If (-not $isAdmin) {
                                 }
                     }
 
-                #create VM with Replica configuration    
+                #create VM with Replica configuration
                     if ($VMConfig.configuration -eq 'Replica'){
                         #create shared drives if not already created
                             $VMSet=$VMConfig.VMSet
@@ -1668,7 +1667,7 @@ If (-not $isAdmin) {
                             $createdVm = BuildVM -VMConfig $VMConfig -LabConfig $labconfig -LabFolder $LABfolder
 
                         #Add disks
-                            $VMname=$Labconfig.Prefix+$VMConfig.VMName                
+                            $VMname=$Labconfig.Prefix+$VMConfig.VMName
                             WriteInfoHighlighted "`t Attaching Shared Disks..."
                             #Add HDD
                                 $ReplicaHdd | ForEach-Object {
@@ -1692,7 +1691,7 @@ If (-not $isAdmin) {
                     }
                     if((Test-Path -Path $createdVm.OSDiskPath) -and $VMConfig.configuration -ne "Linux") {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
-                        
+
                         $properties.'vm.os.installationType' = $osInfo.InstallationType
                         $properties.'vm.os.editionId' = $osInfo.EditionId
                         $properties.'vm.os.version' = $osInfo.Version
@@ -1701,10 +1700,10 @@ If (-not $isAdmin) {
                     $metrics = @{
                         'vm.deploymentDuration' = ((Get-Date) - $vmProvisioningStartTime).TotalSeconds
                     }
-                    $vmInfo = New-TelemetryEvent -Event "Deploy.VM" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
+                    $vmInfo = Initialize-TelemetryEvent -Event "Deploy.VM" -Properties $properties -Metrics $metrics -NickName $LabConfig.TelemetryNickName
                     $vmDeploymentEvents += $vmInfo
                 }
-                
+
                 $provisionedVMs += $createdVm.VM
             }
         }
@@ -1712,7 +1711,7 @@ If (-not $isAdmin) {
 #endregion
 
 #region Finishing
-    WriteInfoHighlighted "Finishing..." 
+    WriteInfoHighlighted "Finishing..."
 
     #a bit cleanup
         Remove-Item -Path "$PSScriptRoot\temp" -Force -Recurse
@@ -1721,7 +1720,7 @@ If (-not $isAdmin) {
         WriteInfo "`t Setting MacSpoofing On and AllowTeaming On"
         Set-VMNetworkAdapter -VMName "$($labconfig.Prefix)*" -MacAddressSpoofing On -AllowTeaming On
 
-    #list VMs 
+    #list VMs
         $AllVMs = Get-VM | Where-Object name -like "$($labconfig.Prefix)*"
         $AllVMs | ForEach-Object { WriteSuccess "Machine $($_.VMName) provisioned" }
 
@@ -1732,7 +1731,7 @@ If (-not $isAdmin) {
     #Enable Guest services on all VMs if integration component if configured
     if ($labconfig.EnableGuestServiceInterface){
         WriteInfo "`t Enabling Guest Service Interface"
-        $vms = Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"} 
+        $vms = Get-VM -VMName "$($labconfig.Prefix)*" | Where-Object {$_.state -eq "Running" -or $_.state -eq "Off"}
         foreach ($vm in $vms) {
             $guestServiceId = 'Microsoft:{0}\6C09BB55-D683-4DA0-8931-C9BF705F6480' -f $vm.Id
             $guestService = $vm | Get-VMIntegrationService | Where-Object -FilterScript {$_.Id -eq $guestServiceId}
@@ -1764,7 +1763,7 @@ If (-not $isAdmin) {
                 <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "No VM will be started."
                 <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&All", "All VMs in the lab will be started."
             )
-            
+
             if($provisionedVMs.Count -gt 0) {
                 <# 2 #> $options += New-Object System.Management.Automation.Host.ChoiceDescription "&Deployed only", "Only newly deployed VMs will be started."
             }
@@ -1780,10 +1779,10 @@ If (-not $isAdmin) {
                 $toStart = $provisionedVMs
             }
         }
-        
+
         if(($toStart | Measure-Object).Count -gt 0) {
             WriteInfoHighlighted "Starting VMs"
-            $toStart | ForEach-Object { 
+            $toStart | ForEach-Object {
                 WriteInfo "`t $($_.Name)"
                 Start-VM -VM $_ -WarningAction SilentlyContinue
             }
@@ -1802,10 +1801,10 @@ If (-not $isAdmin) {
             'lab.isncrementalDeployment' = $LABExists
             'lab.autostartmode' = $startVMs
         }
-        $telemetryEvent = New-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
+        $telemetryEvent = Initialize-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
         $vmDeploymentEvents += $telemetryEvent
 
-        Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
+        Send-TelemetryEvent -Events $vmDeploymentEvents | Out-Null
     }
 
 #write how much it took to deploy

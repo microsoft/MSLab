@@ -4,11 +4,11 @@ If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
 
     if($PSVersionTable.PSEdition -eq "Core") {
-        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process pwsh.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
-        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs 
+        Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     }
-    
+
     exit
 }
 
@@ -18,10 +18,10 @@ If (-not $isAdmin) {
 #region Functions
 . $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
-function  Get-WindowsBuildNumber { 
+function  Get-WindowsBuildNumber {
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
-    return [int]($os.BuildNumber) 
-} 
+    return [int]($os.BuildNumber)
+}
 #endregion
 
 #region Initialization
@@ -83,58 +83,82 @@ function  Get-WindowsBuildNumber {
 #region Download Scripts
 
 #add scripts for VMM
-    $Filenames="1_SQL_Install","2_ADK_Install","3_SCVMM_Install"
-    foreach ($Filename in $filenames){
-        $Path="$PSScriptRoot\Temp\ToolsVHD\SCVMM\$Filename.ps1"
-        If (Test-Path -Path $Path){
-            WriteSuccess "`t $Filename is present, skipping download"
-        }else{
-            $FileContent=$null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$Filename.ps1").Content
-            if ($FileContent){
-                $script = New-Item $Path -type File -Force
-                $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
-                $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
-                Set-Content -path $script -value $FileContent
-            }else{
-                WriteErrorAndExit "Unable to download $Filename."
-            }
-        }
-    }
-
-# add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
-    $FileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
-    if($LabConfig.Linux) {
-        $FileNames += "CreateLinuxParentDisk"
-    }
+    $filenames = "1_SQL_Install", "2_ADK_Install", "3_SCVMM_Install"
     foreach ($filename in $filenames) {
-        $Path="$PSScriptRoot\ParentDisks\$FileName.ps1"
-        If (Test-Path -Path $Path) {
+        $Path = "$PSScriptRoot\Temp\ToolsVHD\SCVMM\$filename.ps1"
+        if (Test-Path -Path $Path) {
             WriteSuccess "`t $Filename is present, skipping download"
         } else {
             $FileContent = $null
-            $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/Microsoft/MSLab/master/Tools/$FileName.ps1").Content
+
+            try {
+                # try to download tagged version first
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/$mslabVersion/Tools/$filename.ps1").Content
+            } catch {
+                WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
+                # if that fails, try master branch
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$filename.ps1").Content
+            }
+
             if ($FileContent) {
-                $script = New-Item "$PSScriptRoot\ParentDisks\$FileName.ps1" -type File -Force
-                Set-Content -path $script -value $FileContent
+                $script = New-Item $Path -type File -Force
+                $FileContent=$FileContent -replace "PasswordGoesHere",$LabConfig.AdminPassword #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
+                $FileContent=$FileContent -replace "DomainNameGoesHere",$LabConfig.DomainNetbiosName #only applies to 1_SQL_Install and 3_SCVMM_Install.ps1
+                Set-Content -Path $script -value $FileContent
             } else {
                 WriteErrorAndExit "Unable to download $Filename."
             }
         }
     }
 
-# Download convert-windowsimage into Temp
-WriteInfoHighlighted "Testing Convert-windowsimage presence"
-If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
-    WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
-}else{ 
-    WriteInfo "`t Downloading Convert-WindowsImage"
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
-    } catch {
-        WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+# add createparentdisks, DownloadLatestCU and PatchParentDisks scripts to Parent Disks folder
+    $fileNames = "CreateParentDisk", "DownloadLatestCUs", "PatchParentDisks", "CreateVMFleetDisk"
+    if($LabConfig.Linux) {
+        $fileNames += "CreateLinuxParentDisk"
     }
-}
+    foreach ($filename in $fileNames) {
+        $path = "$PSScriptRoot\ParentDisks\$FileName.ps1"
+        If (Test-Path -Path $path) {
+            WriteSuccess "`t $filename is present, skipping download"
+        } else {
+            $FileContent = $null
+
+            try {
+                # try to download release version first
+                Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/$Filename.ps1" -OutFile $path
+            } catch {
+                WriteInfo "Download $filename failed with $($_.Exception.Message), trying master branch now"
+
+                # if that fails, try master branch
+                $FileContent = (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/$FileName.ps1").Content
+                if ($FileContent) {
+                    $script = New-Item $path -type File -Force
+                    Set-Content -Path $script -value $FileContent
+                } else {
+                    WriteErrorAndExit "Unable to download $Filename."
+                }
+            }
+        }
+    }
+
+# Download convert-windowsimage into Temp
+    WriteInfoHighlighted "Testing Convert-windowsimage presence"
+    $convertWindowsImagePath = "$PSScriptRoot\Temp\Convert-WindowsImage.ps1"
+    If (Test-Path -Path $convertWindowsImagePath) {
+        WriteSuccess "`t Convert-windowsimage.ps1 is present, skipping download"
+    } else {
+        WriteInfo "`t Downloading Convert-WindowsImage"
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/microsoft/MSLab/releases/download/$mslabVersion/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
+        } catch {
+            try {
+                WriteInfo "Download Convert-windowsimage.ps1 failed with $($_.Exception.Message), trying master branch now"
+                Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/microsoft/MSLab/master/Tools/Convert-WindowsImage.ps1" -OutFile $convertWindowsImagePath
+            } catch {
+                WriteError "`t Failed to download Convert-WindowsImage.ps1!"
+            }
+        }
+    }
 #endregion
 
 #region some tools to download
@@ -142,7 +166,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
     WriteInfoHighlighted "Testing diskspd presence"
     If ( Test-Path -Path "$PSScriptRoot\Temp\ToolsVHD\DiskSpd\diskspd.exe" ) {
         WriteSuccess "`t Diskspd is present, skipping download"
-    }else{ 
+    }else{
         WriteInfo "`t Diskspd not there - Downloading diskspd"
         try {
             <# aka.ms/diskspd changed. Commented
@@ -173,13 +197,13 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 
     $modules=("ActiveDirectoryDsc","6.3.0"),("xDHCPServer","3.1.1"),("DnsServerDsc","3.0.0"),("NetworkingDSC","9.0.0"),("xPSDesiredStateConfiguration","9.1.0")
     foreach ($module in $modules){
-        WriteInfoHighlighted "Testing if modules are present" 
+        WriteInfoHighlighted "Testing if modules are present"
         $modulename=$module[0]
         $moduleversion=$module[1]
         if (!(Test-Path "$PSScriptRoot\Temp\DSC\$modulename\$Moduleversion")){
             WriteInfo "`t Module $module not found... Downloading"
-            #Install NuGET package provider   
-            if ((Get-PackageProvider -Name NuGet) -eq $null){   
+            #Install NuGET package provider
+            if ((Get-PackageProvider -Name NuGet) -eq $null){
                 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Confirm:$false -Force
             }
             Find-DscResource -moduleName $modulename -RequiredVersion $moduleversion | Save-Module -Path "$PSScriptRoot\Temp\DSC"
@@ -214,24 +238,24 @@ if($LabConfig.Linux -eq $true) {
     WriteInfo "`t Test Packer availability"
 
     # Packer
-    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue) 
-    { 
+    if (Get-Command "packer.exe" -ErrorAction SilentlyContinue)
+    {
         WriteSuccess "`t Packer is in PATH."
     } else {
         WriteInfo "`t`t Downloading latest Packer binary"
 
         WriteInfo "`t`t Creating packer directory"
-        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin" 
+        $linuxToolsDirPath = "$PSScriptRoot\LAB\bin"
         New-Item $linuxToolsDirPath -ItemType Directory -Force | Out-Null
-        
+
         if(-not (Test-Path (Join-Path $linuxToolsDirPath "packer.exe"))) {
             $packerReleaseInfo = Invoke-RestMethod -Uri "https://checkpoint-api.hashicorp.com/v1/check/packer"
-            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip" 
-            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip") 
+            $downloadUrl = "https://releases.hashicorp.com/packer/$($packerReleaseInfo.current_version)/packer_$($packerReleaseInfo.current_version)_windows_amd64.zip"
+            Start-BitsTransfer -Source $downloadUrl -Destination (Join-Path $linuxToolsDirPath "packer.zip")
             Expand-Archive -Path (Join-Path $linuxToolsDirPath "packer.zip")  -DestinationPath $linuxToolsDirPath -Force
-            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip") 
+            Remove-Item -Path (Join-Path $linuxToolsDirPath "packer.zip")
         }
-    
+
         WriteInfo "`t`t Creating Packer firewall rule"
         $id = $PSScriptRoot -replace '[^a-zA-Z0-9]'
         $fwRule = Get-NetFirewallRule -Name "mslab-packer-$id" -ErrorAction SilentlyContinue
@@ -244,7 +268,7 @@ if($LabConfig.Linux -eq $true) {
     WriteInfo "`t`t Downloading Packer templates"
     $packerTemplatesDirectory = "$PSScriptRoot\ParentDisks\PackerTemplates\"
     if (-not (Test-Path $packerTemplatesDirectory)) {
-        New-Item -Type Directory -Path $packerTemplatesDirectory 
+        New-Item -Type Directory -Path $packerTemplatesDirectory
     }
 
     $templatesBase = "https://github.com/microsoft/mslab-templates/releases/latest/download/"
@@ -285,11 +309,11 @@ if($LabConfig.Linux -eq $true) {
         if($comparison) {
             WriteError "`t SSH Keypair $($LabConfig.SshKeyPath) does not match."
         }
-    } 
-    else 
+    }
+    else
     {
         WriteInfo "`t`t Generating new SSH key pair"
-        $sshKeyDir = "$PSScriptRoot\LAB\.ssh" 
+        $sshKeyDir = "$PSScriptRoot\LAB\.ssh"
         $key = "$sshKeyDir\lab_rsa"
         New-Item -ItemType Directory $sshKeyDir -ErrorAction SilentlyContinue | Out-Null
         ssh-keygen.exe -t rsa -b 4096 -C "$($LabConfig.DomainAdminName)" -f $key -q -N '""'
@@ -302,11 +326,11 @@ if((Get-TelemetryLevel) -in $TelemetryEnabledLevels) {
     $metrics = @{
         'script.duration' = ((Get-Date) - $StartDateTime).TotalSeconds
     }
- 
+
     Send-TelemetryEvent -Event "Prereq.End" -Metrics $metrics -NickName $LabConfig.TelemetryNickName | Out-Null
 }
 
-# finishing 
+# finishing
 WriteInfo "Script finished at $(Get-date) and took $(((get-date) - $StartDateTime).TotalMinutes) Minutes"
 
 Stop-Transcript
