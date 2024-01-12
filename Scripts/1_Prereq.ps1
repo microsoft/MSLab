@@ -171,7 +171,7 @@ If ( Test-Path -Path "$PSScriptRoot\Temp\Convert-WindowsImage.ps1" ) {
 #region Downloading required Posh Modules
 # Downloading modules into Temp folder if needed.
 
-    $modules=("xActiveDirectory","3.0.0.0"),("xDHCpServer","2.0.0.0"),("xDNSServer","1.15.0.0"),("NetworkingDSC","7.4.0.0"),("xPSDesiredStateConfiguration","8.10.0.0")
+    $modules=("ActiveDirectoryDsc","6.3.0"),("xDHCPServer","3.1.1"),("DnsServerDsc","3.0.0"),("NetworkingDSC","9.0.0"),("xPSDesiredStateConfiguration","9.1.0")
     foreach ($module in $modules){
         WriteInfoHighlighted "Testing if modules are present" 
         $modulename=$module[0]

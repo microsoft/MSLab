@@ -663,12 +663,13 @@ If (-not $isAdmin) {
 
                 )
 
-                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "3.0.0.0"
-                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.15.0.0"
-                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "7.4.0.0"
-                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "2.0.0.0"
-                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.10.0.0"
+                Import-DscResource -ModuleName ActiveDirectoryDsc -ModuleVersion "6.3.0"
+                Import-DscResource -ModuleName DnsServerDsc -ModuleVersion "3.0.0"
+                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "9.0.0"
+                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "3.1.1"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "9.1.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
+
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename 
 
@@ -714,115 +715,113 @@ If (-not $isAdmin) {
                         DependsOn = "[WindowsFeature]ADDSInstall"
                     } 
             
-                    xADDomain FirstDS 
+                    ADDomain FirstDS 
                     { 
                         DomainName = $Node.DomainName 
-                        DomainAdministratorCredential = $domainCred 
+                        Credential = $domainCred 
                         SafemodeAdministratorPassword = $safemodeAdministratorCred
                         DomainNetbiosName = $node.DomainNetbiosName
                         DependsOn = "[WindowsFeature]ADDSInstall"
                     }
                 
-                    xWaitForADDomain DscForestWait 
+                    WaitForADDomain DscForestWait 
                     { 
                         DomainName = $Node.DomainName 
-                        DomainUserCredential = $domainCred 
-                        RetryCount = $Node.RetryCount 
-                        RetryIntervalSec = $Node.RetryIntervalSec 
-                        DependsOn = "[xADDomain]FirstDS" 
+                        Credential = $domainCred 
+                        DependsOn = "[ADDomain]FirstDS" 
                     }
                     
-                    xADOrganizationalUnit DefaultOU
+                    ADOrganizationalUnit DefaultOU
                     {
                         Name = $Node.DefaultOUName
                         Path = $Node.DomainDN
                         ProtectedFromAccidentalDeletion = $true
                         Description = 'Default OU for all user and computer accounts'
                         Ensure = 'Present'
-                        DependsOn = "[xADDomain]FirstDS" 
+                        DependsOn = "[ADDomain]FirstDS" 
                     }
 
-                    xADUser SQL_SA
+                    ADUser SQL_SA
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "SQL_SA"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "SQL Service Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser SQL_Agent
+                    ADUser SQL_Agent
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "SQL_Agent"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "SQL Agent Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser Domain_Admin
+                    ADUser Domain_Admin
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = $Node.DomainAdminName
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "DomainAdmin"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser VMM_SA
+                    ADUser VMM_SA
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "VMM_SA"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADUser]Domain_Admin"
+                        DependsOn = "[ADUser]Domain_Admin"
                         Description = "VMM Service Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADGroup DomainAdmins
+                    ADGroup DomainAdmins
                     {
                         GroupName = "Domain Admins"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = "VMM_SA",$Node.DomainAdminName
                     }
 
-                    xADGroup SchemaAdmins
+                    ADGroup SchemaAdmins
                     {
                         GroupName = "Schema Admins"
                         GroupScope = "Universal"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = $Node.DomainAdminName
                     }
 
-                    xADGroup EntAdmins
+                    ADGroup EntAdmins
                     {
                         GroupName = "Enterprise Admins"
                         GroupScope = "Universal"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = $Node.DomainAdminName
                     }
 
-                    xADUser AdministratorNeverExpires
+                    ADUser AdministratorNeverExpires
                     {
                         DomainName = $Node.DomainName
                         UserName = "Administrator"
                         Ensure = "Present"
-                        DependsOn = "[xADDomain]FirstDS"
+                        DependsOn = "[ADDomain]FirstDS"
                         PasswordNeverExpires = $true
                     }
 
@@ -836,7 +835,7 @@ If (-not $isAdmin) {
                     {
                         Ensure = "Present"
                         Name = "DHCP"
-                        DependsOn = "[xADDomain]FirstDS"
+                        DependsOn = "[ADDomain]FirstDS"
                     }
 
                     Service DHCPServer #since insider 17035 dhcpserver was not starting for some reason
@@ -868,19 +867,45 @@ If (-not $isAdmin) {
                         DependsOn = "[Service]DHCPServer"
                     }
 
-                    xDhcpServerOption MgmtScopeRouterOption
+                    # Setting scope gateway
+                    DhcpScopeOptionValue 'ScopeOptionGateway'
                     {
-                        Ensure = 'Present'
-                        ScopeID = ($DHCPscope+"0")
-                        DnsDomain = $Node.DomainName
-                        DnsServerIPAddress = ($DHCPscope+"1")
+                        OptionId      = 3
+                        Value         = ($DHCPscope+"1")
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
                         AddressFamily = 'IPv4'
-                        Router = ($DHCPscope+"1")
-                        DependsOn = "[Service]DHCPServer"
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
+                    }
+
+                    # Setting scope DNS servers
+                    DhcpScopeOptionValue 'ScopeOptionDNS'
+                    {
+                        OptionId      = 6
+                        Value         = ($DHCPscope+"1")
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
+                        AddressFamily = 'IPv4'
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
+                    }
+
+                    # Setting scope DNS domain name
+                    DhcpScopeOptionValue 'ScopeOptionDNSDomainName'
+                    {
+                        OptionId      = 15
+                        Value         = $Node.DomainName
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
+                        AddressFamily = 'IPv4'
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
                     }
                     
                     xDhcpServerAuthorization LocalServerActivation
                     {
+                        IsSingleInstance = 'Yes'
                         Ensure = 'Present'
                     }
 
@@ -890,13 +915,13 @@ If (-not $isAdmin) {
                         Name   = "DSC-Service"
                     }
 
-                    xDnsServerADZone addReverseADZone
+                    DnsServerADZone addReverseADZone
                     {
                         Name = $ReverseDNSrecord
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
-                        DependsOn = "[xDhcpServerOption]MgmtScopeRouterOption"
+                        DependsOn = "[DhcpScopeOptionValue]ScopeOptionGateway"
                     }
 
                     If ($LabConfig.PullServerDC){
