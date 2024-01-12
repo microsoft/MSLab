@@ -1,4 +1,4 @@
-﻿# Verify Running as Admin
+# Verify Running as Admin
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 If (-not $isAdmin) {
     Write-Host "-- Restarting as Administrator" -ForegroundColor Cyan ; Start-Sleep -Seconds 1
@@ -142,7 +142,7 @@ If (-not $isAdmin) {
         $LabConfig.DomainName.Split(".") | ForEach-Object {
             $DN+="DC=$_,"
         }
-
+        
         $LabConfig.DN=$DN.TrimEnd(",")
 
         $AdminPassword=$LabConfig.AdminPassword
@@ -191,7 +191,7 @@ If (-not $isAdmin) {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM install not found. Exitting"
                     }
-                }
+                }    
             }
 
             if ($LabConfig.InstallSCVMM -eq "Prereqs"){
@@ -199,16 +199,16 @@ If (-not $isAdmin) {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SCVMM Prereqs install not found. Exitting"
                     }
-                }
+                } 
             }
-
+        
             if ($LabConfig.InstallSCVMM -eq "SQL"){
                 "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe","Temp\ToolsVHD\SCVMM\SQL\setup.exe" | ForEach-Object {
                     if(!(Test-Path -Path "$PSScriptRoot\$_")){
                         WriteErrorAndExit "file $_ needed for SQL install not found. Exitting"
                     }
                 }
-            }
+            }    
 
             if ($LabConfig.InstallSCVMM -eq "ADK"){
                 "Temp\ToolsVHD\SCVMM\ADK\ADKsetup.exe" | ForEach-Object {
@@ -221,7 +221,7 @@ If (-not $isAdmin) {
 
     #check if parent images already exist (this is useful if you have parent disks from another lab and you want to rebuild for example scvmm)
         WriteInfoHighlighted "Testing if some parent disk already exists and can be used"
-
+        
         #grab all files in parentdisks folder
             $ParentDisksNames=(Get-ChildItem -Path "$PSScriptRoot\ParentDisks" -ErrorAction SilentlyContinue).Name
 
@@ -282,7 +282,7 @@ If (-not $isAdmin) {
             $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*"
             If($openFile.ShowDialog() -eq "OK"){
                 WriteInfo  "File $($openfile.FileName) selected"
-            }
+            } 
             if (!$openFile.FileName){
                 WriteErrorAndExit  "Iso was not selected... Exitting"
             }
@@ -539,7 +539,7 @@ If (-not $isAdmin) {
                 WriteInfo "Found $PSScriptRoot\Temp\ToolsVHD\*, copying files into VHDX"
                 Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination "$($vhddiskpart.DriveLetter):\" -Recurse -Force
             }else{
-                WriteInfo "Files not found"
+                WriteInfo "Files not found" 
                 WriteInfoHighlighted "Add required tools into $PSScriptRoot\Temp\ToolsVHD and Press any key to continue..."
                 $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | OUT-NULL
                 Copy-Item -Path "$PSScriptRoot\Temp\ToolsVHD\*" -Destination ($vhddiskpart.DriveLetter+':\') -Recurse -Force
@@ -651,10 +651,10 @@ If (-not $isAdmin) {
             configuration DCHydration
             {
                 param
-                (
+                ( 
                     [Parameter(Mandatory)]
                     [pscredential]$safemodeAdministratorCred,
-
+            
                     [Parameter(Mandatory)]
                     [pscredential]$domainCred,
 
@@ -663,18 +663,19 @@ If (-not $isAdmin) {
 
                 )
 
-                Import-DscResource -ModuleName xActiveDirectory -ModuleVersion "3.0.0.0"
-                Import-DscResource -ModuleName xDNSServer -ModuleVersion "1.15.0.0"
-                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "7.4.0.0"
-                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "2.0.0.0"
-                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "8.10.0.0"
+                Import-DscResource -ModuleName ActiveDirectoryDsc -ModuleVersion "6.3.0"
+                Import-DscResource -ModuleName DnsServerDsc -ModuleVersion "3.0.0"
+                Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "9.0.0"
+                Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "3.1.1"
+                Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "9.1.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
+
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename
 
                 {
                     WindowsFeature ADDSInstall
-                    {
+                    { 
                         Ensure = "Present"
                         Name = "AD-Domain-Services"
                     }
@@ -691,138 +692,136 @@ If (-not $isAdmin) {
                         Ensure = "Present"
                         Name = "RSAT-AD-PowerShell"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    }
+                    } 
 
                     WindowsFeature FeatureADAdminCenter
                     {
                         Ensure = "Present"
                         Name = "RSAT-AD-AdminCenter"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    }
+                    } 
 
                     WindowsFeature FeatureADDSTools
                     {
                         Ensure = "Present"
                         Name = "RSAT-ADDS-Tools"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    }
+                    } 
 
                     WindowsFeature FeatureDNSTools
                     {
                         Ensure = "Present"
                         Name = "RSAT-DNS-Server"
                         DependsOn = "[WindowsFeature]ADDSInstall"
-                    }
-
-                    xADDomain FirstDS
-                    {
+                    } 
+            
+                    ADDomain FirstDS 
+                    { 
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         SafemodeAdministratorPassword = $safemodeAdministratorCred
                         DomainNetbiosName = $node.DomainNetbiosName
                         DependsOn = "[WindowsFeature]ADDSInstall"
                     }
-
-                    xWaitForADDomain DscForestWait
-                    {
+                
+                    WaitForADDomain DscForestWait
+                    { 
                         DomainName = $Node.DomainName
-                        DomainUserCredential = $domainCred
-                        RetryCount = $Node.RetryCount
-                        RetryIntervalSec = $Node.RetryIntervalSec
-                        DependsOn = "[xADDomain]FirstDS"
+                        Credential = $domainCred
+                        DependsOn = "[ADDomain]FirstDS"
                     }
-
-                    xADOrganizationalUnit DefaultOU
+                    
+                    ADOrganizationalUnit DefaultOU
                     {
                         Name = $Node.DefaultOUName
                         Path = $Node.DomainDN
                         ProtectedFromAccidentalDeletion = $true
                         Description = 'Default OU for all user and computer accounts'
                         Ensure = 'Present'
-                        DependsOn = "[xADDomain]FirstDS"
+                        DependsOn = "[ADDomain]FirstDS"
                     }
 
-                    xADUser SQL_SA
+                    ADUser SQL_SA
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "SQL_SA"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "SQL Service Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser SQL_Agent
+                    ADUser SQL_Agent
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "SQL_Agent"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "SQL Agent Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser Domain_Admin
+                    ADUser Domain_Admin
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = $Node.DomainAdminName
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADOrganizationalUnit]DefaultOU"
+                        DependsOn = "[ADOrganizationalUnit]DefaultOU"
                         Description = "DomainAdmin"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADUser VMM_SA
+                    ADUser VMM_SA
                     {
                         DomainName = $Node.DomainName
-                        DomainAdministratorCredential = $domainCred
+                        Credential = $domainCred
                         UserName = "VMM_SA"
                         Password = $NewADUserCred
                         Ensure = "Present"
-                        DependsOn = "[xADUser]Domain_Admin"
+                        DependsOn = "[ADUser]Domain_Admin"
                         Description = "VMM Service Account"
                         Path = "OU=$($Node.DefaultOUName),$($Node.DomainDN)"
                         PasswordNeverExpires = $true
                     }
 
-                    xADGroup DomainAdmins
+                    ADGroup DomainAdmins
                     {
                         GroupName = "Domain Admins"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = "VMM_SA",$Node.DomainAdminName
                     }
 
-                    xADGroup SchemaAdmins
+                    ADGroup SchemaAdmins
                     {
                         GroupName = "Schema Admins"
                         GroupScope = "Universal"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = $Node.DomainAdminName
                     }
 
-                    xADGroup EntAdmins
+                    ADGroup EntAdmins
                     {
                         GroupName = "Enterprise Admins"
                         GroupScope = "Universal"
-                        DependsOn = "[xADUser]VMM_SA"
+                        DependsOn = "[ADUser]VMM_SA"
                         MembersToInclude = $Node.DomainAdminName
                     }
 
-                    xADUser AdministratorNeverExpires
+                    ADUser AdministratorNeverExpires
                     {
                         DomainName = $Node.DomainName
                         UserName = "Administrator"
                         Ensure = "Present"
-                        DependsOn = "[xADDomain]FirstDS"
+                        DependsOn = "[ADDomain]FirstDS"
                         PasswordNeverExpires = $true
                     }
 
@@ -836,7 +835,7 @@ If (-not $isAdmin) {
                     {
                         Ensure = "Present"
                         Name = "DHCP"
-                        DependsOn = "[xADDomain]FirstDS"
+                        DependsOn = "[ADDomain]FirstDS"
                     }
 
                     Service DHCPServer #since insider 17035 dhcpserver was not starting for some reason
@@ -851,7 +850,7 @@ If (-not $isAdmin) {
                         Ensure = "Present"
                         Name = "RSAT-DHCP"
                         DependsOn = "[WindowsFeature]DHCPServer"
-                    }
+                    } 
 
 
                     xDhcpServerScope ManagementScope
@@ -868,19 +867,45 @@ If (-not $isAdmin) {
                         DependsOn = "[Service]DHCPServer"
                     }
 
-                    xDhcpServerOption MgmtScopeRouterOption
+                    # Setting scope gateway
+                    DhcpScopeOptionValue 'ScopeOptionGateway'
                     {
-                        Ensure = 'Present'
-                        ScopeID = ($DHCPscope+"0")
-                        DnsDomain = $Node.DomainName
-                        DnsServerIPAddress = ($DHCPscope+"1")
+                        OptionId      = 3
+                        Value         = ($DHCPscope+"1")
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
                         AddressFamily = 'IPv4'
-                        Router = ($DHCPscope+"1")
-                        DependsOn = "[Service]DHCPServer"
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
                     }
 
+                    # Setting scope DNS servers
+                    DhcpScopeOptionValue 'ScopeOptionDNS'
+                    {
+                        OptionId      = 6
+                        Value         = ($DHCPscope+"1")
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
+                        AddressFamily = 'IPv4'
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
+                    }
+
+                    # Setting scope DNS domain name
+                    DhcpScopeOptionValue 'ScopeOptionDNSDomainName'
+                    {
+                        OptionId      = 15
+                        Value         = $Node.DomainName
+                        ScopeId       = ($DHCPscope+"0")
+                        VendorClass   = ''
+                        UserClass     = ''
+                        AddressFamily = 'IPv4'
+                        DependsOn = "[xDhcpServerScope]ManagementScope"
+                    }
+                    
                     xDhcpServerAuthorization LocalServerActivation
                     {
+                        IsSingleInstance = 'Yes'
                         Ensure = 'Present'
                     }
 
@@ -890,13 +915,13 @@ If (-not $isAdmin) {
                         Name   = "DSC-Service"
                     }
 
-                    xDnsServerADZone addReverseADZone
+                    DnsServerADZone addReverseADZone
                     {
                         Name = $ReverseDNSrecord
                         DynamicUpdate = "Secure"
                         ReplicationScope = "Forest"
                         Ensure = "Present"
-                        DependsOn = "[xDhcpServerOption]MgmtScopeRouterOption"
+                        DependsOn = "[DhcpScopeOptionValue]ScopeOptionGateway"
                     }
 
                     If ($LabConfig.PullServerDC){
@@ -913,7 +938,7 @@ If (-not $isAdmin) {
                             State                   = "Started"
                             DependsOn               = "[WindowsFeature]DSCServiceFeature"
                         }
-
+                        
                         File RegistrationKeyFile
                         {
                             Ensure = 'Present'
@@ -925,10 +950,10 @@ If (-not $isAdmin) {
                 }
             }
 
-            $ConfigData = @{
-
-                AllNodes = @(
-                    @{
+            $ConfigData = @{ 
+            
+                AllNodes = @( 
+                    @{ 
                         Nodename = $DCName
                         Role = "Parent DC"
                         DomainAdminName=$LabConfig.DomainAdminName
@@ -941,9 +966,9 @@ If (-not $isAdmin) {
                         PsDscAllowDomainUser= $true
                         RetryCount = 50
                         RetryIntervalSec = 30
-                    }
-                )
-            }
+                    }         
+                ) 
+            } 
 
         #create LCM config
             [DSCLocalConfigurationManager()]
@@ -963,7 +988,7 @@ If (-not $isAdmin) {
             WriteInfoHighlighted "`t Creating DSC Configs for DC"
             LCMConfig       -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData
             DCHydration     -OutputPath "$PSScriptRoot\Temp\config" -ConfigurationData $ConfigData -safemodeAdministratorCred $cred -domainCred $cred -NewADUserCred $cred
-
+        
         #copy DSC MOF files to DC
             WriteInfoHighlighted "`t Copying DSC configurations (pending.mof and metaconfig.mof)"
             New-item -type directory -Path "$PSScriptRoot\Temp\config" -ErrorAction Ignore
@@ -1084,7 +1109,7 @@ If (-not $isAdmin) {
     #cleanup DC
     if (-not $DCFilesExists){
         WriteInfoHighlighted "Backup DC and cleanup"
-        #shutdown DC
+        #shutdown DC 
             WriteInfo "`t Disconnecting VMNetwork Adapter from DC"
             $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
             WriteInfo "`t Shutting down DC"
@@ -1120,7 +1145,7 @@ If (-not $isAdmin) {
         <# 0 #> New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Cleanup .\Temp\ 1_Prereq.ps1 2_CreateParentDisks.ps1 and rename 3_deploy.ps1 to just deploy.ps1"
         <# 1 #> New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Keep files (in case DC was not created sucessfully)"
     )
-
+    
     If (!$LabConfig.AutoCleanUp) {
         $response = $host.UI.PromptForChoice("Unnecessary files cleanup","Do you want to cleanup unnecessary files and folders?", $options, 0 <#default option#>)
     }
@@ -1138,7 +1163,7 @@ If (-not $isAdmin) {
         "$PSScriptRoot\Temp","$PSScriptRoot\1_Prereq.ps1","$PSScriptRoot\2_CreateParentDisks.ps1" | ForEach-Object {
             WriteInfo "`t `t `t Removing $_"
             Remove-Item -Path $_ -Force -Recurse -ErrorAction SilentlyContinue
-        }
+        } 
         WriteInfo "`t `t `t Renaming $PSScriptRoot\3_Deploy.ps1 to Deploy.ps1"
         Rename-Item -Path "$PSScriptRoot\3_Deploy.ps1" -NewName "Deploy.ps1" -ErrorAction SilentlyContinue
     }
@@ -1198,13 +1223,13 @@ If (-not $isAdmin) {
                     $vhdProperties['vhd.os.language'] = $OSLanguage
                 }
             }
-            $events += Initialize-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName
+            $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName
         }
 
         # and one overall
-        $events += Initialize-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
+        $events += New-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
 
-        Send-TelemetryEvent -Events $events | Out-Null
+        Send-TelemetryEvents -Events $events | Out-Null
     }
 
 Stop-Transcript
