@@ -8,6 +8,7 @@ on:
   push:
     paths: 
       - 'Scripts/**'
+      - 'Tools/**'
     branches: [ dev ]
 
 jobs:
@@ -16,22 +17,28 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[no release]')"
     runs-on: windows-2019
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Build scripts 
         id: build
         shell: powershell
         run: |
-          ./build.ps1 -Version prerelease
+          ./build.ps1 -Version dev
           $filename = "mslab_dev-$((Get-Date -Format "yyyyMMdd")).zip"
           mv ./Release.zip $filename
-          echo "::set-output name=filename::$filename"
-      - uses: "marvinpinto/action-automatic-releases@latest"
+          echo "filename=$filename" >> $env:GITHUB_OUTPUT
+      - name: Delete current dev prerelease
+        uses: cb80/delrel@latest
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "dev"
+          tag: dev
+      - name: Create new dev prerelease
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: dev
+          name: dev branch preview
+          generate_release_notes: true
           prerelease: true
-          title: "dev branch preview"
           files: |
             ${{ steps.build.outputs.filename }}
+            Output/Tools/*.ps1

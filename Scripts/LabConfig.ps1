@@ -36,7 +36,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         ServerMSUsFolder="";                         # (Optional) If configured, script will inject all MSU files found into server OS
         EnableGuestServiceInterface=$false;          # (Optional) If True, then Guest Services integration component will be enabled on all VMs.
         DCVMProcessorCount=2;                        # (Optional) 2 is default. If specified more/less, processorcount will be modified.
-        DHCPscope="10.0.0.0";                        # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24       
+        DHCPscope="10.0.0.0";                        # (Optional) 10.0.0.0 is configured if nothing is specified. Scope has to end with .0 (like 10.10.10.0). It's always /24
         DCVMVersion="9.0";                           # (Optional) Latest is used if nothing is specified. Make sure you use values like "8.0","8.3","9.0"
         TelemetryLevel="";                           # (Optional) If configured, script will stop prompting you for telemetry. Values are "None","Basic","Full"
         TelemetryNickname="";                        # (Optional) If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, MSLab users will be able to see their own stats
@@ -53,7 +53,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     }
 
     # Specifying LabVMs
-    1..4 | ForEach-Object { 
+    1..4 | ForEach-Object {
         $VMNames="S2D";                                # Here you can bulk edit name of 4 VMs created. In this case will be s2d1,s2d2,s2d3,s2d4 created
         $LABConfig.VMs += @{
             VMName = "$VMNames$_" ;
@@ -68,7 +68,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     }
 
     #optional: (only if AdditionalNetworks are configured in $LabConfig.VMs) this is just an example. In this configuration its not needed.
-    $LABConfig.AdditionalNetworksConfig += @{ 
+    $LABConfig.AdditionalNetworksConfig += @{
         NetName = 'Storage1';                        # Network Name
         NetAddress='172.16.1.';                      # Network Addresses prefix. (starts with 1), therefore first VM with Additional network config will have IP 172.16.1.1
         NetVLAN='1';                                 # VLAN tagging
@@ -109,7 +109,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         'SQL'         - installs just SQL
         'Prereqs'     - installs ADK and SQL
         'No'          - No, or anything else, nothing is installed.
-            
+
             *requires install files in toolsVHD\SCVMM\, or it will fail. You can download all tools here:
                 SQL: http://www.microsoft.com/en-us/evalcenter/evaluate-sql-server-2016
                 SCVMM: http://www.microsoft.com/en-us/evalcenter/evaluate-system-center-technical-preview
@@ -145,7 +145,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         It will add vNIC to DC and configure NAT with some Open DNS servers in DNS forwarder
 
     UseHostDnsAsForwarder (Optional)
-        If $true, local DNS servers will be used as DNS forwarders in DC when Internet is enabled. 
+        If $true, local DNS servers will be used as DNS forwarders in DC when Internet is enabled.
         By default local host's DNS servers will be used as forwarders.
 
     CustomDnsForwarders (Optional)
@@ -153,7 +153,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         If not defined at all, commonly known DNS servers will be used as a fallback:
              - Google DNS: 8.8.8.8
              - Cloudfare: 1.1.1.1
-    
+
     DHCPscope (Optional)
         If configured, a custom DHCP scope will be used. Will always use a '/24'.
         Specify input like '10.1.0.0' or '192.168.0.0'
@@ -196,11 +196,11 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     ManagementSubnetIDs
         Example: ManagementSubnetIDs=0..3
         If configured, it will add another management subnet. For example if configured 0..3, it will add 3 more subnets 10.0.1.0/24 to 10.0.3.0/24 on VLANs that 11,12, and 13. (Because allowed VLANs are 1-10)
-    
+
     Linux (optional)
         Example: Linux=$true
         If set to $true, additional prerequisities (SSH Client, SSH Key, Packer, Packer templates) required for building Linux images will be downloaded and configured.
-    
+
     LinuxAdminName (optional)
         Example: LinuxAdminName="linuxadmin"
         If set, local user account with that name will be created in Linux image. If not, DomainAdminName will be used as a local account.
@@ -227,7 +227,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         $LABConfig.VMs += @{ VMName = 'Management' ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'    ; MemoryStartupBytes= 1GB ; AddToolsVHD=$True }
         Multiple:
         1..2 | ForEach-Object { $VMNames="Replica" ; $LABConfig.VMs += @{ VMName = "$VMNames$_" ; Configuration = 'Replica'  ; ParentVHD = 'Win2016NanoHV_G2.vhdx'   ; ReplicaHDDSize = 20GB ; ReplicaLogSize = 10GB ; MemoryStartupBytes= 2GB ; VMSet= 'ReplicaSet1' ; AdditionalNetworks = $True} }
-    
+
     VMName (Mandatory)
         Can be whatever. This name will be used as name to djoin VM.
 
@@ -247,7 +247,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         'Win10_G2.vhdx'        - Windows 10 if you selected to hydrate it with create client parent.
 
     AdditionalNetworks (Optional)
-        $True - Additional networks (configured in AdditonalNetworkConfig) are added 
+        $True - Additional networks (configured in AdditonalNetworkConfig) are added
 
     AdditionalNetworkAdapters (Optional) - Hashtable or array if multiple network adapters should be connected to this virtual machine
         @{
@@ -257,7 +257,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
             IpConfiguration    (Optional)  - DHCP or hastable with specific IP configuration
             @{
                 IpAddress      (Mandatory) - Static IP Address that would be injected to the OS
-                Subnet         (Mandatory) 
+                Subnet         (Mandatory)
             }
         }
 
@@ -278,7 +278,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     MemoryMinimumBytes (Optional)
         Example: 1GB
         Minimum memory bytes, must be less or equal to MemoryStartupBytes
-        If not set, default is used.    
+        If not set, default is used.
 
     StaticMemory (Optional)
         if $True, then static memory is configured
@@ -344,7 +344,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
 
     ManagementSubnetID (Optional)
         This will set Management NICs to defined subnet id by configuring native VLAN ID. Default is 0. If configured to 1, it will increase highest allowed VLAN by one and configure.
-        For example ManagementSubnetID=1, AllowedVlans=10, then ManagementSubnetID VLAN will be configured 11. 
+        For example ManagementSubnetID=1, AllowedVlans=10, then ManagementSubnetID VLAN will be configured 11.
 
     #DisableTimeIC (Optional)
         Example DisableTimeIC=$true
@@ -374,9 +374,9 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     <#
     Just some VMs
         $LabConfig.VMs = @(
-            @{ VMName = 'Simple1'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
-            @{ VMName = 'Simple2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
-            @{ VMName = 'Simple3'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }, 
+            @{ VMName = 'Simple1'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB },
+            @{ VMName = 'Simple2'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB },
+            @{ VMName = 'Simple3'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB },
             @{ VMName = 'Simple4'  ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'     ; MemoryStartupBytes= 512MB }
         )
 
@@ -391,7 +391,7 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         1..100 | ForEach-Object {"NanoServer$_"}  | ForEach-Object { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win2016NanoHV_G2.vhdx'    ; MemoryStartupBytes= 512MB } }
         1..100 | ForEach-Object {"Windows10_$_"}  | ForEach-Object { $LabConfig.VMs += @{ VMName = $_ ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'          ; MemoryStartupBytes= 512MB ;   AddToolsVHD=$True ; DisableWCF=$True } }
 
-    or Several different VMs 
+    or Several different VMs
         * you need to provide your GPT VHD for win 2012 (like created with convertwindowsimage script)
         $LabConfig.VMs += @{ VMName = 'Win10'            ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'            ; MemoryStartupBytes= 512MB ; DisableWCF=$True ; vTPM=$True ; EnableWinRM=$True }
         $LabConfig.VMs += @{ VMName = 'Win10_OOBE'       ; Configuration = 'Simple'   ; ParentVHD = 'Win10_G2.vhdx'            ; MemoryStartupBytes= 512MB ; DisableWCF=$True ; vTPM=$True ; Unattend="None" }
