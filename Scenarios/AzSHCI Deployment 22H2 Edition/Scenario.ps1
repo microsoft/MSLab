@@ -205,6 +205,11 @@
         #Reset disks (to clear spaces metadata)
         Invoke-Command -ComputerName $Servers -ScriptBlock {
             Get-PhysicalDisk -CanPool $True | Reset-PhysicalDisk
+            $disks=Get-Disk | Where-Object IsBoot -eq $false
+            $disks | Set-Disk -IsReadOnly $false
+            $disks | Set-Disk -IsOffline $false
+            $disks | Clear-Disk -RemoveData -RemoveOEM -Confirm:0
+            $disks | get-disk | Set-Disk -IsOffline $true
         }
     }
 
@@ -256,23 +261,10 @@
         #region prepare DSU binaries
             #Download DSU
                 #https://github.com/DellProSupportGse/Tools/blob/main/DART.ps1
-
-                #grab DSU links from Dell website
-                $URL="https://dl.dell.com/omimswac/dsu/"
-                $Results=Invoke-WebRequest $URL -UseDefaultCredentials
-                $Links=$results.Links.href | Select-Object -Skip 1
-                #create PSObject from results
-                $DSUs=@()
-                foreach ($Link in $Links){
-                    $DSUs+=[PSCustomObject]@{
-                        Link = "https://dl.dell.com$Link"
-                        Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
-                    }
-                }
-                #download latest to separate folder
-                $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+                #download latest DSU to Downloads
+                $LatestDSU="https://dl.dell.com/FOLDER10889507M/1/Systems-Management_Application_RPW7K_WN64_2.0.2.3_A00.EXE"
                 if (-not (Test-Path $DSUDownloadFolder -ErrorAction Ignore)){New-Item -Path $DSUDownloadFolder -ItemType Directory}
-                Start-BitsTransfer -Source $LatestDSU.Link -Destination $DSUDownloadFolder\DSU.exe
+                Start-BitsTransfer -Source $LatestDSU -Destination $DSUDownloadFolder\DSU.exe
 
                 #upload DSU to servers
                 $Sessions=New-PSSession -ComputerName $Servers

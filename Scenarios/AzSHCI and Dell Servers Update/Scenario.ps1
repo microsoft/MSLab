@@ -57,43 +57,18 @@
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         }
 
-    #Find DSUs
-    $URL="https://dl.dell.com/omimswac/dsu/"
-    $htmlstring=$WebClient.DownloadString("$url")
-    $htmlobject = New-Object -Com "HTMLFile"
-    $htmlobject.IHTMLDocument2_write($htmlstring)
-    $Links=$htmlobject.links | Select-Object -Skip 1 
-    $DSUs=@()
-    foreach ($Link in $Links){
-        $DSUs+=[PSCustomObject]@{
-            Link = "https://dl.dell.com/$($link.pathname)"
-            Version = [Version]($link.pathname -split "_" | Select-Object -Last 2 | Select-Object -First 1)
-        }
-    }
     #download latest DSU
-    $LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
-    $WebClient.DownloadFile($LatestDSU.Link,"$DellToolsDownloadFolder\DSU.exe")
+    #DSU Binary: https://www.dell.com/support/kbdoc/en-us/000130590/dell-emc-system-update-dsu
+    #DSU Docs: https://www.dell.com/support/home/en-us/product-support/product/system-update/docs
+    #omimswac link for latest DSU is in user manual https://www.dell.com/support/home/en-us/product-support/product/openmanage-integration-microsoft-windows-admin-center/docs
+    $LatestDSU="https://downloads.dell.com/omimswac/dsu/Systems-Management_Application_GG4YM_WN64_2.0.2.2_A00.EXE"
+    $WebClient.DownloadFile($LatestDSU,"$DellToolsDownloadFolder\DSU.exe")
 
     #grab IC (inventory collection tool. Required for offline patching)
         if ($Offline){
-            #Find ICs
-            $URL="https://dl.dell.com/omimswac/ic/"
-            $htmlstring=$WebClient.DownloadString("$url")
-            $htmlobject = New-Object -Com "HTMLFile"
-            $htmlobject.IHTMLDocument2_write($htmlstring)
-            $Links=$htmlobject.links | Select-Object -Skip 1 
-
-            $ICs=@()
-            foreach ($Link in $Links){
-                $ICs+=[PSCustomObject]@{
-                    Link = "https://dl.dell.com/$($link.pathname)"
-                    Version = [Version](($link.pathname -split "_" | Select-Object -Last 5 | Select-Object -First 4) -join ".")
-                }
-            }
-
-            #download latest
-            $LatestIC=$ICs | Sort-Object Version | Select-Object -Last 1
-            $WebClient.DownloadFile($LatestIC.Link,"$DellToolsDownloadFolder\IC.exe")
+            #download latest IC (link is in latest OMIMSWAC manual)
+            $LatestIC="https://downloads.dell.com/omimswac/ic/invcol_T4M1J_WIN64_23_03_00_44_A00.exe"
+            $WebClient.DownloadFile($LatestIC,"$DellToolsDownloadFolder\IC.exe")
         }
 
     #grab Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
