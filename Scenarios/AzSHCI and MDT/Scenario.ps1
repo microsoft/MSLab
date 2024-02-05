@@ -1062,30 +1062,18 @@ Invoke-Command -ComputerName $MDTServer -ScriptBlock {Set-Content -Path $using:D
 #Download DSU
 #https://github.com/DellProSupportGse/Tools/blob/main/DART.ps1
 
-#grab DSU links from Dell website
-$URL="https://dl.dell.com/omimswac/dsu/"
-$Results=Invoke-WebRequest $URL -UseDefaultCredentials
-$Links=$results.Links.href | Select-Object -Skip 1
-#create PSObject from results
-$DSUs=@()
-foreach ($Link in $Links){
-    $DSUs+=[PSCustomObject]@{
-        Link = "https://dl.dell.com$Link"
-        Version = $link -split "_" | Select-Object -Last 2 | Select-Object -First 1
-    }
-}
-#download latest to separate folder
-$LatestDSU=$DSUs | Sort-Object Version | Select-Object -Last 1
+#download latest DSU to separate folder (link is in latest OMIMSWAC user guide https://www.dell.com/support/home/en-us/product-support/product/openmanage-integration-microsoft-windows-admin-center/docs)
+$LatestDSU="https://downloads.dell.com/omimswac/dsu/Systems-Management_Application_GG4YM_WN64_2.0.2.2_A00.EXE"
 $Folder="$env:USERPROFILE\Downloads\DSU"
 if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
-Start-BitsTransfer -Source $LatestDSU.Link -Destination $Folder\DSU.exe
+Start-BitsTransfer -Source $LatestDSU -Destination $Folder\DSU.exe
 
 #add DSU as application to MDT
 Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploymentToolkit.psd1"
 if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
     New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
 }
-$AppName="Dell DSU $($LatestDSU.Version)"
+$AppName="Dell DSU 2.0.2.2"
 Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSU" -Version $LatestDSU.Version -Publisher "Dell" -Language "" -CommandLine "DSU.exe /silent" -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
 #grap package ID for role config
 $DSUID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
