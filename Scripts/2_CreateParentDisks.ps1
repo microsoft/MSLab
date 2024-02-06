@@ -16,7 +16,7 @@ If (-not $isAdmin) {
 . $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
 
     #Create Unattend for VHD
-    Function CreateUnattendFileVHD{
+    Function CreateUnattendFileVHD {
         param (
             [parameter(Mandatory=$true)]
             [string]
