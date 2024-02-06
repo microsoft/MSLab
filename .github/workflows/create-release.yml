@@ -17,6 +17,9 @@ jobs:
     name: Bump version
     if: "!contains(github.event.head_commit.message, '[no release]')"
     runs-on: windows-2019
+    permissions:
+      # needed to create a release
+      contents: write 
     outputs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
       new_tag: ${{ steps.bump.outputs.new_tag }}
