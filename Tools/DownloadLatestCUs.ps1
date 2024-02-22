@@ -39,6 +39,7 @@ if ($version.Minor -eq 27){
 }
 
 $Products=@()
+$Products+=@{Product="Azure Stack HCI 23H2 GA"                      ;SearchString="Cumulative Update for Microsoft server operating system version 23H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 23H2 for x64-based Systems" ; ID="Microsoft Server operating system-23H2"} #they really removed the ',' in CUs
 $Products+=@{Product="Azure Stack HCI 22H2"                         ;SearchString="Cumulative Update for Microsoft server operating system, version 22H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 22H2 for x64-based Systems" ; ID="Microsoft Server operating system-22H2"}
 $Products+=@{Product="Azure Stack HCI 21H2 and Windows Server 2022" ;SearchString="Cumulative Update for Microsoft server operating system version 21H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 21H2 for x64-based Systems" ; ID="Microsoft Server operating system-21H2"}
 $Products+=@{Product="Azure Stack HCI 20H2"                         ;SearchString="Cumulative Update for Azure Stack HCI, version 20H2"                                        ;SSUSearchString="Servicing Stack Update for Azure Stack HCI, version 20H2 for x64-based Systems"                  ; ID="Azure Stack HCI"}
