@@ -39,16 +39,18 @@ if ($version.Minor -eq 27){
 }
 
 $Products=@()
-$Products+=@{Product="Azure Stack HCI 22H2"                         ;SearchString="Cumulative Update for Microsoft server operating system, version 22H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 22H2 for x64-based Systems" ; ID="Microsoft Server operating system-22H2"}
-$Products+=@{Product="Azure Stack HCI 21H2 and Windows Server 2022" ;SearchString="Cumulative Update for Microsoft server operating system version 21H2 for x64-based Systems" ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 21H2 for x64-based Systems" ; ID="Microsoft Server operating system-21H2"}
-$Products+=@{Product="Azure Stack HCI 20H2"                         ;SearchString="Cumulative Update for Azure Stack HCI, version 20H2"                                        ;SSUSearchString="Servicing Stack Update for Azure Stack HCI, version 20H2 for x64-based Systems"                  ; ID="Azure Stack HCI"}
-$Products+=@{Product="Windows Server 2019"                          ;SearchString="Cumulative Update for Windows Server 2019 for x64-based Systems"                            ;SSUSearchString="Servicing Stack Update for Windows Server 2019 for x64-based Systems"                            ; ID="Windows Server 2019"}
-$Products+=@{Product="Windows Server 2016"                          ;SearchString="Cumulative Update for Windows Server 2016 for x64-based Systems"                            ;SSUSearchString="Servicing Stack Update for Windows Server 2016 for x64-based Systems"                            ; ID="Windows Server 2016"}
-$Products+=@{Product="Windows 11 22H2"                              ;SearchString="Cumulative Update for Windows 11 Version 22H2 for x64-based Systems"                        ;SSUSearchString="Servicing Stack Update for Windows 11 Version 22H2 for x64-based Systems"                        ; ID="Windows 11"}
-$Products+=@{Product="Windows 10 21H2"                              ;SearchString="Cumulative Update for Windows 10 Version 21H2 for x64-based Systems"                        ;SSUSearchString="Servicing Stack Update for Windows 10 Version 21H2 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later, Windows 10 LTSB"}
-$Products+=@{Product="Windows 10 20H2"                              ;SearchString="Cumulative Update for Windows 10 Version 20H2 for x64-based Systems"                        ;SSUSearchString="Servicing Stack Update for Windows 10 Version 20H2 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}
-$Products+=@{Product="Windows 10 2004"                              ;SearchString="Cumulative Update for Windows 10 Version 2004 for x64-based Systems"                        ;SSUSearchString="Servicing Stack Update for Windows 10 Version 2004 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}
-$Products+=@{Product="Windows 10 1909"                              ;SearchString="Cumulative Update for Windows 10 Version 1909 for x64-based Systems"                        ;SSUSearchString="Servicing Stack Update for Windows 10 Version 1909 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}
+$Products+=@{Product="Azure Stack HCI 23H2"                         ;SearchString="Cumulative Update for Microsoft server operating system version 23H2 for x64-based Systems"  ;SSUSearchString=$null                                                                                             ; ID="Microsoft Server operating system-23H2"}                #MSFT really removed the ',' in CUs
+$Products+=@{Product="Azure Stack HCI 22H2"                         ;SearchString="Cumulative Update for Microsoft server operating system version 22H2 for x64-based Systems"  ;SSUSearchString=$null                                                                                             ; ID="Microsoft Server operating system-22H2"}               
+$Products+=@{Product="Azure Stack HCI 21H2 and Windows Server 2022" ;SearchString="Cumulative Update for Microsoft server operating system version 21H2 for x64-based Systems"  ;SSUSearchString="Servicing Stack Update for Microsoft server operating system version 21H2 for x64-based Systems" ; ID="Microsoft Server operating system-21H2"}
+$Products+=@{Product="Azure Stack HCI 20H2"                         ;SearchString="Cumulative Update for Azure Stack HCI, version 20H2"                                         ;SSUSearchString="Servicing Stack Update for Azure Stack HCI, version 20H2 for x64-based Systems"                  ; ID="Azure Stack HCI"}                                        #unsupported release SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows Server 2019"                          ;SearchString="Cumulative Update for Windows Server 2019 for x64-based Systems"                             ;SSUSearchString="Servicing Stack Update for Windows Server 2019 for x64-based Systems"                            ; ID="Windows Server 2019"}                                    #SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows Server 2016"                          ;SearchString="Cumulative Update for Windows Server 2016 for x64-based Systems"                             ;SSUSearchString="Servicing Stack Update for Windows Server 2016 for x64-based Systems"                            ; ID="Windows Server 2016"}                                    #SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows 11 23H2"                              ;SearchString="Cumulative Update for Windows 11 Version 23H2 for x64-based Systems"                         ;SSUSearchString=$null                                                                                             ; ID="Windows 11"}
+$Products+=@{Product="Windows 11 22H2"                              ;SearchString="Cumulative Update for Windows 11 Version 22H2 for x64-based Systems"                         ;SSUSearchString=$null                                                                                             ; ID="Windows 11"}
+$Products+=@{Product="Windows 10 21H2"                              ;SearchString="Cumulative Update for Windows 10 Version 21H2 for x64-based Systems"                         ;SSUSearchString="Servicing Stack Update for Windows 10 Version 21H2 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later, Windows 10 LTSB"}   #SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows 10 20H2"                              ;SearchString="Cumulative Update for Windows 10 Version 20H2 for x64-based Systems"                         ;SSUSearchString="Servicing Stack Update for Windows 10 Version 20H2 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}                    #SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows 10 2004"                              ;SearchString="Cumulative Update for Windows 10 Version 2004 for x64-based Systems"                         ;SSUSearchString="Servicing Stack Update for Windows 10 Version 2004 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}                    #SSU no longer required but remain for compat reasons
+$Products+=@{Product="Windows 10 1909"                              ;SearchString="Cumulative Update for Windows 10 Version 1909 for x64-based Systems"                         ;SSUSearchString="Servicing Stack Update for Windows 10 Version 1909 for x64-based Systems"                        ; ID="Windows 10,  version 1903 and later"}                    #SSU no longer required but remain for compat reasons
 
 #grab folder to download to
 $folder=Read-Host -Prompt "Please type path to download. For example `"c:\temp`" (if nothing specified, $PSScriptRoot is used)"
@@ -80,11 +82,16 @@ Foreach($SelectedProduct in $SelectedProducts){
     $update | Save-MSCatalogUpdate -Destination "$DestinationFolder" #-UseBits
 
     #Download SSU
-    $update=Get-MSCatalogUpdate -Search $item.SSUSearchString | Where-Object Products -eq $item.ID | Select-Object -First 1
-    if ($update){
-        Write-Output "Downloading $($update.title) to $destinationFolder"
-        $update | Save-MSCatalogUpdate -Destination $DestinationFolder #-UseBits
-    }
+    If (!($Null -eq $item.SSUSearchString)){
+        $update=Get-MSCatalogUpdate -Search $item.SSUSearchString | Where-Object Products -eq $item.ID | Select-Object -First 1
+        if ($update){
+            Write-Output "Downloading $($update.title) to $destinationFolder"
+            $update | Save-MSCatalogUpdate -Destination $DestinationFolder #-UseBits
+        }
+    }#end if check if SSUString is not $Null
+    else{
+        Write-Host "The selected release does not require seperate SSU." -ForegroundColor Green
+    }#end elseif check if SSUString is $Null
 }
 #endregion
 
