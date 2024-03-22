@@ -16,6 +16,9 @@ jobs:
     name: Create prerelease
     if: "!contains(github.event.head_commit.message, '[no release]')"
     runs-on: windows-2019
+    permissions:
+      # needed to create a release
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
