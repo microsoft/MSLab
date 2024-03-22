@@ -1,29 +1,24 @@
 #region Prepare Active Directory
     $AsHCIOUName="OU=ASClus01,DC=Corp,DC=contoso,DC=com"
-    $Servers="ASNode1","ASNode2"
-    $DomainFQDN=$env:USERDNSDOMAIN
-    $ClusterName="ASClus01"
-    $Prefix="ASClus01"
-    $UserName="ASClus01-DeployUser"
-    $Password="LS1setup!LS1setup!"
-    $SecuredPassword = ConvertTo-SecureString $password -AsPlainText -Force
-    $Credentials= New-Object System.Management.Automation.PSCredential ($UserName,$SecuredPassword)
+    #$Servers="ASNode1","ASNode2"
+    #$DomainFQDN=$env:USERDNSDOMAIN
+    #$ClusterName="ASClus01"
+    #$Prefix="ASClus01"
+    $LCMUserName="ASClus01-LCMUser"
+    $LCMPassword="LS1setup!LS1setup!"
+    $SecuredPassword = ConvertTo-SecureString $LCMPassword -AsPlainText -Force
+    $LCMCredentials= New-Object System.Management.Automation.PSCredential ($LCMUserName,$SecuredPassword)
 
     #install posh module for prestaging Active Directory
     Install-PackageProvider -Name NuGet -Force
     Install-Module AsHciADArtifactsPreCreationTool -Repository PSGallery -Force
 
-    #add KDS Root Key
-    if (-not (Get-KdsRootKey)){
-        Add-KdsRootKey -EffectiveTime ((Get-Date).addhours(-10))
-    }
-
     #make sure active directory module and GPMC is installed
     Install-WindowsFeature -Name RSAT-AD-PowerShell,GPMC
 
     #populate objects
-    New-HciAdObjectsPreCreation -Deploy -AzureStackLCMUserCredential  $Credentials -AsHciOUName $AsHCIOUName -AsHciPhysicalNodeList $Servers -DomainFQDN $DomainFQDN -AsHciClusterName $ClusterName -AsHciDeploymentPrefix $Prefix
-
+    New-HciAdObjectsPreCreation -AzureStackLCMUserCredential $LCMCredentials -AsHciOUName $AsHCIOUName
+ 
     #install management features to explore cluster,settings...
     Install-WindowsFeature -Name "RSAT-ADDS","RSAT-Clustering"
 #endregion
@@ -140,7 +135,7 @@
         "Microsoft.ExtendedLocation/register/action",
         "Microsoft.HybridContainerService/register/action",
         "Microsoft.ResourceConnector/appliances/write",
-        "Microsoft.ResourceConnector/appliances/delete,
+        "Microsoft.ResourceConnector/appliances/delete",
         "Microsoft.ResourceConnector/appliances/listClusterUserCredential/action",
         "Microsoft.ResourceConnector/appliances/read",
         "Microsoft.ExtendedLocation/customLocations/read",
@@ -284,6 +279,13 @@
             Install-Module -Name az.accounts  -Force
         } -Credential $Credentials
 
+        #make sure resource providers are registered
+        Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridCompute"
+        Register-AzResourceProvider -ProviderNamespace "Microsoft.GuestConfiguration"
+        Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridConnectivity"
+        Register-AzResourceProvider -ProviderNamespace "Microsoft.AzureStackHCI"
+        
+
         #deploy ARC Agent with device authentication
         $ARMtoken = (Get-AzAccessToken).Token
         $id = (Get-AzContext).Account.Id
@@ -390,7 +392,7 @@
             }
             Write-Host "." -NoNewline
         } until (
-            $status.provisioningstate -notcontains "Creatingg"
+            $status.provisioningstate -notcontains "Creating"
         )
 
         #Assign role to ARC Objects
@@ -432,6 +434,22 @@
 #endregion
 
 #region final touches
+    #make sure NTP server is configured
+    #note make sure integration service is disabled on host if running in VMs
+    #Get-VM *ASNode* | Disable-VMIntegrationService -Name "Time Synchronization"
+    
+        $NTPServer="DC.corp.contoso.com"
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            w32tm /config /manualpeerlist:$using:NTPServer /syncfromflags:manual /update
+            Restart-Service w32time
+        } -Credential $Credentials
+
+        Start-Sleep 20
+
+        #check if source is NTP Server
+        Invoke-Command -ComputerName $servers -ScriptBlock {
+            w32tm /query /source
+        } -Credential $Credentials
 
     #make sure there is only one management NIC with IP address (setup is complaining about multiple gateways)
     Invoke-Command -ComputerName $servers -ScriptBlock {
