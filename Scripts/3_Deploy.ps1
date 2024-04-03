@@ -753,28 +753,9 @@ If (-not $isAdmin) {
             $oeminformation=$null
         }
         #configure native VLAN and AllowedVLANs
-        WriteInfo "`t Configuring NativeVLAN and AllowedVLANs"
-        if ($ManagementSubnetIDs){
-            $number1=$(($HighestVLAN+1))
-            $number2=$($HighestVLAN+$($ManagementSubnetIDs.Count))
-            if ($number1 -eq $number2){
-                $number=$number1
-            }else{
-                $number="$number1-$number2"
-            }
-            $AllowedVLANs="$($LabConfig.AllowedVLANs),$number"
-        }else{
             $AllowedVLANs=$($LabConfig.AllowedVLANs)
-        }
-
-        if ($VMConfig.ManagementSubnetID -gt 0){
-            $NativeVlanId=($HighestVLAN+$VMConfig.ManagementSubnetID)
-            WriteInfo "`t`t Subnet ID is $($VMConfig.ManagementSubnetID) with NativeVLAN $NativeVLanID. AllowedVLANIDList is $($LabConfig.AllowedVLANs),$NativeVLANID"
-            $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId $NativeVlanId -AllowedVlanIdList "$AllowedVLANs"
-        }else{
             WriteInfo "`t`t Subnet ID is 0 with NativeVLAN 0. AllowedVlanIDList is $($LabConfig.AllowedVLANs)"
             $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$AllowedVLANs"
-        }
 
         #Create Unattend file
         if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
@@ -922,12 +903,6 @@ If (-not $isAdmin) {
 
     #Calculate highest VLAN (for additional subnets)
     [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select-Object -Last 1
-
-    #Grab defined Management Subnet IDs and ignore 0
-    $ManagementSubnetIDs=$labconfig.vms.ManagementSubnetID + $LabConfig.ManagementSubnetIDs | Select-Object -Unique | Sort-Object | Where-Object {$_ -ne 0}
-    if ($ManagementSubnetIDs){
-        WriteInfo "`t Requested ManagementSubnetIDs: $ManagementSubnetIDs"
-    }
 
 #endregion
 
@@ -1314,19 +1289,11 @@ If (-not $isAdmin) {
             $DC=get-vm -Name ($labconfig.prefix+"DC")
     }
 
-    #add addtional subnets if specified
-    if ($ManagementSubnetIDs){
-        WriteInfo "`t Adding adapters for additional subnets"
-        foreach ($number in $ManagementSubnetIDs){
-            if ($DC | Get-VMNetworkadapter -Name "Subnet$number" -ErrorAction Ignore){
-                WriteInfo "`t`t Adapters Subnet$number already present"
-            }else{
-                WriteInfo "`t`t Adding adapter Subnet$number and configuring Access VLANID $($HighestVLAN+$number)"
-                $DC | Add-VMNetworkAdapter -SwitchName $SwitchName -Name "Subnet$number" -DeviceNaming On
-                $DC | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Subnet$number" -Access -VlanId ($HighestVLAN+$number)
-            }
-        }
-    }
+    #add VLANs to DC
+            WriteInfo "`t Configuring VLANs on DC"
+            $AllowedVLANs=$($LabConfig.AllowedVLANs)
+            WriteInfo "`t`t Subnet ID is 0 with NativeVLAN 0. AllowedVlanIDList is $($LabConfig.AllowedVLANs)"
+            $DC | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$AllowedVLANs"
 
     #Start DC if it is not running
     if ($DC.State -ne "Running"){
@@ -1461,48 +1428,6 @@ If (-not $isAdmin) {
                 }
             }
         }
-
-    #configure NICs and routing if ManagementSubnetIDs are specified
-    if ($ManagementSubnetIDs){
-        WriteInfoHighlighted "`t Configuring subnets in DC"
-        #configure static IPs on SubnetX adapters
-        Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
-            Foreach ($number in $using:ManagementSubnetIDs){
-                $IP="10.0.$number.1"
-                $AdapterName="Subnet$Number"
-                $NetAdapterName=(Get-NetAdapterAdvancedProperty | Where-Object displayvalue -eq $AdapterName).Name
-                if (Get-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -ErrorAction Ignore){
-                    Write-Output "`t`t Subnet $AdapterName already configured"
-                }else{
-                    Write-Output "`t`t Configuring static IP address $IP on Adapter $NetAdapterName"
-                    New-NetIPAddress -InterfaceAlias $NetAdapterName -IPAddress $IP -PrefixLength 24
-                    #add dhcp scope
-                    Write-Output "`t`t Adding DHCP Scope ID 10.0.$number.0 and it's DHCP options"
-                    Add-DhcpServerv4Scope -StartRange "10.0.$number.10" -EndRange "10.0.$number.254" -Name "Scope$number" -State Active -SubnetMask 255.255.255.0
-                }
-            }
-            #make sure RRAS features are installed
-            Write-Output "`t`t  Making sure routing features are installed"
-            Install-WindowsFeature -Name Routing,RSAT-RemoteAccess -IncludeAllSubFeature -WarningAction Ignore
-            #enable routing
-            Write-Output "`t`t  Making sure routing is enabled"
-            $routingEnabled = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter).IPEnableRouter
-            if ($routingEnabled -match "0") {
-                New-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name IPEnableRouter -value 1 -Force
-            }
-            #restart routing... just to make sure
-            Write-Output "`t`t  Restarting service RemoteAccess"
-            Restart-Service RemoteAccess
-
-            #configure DHCP Options
-            Foreach ($number in $using:ManagementSubnetIDs){
-                Set-DhcpServerv4OptionValue -OptionId 6 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
-                Set-DhcpServerv4OptionValue -OptionId 3 -Value "10.0.$number.1" -ScopeId "10.0.$number.0"
-                Set-DhcpServerv4OptionValue -OptionId 15 -Value "$($using:Labconfig.DomainName)" -ScopeId "10.0.$number.0"
-            }
-        }
-    }
-
 
 #endregion
 
@@ -1804,7 +1729,7 @@ If (-not $isAdmin) {
         $telemetryEvent = Initialize-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
         $vmDeploymentEvents += $telemetryEvent
 
-        Send-TelemetryEvent -Events $vmDeploymentEvents | Out-Null
+        Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
     }
 
 #write how much it took to deploy

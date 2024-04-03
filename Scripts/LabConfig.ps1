@@ -42,7 +42,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         TelemetryNickname="";                        # (Optional) If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, MSLab users will be able to see their own stats
         AutoStartAfterDeploy=$false;                 # (Optional) If $false, no VM will be started; if $true or 'All' all lab VMs will be started after Deploy script; if 'DeployedOnly' only newly created VMs will be started.
         InternetVLAN="";                             # (Optional) If set, it will apply VLAN on Interent adapter connected to DC
-        ManagementSubnetIDs="";                      # (Optional) If set, it will add another dhcp-enable management networks.
         Linux=$false;                                # (Optional) If set to $true, required prerequisities for building Linux images with Packer will be configured.
         LinuxAdminName="linuxadmin";                 # (Optional) If set, local user account with that name will be created in Linux image. If not, DomainAdminName will be used as a local account.
         SshKeyPath="$($env:USERPROFILE)\.ssh\id_rsa" # (Optional) If set, specified SSH key will be used to build and access Linux images.
@@ -193,10 +192,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
         Example: TelemetryNickname="Jaromirk"
         If configured, telemetry will be sent with NickName to correlate data to specified NickName. So when leaderboards will be published, MSLab users will be able to see their own stats
 
-    ManagementSubnetIDs
-        Example: ManagementSubnetIDs=0..3
-        If configured, it will add another management subnet. For example if configured 0..3, it will add 3 more subnets 10.0.1.0/24 to 10.0.3.0/24 on VLANs that 11,12, and 13. (Because allowed VLANs are 1-10)
-
     Linux (optional)
         Example: Linux=$true
         If set to $true, additional prerequisities (SSH Client, SSH Key, Packer, Packer templates) required for building Linux images will be downloaded and configured.
@@ -341,10 +336,6 @@ $LabConfig=@{ DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'M
     CustomPowerShellCommands (Optional)
         Example (single command) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory"
         Example (multiple commands) CustomPowerShellCommands="New-Item -Name Temp -Path c:\ -ItemType Directory","New-Item -Name Temp1 -Path c:\ -ItemType Directory"
-
-    ManagementSubnetID (Optional)
-        This will set Management NICs to defined subnet id by configuring native VLAN ID. Default is 0. If configured to 1, it will increase highest allowed VLAN by one and configure.
-        For example ManagementSubnetID=1, AllowedVlans=10, then ManagementSubnetID VLAN will be configured 11.
 
     #DisableTimeIC (Optional)
         Example DisableTimeIC=$true
