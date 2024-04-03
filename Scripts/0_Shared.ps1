@@ -308,7 +308,7 @@ function Send-TelemetryEvent {
     }
 }
 
-function Send-TelemetryEvent {
+function Send-TelemetryEvents {
     param(
         [Parameter(Mandatory = $true)]
         [array]$Events
