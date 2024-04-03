@@ -1729,7 +1729,7 @@ If (-not $isAdmin) {
         $telemetryEvent = Initialize-TelemetryEvent -Event "Deploy.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
         $vmDeploymentEvents += $telemetryEvent
 
-        Send-TelemetryEvent -Events $vmDeploymentEvents | Out-Null
+        Send-TelemetryEvents -Events $vmDeploymentEvents | Out-Null
     }
 
 #write how much it took to deploy
