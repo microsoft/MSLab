@@ -1493,9 +1493,9 @@ If (-not $isAdmin) {
                 if(-not $VMConfig.configuration) {
                     $VMConfig.configuration = "Simple"
                 }
-                # Ensure that MemoryStartupBytes is set to use 512MB as default
+                # Ensure that MemoryStartupBytes is set to use 2048MB as default
                 if(-not $VMConfig.MemoryStartupBytes) {
-                    $VMConfig.MemoryStartupBytes = 512MB
+                    $VMConfig.MemoryStartupBytes = 2048MB
                 }
 
                 #create VM with Shared configuration
