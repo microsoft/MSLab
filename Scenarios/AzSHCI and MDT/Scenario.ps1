@@ -28,17 +28,21 @@ If ($WindowsInstallationType -like "Server*"){
 #download and install binaries
     #Download files
     $files=@()
-    #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2026036" ; FileName="adksetup.exe" ; Description="Windows 10 ADK 1809"}
-    #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2022233" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE 1809"}
     $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2196127" ; FileName="adksetup.exe" ; Description="Windows 11 22H2 ADK"}
     $Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2196224" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE for Windows 11 22H2"}
+    #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2243390" ; FileName="adksetup.exe" ; Description="Windows 11 23H2 ADK"}
+    #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=2243391" ; FileName="adkwinpesetup.exe" ; Description="WindowsPE for Windows 11 23H2"}
+    #$Files+=@{Uri="https://catalog.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/5df19636-5b93-4aaa-865d-48b8d349d828/public/windows11.0-kb5034130-x64_b3cf34a9418baf27d88e2760c940e49875be9849.msu" ; FileName="WindowsServer23H2_CU.msu" ; Description="Cumulative update for Windows Server 23H2 (January 2024)"}
     $Files+=@{Uri="https://download.microsoft.com/download/3/3/9/339BE62D-B4B8-4956-B58D-73C4685FC492/MicrosoftDeploymentToolkit_x64.msi" ; FileName="MicrosoftDeploymentToolkit_x64.msi" ; Description="Microsoft Deployment Toolkit"}
     #$Files+=@{Uri="https://software-download.microsoft.com/download/pr/AzureStackHCI_17784.1408_EN-US.iso" ; FileName="AzureStackHCI_17784.1408_EN-US.iso" ; Description="Azure Stack HCI ISO"}
     #$Files+=@{Uri="https://software-static.download.prss.microsoft.com/sg/download/888969d5-f34g-4e03-ac9d-1f9786c66749/AzureStackHCI_20348.587_en-us.iso" ; FileName="AzureStackHCI_20348.587_en-us.iso" ; Description="Azure Stack HCI ISO"}
-    $Files+=@{Uri="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66750/AzureStackHCI_20349.1607_en-us.iso" ; FileName="AzureStackHCI_20349.1607_en-us.iso" ; Description="Azure Stack HCI ISO"}
+    #$Files+=@{Uri="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66750/AzureStackHCI_20349.1607_en-us.iso" ; FileName="AzureStackHCI_20349.1607_en-us.iso" ; Description="Azure Stack HCI ISO"}
+    $Files+=@{Uri="https://software-static.download.prss.microsoft.com/dbazure/888969d5-f34g-4e03-ac9d-1f9786c66749/25398.469.231004-1141.zn_release_svc_refresh_SERVERAZURESTACKHCICOR_OEMRET_x64FRE_en-us.iso" ; FileName="25398.469.231004-1141.zn_release_svc_refresh_SERVERAZURESTACKHCICOR_OEMRET_x64FRE_en-us.iso" ; Description="Azure Stack HCI ISO"}
     #$Files+=@{Uri="https://go.microsoft.com/fwlink/?linkid=866658" ; FileName="SQL2019-SSEI-Expr.exe" ; Description="SQL Express 2019"}
     $Files+=@{Uri="https://download.microsoft.com/download/5/1/4/5145fe04-4d30-4b85-b0d1-39533663a2f1/SQL2022-SSEI-Expr.exe" ; FileName="SQL2022-SSEI-Expr.exe" ; Description="SQL Express 2022"}
     #$Files+=@{Uri="https://aka.ms/ssmsfullsetup" ; FileName="SSMS-Setup-ENU.exe" ; Description="SQL Management Studio"}
+    $Files+=@{Uri="https://downloadmirror.intel.com/812544/Wired_driver_28.3_x64.zip" ; FileName="Intel_Wired_Driver.zip" ; Description="Intel Network Adapter driver v28.3 (E810)"}
+
     foreach ($file in $files){
         if (-not (Test-Path "$downloadfolder\$($file.filename)")){
             Start-BitsTransfer -Source $file.uri -Destination "$downloadfolder\$($file.filename)" -DisplayName "Downloading: $($file.filename)"
@@ -178,24 +182,110 @@ if ($Connection -eq "NamedPipes"){
 }
 
 #Import Operating System
-$ISO = Mount-DiskImage -ImagePath "$downloadfolder\AzureStackHCI_20349.1607_en-us.iso" -PassThru
+$ISO = Mount-DiskImage -ImagePath "$downloadfolder\25398.469.231004-1141.zn_release_svc_refresh_SERVERAZURESTACKHCICOR_OEMRET_x64FRE_en-us.iso" -PassThru
 $ISOMediaPath = (Get-Volume -DiskImage $ISO).DriveLetter+':\'
 Import-mdtoperatingsystem -path "DS001:\Operating Systems" -SourcePath $ISOMediaPath -DestinationFolder "Azure Stack HCI SERVERAZURESTACKHCICORE x64" -Verbose
 
 $ISO | Dismount-DiskImage
 
+    #region patch WinPE 23H2
+    <# I was testing this for 23H2 WinPE
+        #https://github.com/DeploymentResearch/DRFiles/blob/master/Scripts/MDTVBScript/Update-ADK25398BootImageInstallFolderWithCU.ps1
+        #https://www.deploymentresearch.com/fixing-vbscript-support-in-windows-adk-sep-2023-update-build-25398/
+
+        # Set path to the Windows Update for Windows Server, version 23H2 (used for ADK WinPE version 25398)
+        $WinPECU = "$downloadfolder\windows1123H2_CU.msu"
+
+        # Set architecture and mount folder
+        $WinPEArchitecture = "amd64"
+        $WinPEMountFolder = "C:\Mount"
+
+        # Get ADK folders
+        $InstalledRoots = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows Kits\Installed Roots'
+        $KitsRoot10 = Get-ItemPropertyValue -Path $InstalledRoots -Name 'KitsRoot10'
+        $AdkRoot = Join-Path $KitsRoot10 'Assessment and Deployment Kit'
+        $WinPERoot = Join-Path $AdkRoot 'Windows Preinstallation Environment'
+        $WinPEOCsRoot = Join-Path $WinPERoot\$WinPEArchitecture 'WinPE_OCs'
+        $DeploymentToolsRoot = Join-Path $AdkRoot (Join-Path 'Deployment Tools' $WinPEArchitecture)
+        $WinPERoot = Join-Path $WinPERoot $WinPEArchitecture
+
+        # Set path to dism.exe
+        $DISMFile = Join-Path $DeploymentToolsRoot 'DISM\Dism.exe'
+
+        # Set path to CU to the boot image
+        $BootImage = "$WinPERoot\en-us\winpe.wim"
+
+        # Verify that files and folder exist
+        If (!(Test-Path $DISMFile)){ Write-Warning "DISM in Windows ADK not found, aborting..."; Break }
+        if (!(Test-Path -path $WinPECU)) {Write-Warning "Could not find the Windows Server, version 23H2 update. Aborting...";Break}
+        if (!(Test-Path -path $BootImage)) {Write-Warning "Could not find Boot image. Aborting...";Break}
+
+        # Create Mount folder if it does not exist
+        if (!(Test-Path -path $WinPEMountFolder)) {New-Item -path $WinPEMountFolder -ItemType Directory}
+
+        # Backup the Boot image
+        Copy-Item -Path $BootImage -Destination "$($BootImage).bak"
+
+        # Mount the Boot image
+        Mount-WindowsImage -ImagePath $BootImage -Index 1 -Path $WinPEMountFolder
+
+        # Add native WinPE optional component required by MDT (the ones you commented out in the LiteTouchPE.xml file)
+        # winpe-hta
+        # winpe-scripting
+        # winpe-wmi
+        # winpe-securestartup
+        # winpe-fmapi
+
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-HTA.cab
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\en-us\WinPE-HTA_en-us.cab
+
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-Scripting.cab
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\en-us\WinPE-Scripting_en-us.cab
+
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-WMI.cab 
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\en-us\WinPE-WMI_en-us.cab
+
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-SecureStartup.cab 
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\en-us\WinPE-SecureStartup_en-us.cab
+
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-FMAPI.cab # Does not have a language file
+
+        # Add MDAC optional component required if using the Database in MDT
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\WinPE-MDAC.cab 
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPEOCsRoot\en-us\WinPE-MDAC_en-us.cab
+
+        # Add the Windows Server, version 23H2 Update to the Boot image
+        & $DISMFile /Image:$WinPEMountFolder /Add-Package /PackagePath:$WinPECU
+
+        # Component cleanup 
+        & $DISMFile /Cleanup-Image /Image:$WinPEMountFolder /Startcomponentcleanup /Resetbase
+
+        # Dismount the Boot image
+        DisMount-WindowsImage -Path $WinPEMountFolder -Save
+    #>
+    #endregion
+
 #configure Deployment Share properties
 Set-ItemProperty DS001:\ -name SupportX86 -value False
 Set-ItemProperty DS001:\ -name Boot.x86.GenerateLiteTouchISO -value False
-Set-ItemProperty DS001:\ -name Boot.x64.SelectionProfile -value "Nothing"
+Set-ItemProperty DS001:\ -name Boot.x64.SelectionProfile -value "All Drivers"
 Set-ItemProperty DS001:\ -name Boot.x64.IncludeNetworkDrivers -value True
 Set-ItemProperty DS001:\ -name Boot.x64.IncludeMassStorageDrivers -value True
 Set-ItemProperty DS001:\ -name Boot.x64.IncludeAllDrivers -value False
 Set-ItemProperty DS001:\ -name Boot.x64.GenerateGenericWIM -value True
-#add PowerShell
+
+#import Intel drivers
+Expand-Archive -Path $downloadfolder\Intel_Wired_Driver.zip -DestinationPath $DownloadFolder\IntelNICDriver
+$DriverFile=Get-Childitem -Path $downloadfolder\IntelNICDriver | Where-Object Name -Like Wired_Driver*
+Rename-Item -Path $DriverFile.FullName -NewName "$($DriverFile.Basename).zip" -Verbose
+$DriverFile=Get-Childitem -Path $downloadfolder\IntelNICDriver | Where-Object Name -Like Wired_Driver*
+Expand-Archive -Path $DriverFile.FullName -DestinationPath $DownloadFolder\IntelNICDriver\Driver
+import-mdtdriver -path "DS001:\Out-of-Box Drivers" -SourcePath "C:\Users\LabAdmin\Downloads\IntelNICDriver\Driver" -Verbose
+
+#add PowerShell (winpe-scripting is removed as it's most likely needed in latestt 23H2 WinPE)
 $Properties=@()
 $Properties+=(Get-ItemPropertyValue DS001:\ -Name Boot.x64.FeaturePacks) -split (",")
-$FeaturesToAdd="winpe-netfx","winpe-powershell"
+$FeaturesToAdd="winpe-netfx","winpe-powershell"#,"winpe-scripting"
 foreach ($FeatureToAdd in $FeaturesToAdd){
     if ($properties -notcontains $FeatureToAdd){
         $Properties+=$FeatureToAdd
@@ -208,7 +298,7 @@ import-mdttasksequence -path "DS001:\Task Sequences" -Name "Azure Stack HCI Depl
 
 #endregion
 
-#region configure MDT run-as account
+#region configure MDT run-as account (to be able domain join. Not needed if you don't djoin machines)
 #create identity for MDT
 $DefaultOUPath=(Get-ADDomain).UsersContainer
 New-ADUser -Name MDTUser -AccountPassword  (ConvertTo-SecureString "LS1setup!" -AsPlainText -Force) -Enabled $True -Path $DefaultOUPath -PasswordNeverExpires $True
@@ -307,7 +397,6 @@ Invoke-Command -ComputerName $MDTServer -ScriptBlock {
     Wdsutil /Set-TransportServer /EnableTftpVariableWindowExtension:No
 }
 
-#In case you have 
 #endregion
 
 #region configure MDT Monitoring
@@ -642,6 +731,14 @@ Invoke-Command -ComputerName $MDTServer -scriptblock {
 }
 #endregion
 
+#region Final touch
+#Make sure netbios is disabled on WDS Server (Needs to be disabled for short domain names)
+$NICs = Get-NetAdapter -CimSession $MDTServer
+foreach ($NIC in $NICs){
+    Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $NIC.PSComputerName | Where-Object Description -eq $NIC.InterfaceDescription | Invoke-WmiMethod -Name settcpipNetBIOS -ArgumentList 2
+}
+#endregion
+
 #####################################
 #       Run from Hyper-V Host       #
 #                                   #
@@ -758,66 +855,101 @@ Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
     #Connect-MDTDatabase -database mdtdb -sqlServer $MDTServer -instance SQLExpress
     Connect-MDTDatabase -drivePath "DS001:\"
 
-
 #add hosts to MDT DB
+    #Configure MDT DB Roles
+        if (-not (Get-MDTRole -name azshci)){
+            New-MDTRole -name AZSHCI -settings @{
+                SkipComputerName    = 'YES'
+                SkipDomainMembership= 'YES'
+                SkipTaskSequence    = 'YES'
+                SkipWizard          = 'YES'
+                SkipSummary         = 'YES'
+                SkipApplications    = 'YES'
+                TaskSequenceID      = 'AZSHCI'
+                SkipFinalSummary    = 'YES'
+                FinishAction        = 'LOGOFF'
+            }
+        }
+
+        if (-not (Get-MDTRole -name JoinDomain)){
+            New-MDTRole -name JoinDomain -settings @{
+                JoinDomain          = $env:USERDNSDomain 
+                DomainAdmin         ='MDTUser'
+                DomainAdminDomain   = $env:userdomain
+                DomainAdminPassword ='LS1setup!'
+            }
+        }
+
+    foreach ($HVHost in $HVHosts){
+        #add to MDT DB
+        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
+            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
+                ComputerName        = $HVHost.ComputerName 
+                OSDComputerName     = $HVHost.ComputerName 
+                #SkipBDDWelcome      = 'Yes' 
+            }
+        }
+        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles AZSHCI #,JoinDomain
+    }
+
+
+#add machines to AD and allow machines to boot from PXE from from WDS by adding info into AD Object
+#since we dont want to domain join these machines, let's skip it
+<#
 foreach ($HVHost in $HVHosts){
     if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
         New-ADComputer -Name $hvhost.ComputerName
     }
-    #add to MDT DB
-    if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
-        New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
-            ComputerName        = $HVHost.ComputerName 
-            OSDComputerName     = $HVHost.ComputerName 
-            #SkipBDDWelcome      = 'Yes' 
-        }
-    }
-    Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
-}
-
-#Configure MDT DB Roles
-    if (-not (Get-MDTRole -name azshci)){
-        New-MDTRole -name AZSHCI -settings @{
-            SkipTaskSequence    = 'YES'
-            SkipWizard          = 'YES'
-            SkipSummary         = 'YES'
-            SkipApplications    = 'YES'
-            TaskSequenceID      = 'AZSHCI'
-            SkipFinalSummary    = 'YES'
-            FinishAction        = 'LOGOFF'
-        }
-    }
-
-    if (-not (Get-MDTRole -name JoinDomain)){
-        New-MDTRole -name JoinDomain -settings @{
-            SkipComputerName    ='YES'
-            SkipDomainMembership='YES'
-            JoinDomain          = $env:USERDNSDomain 
-            DomainAdmin         ='MDTUser'
-            DomainAdminDomain   = $env:userdomain
-            DomainAdminPassword ='LS1setup!'
-        }
-    }
-
-#allow machines to boot from PXE from DC by adding info into AD Object
-foreach ($HVHost in $HVHosts){
     [guid]$guid=$HVHost.GUID
     Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
     #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
 }
+#>
 
+#endregion
+
+#region configure WDS to answer all clients since info is not in AD (as we dont want objects in AD for 23H2)
+
+    # Temporarily enable CredSSP delegation to avoid double-hop issue
+    winrm quickconfig -force #on client is winrm not configured
+    Enable-WSManCredSSP -Role "Client" -DelegateComputer $MDTServer -Force
+    Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+    $SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+    $Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
+
+    #Configure WDS to answer all clients (since machines are not in AD as known clients)
+    Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
+        wdsutil.exe /Set-Server /AnswerClients:All
+        wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:Noprompt
+        #wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:abort
+    }
 #endregion
 
 ################################################
 # restart hyper-v machines to let them install #
 ################################################
 
+#region Configure WDS to answer just known clients again
+Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
+    wdsutil.exe /Set-Server /AnswerClients:Known
+    wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:abort
+}
+
+#Disable CredSSP
+Disable-WSManCredSSP -Role Client
+Invoke-Command -ComputerName $MDTServer -ScriptBlock {Disable-WSManCredSSP Server}
+
+#endregion
+
 #region remove pxe boot after install is done
+<#
 foreach ($HVHost in $HVHosts){
     [guid]$guid=$HVHost.GUID
     Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootGUID = $guid}
     Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootMachineFilePath = "DC"}
 }
+#>
 #endregion
 
 ############################################################################################################################################
@@ -900,7 +1032,7 @@ Start-Sleep 10
 #######################################################
 
 #region Create hash table out of machines that attempted boot last 5 minutes
-#in real world scenairos you can have hash table like this:
+#in real world scenarios you can have hash table like this:
 <#
 $HVHosts = @()
 $HVHosts+=@{ComputerName="AxNode1"  ;IPAddress="10.0.0.120" ; MACAddress="0C:42:A1:DD:57:DC" ; GUID="4C4C4544-004D-5410-8031-B4C04F373733"}
@@ -943,7 +1075,7 @@ $HVHosts=Invoke-Command -ComputerName $MDTServer -ScriptBlock {
 
 #endregion
 
-#region add deploy info to AD Object and MDT Database
+#region add deploy info to MDT Database
 #download and unzip mdtdb (blog available in web.archive only https://web.archive.org/web/20190421025144/https://blogs.technet.microsoft.com/mniehaus/2009/05/14/manipulating-the-microsoft-deployment-toolkit-database-using-powershell/)
 #Start-BitsTransfer -Source https://msdnshared.blob.core.windows.net/media/TNBlogsFS/prod.evol.blogs.technet.com/telligent.evolution.components.attachments/01/5209/00/00/03/24/15/04/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
 Start-BitsTransfer -Source https://github.com/microsoft/MSLab/raw/master/Scenarios/AzSHCI%20and%20MDT/MDTDB.zip -Destination $env:USERPROFILE\Downloads\MDTDB.zip
@@ -966,51 +1098,53 @@ Import-Module $env:USERPROFILE\Downloads\MDTDB\MDTDB.psm1
 
 
 #add hosts to MDT DB
+    #Configure MDT DB Roles
+        if (-not (Get-MDTRole -name azshci)){
+            New-MDTRole -name AZSHCI -settings @{
+                SkipComputerName    = 'YES'
+                SkipDomainMembership= 'YES'
+                SkipTaskSequence    = 'YES'
+                SkipWizard          = 'YES'
+                SkipSummary         = 'YES'
+                SkipApplications    = 'YES'
+                TaskSequenceID      = 'AZSHCI'
+                SkipFinalSummary    = 'YES'
+                FinishAction        = 'LOGOFF'
+            }
+        }
+
+        if (-not (Get-MDTRole -name JoinDomain)){
+            New-MDTRole -name JoinDomain -settings @{
+                JoinDomain          = $env:USERDNSDomain 
+                DomainAdmin         ='MDTUser'
+                DomainAdminDomain   = $env:userdomain
+                DomainAdminPassword ='LS1setup!'
+            }
+        }
+
+    foreach ($HVHost in $HVHosts){
+        #add to MDT DB
+        if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
+            New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
+                ComputerName        = $HVHost.ComputerName 
+                OSDComputerName     = $HVHost.ComputerName 
+                #SkipBDDWelcome      = 'Yes' 
+            }
+        }
+        Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles "AZSHCI" #,JoinDomain
+    }
+
+#allow machines to boot from PXE from DC by adding info into AD Object (skipping since in 23H2 we need to skip domajin join)
+<#
 foreach ($HVHost in $HVHosts){
     if (-not(Get-AdComputer  -Filter "Name -eq `"$($HVHost.ComputerName)`"")){
         New-ADComputer -Name $hvhost.ComputerName
     }
-    #add to MDT DB
-    if (-not (Get-MDTComputer -macAddress $HVHost.MACAddress)){
-        New-MDTComputer -macAddress $HVHost.MACAddress -description $HVHost.ComputerName -uuid $HVHost.GUID -settings @{ 
-            ComputerName        = $HVHost.ComputerName 
-            OSDComputerName     = $HVHost.ComputerName 
-            #SkipBDDWelcome      = 'Yes' 
-        }
-    }
-    Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
-}
-
-#Configure MDT DB Roles
-    if (-not (Get-MDTRole -name azshci)){
-        New-MDTRole -name AZSHCI -settings @{
-            SkipTaskSequence    = 'YES'
-            SkipWizard          = 'YES'
-            SkipSummary         = 'YES'
-            SkipApplications    = 'YES'
-            TaskSequenceID      = 'AZSHCI'
-            SkipFinalSummary    = 'YES'
-            FinishAction        = 'LOGOFF'
-        }
-    }
-
-    if (-not (Get-MDTRole -name JoinDomain)){
-        New-MDTRole -name JoinDomain -settings @{
-            SkipComputerName    ='YES'
-            SkipDomainMembership='YES'
-            JoinDomain          = $env:USERDNSDomain
-            DomainAdmin         ='MDTUser'
-            DomainAdminDomain   = $env:userdomain
-            DomainAdminPassword ='LS1setup!'
-        }
-    }
-
-#allow machines to boot from PXE from DC by adding info into AD Object
-foreach ($HVHost in $HVHosts){
     [guid]$guid=$HVHost.GUID
     Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootGUID = $guid}
     #Set-ADComputer -identity $hvhost.ComputerName -replace @{netbootMachineFilePath = "DC"}
 }
+#>
 
 #endregion
 
@@ -1020,7 +1154,7 @@ $PSScriptName="OSDDiskIndex.ps1"
 $PSScriptContent=@'
 $Disks=Get-CimInstance win32_DiskDrive
 if ($Disks.model -contains "DELLBOSS VD"){
-#exact model for Dell AX node (DELLBOSS VD)
+#exact model for Dell AX/MC node (DELLBOSS VD)
 $TSenv:OSDDiskIndex=($Disks | Where-Object Model -eq "DELLBOSS VD").Index
 }else{
 #or just smallest disk
@@ -1073,52 +1207,19 @@ Import-Module "C:\Program Files\Microsoft Deployment Toolkit\bin\MicrosoftDeploy
 if (-not(Get-PSDrive -Name ds001 -ErrorAction Ignore)){
     New-PSDrive -Name "DS001" -PSProvider "MDTProvider" -Root "\\$MDTServer\DeploymentShare$" -Description "MDT Deployment Share" -NetworkPath "\\$MDTServer\DeploymentShare$" -Verbose | add-MDTPersistentDrive -Verbose
 }
-$AppName="Dell DSU 2.0.2.2"
+$AppName="Dell DSU 2.0.2.3"
 Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSU" -Version $LatestDSU.Version -Publisher "Dell" -Language "" -CommandLine "DSU.exe /silent" -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
 #grap package ID for role config
 $DSUID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
 
-#download catalog and create answer file to run DSU
-#Dell Azure Stack HCI driver catalog https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz
-#Download catalog
-Start-BitsTransfer -Source "https://downloads.dell.com/catalog/ASHCI-Catalog.xml.gz" -Destination "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz"
-#unzip gzip to a folder https://scatteredcode.net/download-and-extract-gzip-tar-with-powershell/
-$Folder="$env:USERPROFILE\Downloads\DSUPackage"
+#add install script
+$Folder="$env:USERPROFILE\Downloads\DSUScript"
 if (-not (Test-Path $Folder)){New-Item -Path $Folder -ItemType Directory}
-Function Expand-GZipArchive{
-    Param(
-        $infile,
-        $outfile = ($infile -replace '\.gz$','')
-        )
-    $input = New-Object System.IO.FileStream $inFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read)
-    $output = New-Object System.IO.FileStream $outFile, ([IO.FileMode]::Create), ([IO.FileAccess]::Write), ([IO.FileShare]::None)
-    $gzipStream = New-Object System.IO.Compression.GzipStream $input, ([IO.Compression.CompressionMode]::Decompress)
-    $buffer = New-Object byte[](1024)
-    while($true){
-        $read = $gzipstream.Read($buffer, 0, 1024)
-        if ($read -le 0){break}
-        $output.Write($buffer, 0, $read)
-        }
-    $gzipStream.Close()
-    $output.Close()
-    $input.Close()
-}
-Expand-GZipArchive "$env:UserProfile\Downloads\ASHCI-Catalog.xml.gz" "$folder\ASHCI-Catalog.xml"
-#create answerfile for DU
-$content='@
-a
-c
-@'
-Set-Content -Path "$folder\answer.txt" -Value $content -NoNewline
-$content='"C:\Program Files\Dell\DELL EMC System Update\DSU.exe" --catalog-location=ASHCI-Catalog.xml --apply-upgrades <answer.txt'
-Set-Content -Path "$folder\install.cmd" -Value $content -NoNewline
 
 #add package to MDT
-[xml]$xml=Get-Content "$folder\ASHCI-Catalog.xml"
-$version=$xml.Manifest.version
-$AppName="Dell DSU AzSHCI Package $Version"
-$Commandline="install.cmd"
-Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DSUAzSHCIPackage" -Version $Version -Publisher "Dell" -Language "" -CommandLine $Commandline -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
+$AppName="Dell DSU Install Drivers"
+$Commandline="C:\Program Files\Dell\DELL System Update\DSU.exe --apply-upgrades --apply-downgrades --non-interactive"
+Import-MDTApplication -path "DS001:\Applications" -enable "True" -Name $AppName -ShortName "DellDSUDriversInstall" -Version "1.0" -Publisher "Dell" -Language "" -CommandLine $Commandline -WorkingDirectory ".\Applications\$AppName" -ApplicationSourcePath $Folder -DestinationFolder $AppName -Verbose
 #configure app to reboot after run
 Set-ItemProperty -Path DS001:\Applications\$AppName -Name Reboot -Value "True"
 #configure dependency on DSU
@@ -1126,10 +1227,10 @@ $guids=@()
 $guids+=$DSUID
 Set-ItemProperty -Path DS001:\Applications\$AppName -Name Dependency -Value $guids
 #grap package ID for role config
-$DSUPackageID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
+$DSUInstallDriversID=(Get-ChildItem -Path DS001:\Applications | Where-Object Name -eq $AppName).GUID
 
 #Create Role
-$RoleName="AXNodeDrivers"
+$RoleName="DellDrivers"
 if (-not (Get-MDTRole -name $RoleName)){
     New-MDTRole -name $RoleName -settings @{
         OSInstall    ='YES'
@@ -1137,12 +1238,12 @@ if (-not (Get-MDTRole -name $RoleName)){
 }
 #Add apps to role
 $ID=(get-mdtrole -name $RoleName).ID
-Set-MDTRoleApplication -id $ID -applications $DSUID,$DSUPackageID
+Set-MDTRoleApplication -id $ID -applications $DSUID,$DSUInstallDriversID
 
-#add role that will install drivers to AX computers
+#add role that will install drivers to AX/MC computers
     foreach ($HVHost in $HVHosts){
         $MDTComputer=Get-MDTComputer -macAddress $HVHost.MACAddress
-        $Roles=($MDTComputer | Get-MDTComputerRole).Role
+        [array]$Roles=($MDTComputer | Get-MDTComputerRole).Role
         $Roles+=$RoleName
         #Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
         $MDTComputer | Set-MDTComputerRole -roles $Roles
@@ -1171,6 +1272,21 @@ foreach ($item in $xml.manifest.softwarecomponent){
 #                                                     #
 #             Run from management machine             #
 #######################################################
+
+# Temporarily enable CredSSP delegation to avoid double-hop issue
+winrm quickconfig -force #on client is winrm not configured
+Enable-WSManCredSSP -Role "Client" -DelegateComputer $MDTServer -Force
+Invoke-Command -ComputerName $MDTServer -ScriptBlock { Enable-WSManCredSSP Server -Force }
+
+$SecureStringPassword = ConvertTo-SecureString $CredSSPPassword -AsPlainText -Force
+$Credentials = New-Object System.Management.Automation.PSCredential ($CredSSPUserName, $SecureStringPassword)
+
+#Configure WDS to answer all clients (since machines are not in AD as known clients)
+Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
+    wdsutil.exe /Set-Server /AnswerClients:All
+    wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:Noprompt
+    #wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:abort
+}
 
 #region Restart AX Nodes again to deploy OS
 #$Credentials=Get-Credential
@@ -1241,12 +1357,25 @@ Invoke-RestMethod -Body $JsonBody -Method Post -ContentType $ContentType -Header
 #             Run from management machine             #
 #######################################################
 
+#Configure WDS to answer just known clients again
+Invoke-Command -ComputerName $MDTServer -Credential $Credentials -Authentication Credssp -ScriptBlock {
+    wdsutil.exe /Set-Server /AnswerClients:Known
+    wdsutil.exe /Set-Server /PxePromptPolicy /known:Noprompt /new:abort
+}
+
+#Disable CredSSP
+Disable-WSManCredSSP -Role Client
+Invoke-Command -ComputerName $MDTServer -ScriptBlock {Disable-WSManCredSSP Server}
+
 #region remove pxe boot after install is done
+<#
 foreach ($HVHost in $HVHosts){
 [guid]$guid=$HVHost.GUID
 Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootGUID = $guid}
 Set-ADComputer -identity $hvhost.ComputerName -remove @{netbootMachineFilePath = "DC"}
 }
+#>
+
 #endregion
 
 ############################################################################################################################################
@@ -1626,7 +1755,7 @@ if (-not (Get-MDTRole -name $RoleName)){
 #add role that will install drivers to R440 computers
 foreach ($HVHost in $HVHosts){
 $MDTComputer=Get-MDTComputer -macAddress $HVHost.MACAddress
-$Roles=($MDTComputer | Get-MDTComputerRole).Role
+[array]$Roles=($MDTComputer | Get-MDTComputerRole).Role
 $Roles+=$RoleName
 #Get-MDTComputer -macAddress $HVHost.MACAddress | Set-MDTComputerRole -roles JoinDomain,AZSHCI
 $MDTComputer | Set-MDTComputerRole -roles $Roles
