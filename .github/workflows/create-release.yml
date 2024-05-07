@@ -99,7 +99,7 @@ jobs:
           
           Set-Content -Value $changeLogContent -Path .\changelog.md
       - name: Create new release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
           name: MSLab ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}

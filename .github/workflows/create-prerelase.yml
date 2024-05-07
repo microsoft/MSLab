@@ -36,7 +36,7 @@ jobs:
         with:
           tag: dev
       - name: Create new dev prerelease
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: dev
           name: dev branch preview
