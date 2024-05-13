@@ -24,7 +24,7 @@ jobs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
       new_tag: ${{ steps.bump.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: bump
         name: Bump version
         run: |
@@ -60,7 +60,7 @@ jobs:
       contents: write 
     needs: new-version
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Build and sign release scripts
