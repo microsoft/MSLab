@@ -1223,11 +1223,11 @@ If (-not $isAdmin) {
                     $vhdProperties['vhd.os.language'] = $OSLanguage
                 }
             }
-            $events += New-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName
+            $events += Initialize-TelemetryEvent -Event "CreateParentDisks.Vhd" -Metrics $vhdMetrics -Properties $vhdProperties -NickName $LabConfig.TelemetryNickName
         }
 
         # and one overall
-        $events += New-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
+        $events += Initialize-TelemetryEvent -Event "CreateParentDisks.End" -Metrics $metrics -Properties $properties -NickName $LabConfig.TelemetryNickName
 
         Send-TelemetryEvents -Events $events | Out-Null
     }
