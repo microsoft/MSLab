@@ -239,27 +239,59 @@ Write-host "Script started at $StartDateTime"
     }
 #endregion
 
-#region enable Hyper-V Replica https://technet.microsoft.com/en-us/library/jj134207(v=ws.11).aspx
+#region enable Hyper-V Replica https://techcommunity.microsoft.com/t5/virtualization/hyper-v-replica-powershell-series-creating-hyper-v-replica/ba-p/381905
 
     #enable firewall rules on servers
     Enable-NetFirewallRule -CimSession ($ServersSite1+$ServersSite2+$ServersSite3) -DisplayName "Hyper-V Replica*"
 
-    #add replica broker
+    #add replica broker role
     Add-ClusterServerRole   -Cluster $ClusterNameSite1 -Name $BrokerNameSite1
     Add-ClusterServerRole   -Cluster $ClusterNameSite2 -Name $BrokerNameSite2
     Add-ClusterServerRole   -Cluster $ClusterNameSite3 -Name $BrokerNameSite3
+
+    #Create temporary cluster Group
+    Invoke-Command -ComputerName $CLusterNameSIte1 -ScriptBlock {
+        ([wmiclass]"root\MSCluster:MSCluster_ResourceGroup").CreateGroup("$($using:BrokerNameSite1)Temp", 115) | Out-Null
+    }
+    Invoke-Command -ComputerName $CLusterNameSIte2 -ScriptBlock {
+        ([wmiclass]"root\MSCluster:MSCluster_ResourceGroup").CreateGroup("$($using:BrokerNameSite1)Temp", 115) | Out-Null
+    }
+    Invoke-Command -ComputerName $CLusterNameSIte3 -ScriptBlock {
+        ([wmiclass]"root\MSCluster:MSCluster_ResourceGroup").CreateGroup("$($using:BrokerNameSite1)Temp", 115) | Out-Null
+    }
     
-    Add-ClusterResource     -Cluster $ClusterNameSite1 -Name "Virtual Machine Replication Broker" -Type "Virtual Machine Replication Broker" -Group $BrokerNameSite1
+    #add resources to temp group
+    Add-ClusterResource     -Cluster $ClusterNameSite1 -Name "Virtual Machine Replication Broker" -Type "Virtual Machine Replication Broker" -Group "$($BrokerNameSite1)Temp"
     Add-ClusterResource     -Cluster $ClusterNameSite2 -Name "Virtual Machine Replication Broker" -Type "Virtual Machine Replication Broker" -Group $BrokerNameSite2
     Add-ClusterResource     -Cluster $ClusterNameSite3 -Name "Virtual Machine Replication Broker" -Type "Virtual Machine Replication Broker" -Group $BrokerNameSite3
 
+    #move resources to temp group
+    Move-ClusterResource  -Cluster $ClusterNameSite1 -name $BrokerNameSite1 -Group "$($BrokerNameSite1)Temp"
+    Move-ClusterResource  -Cluster $ClusterNameSite2 -name $BrokerNameSite2 -Group "$($BrokerNameSite2)Temp"
+    Move-ClusterResource  -Cluster $ClusterNameSite3 -name $BrokerNameSite3 -Group "$($BrokerNameSite3)Temp"
+
+    #remove original group
+    Remove-ClusterGroup -Cluster $ClusterNameSite1 -name $BrokerNameSite1 -RemoveResources -Force 
+    Remove-ClusterGroup -Cluster $ClusterNameSite2 -name $BrokerNameSite2 -RemoveResources -Force 
+    Remove-ClusterGroup -Cluster $ClusterNameSite3 -name $BrokerNameSite3 -RemoveResources -Force 
+
+    #add dependency
     Add-ClusterResourceDependency -Cluster $ClusterNameSite1 "Virtual Machine Replication Broker" $BrokerNameSite1
     Add-ClusterResourceDependency -Cluster $ClusterNameSite2 "Virtual Machine Replication Broker" $BrokerNameSite2
     Add-ClusterResourceDependency -Cluster $ClusterNameSite3 "Virtual Machine Replication Broker" $BrokerNameSite3
-    
+   
+    #rename temp to original group name
+    Get-ClusterGroup "$($BrokerNameSite1)Temp" -Cluster $ClusterNameSite1 | Foreach-Object {$_.Name = $BrokerNameSite1}
+    Get-ClusterGroup "$($BrokerNameSite2)Temp" -Cluster $ClusterNameSite2 | Foreach-Object {$_.Name = $BrokerNameSite2}
+    Get-ClusterGroup "$($BrokerNameSite3)Temp" -Cluster $ClusterNameSite3 | Foreach-Object {$_.Name = $BrokerNameSite3}
+
+    #start
     Start-ClusterGroup $BrokerNameSite1 -Cluster $ClusterNameSite1
     Start-ClusterGroup $BrokerNameSite2 -Cluster $ClusterNameSite2
     Start-ClusterGroup $BrokerNameSite3 -Cluster $ClusterNameSite3
+
+
+
 
     #configure replication
     Invoke-Command -ComputerName ($ServersSite1+$ServersSite2+$ServersSite3) -ScriptBlock {
