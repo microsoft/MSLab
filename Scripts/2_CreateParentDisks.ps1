@@ -525,7 +525,8 @@ if (-not $DCFilesExists){
 #region create DC if it does not exist
     if (-not $DCFilesExists) {
         if (-not $LabConfig.NoDehydrateDC){
-            $DC = Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VmPath $VmPath -SwitchName $HydrationSwitchname -TimeZone $TimeZone -DhcpScope $LabConfig.DHCPscope -AdminPassword $AdminPassword
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VmPath $VmPath -SwitchName $Switchname -TimeZone $TimeZone -DhcpScope $LabConfig.DHCPscope -AdminPassword $AdminPassword
+            $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
                 WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
             } else {

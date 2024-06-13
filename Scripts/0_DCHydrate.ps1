@@ -626,6 +626,5 @@ function Hydrate-DC {
         $DC | Get-VMNetworkAdapter | Disconnect-VMNetworkAdapter
 
         $dcHydrationEndTime = Get-Date
-        Return $DC
 }
 #endregion
