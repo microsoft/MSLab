@@ -174,8 +174,11 @@ If (-not $isAdmin) {
                     25398 {
                         "AzSHCI23H2_G2.vhdx"
                     }
+                    26100 {
+                        "AzSHCI24H2_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 25398){
+                if ($BuildNumber -GT 26100){
                     $tempvhdname="AzSHCIInsider_$BuildNumber.vhdx"
                 }
             }elseif (($Edition -like "*Server*Core*") -or ($Edition -like "Windows Server * Datacenter") -or ($Edition -like "Windows Server * Standard")){
@@ -216,8 +219,11 @@ If (-not $isAdmin) {
                     20348 {
                         "Win2022Core_G2.vhdx"
                     }
+                    26100 {
+                        "Win2025Core_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -gt 20348){
+                if ($BuildNumber -gt 26100){
                     $tempvhdname="WinSrvInsiderCore_$BuildNumber.vhdx"
                 }
             }elseif($Edition -like "Hyper-V*"){
@@ -258,8 +264,11 @@ If (-not $isAdmin) {
                     20348 {
                         "Win2022_G2.vhdx"
                     }
+                    26100 {
+                        "Win2025_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 20348){
+                if ($BuildNumber -GT 26100){
                     $tempvhdname="WinSrvInsider_$BuildNumber.vhdx"
                 }
             }else{
@@ -312,8 +321,11 @@ If (-not $isAdmin) {
                     22621 {
                         "Win1122H2_G2.vhdx"
                     }
+                    26100 {
+                        "Win1124H2_G2.vhdx"
+                    }
                 }
-                if ($BuildNumber -GT 22621){
+                if ($BuildNumber -GT 26100){
                     $tempvhdname="Win11Insider_$BuildNumber.vhdx"
                 }
             }
