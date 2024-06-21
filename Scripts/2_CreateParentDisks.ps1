@@ -321,17 +321,6 @@ If (-not $isAdmin) {
             VHDName="Win2022Core_G2.vhdx"
             Size=127GB
         }
-    }elseif ($BuildNumber -gt 20348 -and $SAC){
-        $ServerVHDs += @{
-            Kind = "Core"
-            Edition="2"
-            VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
-            Size=127GB
-        }
-        #DCEdition fix
-        if ($LabConfig.DCEdition -gt 2){
-            $LabConfig.DCEdition=2
-        }
     }elseif ($BuildNumber -eq 26100){
         #Windows Server 2025
         $ServerVHDs += @{
@@ -345,8 +334,19 @@ If (-not $isAdmin) {
             Edition="3"
             VHDName="Win2025Core_G2.vhdx"
             Size=127GB
+        }        
+    }elseif ($BuildNumber -gt 26100 -and $SAC){
+        $ServerVHDs += @{
+            Kind = "Core"
+            Edition="2"
+            VHDName="WinSrvInsiderCore_$BuildNumber.vhdx"
+            Size=127GB
         }
-    }elseif ($BuildNumber -gt 23100){
+        #DCEdition fix
+        if ($LabConfig.DCEdition -gt 2){
+            $LabConfig.DCEdition=2
+        }
+    }elseif ($BuildNumber -gt 26100){
         #Windows Sever Insider
         $ServerVHDs += @{
             Kind = "Full"
