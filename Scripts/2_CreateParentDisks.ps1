@@ -652,6 +652,9 @@ If (-not $isAdmin) {
             New-item -type directory -Path "$mountdir\Windows\Panther" -force
             Copy-Item -Path $unattendfile -Destination "$mountdir\Windows\Panther\unattend.xml" -force
             Copy-Item -Path "$PSScriptRoot\Temp\DSC\*" -Destination "$mountdir\Program Files\WindowsPowerShell\Modules\" -Recurse -force
+            WriteInfoHighlighted "`t Adding Hyper-V feature into DC"
+            #Install Hyper-V feature
+            Enable-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V -Path "$mountdir"
 
         #Create credentials for DSC
 
@@ -682,8 +685,8 @@ If (-not $isAdmin) {
                 Import-DSCResource -ModuleName NetworkingDSC -ModuleVersion "9.0.0"
                 Import-DSCResource -ModuleName xDHCPServer -ModuleVersion "3.1.1"
                 Import-DSCResource -ModuleName xPSDesiredStateConfiguration -ModuleVersion "9.1.0"
+                Import-DSCResource -ModuleName xHyper-V -ModuleVersion "3.18.0"
                 Import-DscResource -ModuleName PSDesiredStateConfiguration
-
 
                 Node $AllNodes.Where{$_.Role -eq "Parent DC"}.Nodename
 
@@ -722,13 +725,23 @@ If (-not $isAdmin) {
                         DependsOn = "[WindowsFeature]ADDSInstall"
                     } 
 
-                    WindowsFeature FeatureDNSTools
+                    WindowsFeature Hyper-V-PowerShell
                     {
                         Ensure = "Present"
-                        Name = "RSAT-DNS-Server"
-                        DependsOn = "[WindowsFeature]ADDSInstall"
-                    } 
-            
+                        Name = "Hyper-V-PowerShell"
+                    }
+
+                    xVMSwitch VMSwitch
+                    {
+                        Ensure = "Present"
+                        Name = "vSwitch"
+                        Type = "External"
+                        AllowManagementOS = $true
+                        NetAdapterName = "Ethernet"
+                        EnableEmbeddedTeaming = $true
+                        DependsOn = "[WindowsFeature]Hyper-V-PowerShell"
+                    }
+
                     ADDomain FirstDS 
                     { 
                         DomainName = $Node.DomainName
@@ -842,9 +855,11 @@ If (-not $isAdmin) {
                     IPaddress IP
                     {
                         IPAddress = ($DHCPscope+"1/24")
-                        AddressFamily = 'IPv4'
-                        InterfaceAlias = 'Ethernet'
+                        AddressFamily = "IPv4"
+                        InterfaceAlias = "vEthernet (vSwitch)"
+                        DependsOn = "[xVMSwitch]VMSwitch"
                     }
+
                     WindowsFeature DHCPServer
                     {
                         Ensure = "Present"
@@ -865,7 +880,6 @@ If (-not $isAdmin) {
                         Name = "RSAT-DHCP"
                         DependsOn = "[WindowsFeature]DHCPServer"
                     } 
-
 
                     xDhcpServerScope ManagementScope
                     {

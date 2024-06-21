@@ -195,7 +195,7 @@ function  Get-WindowsBuildNumber {
 #region Downloading required Posh Modules
 # Downloading modules into Temp folder if needed.
 
-    $modules=("ActiveDirectoryDsc","6.3.0"),("xDHCPServer","3.1.1"),("DnsServerDsc","3.0.0"),("NetworkingDSC","9.0.0"),("xPSDesiredStateConfiguration","9.1.0")
+    $modules=("ActiveDirectoryDsc","6.3.0"),("xDHCPServer","3.1.1"),("DnsServerDsc","3.0.0"),("NetworkingDSC","9.0.0"),("xPSDesiredStateConfiguration","9.1.0"),("xHyper-V","3.18.0")
     foreach ($module in $modules){
         WriteInfoHighlighted "Testing if modules are present"
         $modulename=$module[0]
