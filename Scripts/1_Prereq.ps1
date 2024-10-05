@@ -192,6 +192,18 @@ function  Get-WindowsBuildNumber {
 
 #endregion
 
+#region Installing PSDesiredStateConfiguration from the PowerShell gallery
+
+    # See https://learn.microsoft.com/en-us/powershell/dsc/overview?view=dsc-2.0 for details
+    # on the breaking change that requires this module to be installed.
+    WriteInfoHighlighted "Testing if PSDesiredStateConfiguration is present"
+    if (!(Get-Module -ListAvailable -Name PSDesiredStateConfiguration)) {
+        WriteInfo "`t Module PSDesiredStateConfiguration not found... Downloading"
+        Install-Module -Name PSDesiredStateConfiguration -Repository PSGallery -MaximumVersion 2.99
+    }
+
+#endregion
+
 #region Downloading required Posh Modules
 # Downloading modules into Temp folder if needed.
 
