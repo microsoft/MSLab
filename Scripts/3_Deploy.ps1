@@ -424,7 +424,11 @@ If (-not $isAdmin) {
         WriteInfo "`t Creating OS VHD"
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
 
-        $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath
+        if ($VMConfig.VMVersion){
+            $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath -Version $VMConfig.VMVersion
+        }else{
+            $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath
+        }
 
         #Set dynamic memory
         if ($VMConfig.StaticMemory -eq $false){
@@ -547,14 +551,22 @@ If (-not $isAdmin) {
         New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
 
         #Get VM Version
-        [System.Version]$VMVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
-        WriteInfo "`t VM Version is $($VMVersion.Build).$($VMVersion.Revision)"
+        [System.Version]$BuildVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
+        WriteInfo "`t VM Version is $($BuildVersion.Build).$($BuildVersion.Revision)"
 
         WriteInfo "`t Creating VM"
-        if ($VMConfig.Generation -eq 1){
-            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
+        if ($VMConfig.VMVersion){
+            if ($VMConfig.Generation -eq 1){
+                $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1 -Version $VMConfig.VMVersion
+            }else{
+                $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2 -Version $VMConfig.VMVersion
+            }
         }else{
-            $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+            if ($VMConfig.Generation -eq 1){
+                $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 1
+            }else{
+                $VMTemp=New-VM -Name $VMname -VHDPath $vhdpath -MemoryStartupBytes $VMConfig.MemoryStartupBytes -path "$LabFolder\VMs" -SwitchName $SwitchName -Generation 2
+            }
         }
         $VMTemp | Set-VMMemory -DynamicMemoryEnabled $true
         $VMTemp | Get-VMNetworkAdapter | Rename-VMNetworkAdapter -NewName Management1
@@ -742,7 +754,7 @@ If (-not $isAdmin) {
             WriteInfo "`t`t No sync commands requested"
         }
 
-        if ($VMVersion.Build -ge 17763){
+        if ($BuildVersion.Build -ge 17763){
             $oeminformation=@"
             <OEMInformation>
              <SupportProvider>MSLab</SupportProvider>
@@ -1162,12 +1174,30 @@ If (-not $isAdmin) {
 
         WriteInfo "`t Starting IP for AdditionalNetworks is $global:IP"
 
-    #Create Mount nd VMs directories
+    #Create Mount and VMs directories
         WriteInfoHighlighted "Creating Mountdir"
         New-Item $mountdir -ItemType Directory -Force
 
         WriteInfoHighlighted "Creating VMs dir"
         New-Item "$PSScriptRoot\LAB\VMs" -ItemType Directory -Force
+
+    #unmount&cleanup mounted images
+        WriteInfoHighlighted "Unmounting images from previous run"
+        $MountedImages=Get-WindowsImage -Mounted | Where-Object MountStatus -ne "Invalid"
+        if ($MountedImages){
+            WriteInfo "`t Mounted images found, Dismounting, discarting"
+            $MountedImages | Dismount-WindowsImage -Discard -ErrorAction Ignore
+        }else{
+            WriteInfo "`t No mounted images found"
+        }
+        #cleanup corrupted
+        $InvalidImages=Get-WindowsImage -Mounted | Where-Object MountStatus -eq "Invalid"
+        if ($InvalidImages){
+            WriteInfo "`t Invalid mountpoints found, clearing"
+            Clear-WindowsCorruptMountPoint
+        }else{
+            WriteInfo "`t No invalid mountpoints found"
+        }
 
     #get path for Tools disk
         WriteInfoHighlighted "Looking for Tools Parent Disks"
@@ -1493,9 +1523,9 @@ If (-not $isAdmin) {
                 if(-not $VMConfig.configuration) {
                     $VMConfig.configuration = "Simple"
                 }
-                # Ensure that MemoryStartupBytes is set to use 512MB as default
+                # Ensure that MemoryStartupBytes is set to use 1GB as default
                 if(-not $VMConfig.MemoryStartupBytes) {
-                    $VMConfig.MemoryStartupBytes = 512MB
+                    $VMConfig.MemoryStartupBytes = 1GB
                 }
 
                 #create VM with Shared configuration

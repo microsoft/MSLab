@@ -6,7 +6,7 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
 # Or Azure Stack HCI 23H2 (non-domain joined) https://github.com/DellGEOS/AzureStackHOLs/tree/main/lab-guides/01a-DeployAzureStackHCICluster-CloudBasedDeployment
 #1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 20GB; VMProcessorCount=16 ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
 # Or Windows Server 2025 https://github.com/DellGEOS/AzureStackHOLs/tree/main/lab-guides/03-TestingWindowsServerInsider
-#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="S2D$_" ; Configuration='S2D' ; ParentVHD='WinSrvInsiderCore_26063.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
+#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="S2D$_" ; Configuration='S2D' ; ParentVHD='Win2025Core_G2.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
 
 ### HELP ###
 
@@ -340,6 +340,11 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
     #DisableTimeIC (Optional)
         Example DisableTimeIC=$true
         if $true, time Hyper-V Time Synchronization Integration Service (VMICTimeProvider) will be disabled
+
+    #VMVersion (Optional)
+        Example VMVersion="10.0"
+        default versions - Windows Server 2022 = 10.0, Widnows Server 2025 = 12.0
+        https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/deploy/Upgrade-virtual-machine-version-in-Hyper-V-on-Windows-or-Windows-Server
     #>
 #endregion
 
