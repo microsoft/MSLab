@@ -22,7 +22,7 @@ $signedToolsOutputDir = Join-Path $outputBaseDir "Tools"
 $scriptsOutputFile = "Release.zip"
 
 # Files that would be skipped by Build function (no replacements)
-[array]$scriptsBuildIgnoredFiles = "0_Shared.ps1"
+[array]$scriptsBuildIgnoredFiles = @("0_Shared.ps1", "0_DCHydrate.ps1")
 [array]$toolsBuildIgnoredFiles = @()
 
 # Files that won't be signed after build function
