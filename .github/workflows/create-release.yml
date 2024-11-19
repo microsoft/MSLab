@@ -16,7 +16,7 @@ jobs:
     environment: release
     name: Bump version
     if: "!contains(github.event.head_commit.message, '[no release]')"
-    runs-on: windows-2019
+    runs-on: windows-latest
     permissions:
       # needed to create a release
       contents: write 
@@ -54,7 +54,7 @@ jobs:
   new-release:
     name: Create release
     if: "!contains(github.event.head_commit.message, '[no release]')"
-    runs-on: self-hosted
+    runs-on: windows-latest
     permissions:
       # needed to create a release
       contents: write 
@@ -69,7 +69,7 @@ jobs:
           SIGN_SCRIPT_URI: ${{ secrets.SIGN_SCRIPT_URI }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }} # just to obfusctate it in the output
         run: |
-          ./build.ps1 -Version ${{ needs.new-version.outputs.new_tag }} -SignScripts $true -SignScriptUri $env:SIGN_SCRIPT_URI -ClientId $env:CLIENT_ID
+          ./build.ps1 -Version ${{ needs.new-version.outputs.new_tag }} -SignScripts $false -SignScriptUri $env:SIGN_SCRIPT_URI -ClientId $env:CLIENT_ID
           Move-Item ./Release.zip mslab_${{ needs.new-version.outputs.new_tag }}.zip
       - name: Create changelog
         id: changelog
