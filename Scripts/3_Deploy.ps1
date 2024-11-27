@@ -14,6 +14,7 @@ If (-not $isAdmin) {
 
 #region Functions
 . $PSScriptRoot\0_Shared.ps1 # [!build-include-inline]
+. $PSScriptRoot\0_DCHydrate.ps1 # [!build-include-inline]
 
     Function CreateUnattendFileBlob{
         #Create Unattend (parameter is Blob)
@@ -892,6 +893,10 @@ If (-not $isAdmin) {
         $LabConfig.SwitchName = 'LabSwitch'
     }
 
+    If (!$LabConfig.DHCPscope){
+        $LabConfig.DHCPscope="10.0.0.0"
+    }
+
     WriteInfoHighlighted "List of variables used"
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
@@ -1226,26 +1231,45 @@ If (-not $isAdmin) {
     }
 
     if (!(get-vm -Name ($labconfig.prefix+"DC") -ErrorAction SilentlyContinue)){
-        #import DC
-            WriteInfo "`t Looking for DC to be imported"
-            $dcCandidates = [array](Get-ChildItem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')})
-            $dcCandidates | ForEach-Object -Process {
-                # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
-                $vm = Get-VM -Id $_.BaseName -ErrorAction SilentlyContinue
-                if($vm -and $dcCandidates.Length -eq 1) { # allow duplicating of the DC VM only if it is the only one VM in lab folder (as if more than one exists, probably just labprefix was changed after the deployment)
-                    WriteInfoHighlighted "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID (is this a copied lab folder?) -> this DC VM will be registered with new VM ID."
-                    $directory = $_.Directory.FullName.replace("\Virtual Machines", "")
-                    $DC = Import-VM -Path $_.FullName -GenerateNewId -Copy -VirtualMachinePath $directory -VhdDestinationPath "$directory\Virtual Hard Disks"
-                    WriteInfo "`t`t Virtual Machine $($DC.Name) registered with a new VM ID $($DC.Id)"
-                } else {
-                    $DC = Import-VM -Path $_.FullName
-                }
-            }
+        if ($LabConfig.NoDehydrateDC) {
+            $DCName = "DC"
+            $vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
+            $VMPath="$PSScriptRoot\LAB\"
+            $HydrationSwitchname="DC_HydrationSwitch_$([guid]::NewGuid())"
+
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -AdminPassword $LabConfig.AdminPassword
+            $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
-                    WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
-            }else{
-                WriteInfo "`t`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
+                WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
+            } else {
+                WriteInfo "`t`t Virtual Machine $($DC.name) located in folder $($DC.Path) hydrated"
             }
+
+            # Clean up hydration switch
+            WriteInfo "`t Removing switch $HydrationSwitchname"
+            Remove-VMSwitch -Name $HydrationSwitchname -Force -ErrorAction SilentlyContinue
+        } else {
+            #import DC
+                WriteInfo "`t Looking for DC to be imported"
+                $dcCandidates = [array](Get-ChildItem $LABFolder -Recurse | Where-Object {($_.extension -eq '.vmcx' -and $_.directory -like '*Virtual Machines*') -or ($_.extension -eq '.xml' -and $_.directory -like '*Virtual Machines*')})
+                $dcCandidates | ForEach-Object -Process {
+                    # If the VM ID is already used create a copy of the DC VM configuration instead of in-place registration
+                    $vm = Get-VM -Id $_.BaseName -ErrorAction SilentlyContinue
+                    if($vm -and $dcCandidates.Length -eq 1) { # allow duplicating of the DC VM only if it is the only one VM in lab folder (as if more than one exists, probably just labprefix was changed after the deployment)
+                        WriteInfoHighlighted "You are trying to deploy a previously deployed lab from a different location as there is another DC VM with a same VM ID (is this a copied lab folder?) -> this DC VM will be registered with new VM ID."
+                        $directory = $_.Directory.FullName.replace("\Virtual Machines", "")
+                        $DC = Import-VM -Path $_.FullName -GenerateNewId -Copy -VirtualMachinePath $directory -VhdDestinationPath "$directory\Virtual Hard Disks"
+                        WriteInfo "`t`t Virtual Machine $($DC.Name) registered with a new VM ID $($DC.Id)"
+                    } else {
+                        $DC = Import-VM -Path $_.FullName
+                    }
+                }
+                if ($DC -eq $null){
+                        WriteErrorAndExit "DC was not imported successfully Press any key to continue ..."
+                }else{
+                    WriteInfo "`t`t Virtual Machine $($DC.name) located in folder $($DC.Path) imported"
+                }
+        }
 
         #create checkpoint to be able to return to consistent state when cleaned with cleanup.ps1
             $DC | Checkpoint-VM -SnapshotName Initial
