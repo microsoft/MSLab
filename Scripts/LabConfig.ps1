@@ -5,7 +5,7 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
 1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "$S2D$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2022Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
 # Or Azure Stack HCI 23H2 (non-domain joined) https://github.com/DellGEOS/AzureStackHOLs/tree/main/lab-guides/01a-DeployAzureStackHCICluster-CloudBasedDeployment
 #1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 24GB; VMProcessorCount=16 ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
-# Or Windows Server 2025 https://github.com/DellGEOS/AzureStackHOLs/tree/main/lab-guides/03-TestingWindowsServerInsider
+# Or Windows Server 2025 https://github.com/DellGEOS/AzureLocalHOLs/tree/main/lab-guides/03-TestingWindowsServer2025
 #1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="S2D$_" ; Configuration='S2D' ; ParentVHD='Win2025Core_G2.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
 
 ### HELP ###

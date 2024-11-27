@@ -274,10 +274,10 @@ If (-not $isAdmin) {
             }
             $ISOServer = Mount-DiskImage -ImagePath $ServerISOItem.FullName -PassThru
         }else{
-            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019, 2022 or Server Insider"
+            WriteInfoHighlighted "Please select ISO image with Windows Server 2016, 2019, 2022, 2025 or Server Insider"
             [reflection.assembly]::loadwithpartialname("System.Windows.Forms")
             $openFile = New-Object System.Windows.Forms.OpenFileDialog -Property @{
-                Title="Please select ISO image with Windows Server 2016, 2019, 2022 or Server Insider"
+                Title="Please select ISO image with Windows Server 2016, 2019, 2022, 2025 or Server Insider"
             }
             $openFile.Filter = "iso files (*.iso)|*.iso|All files (*.*)|*.*"
             If($openFile.ShowDialog() -eq "OK"){
