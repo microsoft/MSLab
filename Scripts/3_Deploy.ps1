@@ -408,22 +408,34 @@ If (-not $isAdmin) {
         )
         WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
         WriteInfo "`t Looking for Parent Disk"
-        $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
-
-        if ($serverparent -eq $null) {
-            WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
+        if ($VMConfig.ParentVHD){
+            $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
+            if ($serverparent -eq $null) {
+                WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
+            }else{
+                WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+            }
         }else{
-            WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+             WriteInfo "`t`t Server parent disk not specified. VHD will be created"
         }
 
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
+
         if ($serverparent.Extension -eq ".vhdx"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
         }elseif($serverparent.Extension -eq ".vhd"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }else{
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
         }
-        WriteInfo "`t Creating OS VHD"
-        New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+
+        if ($serverparent){
+            WriteInfo "`t Creating OS VHD from parent disk $($VMConfig.ParentVHD)"
+            New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+        }else{
+            WriteInfo "`t Creating blank OS VHD"
+            New-VHD -Path $vhdpath -SizeBytes 127GB
+        }
 
         if ($VMConfig.VMVersion){
             $VMTemp = New-VM -Path "$LabFolder\VMs" -Name $VMname -Generation 2 -MemoryStartupBytes $VMConfig.MemoryStartupBytes -SwitchName $SwitchName  -VHDPath $vhdPath -Version $VMConfig.VMVersion
@@ -443,7 +455,14 @@ If (-not $isAdmin) {
         if ($VMTemp.AutomaticCheckpointsEnabled -eq $True){
             $VMTemp | Set-VM -AutomaticCheckpointsEnabled $False
         }
-        $VMTemp | Set-VMFirmware -EnableSecureBoot Off
+
+        if ($VMConfig.SecureBoot -eq "Linux"){
+            WriteInfo "`t Configuring Secure Boot to Linux"
+            $VMTemp | Set-VMFirmware -SecureBootTemplateId ([guid]'272e7447-90a4-4563-a4b9-8e4ab00526ce')
+        }else{
+            WriteInfo "`t Disabling Secure Boot"
+            $VMTemp | Set-VMFirmware -EnableSecureBoot Off
+        }
 
         # only Debian Buster supports Secure Boot
         #$vm | Set-VMFirmware -EnableSecureBoot On -SecureBootTemplateId "272e7447-90a4-4563-a4b9-8e4ab00526ce" # -SecureBootTemplate MicrosoftUEFICertificateAuthority
@@ -534,26 +553,37 @@ If (-not $isAdmin) {
         )
         WriteInfoHighlighted "Creating VM $($VMConfig.VMName)"
         WriteInfo "`t Looking for Parent Disk"
-        $serverparent=Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
-
-        if ($serverparent -eq $null){
-            WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
+        if ($VMConfig.ParentVHD){
+            $serverparent = Get-ChildItem "$PSScriptRoot\ParentDisks\" -Recurse | Where-Object Name -eq $VMConfig.ParentVHD
+            if ($serverparent -eq $null) {
+                WriteErrorAndExit "Server parent disk $($VMConfig.ParentVHD) not found."
+            }else{
+                WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+            }
         }else{
-            WriteInfo "`t`t Server parent disk $($serverparent.Name) found"
+             WriteInfo "`t`t Server parent disk not specified. VHD will be created"
         }
 
         $VMname=$Labconfig.Prefix+$VMConfig.VMName
+
         if ($serverparent.Extension -eq ".vhdx"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
         }elseif($serverparent.Extension -eq ".vhd"){
             $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhd"
+        }else{
+            $vhdpath="$LabFolder\VMs\$VMname\Virtual Hard Disks\$VMname.vhdx"
         }
-        WriteInfoHighlighted "`t Creating OS VHD"
-        New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
 
-        #Get VM Version
-        [System.Version]$BuildVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
-        WriteInfo "`t VM Version is $($BuildVersion.Build).$($BuildVersion.Revision)"
+        if ($serverparent){
+            WriteInfo "`t Creating OS VHD from parent disk $($VMConfig.ParentVHD)"
+            New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
+            #Get VM Version
+            [System.Version]$BuildVersion=(Get-WindowsImage -ImagePath $VHDPath -Index 1).Version
+            WriteInfo "`t VM Version is $($BuildVersion.Build).$($BuildVersion.Revision)"
+        }else{
+            WriteInfo "`t Creating blank OS VHD"
+            New-VHD -Path $vhdpath -SizeBytes 127GB
+        }
 
         WriteInfo "`t Creating VM"
         if ($VMConfig.VMVersion){
@@ -660,6 +690,15 @@ If (-not $isAdmin) {
                 Set-VMKeyProtector -VM $VMTemp -KeyProtector $keyprotector.RawData
                 Enable-VMTPM -VM $VMTemp
             }
+        }
+
+        #configure secure boot
+        if ($VMConfig.SecureBoot -eq "Linux"){
+            WriteInfo "`t Configuring Secure Boot to Linux"
+            $VMTemp | Set-VMFirmware -SecureBootTemplateId ([guid]'272e7447-90a4-4563-a4b9-8e4ab00526ce')
+        }elseif ($VMConfig.SecureBoot -eq "Disabled"){
+            WriteInfo "`t Disabling Secure Boot"
+            $VMTemp | Set-VMFirmware -EnableSecureBoot Off
         }
 
         #set MemoryMinimumBytes
@@ -770,50 +809,52 @@ If (-not $isAdmin) {
             WriteInfo "`t`t Subnet ID is 0 with NativeVLAN 0. AllowedVlanIDList is $($LabConfig.AllowedVLANs)"
             $VMTemp | Set-VMNetworkAdapterVlan -VMNetworkAdapterName "Management*" -Trunk -NativeVlanId 0 -AllowedVlanIdList "$AllowedVLANs"
 
-        #Create Unattend file
-        if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
-            WriteInfo "`t Skipping Djoin"
-            if ($VMConfig.AdditionalLocalAdmin){
-                WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
-                $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdditionalAdminName $VMConfig.AdditionalLocalAdmin -AdminPassword $LabConfig.AdminPassword
-                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
-            }else{
-                $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+        if ($serverparent){
+            #Create Unattend file if there was server parent disk. If not, blank was created and it does not make sense to create answer file
+            if ($VMConfig.Unattend -eq "NoDjoin" -or $VMConfig.SkipDjoin){
+                WriteInfo "`t Skipping Djoin"
+                if ($VMConfig.AdditionalLocalAdmin){
+                    WriteInfo "`t Additional Local Admin $($VMConfig.AdditionalLocalAdmin) will be added"
+                    $AdditionalLocalAccountXML=AdditionalLocalAccountXML -AdditionalAdminName $VMConfig.AdditionalLocalAdmin -AdminPassword $LabConfig.AdminPassword
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -AdditionalAccount $AdditionalLocalAccountXML -TimeZone $TimeZone
+                }else{
+                    $unattendfile=CreateUnattendFileNoDjoin -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+                }
+            }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
+                WriteInfoHighlighted "`t Creating Unattend with win2012-ish domain join"
+                $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+
+            }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
+                WriteInfoHighlighted "`t Creating Unattend with djoin blob"
+                $path="c:\$vmname.txt"
+                Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
+                $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
+                $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
+            }elseif($VMConfig.Unattend -eq "None"){
+                $unattendFile=$Null
             }
-        }elseif($VMConfig.Win2012Djoin -or $VMConfig.Unattend -eq "DjoinCred"){
-            WriteInfoHighlighted "`t Creating Unattend with win2012-ish domain join"
-            $unattendfile=CreateUnattendFileWin2012 -ComputerName $Name -AdminPassword $LabConfig.AdminPassword -DomainName $Labconfig.DomainName -RunSynchronous $RunSynchronous -TimeZone $TimeZone
 
-        }elseif($VMConfig.Unattend -eq "DjoinBlob" -or -not ($VMConfig.Unattend)){
-            WriteInfoHighlighted "`t Creating Unattend with djoin blob"
-            $path="c:\$vmname.txt"
-            Invoke-Command -VMGuid $DC.id -Credential $cred  -ScriptBlock {param($Name,$path,$Labconfig); djoin.exe /provision /domain $labconfig.DomainNetbiosName /machine $Name /savefile $path /machineou "OU=$($Labconfig.DefaultOUName),$($Labconfig.DN)"} -ArgumentList $Name,$path,$Labconfig
-            $blob=Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); get-content $path} -ArgumentList $path
-            Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {param($path); Remove-Item $path} -ArgumentList $path
-            $unattendfile=CreateUnattendFileBlob -Blob $blob.Substring(0,$blob.Length-1) -AdminPassword $LabConfig.AdminPassword -RunSynchronous $RunSynchronous -TimeZone $TimeZone
-        }elseif($VMConfig.Unattend -eq "None"){
-            $unattendFile=$Null
-        }
+            #adding unattend to VHD
+            if ($unattendFile){
+                WriteInfo "`t Adding unattend to VHD"
+                Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
+                Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile
+                #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
+                #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
+                New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
+                Copy-Item $unattendfile "$mountdir\Windows\Panther\unattend.xml"
+            }
 
-        #adding unattend to VHD
-        if ($unattendFile){
-            WriteInfo "`t Adding unattend to VHD"
-            Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
-            Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile
-            #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
-            #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
-            New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
-            Copy-Item $unattendfile "$mountdir\Windows\Panther\unattend.xml"
-        }
+            if ($VMConfig.DSCMode -eq 'Pull'){
+                WriteInfo "`t Adding metaconfig.mof to VHD"
+                Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$mountdir\Windows\system32\Configuration\metaconfig.mof"
+            }
 
-        if ($VMConfig.DSCMode -eq 'Pull'){
-            WriteInfo "`t Adding metaconfig.mof to VHD"
-            Copy-Item "$PSScriptRoot\temp\dscconfig\$name.meta.mof" -Destination "$mountdir\Windows\system32\Configuration\metaconfig.mof"
-        }
-
-        if ($unattendFile){
-            Dismount-WindowsImage -Path $mountdir -Save
-            #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$mountdir /Commit
+            if ($unattendFile){
+                Dismount-WindowsImage -Path $mountdir -Save
+                #&"$PSScriptRoot\Tools\dism\dism" /Unmount-Image /MountDir:$mountdir /Commit
+            }
         }
 
         #add toolsdisk
@@ -821,6 +862,15 @@ If (-not $isAdmin) {
             $VHD=New-VHD -ParentPath "$($toolsparent.fullname)" -Path "$LabFolder\VMs\$VMname\Virtual Hard Disks\tools.vhdx"
             WriteInfoHighlighted "`t Adding Virtual Hard Disk $($VHD.Path)"
             $VMTemp | Add-VMHardDiskDrive -Path $vhd.Path
+        }
+
+        #add ISO
+        if ($VMConfig.AttachISO){
+            if (-not ($VMTemp | Get-VMDvdDrive)){
+                WriteInfoHighlighted "`t Adding ISO $($VMConfig.AttachISO)"
+                $DVD=$VMTemp | Add-VMDvdDrive -Path "$PSScriptRoot\ParentDisks\$($VMConfig.AttachISO)" -Passthru
+                $VMTemp | Set-VMFirmware -FirstBootDevice $DVD
+            }
         }
 
         # return info
@@ -1668,9 +1718,8 @@ If (-not $isAdmin) {
                         'vm.configuration' = $VMConfig.Configuration
                         'vm.unattend' = $VMConfig.Unattend
                     }
-                    if((Test-Path -Path $createdVm.OSDiskPath) -and $VMConfig.configuration -ne "Linux") {
+                    if((Test-Path -Path $createdVm.OSDiskPath) -and ($VMConfig.configuration -ne "Linux") -and ($VMConfig.ParentVHD)) {
                         $osInfo = Get-WindowsImage -ImagePath $createdVm.OSDiskPath -Index 1
-
                         $properties.'vm.os.installationType' = $osInfo.InstallationType
                         $properties.'vm.os.editionId' = $osInfo.EditionId
                         $properties.'vm.os.version' = $osInfo.Version
