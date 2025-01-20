@@ -236,7 +236,7 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
     VMSet (Mandatory for Shared and Replica configuration)
         This is unique name for your set of VMs. You need to specify it for Spaces and Replica scenario, so script will connect shared disks to the same VMSet.
 
-    ParentVHD (Mandatory)
+    ParentVHD (Optional. If Null, new VHDx will be created)
         'Win2016Core_G2.vhdx'     - Windows Server 2016 Core
         'Win2016NanoHV_G2.vhdx'    - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM
         'Win2016NanoHV_G2.vhdx'   - Windows Server 2016 Nano with these packages: DSC, Failover Cluster, Guest, Storage, SCVMM, Compute, SCVMM Compute
@@ -346,6 +346,17 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
         Example VMVersion="10.0"
         default versions - Windows Server 2022 = 10.0, Widnows Server 2025 = 12.0
         https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/deploy/Upgrade-virtual-machine-version-in-Hyper-V-on-Windows-or-Windows-Server
+    
+    #AttachISO (optional)
+        Example AttachISO="WindowsServer2025.iso"
+        it will mount iso specified from Parent Disks
+
+    #SecureBoot (optional)
+        Example Secureboot="Linux"
+        enables/disables secure boot for VM
+        possible values: windows,linux,disabled
+        Default: windows for windows machines, disabled for linux VMs
+        
     #>
 #endregion
 
