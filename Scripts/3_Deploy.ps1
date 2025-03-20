@@ -947,6 +947,16 @@ If (-not $isAdmin) {
         $LabConfig.DHCPscope="10.0.0.0"
     }
 
+    if (!$LabConfig.DHCPscopeActive){
+        $DHCPScopeState = 'Active'
+    }
+    elseif ($LabConfig.DHCPscopeActive -eq $false){
+        $DHCPScopeState = 'Inactive'
+    }
+    else {
+        $DHCPScopeState = 'Active'
+    }
+
     WriteInfoHighlighted "List of variables used"
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
@@ -1287,7 +1297,7 @@ If (-not $isAdmin) {
             $VMPath="$PSScriptRoot\LAB\"
             $HydrationSwitchname="DC_HydrationSwitch_$([guid]::NewGuid())"
 
-            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -AdminPassword $LabConfig.AdminPassword
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -DHCPScopeState $DHCPScopeState -AdminPassword $LabConfig.AdminPassword
             $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
                 WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
