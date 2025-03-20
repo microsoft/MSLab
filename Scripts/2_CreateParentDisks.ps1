@@ -64,6 +64,15 @@ If (-not $isAdmin) {
             $LabConfig.DHCPscope="10.0.0.0"
         }
 
+        if (!$LabConfig.DHCPscopeActive){
+        $DHCPScopeState = 'Active'
+        }
+        elseif ($LabConfig.DHCPscopeActive -eq $false){
+        $DHCPScopeState = 'Inactive'
+        }
+        else {
+        $DHCPScopeState = 'Active'
+        }
 
     #create some built-in variables
         $DN=$null
@@ -525,7 +534,7 @@ if (-not $DCFilesExists){
 #region create DC if it does not exist
     if (-not $DCFilesExists) {
         if (-not $LabConfig.NoDehydrateDC){
-            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VmPath $VmPath -SwitchName $Switchname -TimeZone $TimeZone -DhcpScope $LabConfig.DHCPscope -AdminPassword $AdminPassword
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VmPath $VmPath -SwitchName $Switchname -TimeZone $TimeZone -DhcpScope $LabConfig.DHCPscope -DHCPScopeState $DHCPScopeState -AdminPassword $AdminPassword
             $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
                 WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
