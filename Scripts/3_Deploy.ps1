@@ -947,6 +947,16 @@ If (-not $isAdmin) {
         $LabConfig.DHCPscope="10.0.0.0"
     }
 
+    if (!$LabConfig.DHCPscopeActive){
+        $DHCPScopeState = 'Active'
+    }
+    elseif ($LabConfig.DHCPscopeActive -eq $false){
+        $DHCPScopeState = 'Inactive'
+    }
+    else {
+        $DHCPScopeState = 'Active'
+    }
+
     WriteInfoHighlighted "List of variables used"
     WriteInfo "`t Prefix used in lab is $($labconfig.prefix)"
 
@@ -1286,13 +1296,6 @@ If (-not $isAdmin) {
             $vhdpath="$PSScriptRoot\LAB\$DCName\Virtual Hard Disks\$DCName.vhdx"
             $VMPath="$PSScriptRoot\LAB\"
             $HydrationSwitchname="DC_HydrationSwitch_$([guid]::NewGuid())"
-
-            if ($LabConfig.DHCPscopeActive -eq $false){
-                $DHCPScopeState = 'Inctive'
-            }
-            else {
-                $DHCPScopeState = 'Active'
-            }
 
             Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -DHCPScopeState $DHCPScopeState -AdminPassword $LabConfig.AdminPassword
             $DC=Get-VM -Name $DCName
