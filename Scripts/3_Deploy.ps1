@@ -1287,7 +1287,14 @@ If (-not $isAdmin) {
             $VMPath="$PSScriptRoot\LAB\"
             $HydrationSwitchname="DC_HydrationSwitch_$([guid]::NewGuid())"
 
-            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -AdminPassword $LabConfig.AdminPassword
+            if ($LabConfig.DHCPscopeActive -eq $false){
+                $DHCPScopeState = 'Inctive'
+            }
+            else {
+                $DHCPScopeState = 'Active'
+            }
+
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -DHCPScopeState $DHCPScopeState -AdminPassword $LabConfig.AdminPassword
             $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
                 WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
