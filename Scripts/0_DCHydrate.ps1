@@ -396,7 +396,7 @@ function Hydrate-DC {
                     IPEndRange = ($DhcpScope+"254")
                     Name = 'ManagementScope'
                     SubnetMask = '255.255.255.0'
-                    LeaseDuration = '00:08:00'
+                    LeaseDuration = ((New-TimeSpan -Hours 8).ToString())
                     State = 'Active'
                     AddressFamily = 'IPv4'
                     DependsOn = "[Service]DHCPServer"
