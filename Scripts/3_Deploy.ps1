@@ -947,14 +947,8 @@ If (-not $isAdmin) {
         $LabConfig.DHCPscope="10.0.0.0"
     }
 
-    if (!$LabConfig.DHCPscopeActive){
-        $DHCPScopeState = 'Active'
-    }
-    elseif ($LabConfig.DHCPscopeActive -eq $false){
-        $DHCPScopeState = 'Inactive'
-    }
-    else {
-        $DHCPScopeState = 'Active'
+    if (!$LabConfig.DHCPscopeState){
+        $LabConfig.DHCPscopeState = 'Active'
     }
 
     WriteInfoHighlighted "List of variables used"
@@ -1297,7 +1291,7 @@ If (-not $isAdmin) {
             $VMPath="$PSScriptRoot\LAB\"
             $HydrationSwitchname="DC_HydrationSwitch_$([guid]::NewGuid())"
 
-            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -DHCPScopeState $DHCPScopeState -AdminPassword $LabConfig.AdminPassword
+            Hydrate-DC -DCName $DCName -VhdPath $vhdpath -VMPath $VMPath -Switchname $HydrationSwitchname -TimeZone $TimeZone -DHCPScope $LabConfig.DHCPscope -AdminPassword $LabConfig.AdminPassword
             $DC=Get-VM -Name $DCName
             if ($DC -eq $null){
                 WriteErrorAndExit "DC was not created successfully Press any key to continue ..."
@@ -1484,6 +1478,13 @@ If (-not $isAdmin) {
                     Get-DhcpServerInDC | Remove-DHCPServerInDC
                     Add-DhcpServerInDC -DnsName "DC.$($Labconfig.DomainName)" -IPAddress 10.0.0.1
                 }
+            #configure DHCP Management Scope if configured in LabConfig file
+            if ($LabConfig.DHCPscopeState -eq 'Inactive') {
+                WriteInfo "`t Deactivating DHCP Management Scope based on LabConfig entry"
+                Invoke-Command -VMGuid $DC.id -Credential $cred -ScriptBlock {
+                    Get-DhcpServerv4Scope | Set-DhcpServerv4Scope -State Inactive
+                }
+            }
         }
 
     #configure NAT on DC
