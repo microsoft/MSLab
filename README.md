@@ -2,7 +2,7 @@
 
 ## tl;dr
 
-To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository or follow [Dell GEOS hands-on-labs](https://www.geos.to/azslabs).
+To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository or follow [Dell GEOS hands-on-labs](https://github.com/DellGEOS/AzureLocalHOLs).
 
 
 💡 Shortcut to the latest version is https://aka.ms/mslab/download
@@ -29,8 +29,13 @@ To start using MSLab just download the latest version of the scripts from the [R
         - [Issue reproduction](#issue-reproduction)
         - [Sessions](#sessions)
     - [Run in PowerShell 7](#run-in-powershell-7)
+- [Set context menu option](#set-context-menu-option)
+- [Set context menu option](#set-context-menu-option)
     - [Execution Policy](#execution-policy)
-    - [Linux preview](#linux-preview)
+- [Get a Code signing certificate from store](#get-a-code-signing-certificate-from-store)
+- [Get a Code signing certificate from store](#get-a-code-signing-certificate-from-store)
+- [Add signature to a LabConfig file](#add-signature-to-a-labconfig-file)
+    - [Linux (preview)](#linux-preview)
 
 <!-- /TOC -->
 
@@ -66,7 +71,7 @@ This built ZIP file is more optimized, e. g. the file 0_Shared.ps1 is in-lined t
 
 ## Scenarios
 
-Over the time, we have developed multiple [scenarios](Scenarios/) simulating Azure Stack HCI and even deep dives into other technologies such as [Windows Admin Center](Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA), [Certification Authority](Scenarios/Certification%20Authority) or [Just Enough Administration](Scenarios/BitLocker%20with%20JEA). Scenarios can be reused for real environments. For example [S2D Hyperconverged](Scenarios/S2D%20Hyperconverged) can be used to deploy real Azure Stack HCI clusters.
+Over the time, we have developed multiple [scenarios](Scenarios/) simulating Azure Stack HCI and even deep dives into other technologies such as [Windows Admin Center](Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA), [Certification Authority](Scenarios/Certification%20Authority) or [Just Enough Administration](Scenarios/BitLocker%20with%20JEA). Scenarios can be reused for real environments. For example [S2D Hyperconverged](Scenarios/S2D%20Hyperconverged) can be used to deploy real Azure Stack HCI clusters. It has not been updated lately as all effort went to [Dell Azure Local HOLs](https://github.com/DellGEOS/AzureLocalHOLs)
 
 ## Use cases
 
