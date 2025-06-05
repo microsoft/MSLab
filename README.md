@@ -2,8 +2,7 @@
 
 ## tl;dr
 
-To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) section of this repository or follow [Dell GEOS hands-on-labs](https://github.com/DellGEOS/AzureLocalHOLs).
-
+To start using MSLab just download the latest version of the scripts from the [Releases](https://github.com/microsoft/MSLab/releases) or start with [Hands-on-Labs](HandsOnLabs/).
 
 💡 Shortcut to the latest version is https://aka.ms/mslab/download
 
@@ -11,31 +10,36 @@ To start using MSLab just download the latest version of the scripts from the [R
 <a href="https://aka.ms/mslab/download"><img src="https://img.shields.io/static/v1?label=&message=Download+MSLab&color=blue&style=for-the-badge" title="Download MSLab scripts" alt="Download MSLab"></a>
 </p>
 
+
+## NEW - Hands-on-Labs
+
+Originally I developed Hands-on Labs when I was working for Dell at https://github.com/DellGEOS/AzureStackHOLs. To continue with just virtual labs, MSLab HOLs are now being added.
+
+* [01 Creating First Lab](HandsOnLabs/01-CreatingFirstLab/)
+* [02 Deploying Azure Local](HandsOnLabs/02-DeployingAzureLocal/)
+
+
 ## Introduction
 
 <!-- TOC -->
 
 - [MSLab](#mslab)
     - [tl;dr](#tldr)
+    - [NEW - Hands-on-Labs](#new---hands-on-labs)
     - [Introduction](#introduction)
     - [Requirements](#requirements)
     - [Scripts](#scripts)
     - [Data Collection](#data-collection)
         - [How to get the Scripts](#how-to-get-the-scripts)
-    - [Scenarios](#scenarios)
+    - [Scenarios Archived](#scenarios-archived)
     - [Use cases](#use-cases)
         - [Prototyping](#prototyping)
         - [Hands on Labs](#hands-on-labs)
         - [Issue reproduction](#issue-reproduction)
         - [Sessions](#sessions)
     - [Run in PowerShell 7](#run-in-powershell-7)
-- [Set context menu option](#set-context-menu-option)
-- [Set context menu option](#set-context-menu-option)
     - [Execution Policy](#execution-policy)
-- [Get a Code signing certificate from store](#get-a-code-signing-certificate-from-store)
-- [Get a Code signing certificate from store](#get-a-code-signing-certificate-from-store)
-- [Add signature to a LabConfig file](#add-signature-to-a-labconfig-file)
-    - [Linux (preview)](#linux-preview)
+    - [Linux preview](#linux-preview)
 
 <!-- /TOC -->
 
@@ -69,9 +73,11 @@ In the past, this ZIP file was stored in the git repository, and recently we swi
 
 This built ZIP file is more optimized, e. g. the file 0_Shared.ps1 is in-lined to the rest of the scripts to keep the number of MSLab files as low as possible. Compared to the git repository where I tend to split those scripts to multiple independent files for a better supportability on our side.
 
-## Scenarios
+## Scenarios (Archived)
 
-Over the time, we have developed multiple [scenarios](Scenarios/) simulating Azure Stack HCI and even deep dives into other technologies such as [Windows Admin Center](Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA), [Certification Authority](Scenarios/Certification%20Authority) or [Just Enough Administration](Scenarios/BitLocker%20with%20JEA). Scenarios can be reused for real environments. For example [S2D Hyperconverged](Scenarios/S2D%20Hyperconverged) can be used to deploy real Azure Stack HCI clusters. It has not been updated lately as all effort went to [Dell Azure Local HOLs](https://github.com/DellGEOS/AzureLocalHOLs)
+Over the time, we have developed multiple [scenarios](Scenarios/) simulating Azure Stack HCI and even deep dives into other technologies such as [Windows Admin Center](Scenarios/Windows%20Admin%20Center%20and%20Enterprise%20CA), [Certification Authority](Scenarios/Certification%20Authority) or [Just Enough Administration](Scenarios/BitLocker%20with%20JEA). Scenarios can be reused for real environments. For example [S2D Hyperconverged](Scenarios/S2D%20Hyperconverged) can be used to deploy real Azure Stack HCI clusters. It has not been updated lately as all effort went to [Dell Azure Local HOLs](https://github.com/DellGEOS/AzureLocalHOLs).
+
+It has not been updated for quite some time, so consider it just a inspiration.
 
 ## Use cases
 
