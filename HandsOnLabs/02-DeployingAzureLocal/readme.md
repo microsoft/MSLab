@@ -1,5 +1,24 @@
 # Deploying Azure Local
 
+<!-- TOC -->
+
+- [Deploying Azure Local](#deploying-azure-local)
+    - [About the lab](#about-the-lab)
+    - [LabConfig](#labconfig)
+    - [NTP Prerequisite](#ntp-prerequisite)
+    - [The Lab](#the-lab)
+        - [Task 01 - Connect to servers](#task-01---connect-to-servers)
+            - [Step 01 Login to Management VM](#step-01-login-to-management-vm)
+            - [Step 02 Connect to Servers using PowerShell Remoting](#step-02-connect-to-servers-using-powershell-remoting)
+        - [Task 02 - Validate environment using Environment Checker tool](#task-02---validate-environment-using-environment-checker-tool)
+        - [Task 03 - Create AD Prerequisites](#task-03---create-ad-prerequisites)
+        - [Task 04 - Create Azure Resources](#task-04---create-azure-resources)
+        - [Task 05 - Register with Arc](#task-05---register-with-arc)
+        - [Task 07 - Validation prerequisites](#task-07---validation-prerequisites)
+        - [Task 06 - Deploy via Azure Portal](#task-06---deploy-via-azure-portal)
+
+<!-- /TOC -->
+
 ## About the lab
 
 In this lab you will deploy 2 node Azure Local into virtual environment using [cloud deployment](https://learn.microsoft.com/en-us/azure-stack/hci/whats-new#cloud-based-deployment).
