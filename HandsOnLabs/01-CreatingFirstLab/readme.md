@@ -4,25 +4,26 @@
 
 - [Creating first Lab](#creating-first-lab)
     - [Task 01: Prepare files](#task-01-prepare-files)
-            - [Step 01: Download MSLab files](#step-01-download-mslab-files)
-            - [Step 02: Unblock files and set execution policy](#step-02-unblock-files-and-set-execution-policy)
+        - [Step 01: Download MSLab files](#step-01-download-mslab-files)
+        - [Step 02: Unblock files and set execution policy](#step-02-unblock-files-and-set-execution-policy)
     - [Task 02: Download Required files](#task-02-download-required-files)
     - [Task 03: Build the lab Prerequisites](#task-03-build-the-lab-prerequisites)
-            - [Step 01: Run first MSLab script](#step-01-run-first-mslab-script)
-            - [Step 02: Create Parent Disks - second MSLab script](#step-02-create-parent-disks---second-mslab-script)
-            - [Step 03: Create Azure Local Parent Disk](#step-03-create-azure-local-parent-disk)
+        - [Step 01: Run first MSLab script](#step-01-run-first-mslab-script)
+        - [Step 02: Create Parent Disks - second MSLab script](#step-02-create-parent-disks---second-mslab-script)
+        - [Step 03: Create Azure Local Parent Disk](#step-03-create-azure-local-parent-disk)
     - [Task 03 - Deploy Azure Local Lab](#task-03---deploy-azure-local-lab)
-            - [Step 01: Modify LabConfig.ps1](#step-01-modify-labconfigps1)
-            - [Step 02: Deploy](#step-02-deploy)
-            - [Step 03: Cleanup Optional](#step-03-cleanup-optional)
+        - [Step 01: Modify LabConfig.ps1](#step-01-modify-labconfigps1)
+        - [Step 02: Deploy](#step-02-deploy)
+        - [Step 03: Cleanup Optional](#step-03-cleanup-optional)
     - [Tips & Tricks](#tips--tricks)
         - [Add "Default" virtual switch in Windows Server 2025](#add-default-virtual-switch-in-windows-server-2025)
 
 <!-- /TOC -->
 
+
 ## Task 01: Prepare files
 
-#### Step 01: Download MSLab files
+### Step 01: Download MSLab files
 
 Note: MSLab files are available at https://aka.ms/mslab/download
 
@@ -37,7 +38,7 @@ Expand-Archive -Path $env:UserProfile\Downloads\mslab.zip -DestinationPath c:\MS
 
 ```
 
-#### Step 02: Unblock files and set execution policy
+### Step 02: Unblock files and set execution policy
 
 Note: Since PowerShell scripts are no longer signed (you can push @vladimir machv@microsoft.com to request that internally again, and yes, it's a lot of "paperwork"), files needs to be ublocked and execution policy configured
 
@@ -80,7 +81,7 @@ and ISO files should be downloaded in downloads folder
 ![](./media/explorer02.png)
 
 
-#### Step 01: Run first MSLab script
+### Step 01: Run first MSLab script
 
 In your MSLab folder right-click at 1_Prereq.ps1 and run with PowerShell.
 
@@ -97,7 +98,7 @@ Expected output:
 ![](./media/explorer04.png)
 
 
-#### Step 02: Create Parent Disks - second MSLab script
+### Step 02: Create Parent Disks - second MSLab script
 
 In your MSLab folder right-click at 2_CreateParentDisks.ps1 and run with PowerShell.
 
@@ -117,7 +118,7 @@ Result:
 
 ![](./media/explorer06.png)
 
-#### Step 03: Create Azure Local Parent Disk
+### Step 03: Create Azure Local Parent Disk
 
 In your MSLab folder navigate to ParentDisks folder. In ParentDisks folder right-click at CreateParentDisk.ps1 and select run with PowerShell
 
@@ -137,7 +138,7 @@ Result:
 
 ## Task 03 - Deploy Azure Local Lab
 
-#### Step 01: Modify LabConfig.ps1
+### Step 01: Modify LabConfig.ps1
 
 In your MSLab folder open LabConfig.ps1 and replace it with following text
 
@@ -162,7 +163,7 @@ Result:
 
 ![](./media/notepad01.png)
 
-#### Step 02: Deploy
+### Step 02: Deploy
 
 In your MSLab folder right-click at Deploy.ps1 and run with PowerShell. In ~5 minutes you should have your lab
 
@@ -170,7 +171,7 @@ Result:
 
 ![](./media/hvmanager01.png)
 
-#### Step 03: Cleanup (Optional)
+### Step 03: Cleanup (Optional)
 
 In your MSLab folder right-click at Cleanup.ps1 and run with PowerShell. In ~10 seconds your lab is gone and ready to deploy again.
 
