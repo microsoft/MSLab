@@ -14,8 +14,9 @@
         - [Task 03 - Create AD Prerequisites](#task-03---create-ad-prerequisites)
         - [Task 04 - Create Azure Resources](#task-04---create-azure-resources)
         - [Task 05 - Register with Arc](#task-05---register-with-arc)
-        - [Task 07 - Validation prerequisites](#task-07---validation-prerequisites)
-        - [Task 06 - Deploy via Azure Portal](#task-06---deploy-via-azure-portal)
+        - [Task 06 - Validation prerequisites](#task-06---validation-prerequisites)
+        - [Task 07 - Deploy via Azure Portal](#task-07---deploy-via-azure-portal)
+    - [Result](#result)
 
 <!-- /TOC -->
 
@@ -292,7 +293,7 @@ Result:
 
 ![](./media/edge02.png)
 
-### Task 07 - Validation prerequisites
+### Task 06 - Validation prerequisites
 
 ```PowerShell
 #region to successfully validate you need make sure there's just one GW
@@ -332,7 +333,7 @@ Result:
 
 ```
 
-### Task 06 - Deploy via Azure Portal
+### Task 07 - Deploy via Azure Portal
 
 * https://learn.microsoft.com/en-us/azure/azure-local/deploy/deploy-via-portal
 
@@ -397,3 +398,12 @@ Tags:
     <keep default>
 ```
 
+## Result
+
+![](./media/edge04.png)
+
+![](./media/edge05.png)
+
+![](./media/hypervmanager02.png)
+
+![](./media/cluadmin01.png)
