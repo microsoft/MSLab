@@ -17,7 +17,7 @@ Originally I developed Hands-on Labs when I was working for Dell at https://gith
 
 * [01 Creating First Lab](HandsOnLabs/01-CreatingFirstLab/)
 * [02 Deploying Azure Local](HandsOnLabs/02-DeployingAzureLocal/)
-
+* [03 Rack Level Nested Mirror S2D Cluster (Insider Preview)](HandsOnLabs/03-RackLevelNestedMirror/)
 
 ## Introduction
 
