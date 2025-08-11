@@ -970,7 +970,7 @@ If (-not $isAdmin) {
     $TimeZone=(Get-TimeZone).id
 
     #Grab number of processors
-    Get-CimInstance -ClassName "win32_processor" | ForEach-Object { $global:NumberOfLogicalProcessors += $_.NumberOfLogicalProcessors }
+    Get-CimInstance -ClassName "win32_processor" | ForEach-Object { $global:NumberOfLogicalProcessors += $_.NumberOfEnabledCore }
 
     #Calculate highest VLAN (for additional subnets)
     [int]$HighestVLAN=$LabConfig.AllowedVLANs -split "," -split "-" | Select-Object -Last 1
