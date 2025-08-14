@@ -26,7 +26,7 @@ In this lab you will deploy 2 node Azure Local into virtual environment using [c
 
 To setup lab, follow [01-Creating First Lab](../../HandsOnLabs/01-CreatingFirstLab/readme.md)
 
-Lab consumes ~60GB RAM. You can modify number of VMs and get down to ~30GB
+Lab consumes ~50GB RAM. You can modify number of VMs and get down to ~40GB. Deployment works with just 16GB RAM per node
 
 ## LabConfig
 
@@ -35,7 +35,7 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
 
 #Azure Local 24H2
 #labconfig will not domain join VMs
-1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ALNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI24H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 1TB ; MemoryStartupBytes= 24GB; VMProcessorCount="MAX" ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
+1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ALNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI24H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 1TB ; MemoryStartupBytes= 20GB; VMProcessorCount="MAX" ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
 
 #VM for Windows Admin Center (optional)
 #$LabConfig.VMs += @{ VMName = 'WACGW' ; ParentVHD = 'Win2025Core_G2.vhdx'; MGMTNICs=1}
@@ -101,14 +101,14 @@ Invoke-Command -ComputerName $Servers -ScriptBlock {
 
 
 ```PowerShell
-<# this breaks registration - recipe validation failed
-
 #Install modules
+<# No longer needed
 Invoke-Command -ComputerName $Servers -Scriptblock {
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
     Install-Module PowerShellGet -AllowClobber -Force
     Install-Module -Name AzStackHci.EnvironmentChecker -Force
 } -Credential $Credentials
+#>
 
 #validate environment
 $result=Invoke-Command -ComputerName $Servers -Scriptblock {
@@ -116,7 +116,6 @@ $result=Invoke-Command -ComputerName $Servers -Scriptblock {
 } -Credential $Credentials
 $result | Out-GridView
 
-#>
 ```
 
 ![](./media/powershell02.png)
@@ -234,6 +233,7 @@ As you can see, code contains few fixes that will be addressed in future release
 
 ```PowerShell
 #Make sure resource providers are registered
+Register-AzResourceProvider -ProviderNamespace "Microsoft.AzureArcData"
 Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridCompute" 
 Register-AzResourceProvider -ProviderNamespace "Microsoft.GuestConfiguration" 
 Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridConnectivity" 
@@ -245,21 +245,24 @@ Register-AzResourceProvider -ProviderNamespace "Microsoft.ResourceConnector"
 Register-AzResourceProvider -ProviderNamespace "Microsoft.HybridContainerService"
 Register-AzResourceProvider -ProviderNamespace "Microsoft.Attestation"
 Register-AzResourceProvider -ProviderNamespace "Microsoft.Storage"
+Register-AzResourceProvider -ProviderNamespace "Microsoft.Insights"
 
 #deploy ARC Agent (with Arc Gateway, without proxy. For more examples visit https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-arc-register-server-permissions?tabs=powershell)
     $armtoken = (Get-AzAccessToken).Token
     $id = (Get-AzContext).Account.Id
     $Cloud="AzureCloud"
 
-    #check if token is plaintext (older module version outputs plaintext, version 5 outputs secure string) - will be fixed in 2506
+    #check if token is plaintext (older module version outputs plaintext, version 5 outputs secure string)
     # Check if the token is a SecureString
     if ($armtoken -is [System.Security.SecureString]) {
         # Convert SecureString to plaintext
         $armtoken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($armtoken))
+        Write-Output "Token converted to plaintext."
     }else {
         Write-Output "Token is already plaintext."
     }
 
+<# no longer needed
     #check if ImageCustomizationScheduledTask is not in disabled state (if it's "ready", run it) - will be fixed in 2506
     Invoke-Command -ComputerName $Servers -ScriptBlock {
         $task=Get-ScheduledTask -TaskName ImageCustomizationScheduledTask
@@ -279,7 +282,7 @@ Register-AzResourceProvider -ProviderNamespace "Microsoft.Storage"
             } while ($task.state -ne "Disabled")
         }
     } -Credential $Credentials
-
+#> 
     #register servers
     Invoke-Command -ComputerName $Servers -ScriptBlock {
         Invoke-AzStackHciArcInitialization -SubscriptionID $using:SubscriptionID -ResourceGroup $using:ResourceGroupName -TenantID $using:TenantID -Cloud $using:Cloud -Region $Using:Location -ArmAccessToken $using:ARMtoken -AccountID $using:id #-ArcGatewayID $using:ArcGatewayID
@@ -371,7 +374,7 @@ Networking
     DNS Server:                 10.0.0.1
 
 Management
-    Custom location name:       ALClus01CustomLocation (default)
+    Custom location name:       ALClus01
 
     Azure storage account name: <just generate new>
 
@@ -393,6 +396,8 @@ Security:
 
 Advanced:
     Create workload volumes (Default)
+
+    **Please understand that the workload volumes will use thin provisioning, but their default max size is about 2x larger than the pool capacity. This is by-design.**
 
 Tags:
     <keep default>

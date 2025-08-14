@@ -1,16 +1,17 @@
-﻿#basic config for Windows Server 2022, that creates VMs for S2D Hyperconverged scenario https://github.com/Microsoft/MSLab/tree/master/Scenarios/S2D%20Hyperconverged
+﻿#basic config for Windows Server 2025 S2D with 4 nodes
 
 $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPassword='LS1setup!'; Prefix = 'MSLab-' ; DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
-# Windows Server 2022
-1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "S2D$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2022Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
-# Or Azure Stack HCI 23H2 (non-domain joined) https://github.com/DellGEOS/AzureStackHOLs/tree/main/lab-guides/01a-DeployAzureStackHCICluster-CloudBasedDeployment
-#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ASNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI23H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 24GB; VMProcessorCount=16 ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
-# Or Windows Server 2025 https://github.com/DellGEOS/AzureLocalHOLs/tree/main/lab-guides/03-TestingWindowsServer2025
-#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="S2D$_" ; Configuration='S2D' ; ParentVHD='Win2025Core_G2.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
+# Windows Server 2025 https://github.com/DellGEOS/AzureLocalHOLs/tree/main/lab-guides/03-TestingWindowsServer2025
+1..4 | ForEach-Object {$LABConfig.VMs += @{ VMName = "S2D$_" ; Configuration = 'S2D' ; ParentVHD = 'Win2025Core_G2.vhdx'; SSDNumber = 0; SSDSize=800GB ; HDDNumber = 12; HDDSize= 4TB ; MemoryStartupBytes= 512MB }}
+# Or Azure Stack HCI 23H2 (non-domain joined) https://github.com/microsoft/MSLab/tree/master/HandsOnLabs/02-DeployingAzureLocal
+#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName = "ALNode$_" ; Configuration = 'S2D' ; ParentVHD = 'AzSHCI24H2_G2.vhdx' ; HDDNumber = 4 ; HDDSize= 1TB ; MemoryStartupBytes= 24GB; VMProcessorCount="MAX" ; vTPM=$true ; Unattend="NoDjoin" ; NestedVirt=$true }}
+# Or Windows Server Insider https://github.com/microsoft/MSLab/tree/master/HandsOnLabs/03-RackLevelNestedMirror
+#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="SiteA_$_" ; Configuration='S2D' ; ParentVHD='WinSrvInsiderCore_26445.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
+#1..2 | ForEach-Object {$LABConfig.VMs += @{ VMName="SiteB_$_" ; Configuration='S2D' ; ParentVHD='WinSrvInsiderCore_26445.vhdx' ; HDDNumber=4 ; HDDSize=2TB ; MemoryStartupBytes=1GB; VMProcessorCount=4 ; vTPM=$true}}
 
 ### HELP ###
 
-#If you need more help or different configuration options, ping us at jaromir.kaspar@dell.com or vlmach@microsoft.com
+#If you need more help or different configuration options, ping us at v-jkaspar@microsoft.com or vlmach@microsoft.com
 
 #region Same as above, but with more explanation
     <#
