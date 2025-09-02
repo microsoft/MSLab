@@ -110,7 +110,7 @@ Let's summarize what you can learn from above:
 
 ## Column/Extent/Slab deep dive
 
-### column, 2-way mirror, 2 nodes
+### 1 column, 2-way mirror, 2 nodes
 ![](./media/slab01.png)
 
 ```PowerShell
@@ -126,7 +126,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell03.png)
 
-### columns, 2-way mirror, 2 nodes
+### 2 columns, 2-way mirror, 2 nodes
 
 ![](./media/slab02.png)
 
@@ -143,7 +143,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell04.png)
 
-### columns, 2-way mirror, 2 nodes
+### 4 columns, 2-way mirror, 2 nodes
 
 ![](./media/slab03.png)
 
