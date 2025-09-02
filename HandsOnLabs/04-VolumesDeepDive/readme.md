@@ -159,6 +159,7 @@ Invoke-Command -ComputerName $ClusterName {
 }
 
 ```
+![](./media/powershell05.png)
 
 ## Are default volumes "correct"?
 
@@ -175,7 +176,6 @@ Well, this is great question.
 ![](./media/powershell06.png)
 
 ![](./media/slab05.png)
-
 
 ## Delete Default Volumes 
 
@@ -313,7 +313,7 @@ Number of columns is 3, therefore it will rebuild if one disk will fail
 
 ![](./media/slab06.png)
 
+Storage Paths in Portal
 
-
-
+![](./media/edge03.png)
 
