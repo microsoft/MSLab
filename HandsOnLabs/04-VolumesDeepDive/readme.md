@@ -1,3 +1,21 @@
+# Volumes Deep Dive
+
+<!-- TOC -->
+
+- [Volumes Deep Dive](#volumes-deep-dive)
+    - [About the lab](#about-the-lab)
+    - [Theory: Default Workload volumes Size](#theory-default-workload-volumes-size)
+    - [Theory: Column size, Extent and Slabs](#theory-column-size-extent-and-slabs)
+    - [Column/Extent/Slab deep dive](#columnextentslab-deep-dive)
+        - [column, 2-way mirror, 2 nodes](#column-2-way-mirror-2-nodes)
+        - [columns, 2-way mirror, 2 nodes](#columns-2-way-mirror-2-nodes)
+        - [columns, 2-way mirror, 2 nodes](#columns-2-way-mirror-2-nodes)
+    - [Are default volumes "correct"?](#are-default-volumes-correct)
+    - [Delete Default Volumes](#delete-default-volumes)
+    - [Create Custom Volumes with reserve](#create-custom-volumes-with-reserve)
+
+<!-- /TOC -->
+
 ## About the lab
 
 In this lab you will learn everything about Storage Spaces virtual disks (Volumes in Azure Local).
@@ -92,7 +110,7 @@ Let's summarize what you can learn from above:
 
 ## Column/Extent/Slab deep dive
 
-### 1 column, 2-way mirror, 2 nodes
+### column, 2-way mirror, 2 nodes
 ![](./media/slab01.png)
 
 ```PowerShell
@@ -108,7 +126,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell03.png)
 
-### 2 columns, 2-way mirror, 2 nodes
+### columns, 2-way mirror, 2 nodes
 
 ![](./media/slab02.png)
 
@@ -125,7 +143,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell04.png)
 
-### 4 columns, 2-way mirror, 2 nodes
+### columns, 2-way mirror, 2 nodes
 
 ![](./media/slab03.png)
 
@@ -194,86 +212,96 @@ Get-VirtualDisk -CimSession $ClusterName -FriendlyName *Column** | Remove-Virtua
 
 ```PowerShell
 $ClusterName="ALClus01"
-#calculate size
-    #calculate reserve
-    $pool=Get-StoragePool -CimSession $ClusterName | Where-Object OtherUsageDescription -eq "Reserved for S2D"
-    $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
-    $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
-    $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Sum).Sum
-    $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
+#region create volumes
+    #calculate size
+        #calculate reserve
+        $pool=Get-StoragePool -CimSession $ClusterName | Where-Object OtherUsageDescription -eq "Reserved for S2D"
+        $HDDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Sum).Sum
+        $HDDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq HDD | Measure-Object -Property Size -Maximum).Maximum
+        $SSDCapacity= ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Sum).Sum
+        $SSDMaxSize=  ($pool |Get-PhysicalDisk -CimSession $clustername | where mediatype -eq SSD | where usage -ne journal | Measure-Object -Property Size -Maximum).Maximum
 
-    $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
-    if ($numberofNodes -le 2){
-        if ($SSDCapacity){
-        $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-700GB #700GB just some reserve (25*2 = perfhistory + 252*2 Infrastructure volume)
-        $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
+        $numberofNodes=(Get-ClusterNode -Cluster $clustername).count
+        if ($numberofNodes -le 2){
+            if ($SSDCapacity){
+            $SSDCapacityToUse=$SSDCapacity-($numberofNodes*$SSDMaxSize)-700GB #700GB just some reserve (25*2 = perfhistory + 252*2 Infrastructure volume)
+            $sizeofvolumeonSSDs=$SSDCapacityToUse/2/$numberofNodes
+            }
+            if ($HDDCapacity){
+            $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-700GB #700GB just some reserve (25*2 = perfhistory + 252*2 Infrastructure volume)
+            $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
+            }
+        }else{
+            if ($SSDCapacity){
+            $SSDCapacityToUse=$SSDCapacity-(3*$SSDMaxSize)-1000GB #1000GB just some reserve (25*3 = perfhistory + 252*3 Infrastructure volume)
+            $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
+            }
+            if ($HDDCapacity){
+            $HDDCapacityToUse=$HDDCapacity-(3*$HDDMaxSize)-1000GB #1000GB just some reserve (25*3 = perfhistory + 252*3 Infrastructure volume)
+            $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
+            }
         }
-        if ($HDDCapacity){
-        $HDDCapacityToUse=$HDDCapacity-($numberofNodes*$HDDMaxSize)-700GB #700GB just some reserve (25*2 = perfhistory + 252*2 Infrastructure volume)
-        $sizeofvolumeonHDDs=$HDDCapacityToUse/2/$numberofNodes
-        }
-    }else{
-        if ($SSDCapacity){
-        $SSDCapacityToUse=$SSDCapacity-(3*$SSDMaxSize)-1000GB #1000GB just some reserve (25*3 = perfhistory + 252*3 Infrastructure volume)
-        $sizeofvolumeonSSDs=$SSDCapacityToUse/3/$numberofNodes
-        }
-        if ($HDDCapacity){
-        $HDDCapacityToUse=$HDDCapacity-(3*$HDDMaxSize)-1000GB #1000GB just some reserve (25*3 = perfhistory + 252*3 Infrastructure volume)
-        $sizeofvolumeonHDDs=$HDDCapacityToUse/3/$numberofNodes
-        }
-    }
 
-#calculate column size (just assuming that column size should not be larger than 6. but can be anything between 1-4 for sure)
-    $numberofNodes=(Get-ClusterNode -Cluster $ClusterName).count
-    $pool=Get-StoragePool -CimSession $ClusterName | Where-Object OtherUsageDescription -eq "Reserved for S2D"
-    $ColumnSizeHDD= (($pool |Get-PhysicalDisk -CimSession $ClusterName | where mediatype -eq HDD).count/$numberofnodes)-1
-    if ($ColumnSizeHDD -gt 6){$ColumnSizeHDD=6}
-    $ColumnSizeSSD= (($pool |Get-PhysicalDisk -CimSession $ClusterName | where mediatype -eq HDD).count/$numberofnodes)-1
-    if ($ColumnSizeSSD -gt 6){$ColumnSizeSSD=6}
-#create volumes
+    #calculate column size (just assuming that column size should not be larger than 6. but can be anything between 1-4 for sure)
+        $numberofNodes=(Get-ClusterNode -Cluster $ClusterName).count
+        $pool=Get-StoragePool -CimSession $ClusterName | Where-Object OtherUsageDescription -eq "Reserved for S2D"
+        $ColumnSizeHDD= (($pool |Get-PhysicalDisk -CimSession $ClusterName | where mediatype -eq HDD).count/$numberofnodes)-1
+        if ($ColumnSizeHDD -gt 6){$ColumnSizeHDD=6}
+        $ColumnSizeSSD= (($pool |Get-PhysicalDisk -CimSession $ClusterName | where mediatype -eq HDD).count/$numberofnodes)-1
+        if ($ColumnSizeSSD -gt 6){$ColumnSizeSSD=6}
     #create volumes
-    $Nodes=(Get-ClusterNode -Cluster $ClusterName).Name
+        #create volumes
+        $Nodes=(Get-ClusterNode -Cluster $ClusterName).Name
+        Foreach ($Node in $Nodes){
+            if ($sizeofvolumeonHDDs){
+                New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePool $pool -Size $sizeofvolumeonHDDs -FriendlyName "HDD_$Node" -MediaType HDD -NumberOfColumns $ColumnSizeHDD
+            }
+            if ($sizeofvolumeonSSDs){
+                New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePool $pool -Size $sizeofvolumeonSSDs -FriendlyName "SSD_$Node" -MediaType SSD -NumberOfColumns $ColumnSizeSSD 
+            }
+        }
+    #move volumes to owners
+    foreach ($node in $nodes){
+        Get-ClusterSharedVolume -Cluster $ClusterName -Name *$node* | Move-ClusterSharedVolume -Node $node
+    }
+#endregion
+#region create paths
+    <# Already done before
+    #install az cli
+        Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
+        Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
+        # add az to enviromental variables so no posh restart is needed
+        [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
+
+    #login
+        az login --use-device-code
+
+    # add Az extension https://learn.microsoft.com/en-us/cli/azure/stack-hci-vm?view=azure-cli-latest
+        az extension add --name stack-hci-vm
+    #>
+    
+    $AzureStackHCI= Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCI}
+    $ResourceGroupName=($AzureStackHCI).AzureResourceUri -split "/" | Select-Object -Index 4
+    $SubscriptionID=($AzureStackHCI).AzureResourceUri -split "/" | Select-Object -Index 2
+    $Region=($AzureStackHCI).Region
+    $CustomLocation="/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.ExtendedLocation/customLocations/$(($AzureStackHCI).AzureResourceName)"
+
+    #create paths
     Foreach ($Node in $Nodes){
         if ($sizeofvolumeonHDDs){
-            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePool $pool -Size $sizeofvolumeonHDDs -FriendlyName "HDD_$Node" -MediaType HDD -NumberOfColumns $ColumnSizeHDD
+            az stack-hci-vm storagepath create --resource-group $ResourceGroupName --custom-location $CustomLocation --location $region --path "c:\ClusterStorage\HDD_$Node" --name "HDD_$Node"
         }
         if ($sizeofvolumeonSSDs){
-            New-Volume -CimSession $ClusterName -FileSystem CSVFS_ReFS -StoragePool $pool -Size $sizeofvolumeonSSDs -FriendlyName "SSD_$Node" -MediaType SSD -NumberOfColumns $ColumnSizeSSD 
+            az stack-hci-vm storagepath create --resource-group $ResourceGroupName --custom-location $CustomLocation --location $region --path "c:\ClusterStorage\SSD_$Node" --name "SSD_$Node"
         }
     }
-#create paths
-<# Already done before
-#install az cli
-    Start-BitsTransfer -Source https://aka.ms/installazurecliwindows -Destination $env:userprofile\Downloads\AzureCLI.msi
-    Start-Process msiexec.exe -Wait -ArgumentList "/I  $env:userprofile\Downloads\AzureCLI.msi /quiet"
-    # add az to enviromental variables so no posh restart is needed
-    [System.Environment]::SetEnvironmentVariable('PATH',$Env:PATH+';C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin')
-
-#login
-    az login --use-device-code
-
-# add Az extension https://learn.microsoft.com/en-us/cli/azure/stack-hci-vm?view=azure-cli-latest
-    az extension add --name stack-hci-vm
-#>
-$AzureStackHCI= Invoke-Command -ComputerName $ClusterName -ScriptBlock {Get-AzureStackHCI}
-$ResourceGroupName=($AzureStackHCI).AzureResourceUri -split "/" | Select-Object -Index 4
-$SubscriptionID=($AzureStackHCI).AzureResourceUri -split "/" | Select-Object -Index 2
-$Region=($AzureStackHCI).Region
-$CustomLocation="/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroupName/providers/Microsoft.ExtendedLocation/customLocations/$(($AzureStackHCI).AzureResourceName)"
-
-#create paths
-Foreach ($Node in $Nodes){
-    if ($sizeofvolumeonHDDs){
-        az stack-hci-vm storagepath create --resource-group $ResourceGroupName --custom-location $CustomLocation --location $region --path "c:\ClusterStorage\HDD_$Node" --name "HDD_$Node"
-    }
-    if ($sizeofvolumeonSSDs){
-        az stack-hci-vm storagepath create --resource-group $ResourceGroupName --custom-location $CustomLocation --location $region --path "c:\ClusterStorage\SSD_$Node" --name "SSD_$Node"
-    }
-}
+#endregion
 
 #encrypt (BitLocker) TBD https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-bitlocker
 
 ```
+
+![](./media/powershell08.png)
 
 Pool has now recommended reserve
 
