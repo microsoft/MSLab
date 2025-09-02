@@ -7,9 +7,9 @@
     - [Theory: Default Workload volumes Size](#theory-default-workload-volumes-size)
     - [Theory: Column size, Extent and Slabs](#theory-column-size-extent-and-slabs)
     - [Column/Extent/Slab deep dive](#columnextentslab-deep-dive)
-        - [column, 2-way mirror, 2 nodes](#column-2-way-mirror-2-nodes)
-        - [columns, 2-way mirror, 2 nodes](#columns-2-way-mirror-2-nodes)
-        - [columns, 2-way mirror, 2 nodes](#columns-2-way-mirror-2-nodes)
+        - [one column, 2-way mirror, 2 nodes](#one-column-2-way-mirror-2-nodes)
+        - [two columns, 2-way mirror, 2 nodes](#two-columns-2-way-mirror-2-nodes)
+        - [four columns, 2-way mirror, 2 nodes](#four-columns-2-way-mirror-2-nodes)
     - [Are default volumes "correct"?](#are-default-volumes-correct)
     - [Delete Default Volumes](#delete-default-volumes)
     - [Create Custom Volumes with reserve](#create-custom-volumes-with-reserve)
@@ -110,7 +110,7 @@ Let's summarize what you can learn from above:
 
 ## Column/Extent/Slab deep dive
 
-### 1 column, 2-way mirror, 2 nodes
+### one column, 2-way mirror, 2 nodes
 ![](./media/slab01.png)
 
 ```PowerShell
@@ -126,7 +126,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell03.png)
 
-### 2 columns, 2-way mirror, 2 nodes
+### two columns, 2-way mirror, 2 nodes
 
 ![](./media/slab02.png)
 
@@ -143,7 +143,7 @@ Invoke-Command -ComputerName $ClusterName {
 
 ![](./media/powershell04.png)
 
-### 4 columns, 2-way mirror, 2 nodes
+### four columns, 2-way mirror, 2 nodes
 
 ![](./media/slab03.png)
 
