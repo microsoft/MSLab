@@ -40,15 +40,6 @@ If (-not $isAdmin) {
         $fileContent = @"
 <?xml version='1.0' encoding='utf-8'?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <settings pass="offlineServicing">
-    <component name="Microsoft-Windows-UnattendedJoin" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-        <OfflineIdentification>
-           <Provisioning>
-             <AccountData>$Blob</AccountData>
-           </Provisioning>
-         </OfflineIdentification>
-    </component>
-  </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <UserAccounts>
@@ -66,6 +57,18 @@ If (-not $isAdmin) {
     </component>
   </settings>
   <settings pass="specialize">
+    <!-- Offline Domain Join Blob -->
+    <component name="Microsoft-Windows-UnattendedJoin" 
+               processorArchitecture="amd64" 
+               publicKeyToken="31bf3856ad364e35" 
+               language="neutral" 
+               versionScope="nonSxS">
+      <Identification>
+        <Provisioning>
+          <AccountData>$Blob</AccountData>
+        </Provisioning>
+      </Identification>
+    </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       $oeminformation
       <RegisteredOwner>PFE</RegisteredOwner>
@@ -839,9 +842,6 @@ If (-not $isAdmin) {
             if ($unattendFile){
                 WriteInfo "`t Adding unattend to VHD"
                 Mount-WindowsImage -Path $mountdir -ImagePath $VHDPath -Index 1
-                if ($VMConfig.Unattend -eq "DjoinBlob"){
-                    Use-WindowsUnattend -Path $mountdir -UnattendPath $unattendFile
-                }   
                 #&"$PSScriptRoot\Tools\dism\dism" /mount-image /imagefile:$vhdpath /index:1 /MountDir:$mountdir
                 #&"$PSScriptRoot\Tools\dism\dism" /image:$mountdir /Apply-Unattend:$unattendfile
                 New-item -type directory "$mountdir\Windows\Panther" -ErrorAction Ignore
