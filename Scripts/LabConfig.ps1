@@ -358,6 +358,10 @@ $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPass
         enables/disables secure boot for VM
         possible values: windows,linux,disabled
         Default: windows for windows machines, disabled for linux VMs
+
+    #BlankVHDSize
+        Example BlankVHDSize="250GB"
+        If ParentVHD is not specified, then new blank VHD will be created with this size. Default is 250GB
         
     #>
 #endregion

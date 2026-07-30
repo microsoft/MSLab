@@ -437,7 +437,13 @@ If (-not $isAdmin) {
             New-VHD -ParentPath $serverparent.fullname -Path $vhdpath
         }else{
             WriteInfo "`t Creating blank OS VHD"
-            New-VHD -Path $vhdpath -SizeBytes 127GB
+            if ($VMConfig.BlankVHDSize){
+                WriteInfo "`t`t Blank OS VHD Size is $($VMConfig.BlankVHDSize)"
+                New-VHD -Path $vhdpath -SizeBytes $VMConfig.BlankVHDSize
+            }else{
+                WriteInfo "`t`t Blank OS VHD Size is default - 250GB"
+                New-VHD -Path $vhdpath -SizeBytes 250GB
+            }
         }
 
         if ($VMConfig.VMVersion){
@@ -585,7 +591,13 @@ If (-not $isAdmin) {
             WriteInfo "`t VM Version is $($BuildVersion.Build).$($BuildVersion.Revision)"
         }else{
             WriteInfo "`t Creating blank OS VHD"
-            New-VHD -Path $vhdpath -SizeBytes 127GB
+            if ($VMConfig.BlankVHDSize){
+                WriteInfo "`t`t Blank OS VHD Size is $($VMConfig.BlankVHDSize)"
+                New-VHD -Path $vhdpath -SizeBytes $VMConfig.BlankVHDSize
+            }else{
+                WriteInfo "`t`t Blank OS VHD Size is default - 250GB"
+                New-VHD -Path $vhdpath -SizeBytes 250GB
+            }
         }
 
         WriteInfo "`t Creating VM"
