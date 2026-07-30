@@ -141,3 +141,9 @@ Connect to SMPNode1/SMPNode2 and to Azure Portal (Arc Provisioning)[https://port
 ![](./media/edge07.png)
 
 ![](./media/edge08.png)
+
+![](./media/edge09.png)
+
+### Task03 - Create new cluster
+
+You can use steps from [02-Deploying Azure Local](../../HandsOnLabs/02-DeployingAzureLocal/readme.md)
