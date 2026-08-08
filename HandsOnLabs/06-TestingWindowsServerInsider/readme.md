@@ -2,10 +2,9 @@
 
 ## About the lab
 
-https://www.microsoft.com/en-us/software-download/windowsinsiderpreviewserver
+In following lab you will test latest Windows Server Insider Preview features announced at following blog: https://techcommunity.microsoft.com/discussions/windowsserverinsiders/announcing-windows-server-vnext-preview-build-29621/4536572
 
-Blogpost: https://techcommunity.microsoft.com/discussions/windowsserverinsiders/announcing-windows-server-vnext-preview-build-29621/4536572
-
+You will create 2 node S2D cluster and inside the cluster you will create single, empty VM to test Trusted Launch for VMs. You can then add real vhd and test thigs such as TPM and live migration across cluster nodes.
 
 ## Labconfig
 
@@ -230,7 +229,7 @@ Invoke-command -ComputerName $Servers -ScriptBlock {
     Invoke-Command -ComputerName $Servers -ScriptBlock {
         Stop-Service -Name "IGVmAgent"
     }
-    #restart VMV
+    #restart VM
     Stop-ClusterGroup -Name  "TVMTest01" -Cluster $ClusterName
     Start-ClusterGroup -Name "TVMTest01" -Cluster $ClusterName
 
