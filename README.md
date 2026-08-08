@@ -20,6 +20,7 @@ Originally I developed Hands-on Labs when I was working for Dell at https://gith
 * [03 Rack Level Nested Mirror S2D Cluster (Insider Preview)](HandsOnLabs/03-RackLevelNestedMirror/)
 * [04 Volumes Deep Dive](HandsOnLabs/04-VolumesDeepDive/)
 * [05 Simplified Machine Provisioning](HandsOnLabs/05-SimplifiedMachineProvisioning/)
+* [06 Testing Windows Server Insider Preview](HandsOnLabs/06-TestingWindowsServerInsider/)
 
 ## Introduction
 

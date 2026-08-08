@@ -1,8 +1,5 @@
 # Simplified Machine Provisioning (Preview)
 
-
-
-
 ## About the lab
 
 In this lab you will learn about [Simplified Machine Provisioning](https://techcommunity.microsoft.com/blog/azurearcblog/announcing-public-preview-simplified-machine-provisioning-for-azure-local/4496811)
@@ -26,7 +23,7 @@ Notice, that secureboot is disabled
 ```PowerShell
 $LabConfig=@{AllowedVLANs="1-10,711-719" ; DomainAdminName='LabAdmin'; AdminPassword='LS1setup!';  DCEdition='4'; Internet=$true ; AdditionalNetworksConfig=@(); VMs=@()}
 
-#labconfig for nested virtualization (eith enough RAM to create ARC RB).
+#labconfig for nested virtualization (enough RAM to create ARC RB).
 $LABConfig.VMs += @{ VMName = "SMPNode1" ; Configuration = 'S2D' ; AttachISO = 'provision-os.iso' ;SecureBoot="Disabled"; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 4GB; VMProcessorCount="Max" ; vTPM=$true ; NestedVirt=$true }
 $LABConfig.VMs += @{ VMName = "SMPNode2" ; Configuration = 'S2D' ; AttachISO = 'provision-os.iso' ;SecureBoot="Disabled"; HDDNumber = 4 ; HDDSize= 2TB ; MemoryStartupBytes= 4GB; VMProcessorCount="Max" ; vTPM=$true ; NestedVirt=$true }
 
