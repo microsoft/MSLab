@@ -46,21 +46,23 @@ Once you're logged in the management machine, simply paste following PowerShell 
 #endregion
 
 #region install keys and activate servers
-
-    $LicenseKey="2KNJJ-33Y9H-2GXGX-KMQWH-G6H67"
-
-    #install and activate on Management machine
-    cscript c:\windows\system32\slmgr.vbs /ipk $LicenseKey
-    cscript c:\windows\system32\slmgr.vbs /ato
-
-    #install and activate on cluster nodes
-    Invoke-Command -ComputerName $Servers -ScriptBlock {
-        cscript c:\windows\system32\slmgr.vbs /ipk $using:LicenseKey
-        cscript c:\windows\system32\slmgr.vbs /ato
+    $AllServers=@("Management")+$Servers
+    Invoke-Command -ComputerName $AllServers -ScriptBlock {
+        $key = '2KNJJ-33Y9H-2GXGX-KMQWH-G6H67'
+        #install product key
+        $sls = Get-CimInstance -ClassName 'SoftwareLicensingService'
+        $arg = @{ 'ProductKey' = $key }
+        Invoke-CimMethod -InputObject $sls -MethodName 'InstallProductKey' -Arguments $arg
+        #activate
+        $slp = Get-CimInstance -ClassName 'SoftwareLicensingProduct' -Filter 'PartialProductKey <> null and ApplicationId = ''55c92734-d682-4d71-983e-d6ec3f16059f'''
+        Invoke-CimMethod -InputObject $slp -MethodName 'Activate'
+        #refresh license status
+        $sls = Get-CimInstance -ClassName 'SoftwareLicensingService'
+        Invoke-CimMethod -InputObject $sls -MethodName 'RefreshLicenseStatus'
     }
 
     #check status
-    Get-CimInstance SoftwareLicensingProduct -CimSession $Servers |
+    Get-CimInstance SoftwareLicensingProduct -CimSession $AllServers |
         Where-Object { $_.PartialProductKey -and $_.ApplicationID -eq '55c92734-d682-4d71-983e-d6ec3f16059f' } |
         Select-Object Name, Description, LicenseStatus, PartialProductKey, PSComputerName,
                     @{N='LicenseStatusText';E={
