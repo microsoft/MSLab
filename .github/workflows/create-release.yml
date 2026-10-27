@@ -24,7 +24,7 @@ jobs:
       previous_tag: ${{ steps.bump.outputs.previous_tag }}
       new_tag: ${{ steps.bump.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
       - id: bump
         name: Bump version
         run: |
@@ -60,7 +60,7 @@ jobs:
       contents: write 
     needs: new-version
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
         with:
           fetch-depth: 0
       - name: Build and sign release scripts
@@ -99,7 +99,7 @@ jobs:
           
           Set-Content -Value $changeLogContent -Path .\changelog.md
       - name: Create new release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
         with:
           tag_name: ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
           name: MSLab ${{ needs.new-version.outputs.new_tag }} # ${{ github.ref }}
